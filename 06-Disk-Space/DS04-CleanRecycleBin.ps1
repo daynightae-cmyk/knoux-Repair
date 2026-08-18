@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 06-Disk-Space | DS04 - Clean Recycle Bin
+#  knoux Repair v2.0.2 | 06-Disk-Space | DS04 - Clean Recycle Bin
 #  Risk: DESTRUCTIVE | Confirmation required
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)

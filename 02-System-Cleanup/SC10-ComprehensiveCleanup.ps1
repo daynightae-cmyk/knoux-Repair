@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 02-System-Cleanup | SC10 - Comprehensive Cleanup
+#  knoux Repair v2.0.2 | 02-System-Cleanup | SC10 - Comprehensive Cleanup
 #  Risk: DESTRUCTIVE | Offline: Yes | Admin: Recommended
 #  Runs the full cleanup sequence (temp, system temp, update
 #  cache, thumbnail cache, WER) after a single typed confirmation.

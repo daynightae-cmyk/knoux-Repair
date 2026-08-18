@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 09-Security | SE04 - Firewall Status
+#  knoux Repair v2.0.2 | 09-Security | SE04 - Firewall Status
 #  Risk: READ_ONLY
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)

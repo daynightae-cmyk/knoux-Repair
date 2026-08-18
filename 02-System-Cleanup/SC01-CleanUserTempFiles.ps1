@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 02-System-Cleanup | SC01 - Clean User Temp Files
+#  knoux Repair v2.0.2 | 02-System-Cleanup | SC01 - Clean User Temp Files
 #  Risk: SAFE_CLEANUP | Offline: Yes
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)

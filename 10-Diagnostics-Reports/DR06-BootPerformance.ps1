@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 10-Diagnostics-Reports | DR06 - Boot Performance
+#  knoux Repair v2.0.2 | 10-Diagnostics-Reports | DR06 - Boot Performance
 #  Risk: READ_ONLY
 #  Reports last boot time, boot duration (from the event log), and
 #  current performance counters.

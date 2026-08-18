@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 09-Security | SE06 - Repair Firewall
+#  knoux Repair v2.0.2 | 09-Security | SE06 - Repair Firewall
 #  Risk: SYSTEM_REPAIR | Requires admin
 #  Repairs the Windows Firewall: exports a policy backup, ensures
 #  the firewall service (mpssvc) and base filtering engine (BFE)

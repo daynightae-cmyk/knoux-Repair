@@ -67,11 +67,45 @@ namespace KnouxRepair.Views
             _currentTool = tool;
             PlaceholderPanel.Visibility = Visibility.Collapsed;
             DetailContent.Visibility = Visibility.Visible;
-            BtnAnalyze.Visibility = tool.AnalyzeOnlySupported ? Visibility.Visible : Visibility.Collapsed;
+            
+            // Determine available actions based on capabilities
+            var hasAnalyze = tool.AnalyzeOnlySupported;
+            var hasWhatIf = tool.WhatIfSupported;
+            var isDestructive = tool.RiskLevel == "DESTRUCTIVE";
+            var isReadOnly = tool.RiskLevel == "READ_ONLY";
+            var isRepair = tool.RiskLevel == "SYSTEM_REPAIR";
+            var isSafeCleanup = tool.RiskLevel == "SAFE_CLEANUP";
+            
+            // Configure Analyze button
+            BtnAnalyze.Visibility = hasAnalyze ? Visibility.Visible : Visibility.Collapsed;
+            if (hasAnalyze)
+            {
+                if (isReadOnly)
+                    BtnAnalyze.Content = FindResource("ActionAnalyze");
+                else if (isDestructive || isSafeCleanup)
+                    BtnAnalyze.Content = FindResource("ActionPreviewChanges");
+                else
+                    BtnAnalyze.Content = FindResource("ActionAnalyzeSafely");
+            }
+            
+            // Configure Run button with semantic label
             BtnRun.Visibility = Visibility.Visible;
+            string runLabel;
+            if (isReadOnly)
+                runLabel = (string)FindResource("ActionGenerateReport");
+            else if (isRepair)
+                runLabel = (string)FindResource("ActionRepair");
+            else if (isDestructive)
+                runLabel = (string)FindResource("ActionClean");
+            else if (isSafeCleanup)
+                runLabel = (string)FindResource("ActionCleanup");
+            else
+                runLabel = (string)FindResource("ActionRunTool");
+            BtnRun.Content = runLabel;
 
             ToolIdText.Text = tool.ToolId;
-            ToolNameText.Text = tool.EnglishName;
+            ToolNameText.Text = Services.ThemeService.IsArabic(Services.SettingsService.Settings.Language) 
+                ? tool.ArabicName : tool.EnglishName;
             PurposeText.Text = tool.Purpose;
             OfflineText.Text = tool.OfflineCapability ?? (string)FindResource("ValueNone");
             BackupText.Text = tool.BackupMethod ?? (string)FindResource("ValueNone");

@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 09-Security | SE10 - Update Virus Signatures
+#  knoux Repair v2.0.2 | 09-Security | SE10 - Update Virus Signatures
 #  Risk: SYSTEM_REPAIR | Requires admin
 #  Forces Windows Defender to download the latest virus definitions.
 [CmdletBinding()]

@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 02-System-Cleanup | SC08 - Clean Large Temp Files
+#  knoux Repair v2.0.2 | 02-System-Cleanup | SC08 - Clean Large Temp Files
 #  Risk: SAFE_CLEANUP | Offline: Yes | Admin: Optional
 #  Finds and removes temp files larger than 100 MB in the user
 #  and system temp locations.

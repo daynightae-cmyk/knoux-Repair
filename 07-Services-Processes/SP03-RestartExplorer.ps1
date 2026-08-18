@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 07-Services-Processes | SP03 - Restart Explorer
+#  knoux Repair v2.0.2 | 07-Services-Processes | SP03 - Restart Explorer
 #  Risk: SYSTEM_REPAIR | Offline: Yes
 #  Restarts Windows Explorer (shell) to clear UI glitches and memory.
 #  Safe: explorer.exe is excluded from the protected-process kill list.

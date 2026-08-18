@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 05-Duplicate-Files | DF05 - Clean Duplicate Music and Video
+#  knoux Repair v2.0.2 | 05-Duplicate-Files | DF05 - Clean Duplicate Music and Video
 #  Risk: DESTRUCTIVE | Quarantine-backed
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)

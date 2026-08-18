@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 06-Disk-Space | DS03 - Find Space Hogs
+#  knoux Repair v2.0.2 | 06-Disk-Space | DS03 - Find Space Hogs
 #  Risk: READ_ONLY
 #  Ranks folders under user folders by total size using a streaming
 #  top-N folder enumerator (iterative post-order, skips reparse

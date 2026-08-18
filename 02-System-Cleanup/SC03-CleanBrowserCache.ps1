@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 02-System-Cleanup | SC03 - Clean Browser Cache
+#  knoux Repair v2.0.2 | 02-System-Cleanup | SC03 - Clean Browser Cache
 #  Risk: SAFE_CLEANUP | Offline: Yes
 #  Cleans browser cache folders PER PROFILE for the current user
 #  (Chrome, Edge, Brave, Firefox). Never touches other users or

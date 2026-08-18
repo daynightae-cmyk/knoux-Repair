@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 02-System-Cleanup | SC02 - Empty Recycle Bin
+#  knoux Repair v2.0.2 | 02-System-Cleanup | SC02 - Empty Recycle Bin
 #  Risk: DESTRUCTIVE | Offline: Yes
 #  Permanently empties the Recycle Bin for all drives after a
 #  typed confirmation. Nothing here can be restored afterwards.

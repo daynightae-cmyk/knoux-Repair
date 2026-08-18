@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 06-Disk-Space | DS08 - Run Disk Cleanup
+#  knoux Repair v2.0.2 | 06-Disk-Space | DS08 - Run Disk Cleanup
 #  Risk: SAFE_CLEANUP | Offline: Yes
 #  Runs the built-in Windows Disk Cleanup (cleanmgr) with a preset
 #  set of safe categories via an ini-driven invocation. Requires

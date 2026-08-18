@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 02-System-Cleanup | SC07 - Clean System Temp
+#  knoux Repair v2.0.2 | 02-System-Cleanup | SC07 - Clean System Temp
 #  Risk: SAFE_CLEANUP | Offline: Yes | Admin: Required
 #  Cleans C:\Windows\Temp. Files in use are skipped silently.
 [CmdletBinding()]

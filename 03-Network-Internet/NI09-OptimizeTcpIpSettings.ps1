@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 03-Network-Internet | NI09 - Optimize TCP/IP Settings
+#  knoux Repair v2.0.2 | 03-Network-Internet | NI09 - Optimize TCP/IP Settings
 #  Risk: SYSTEM_REPAIR | Offline: Yes | Admin: Required
 #  Restores sane TCP auto-tuning and congestion defaults. Saves
 #  the previous values for rollback.

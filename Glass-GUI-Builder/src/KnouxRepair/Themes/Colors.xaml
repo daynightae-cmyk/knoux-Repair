@@ -279,9 +279,14 @@
     <SolidColorBrush x:Key="BrushSkyBlue" Color="{StaticResource SkyBlueColor}"/>
     <SolidColorBrush x:Key="BrushGold" Color="{StaticResource GoldColor}"/>
     <SolidColorBrush x:Key="BrushGreen" Color="{StaticResource GreenColor}"/>
+    <SolidColorBrush x:Key="BrushGreenTransparent" Color="#3300E676"/>
     <SolidColorBrush x:Key="BrushAmber" Color="{StaticResource AmberColor}"/>
+    <SolidColorBrush x:Key="BrushAmberTransparent" Color="#33FFD740"/>
     <SolidColorBrush x:Key="BrushAmberDim" Color="#55FFD740"/>
     <SolidColorBrush x:Key="BrushRed" Color="{StaticResource RedColor}"/>
+    <SolidColorBrush x:Key="BrushRedTransparent" Color="#33FF5252"/>
+    <SolidColorBrush x:Key="BrushBlue" Color="{StaticResource RoyalBlueColor}"/>
+    <SolidColorBrush x:Key="BrushBlueTransparent" Color="#33448AFF"/>
     <SolidColorBrush x:Key="BrushMuted" Color="{StaticResource MutedColor}"/>
     <SolidColorBrush x:Key="BrushTextMain" Color="{StaticResource TextMainColor}"/>
     <SolidColorBrush x:Key="BrushDangerBg" Color="{StaticResource DangerBgColor}"/>
@@ -296,7 +301,9 @@
     <!-- Surface / Layer Colors -->
     <Color x:Key="LayerFillColorDefaultColor">#4C3A3A3A</Color>
     <Color x:Key="CardFillColorDefaultColor">#0DFFFFFF</Color>
+    <Color x:Key="CardFillColorHoverColor">#1AFFFFFF</Color>
     <Color x:Key="CardStrokeDefaultColor">#19000000</Color>
+    <Color x:Key="CardStrokeHoverColor">#26000000</Color>
     <Color x:Key="ControlFillColorDefaultColor">#0FFFFFFF</Color>
     <Color x:Key="ControlStrokeDefaultColor">#12FFFFFF</Color>
     <Color x:Key="DividerStrokeDefaultColor">#15FFFFFF</Color>
@@ -316,7 +323,9 @@
     <!-- Fluent Brushes -->
     <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="{StaticResource LayerFillColorDefaultColor}"/>
     <SolidColorBrush x:Key="CardFillColorDefaultBrush" Color="{StaticResource CardFillColorDefaultColor}"/>
+    <SolidColorBrush x:Key="CardFillColorHoverBrush" Color="{StaticResource CardFillColorHoverColor}"/>
     <SolidColorBrush x:Key="CardStrokeDefaultBrush" Color="{StaticResource CardStrokeDefaultColor}"/>
+    <SolidColorBrush x:Key="CardStrokeHoverBrush" Color="{StaticResource CardStrokeHoverColor}"/>
     <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="{StaticResource ControlFillColorDefaultColor}"/>
     <SolidColorBrush x:Key="ControlStrokeDefaultBrush" Color="{StaticResource ControlStrokeDefaultColor}"/>
     <SolidColorBrush x:Key="DividerStrokeDefaultBrush" Color="{StaticResource DividerStrokeDefaultColor}"/>

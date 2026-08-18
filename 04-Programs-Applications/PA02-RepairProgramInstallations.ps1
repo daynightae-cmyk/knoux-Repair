@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 04-Programs-Applications | PA02 - Repair Program Installations
+#  knoux Repair v2.0.2 | 04-Programs-Applications | PA02 - Repair Program Installations
 #  Risk: SYSTEM_REPAIR | Admin: Required
 #  Repairs common obstacles to clean installs of user programs:
 #  clears the per-user Windows Installer cache lock, removes stale

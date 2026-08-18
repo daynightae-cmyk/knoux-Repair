@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 09-Security | SE08 - Run Antivirus Scan
+#  knoux Repair v2.0.2 | 09-Security | SE08 - Run Antivirus Scan
 #  Risk: SYSTEM_REPAIR | Requires admin
 #  Runs a Windows Defender scan (Full by default; pass -Quick for a
 #  quick scan). This can take a long time on large disks.

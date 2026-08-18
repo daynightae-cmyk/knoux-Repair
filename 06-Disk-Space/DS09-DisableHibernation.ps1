@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 06-Disk-Space | DS09 - Disable Hibernation
+#  knoux Repair v2.0.2 | 06-Disk-Space | DS09 - Disable Hibernation
 #  Risk: SAFE_CLEANUP | Requires admin
 #  Disables hibernation (frees the hiberfil.sys file). Shows the
 #  reclaimed space. Can be re-enabled with `powercfg /h on`.

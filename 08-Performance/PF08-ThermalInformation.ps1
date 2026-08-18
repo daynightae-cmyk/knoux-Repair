@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 08-Performance | PF08 - Thermal Information
+#  knoux Repair v2.0.2 | 08-Performance | PF08 - Thermal Information
 #  Risk: READ_ONLY
 #  Reads thermal zone temperature via ACPI WMI when the hardware
 #  exposes it. On most desktops this class is absent; the tool

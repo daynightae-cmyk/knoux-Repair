@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 08-Performance | PF05 - Disk & TRIM Audit
+#  knoux Repair v2.0.2 | 08-Performance | PF05 - Disk & TRIM Audit
 #  Risk: READ_ONLY
 #  Reports disk free space, whether the media is solid state, and
 #  the TRIM setting (DisableDeleteNotify) via fsutil when readable.

@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 09-Security | SE03 - Repair Windows Defender
+#  knoux Repair v2.0.2 | 09-Security | SE03 - Repair Windows Defender
 #  Risk: SYSTEM_REPAIR | Requires admin
 #  Repairs Microsoft Defender without ever stopping or disabling it:
 #  ensures the WinDefend service is set to Automatic and running,

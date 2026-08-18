@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 04-Programs-Applications | PA10 - Programs Report
+#  knoux Repair v2.0.2 | 04-Programs-Applications | PA10 - Programs Report
 #  Risk: READ_ONLY | Offline: Yes
 #  Aggregates program-health facts into one report: installed count,
 #  startup count, broken shortcuts, missing runtimes, and recent installs.

@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 10-Diagnostics-Reports | DR08 - Disk SMART Report
+#  knoux Repair v2.0.2 | 10-Diagnostics-Reports | DR08 - Disk SMART Report
 #  Risk: READ_ONLY
 #  Shows SMART health status for physical disks. Read-only.
 [CmdletBinding()]

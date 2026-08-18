@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 07-Services-Processes | SP10 - Services & Processes Report
+#  knoux Repair v2.0.2 | 07-Services-Processes | SP10 - Services & Processes Report
 #  Risk: READ_ONLY
 #  Generates a full diagnostic report on services and processes:
 #  counts by state/start-mode, top consumers, suspicious entries,

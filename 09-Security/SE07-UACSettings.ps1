@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 09-Security | SE07 - UAC Settings
+#  knoux Repair v2.0.2 | 09-Security | SE07 - UAC Settings
 #  Risk: SYSTEM_REPAIR | Requires admin
 #  Shows the current UAC configuration and can only ever ENABLE
 #  UAC (restore the default level) after a registry backup.

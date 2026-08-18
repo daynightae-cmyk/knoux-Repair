@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 07-Services-Processes | SP07 - Find Service Dependencies
+#  knoux Repair v2.0.2 | 07-Services-Processes | SP07 - Find Service Dependencies
 #  Risk: READ_ONLY
 #  Shows the dependency tree for a requested service or lists services
 #  that have dependencies. Read-only.

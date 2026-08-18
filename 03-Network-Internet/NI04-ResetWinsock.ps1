@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 03-Network-Internet | NI04 - Reset Winsock
+#  knoux Repair v2.0.2 | 03-Network-Internet | NI04 - Reset Winsock
 #  Risk: SYSTEM_REPAIR | Offline: Yes | Admin: Required
 #  netsh winsock reset. A restart is required afterwards.
 [CmdletBinding()]

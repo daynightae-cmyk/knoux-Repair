@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 07-Services-Processes | SP06 - Restart Windows Update Services
+#  knoux Repair v2.0.2 | 07-Services-Processes | SP06 - Restart Windows Update Services
 #  Risk: SYSTEM_REPAIR | Requires admin
 #  Stops, then restarts the Windows Update services. Preserves the
 #  original start types. Safe (no deletion, no cache clearing here).

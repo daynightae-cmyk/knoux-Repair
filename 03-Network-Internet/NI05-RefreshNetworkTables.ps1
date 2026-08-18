@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 03-Network-Internet | NI05 - Refresh Network Tables
+#  knoux Repair v2.0.2 | 03-Network-Internet | NI05 - Refresh Network Tables
 #  Risk: SAFE_CLEANUP | Offline: Yes | Admin: Required
 #  Flushes NetBIOS cache, ARP table and re-registers DNS records.
 [CmdletBinding()]

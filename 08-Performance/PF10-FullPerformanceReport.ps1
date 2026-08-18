@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 08-Performance | PF10 - Full Performance Report
+#  knoux Repair v2.0.2 | 08-Performance | PF10 - Full Performance Report
 #  Risk: READ_ONLY
 #  Aggregates boot, startup, memory, disk, power plan, and thermal
 #  data into one performance report saved under raw-output.

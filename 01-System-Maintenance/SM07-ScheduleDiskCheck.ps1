@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 01-System-Maintenance | SM07 - Schedule Disk Check
+#  knoux Repair v2.0.2 | 01-System-Maintenance | SM07 - Schedule Disk Check
 #  Risk: REBOOT_REQUIRED | Offline: Yes | Admin: Required
 #  Marks the system volume dirty so autochk runs a full chkdsk
 #  (/f /r) at the next boot, then verifies the volume is dirty.

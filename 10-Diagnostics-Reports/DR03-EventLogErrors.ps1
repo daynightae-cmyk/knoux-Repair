@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 10-Diagnostics-Reports | DR03 - Event Log Errors
+#  knoux Repair v2.0.2 | 10-Diagnostics-Reports | DR03 - Event Log Errors
 #  Risk: READ_ONLY
 #  Lists recent Error-level events from System and Application logs.
 [CmdletBinding()]

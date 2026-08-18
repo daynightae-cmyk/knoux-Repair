@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 10-Diagnostics-Reports | DR04 - Reliability Report
+#  knoux Repair v2.0.2 | 10-Diagnostics-Reports | DR04 - Reliability Report
 #  Risk: READ_ONLY
 #  Summarizes Windows reliability records from Win32_ReliabilityRecords
 #  (crashes, warnings, failures) over the last N days.
