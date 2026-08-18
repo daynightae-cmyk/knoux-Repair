@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using KnouxRepair.Models;
 using KnouxRepair.ViewModels;
+using KnouxRepair.Mvvm;
 
 namespace KnouxRepair.Views
 {
