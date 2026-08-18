@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 07-Services-Processes | SP05 - Reset Service Start Types
+#  knoux Repair v2.0.2 | 07-Services-Processes | SP05 - Reset Service Start Types
 #  Risk: SYSTEM_REPAIR | Requires admin
 #  Resets the start type of a set of well-known Windows services to
 #  Microsoft defaults. Current start modes are backed up to Backups\

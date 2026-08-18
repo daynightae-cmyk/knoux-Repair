@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 10-Diagnostics-Reports | DR02 - Hardware Summary
+#  knoux Repair v2.0.2 | 10-Diagnostics-Reports | DR02 - Hardware Summary
 #  Risk: READ_ONLY
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)

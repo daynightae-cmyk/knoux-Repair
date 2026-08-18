@@ -50,11 +50,16 @@ namespace KnouxRepair.ViewModels
             var cats = _allTools.Select(t => t.Category).Distinct().OrderBy(c => c);
             foreach (var cat in cats)
             {
-                var display = cat;
-                var dash = cat.IndexOf('-');
-                if (dash >= 0) display = cat.Substring(dash + 1).Replace('-', ' ');
+                var display = FormatCategoryDisplay(cat);
                 Categories.Add(display);
             }
+        }
+
+        private static string FormatCategoryDisplay(string category)
+        {
+            var dash = category.IndexOf('-');
+            if (dash >= 0) return category.Substring(dash + 1).Replace('-', ' ');
+            return category;
         }
 
         public void FilterTools()
@@ -64,13 +69,8 @@ namespace KnouxRepair.ViewModels
 
             if (SelectedCategory != "All")
             {
-                query = query.Where(t =>
-                {
-                    var display = t.Category;
-                    var dash = t.Category.IndexOf('-');
-                    if (dash >= 0) display = t.Category.Substring(dash + 1).Replace('-', ' ');
-                    return display == SelectedCategory;
-                });
+                var selectedCanonical = GetCanonicalCategoryFromDisplay(SelectedCategory);
+                query = query.Where(t => t.Category == selectedCanonical);
             }
 
             if (!string.IsNullOrWhiteSpace(FilterText))
@@ -79,6 +79,7 @@ namespace KnouxRepair.ViewModels
                 query = query.Where(t =>
                     (t.ToolId != null && t.ToolId.ToLower().Contains(f)) ||
                     (t.EnglishName != null && t.EnglishName.ToLower().Contains(f)) ||
+                    (t.ArabicName != null && t.ArabicName.Contains(f)) ||
                     (t.Purpose != null && t.Purpose.ToLower().Contains(f)));
             }
 
@@ -86,6 +87,17 @@ namespace KnouxRepair.ViewModels
                 FilteredTools.Add(tool);
 
             OnPropertyChanged(nameof(TotalFiltered));
+        }
+
+        private string GetCanonicalCategoryFromDisplay(string display)
+        {
+            var cats = _allTools.Select(t => t.Category).Distinct();
+            foreach (var cat in cats)
+            {
+                if (FormatCategoryDisplay(cat) == display)
+                    return cat;
+            }
+            return display;
         }
     }
 }

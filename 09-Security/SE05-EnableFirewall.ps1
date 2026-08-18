@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 09-Security | SE05 - Enable Firewall
+#  knoux Repair v2.0.2 | 09-Security | SE05 - Enable Firewall
 #  Risk: SYSTEM_REPAIR | Requires admin
 #  Enables Windows Firewall on all profiles.
 [CmdletBinding()]

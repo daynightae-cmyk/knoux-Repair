@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 08-Performance | PF03 - Power Plan Audit
+#  knoux Repair v2.0.2 | 08-Performance | PF03 - Power Plan Audit
 #  Risk: READ_ONLY
 #  Audits all power plans and shows which one is active. Read-only.
 [CmdletBinding()]

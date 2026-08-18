@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 01-System-Maintenance | SM03 - Check Component Store
+#  knoux Repair v2.0.2 | 01-System-Maintenance | SM03 - Check Component Store
 #  Risk: READ_ONLY | Offline: Yes | Admin: Required
 #  Runs DISM /Online /Cleanup-Image /CheckHealth: a fast check that
 #  reports whether corruption was flagged by a prior scan. It does

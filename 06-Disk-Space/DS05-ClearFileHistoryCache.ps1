@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 06-Disk-Space | DS05 - Clear File History Cache
+#  knoux Repair v2.0.2 | 06-Disk-Space | DS05 - Clear File History Cache
 #  Risk: SAFE_CLEANUP | Quarantine-backed
 #  Clears the File History cache if it is disabled/unused. If File
 #  History is active, reports instead of clearing.

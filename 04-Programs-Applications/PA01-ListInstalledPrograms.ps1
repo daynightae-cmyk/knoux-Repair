@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 04-Programs-Applications | PA01 - List Installed Programs
+#  knoux Repair v2.0.2 | 04-Programs-Applications | PA01 - List Installed Programs
 #  Risk: READ_ONLY
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)

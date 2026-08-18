@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 04-Programs-Applications | PA09 - Check Program Updates
+#  knoux Repair v2.0.2 | 04-Programs-Applications | PA09 - Check Program Updates
 #  Risk: READ_ONLY | Offline: False | Needs network
 #  Uses winget to list installed programs that have newer versions
 #  available. Read-only: reports only, never updates.

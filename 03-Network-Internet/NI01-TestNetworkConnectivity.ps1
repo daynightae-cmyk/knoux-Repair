@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 03-Network-Internet | NI01 - Test Network Connectivity
+#  knoux Repair v2.0.2 | 03-Network-Internet | NI01 - Test Network Connectivity
 #  Risk: READ_ONLY | Offline: Partial (needs a reachable network)
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)

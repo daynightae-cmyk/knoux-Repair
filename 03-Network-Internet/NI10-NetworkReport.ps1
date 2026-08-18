@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 03-Network-Internet | NI10 - Network Report
+#  knoux Repair v2.0.2 | 03-Network-Internet | NI10 - Network Report
 #  Risk: READ_ONLY | Offline: Yes
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)

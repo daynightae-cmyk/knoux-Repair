@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 09-Security | SE09 - Security Report
+#  knoux Repair v2.0.2 | 09-Security | SE09 - Security Report
 #  Risk: READ_ONLY
 #  Comprehensive security report: Defender status, signatures,
 #  firewall profiles, UAC, recent threat detections. Read-only.

@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 07-Services-Processes | SP09 - Restore Service Start Types
+#  knoux Repair v2.0.2 | 07-Services-Processes | SP09 - Restore Service Start Types
 #  Risk: SYSTEM_REPAIR | Requires admin
 #  Restores service start types previously backed up by SP08 (Service
 #  Recommendations). It scans the Reports tree for service-start-backup.json

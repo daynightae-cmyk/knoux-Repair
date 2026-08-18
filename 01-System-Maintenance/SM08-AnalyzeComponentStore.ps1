@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 01-System-Maintenance | SM08 - Analyze Component Store
+#  knoux Repair v2.0.2 | 01-System-Maintenance | SM08 - Analyze Component Store
 #  Risk: READ_ONLY | Offline: Yes | Admin: Required
 #  Runs DISM /Online /Cleanup-Image /AnalyzeComponentStore to report
 #  WinSxS component store size and whether cleanup is recommended.

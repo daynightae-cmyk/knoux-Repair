@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 06-Disk-Space | DS07 - Check Disk Health
+#  knoux Repair v2.0.2 | 06-Disk-Space | DS07 - Check Disk Health
 #  Risk: READ_ONLY
 #  Checks disk health via Win32_DiskDrive (SMART status), without
 #  any destructive action. Reports per-physical-disk status.

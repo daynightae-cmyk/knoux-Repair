@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 03-Network-Internet | NI06 - Test Connection Quality
+#  knoux Repair v2.0.2 | 03-Network-Internet | NI06 - Test Connection Quality
 #  Risk: READ_ONLY | Offline: Partial (needs internet)
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)

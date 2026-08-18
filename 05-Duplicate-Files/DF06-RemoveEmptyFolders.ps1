@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 05-Duplicate-Files | DF06 - Remove Empty Folders
+#  knoux Repair v2.0.2 | 05-Duplicate-Files | DF06 - Remove Empty Folders
 #  Risk: SAFE_CLEANUP | Quarantine-backed
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)

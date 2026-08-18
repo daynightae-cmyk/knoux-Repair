@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 04-Programs-Applications | PA08 - Repair Program Uninstaller
+#  knoux Repair v2.0.2 | 04-Programs-Applications | PA08 - Repair Program Uninstaller
 #  Risk: SYSTEM_REPAIR | Offline: Yes
 #  Re-registers the Windows Installer and clears common blockers that
 #  prevent programs from uninstalling cleanly: dead installer mutexes,

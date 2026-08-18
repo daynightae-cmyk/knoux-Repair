@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 09-Security | SE02 - Enable Real-time Protection
+#  knoux Repair v2.0.2 | 09-Security | SE02 - Enable Real-time Protection
 #  Risk: SYSTEM_REPAIR | Requires admin
 #  Enables Windows Defender real-time protection and restores its
 #  service startup if it was disabled.

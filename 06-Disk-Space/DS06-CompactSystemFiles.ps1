@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 06-Disk-Space | DS06 - Compact System Files
+#  knoux Repair v2.0.2 | 06-Disk-Space | DS06 - Compact System Files
 #  Risk: SAFE_CLEANUP | Quarantine-backed
 #  CompactOS: compresses Windows system files (binary-level). Runs
 #  `compact /compactos:always`; reports size impact. Requires admin.

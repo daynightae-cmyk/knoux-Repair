@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 05-Duplicate-Files | DF09 - List Duplicate System Files
+#  knoux Repair v2.0.2 | 05-Duplicate-Files | DF09 - List Duplicate System Files
 #  Risk: READ_ONLY
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)

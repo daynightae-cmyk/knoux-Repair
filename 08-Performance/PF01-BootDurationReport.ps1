@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 08-Performance | PF01 - Boot Duration Report
+#  knoux Repair v2.0.2 | 08-Performance | PF01 - Boot Duration Report
 #  Risk: READ_ONLY
 #  Measures the current boot duration and system uptime using
 #  performance data and the boot event log when available.

@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 09-Security | SE01 - Security Audit
+#  knoux Repair v2.0.2 | 09-Security | SE01 - Security Audit
 #  Risk: READ_ONLY
 #  Reports the status of key security controls: real-time protection,
 #  firewall (all profiles), UAC, and Defender signature age.

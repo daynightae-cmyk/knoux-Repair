@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 03-Network-Internet | NI08 - Reset Network Stack
+#  knoux Repair v2.0.2 | 03-Network-Internet | NI08 - Reset Network Stack
 #  Risk: SYSTEM_REPAIR | Offline: Yes | Admin: Required
 #  netsh winsock reset + netsh int ip reset. Restart required.
 [CmdletBinding()]

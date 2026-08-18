@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 10-Diagnostics-Reports | DR09 - Performance Snapshot
+#  knoux Repair v2.0.2 | 10-Diagnostics-Reports | DR09 - Performance Snapshot
 #  Risk: READ_ONLY
 #  Live snapshot of CPU, memory, disk, and network performance.
 [CmdletBinding()]

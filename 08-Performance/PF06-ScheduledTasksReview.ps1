@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 08-Performance | PF06 - Scheduled Tasks Review
+#  knoux Repair v2.0.2 | 08-Performance | PF06 - Scheduled Tasks Review
 #  Risk: READ_ONLY
 #  Reviews scheduled tasks, flagging tasks that failed to run or
 #  tasks that are enabled and might affect responsiveness.

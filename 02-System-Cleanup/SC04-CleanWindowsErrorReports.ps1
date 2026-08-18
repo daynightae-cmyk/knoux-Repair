@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 02-System-Cleanup | SC04 - Clean Windows Error Reports
+#  knoux Repair v2.0.2 | 02-System-Cleanup | SC04 - Clean Windows Error Reports
 #  Risk: SAFE_CLEANUP | Offline: Yes | Admin: Recommended
 #  Cleans WER (Windows Error Reporting) files under ProgramData.
 #  Never touches CBS.log or DISM.log.

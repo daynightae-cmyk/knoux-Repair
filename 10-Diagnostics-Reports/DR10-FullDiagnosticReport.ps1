@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 10-Diagnostics-Reports | DR10 - Full Diagnostic Report
+#  knoux Repair v2.0.2 | 10-Diagnostics-Reports | DR10 - Full Diagnostic Report
 #  Risk: READ_ONLY
 #  Combines system, hardware, disk, memory, and event information into
 #  one report. Read-only.

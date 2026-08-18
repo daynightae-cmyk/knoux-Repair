@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 10-Diagnostics-Reports | DR05 - Driver Report
+#  knoux Repair v2.0.2 | 10-Diagnostics-Reports | DR05 - Driver Report
 #  Risk: READ_ONLY
 #  Lists installed signed drivers and flags drivers with problems.
 [CmdletBinding()]

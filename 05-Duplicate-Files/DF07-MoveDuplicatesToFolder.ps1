@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 05-Duplicate-Files | DF07 - Move Duplicates to Folder
+#  knoux Repair v2.0.2 | 05-Duplicate-Files | DF07 - Move Duplicates to Folder
 #  Risk: SAFE_CLEANUP | Backup-backed
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)

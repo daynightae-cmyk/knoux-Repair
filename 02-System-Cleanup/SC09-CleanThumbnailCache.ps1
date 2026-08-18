@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 02-System-Cleanup | SC09 - Clean Thumbnail Cache
+#  knoux Repair v2.0.2 | 02-System-Cleanup | SC09 - Clean Thumbnail Cache
 #  Risk: SAFE_CLEANUP | Offline: Yes
 #  Removes the Explorer thumbnail cache (regenerated on demand).
 [CmdletBinding()]

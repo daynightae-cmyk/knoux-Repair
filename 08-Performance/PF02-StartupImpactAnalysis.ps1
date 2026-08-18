@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 08-Performance | PF02 - Startup Impact Analysis
+#  knoux Repair v2.0.2 | 08-Performance | PF02 - Startup Impact Analysis
 #  Risk: READ_ONLY
 #  Lists startup commands from all locations (Run keys, startup
 #  folders, services) so the user can spot impact on boot time.

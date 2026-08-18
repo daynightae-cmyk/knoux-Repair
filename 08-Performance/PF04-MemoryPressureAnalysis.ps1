@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 08-Performance | PF04 - Memory Pressure Analysis
+#  knoux Repair v2.0.2 | 08-Performance | PF04 - Memory Pressure Analysis
 #  Risk: READ_ONLY
 #  Reports physical memory usage, page file pressure, and the top
 #  processes by working set.

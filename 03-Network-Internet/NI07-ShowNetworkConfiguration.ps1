@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 03-Network-Internet | NI07 - Show Network Configuration
+#  knoux Repair v2.0.2 | 03-Network-Internet | NI07 - Show Network Configuration
 #  Risk: READ_ONLY | Offline: Yes
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)

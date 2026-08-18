@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 01-System-Maintenance | SM04 - Scan System Image
+#  knoux Repair v2.0.2 | 01-System-Maintenance | SM04 - Scan System Image
 #  Risk: READ_ONLY | Offline: Yes | Admin: Required
 #  Runs DISM /Online /Cleanup-Image /ScanHealth: a full read-only
 #  scan of the component store. Does not repair.

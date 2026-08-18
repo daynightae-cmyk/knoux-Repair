@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 08-Performance | PF07 - Resource Sampling
+#  knoux Repair v2.0.2 | 08-Performance | PF07 - Resource Sampling
 #  Risk: READ_ONLY
 #  Samples CPU, memory, and disk activity over a short window and
 #  reports averages and peaks.

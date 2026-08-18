@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 08-Performance | PF09 - Visual Effects Configuration
+#  knoux Repair v2.0.2 | 08-Performance | PF09 - Visual Effects Configuration
 #  Risk: SAFE_CLEANUP
 #  Reads the current visual effects setting and can optionally
 #  switch to 'adjust for best performance' after backing up the

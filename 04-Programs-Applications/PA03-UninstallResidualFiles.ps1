@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 04-Programs-Applications | PA03 - Uninstall Residual Files
+#  knoux Repair v2.0.2 | 04-Programs-Applications | PA03 - Uninstall Residual Files
 #  Risk: DESTRUCTIVE | Quarantine-backed
 #  Detects leftover folders in %ProgramFiles% / %ProgramFiles(x86)% whose
 #  program is no longer registered in the Uninstall registry hive.

@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 07-Services-Processes | SP04 - Cleanup Hanging Processes
+#  knoux Repair v2.0.2 | 07-Services-Processes | SP04 - Cleanup Hanging Processes
 #  Risk: SYSTEM_REPAIR | Offline: Yes
 #  Lists hung (not-responding) user processes and offers to end them.
 #  System/protected processes are excluded.

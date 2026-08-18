@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 03-Network-Internet | NI02 - Renew IP Address
+#  knoux Repair v2.0.2 | 03-Network-Internet | NI02 - Renew IP Address
 #  Risk: SAFE_CLEANUP | Offline: Yes | Admin: Required
 #  ipconfig /release then /renew on all adapters.
 [CmdletBinding()]

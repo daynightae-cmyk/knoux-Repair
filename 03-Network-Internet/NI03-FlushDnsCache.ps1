@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 03-Network-Internet | NI03 - Flush DNS Cache
+#  knoux Repair v2.0.2 | 03-Network-Internet | NI03 - Flush DNS Cache
 #  Risk: SAFE_CLEANUP | Offline: Yes | Admin: Required
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)

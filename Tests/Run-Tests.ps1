@@ -1,6 +1,6 @@
 ﻿#Requires -Version 5.1
 # ============================================================
-#  knoux Repair v2.0 | Tests\Run-Tests.ps1
+#  knoux Repair v2.0.2 | Tests\Run-Tests.ps1
 #  Self-contained validation suite (51 tests). No external
 #  dependencies. Writes Tests\TEST-RESULTS.txt and sets the
 #  process exit code to the number of failed tests.
@@ -72,7 +72,7 @@ function Invoke-KnouxBoundedChild {
     return [pscustomobject]@{ TimedOut = (-not $finished); ExitCode = if ($finished) { $process.ExitCode } else { $null }; Stdout = $stdout; Stderr = $stderr; ProcessId = $process.Id }
 }
 
-Write-Host 'knoux Repair v2.0 | Test suite' -ForegroundColor Cyan
+Write-Host 'knoux Repair v2.0.2 | Test suite' -ForegroundColor Cyan
 Write-Host '================================' -ForegroundColor Cyan
 
 $toolFiles = Get-ToolFiles

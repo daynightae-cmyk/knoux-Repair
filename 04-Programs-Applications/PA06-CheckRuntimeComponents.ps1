@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 04-Programs-Applications | PA06 - Check Runtime Components
+#  knoux Repair v2.0.2 | 04-Programs-Applications | PA06 - Check Runtime Components
 #  Risk: READ_ONLY | Offline: Yes
 #  Reports the presence/version of common runtime components:
 #  .NET Framework, Microsoft Visual C++ Redistributables, and

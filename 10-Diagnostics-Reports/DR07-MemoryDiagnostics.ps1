@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 10-Diagnostics-Reports | DR07 - Memory Diagnostics
+#  knoux Repair v2.0.2 | 10-Diagnostics-Reports | DR07 - Memory Diagnostics
 #  Risk: READ_ONLY
 #  Reports physical memory configuration and usage. Read-only.
 [CmdletBinding()]

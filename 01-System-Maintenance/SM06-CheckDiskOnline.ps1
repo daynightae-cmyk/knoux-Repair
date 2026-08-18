@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0 | 01-System-Maintenance | SM06 - Check Disk Online
+#  knoux Repair v2.0.2 | 01-System-Maintenance | SM06 - Check Disk Online
 #  Risk: READ_ONLY | Offline: Yes | Admin: Required
 #  Runs chkdsk /scan on the system drive: online read-only scan.
 #  Use SM07 to schedule a full repair at the next boot.
