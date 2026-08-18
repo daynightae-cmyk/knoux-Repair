@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/diagnosticconsole.tsx","./src/components/placeholderpage.tsx","./src/components/sidebar.tsx","./src/components/splashscreen.tsx","./src/components/toolgrid.tsx","./src/data/tools.ts"],"version":"5.9.3"}
