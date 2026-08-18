@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using KnouxRepair.Models;
+using KnouxRepair.Mappers;
 
 namespace KnouxRepair.Views
 {
@@ -14,10 +15,12 @@ namespace KnouxRepair.Views
         private static readonly Brush RedBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x5B, 0x69));
         private static readonly Brush AmberBrush = new SolidColorBrush(Color.FromRgb(0xF4, 0xB9, 0x42));
         private static readonly Brush BlueBrush = new SolidColorBrush(Color.FromRgb(0x34, 0x78, 0xF6));
+        private static readonly Brush TealBrush = new SolidColorBrush(Color.FromRgb(0x20, 0xC2, 0xA8));
         private static readonly Brush MutedBrush = new SolidColorBrush(Color.FromRgb(0x9F, 0xB2, 0xC8));
         private static readonly Brush DangerBgBrush = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0x5B, 0x69));
         private static readonly Brush SuccessBgBrush = new SolidColorBrush(Color.FromArgb(0x33, 0x4C, 0xE3, 0x8A));
         private static readonly Brush AmberDimBrush = new SolidColorBrush(Color.FromArgb(0x55, 0xF4, 0xB9, 0x42));
+        private static readonly Brush TealBgBrush = new SolidColorBrush(Color.FromArgb(0x33, 0x20, 0xC2, 0xA8));
 
         public ToolDetailPanel()
         {
@@ -68,6 +71,11 @@ namespace KnouxRepair.Views
             PlaceholderPanel.Visibility = Visibility.Collapsed;
             DetailContent.Visibility = Visibility.Visible;
             
+            // Use the mapper for semantic action labels
+            var primaryActionLabel = ActionLabelMapper.GetPrimaryAction(tool);
+            var secondaryAction1 = ActionLabelMapper.GetSecondaryAction1(tool);
+            var secondaryAction2 = ActionLabelMapper.GetSecondaryAction2(tool);
+            
             // Determine available actions based on capabilities
             var hasAnalyze = tool.AnalyzeOnlySupported;
             var hasWhatIf = tool.WhatIfSupported;
@@ -76,7 +84,7 @@ namespace KnouxRepair.Views
             var isRepair = tool.RiskLevel == "SYSTEM_REPAIR";
             var isSafeCleanup = tool.RiskLevel == "SAFE_CLEANUP";
             
-            // Configure Analyze button
+            // Configure Analyze button visibility and label
             BtnAnalyze.Visibility = hasAnalyze ? Visibility.Visible : Visibility.Collapsed;
             if (hasAnalyze)
             {
@@ -88,20 +96,9 @@ namespace KnouxRepair.Views
                     BtnAnalyze.Content = FindResource("ActionAnalyzeSafely");
             }
             
-            // Configure Run button with semantic label
+            // Configure Run button with semantic label from mapper
             BtnRun.Visibility = Visibility.Visible;
-            string runLabel;
-            if (isReadOnly)
-                runLabel = (string)FindResource("ActionGenerateReport");
-            else if (isRepair)
-                runLabel = (string)FindResource("ActionRepair");
-            else if (isDestructive)
-                runLabel = (string)FindResource("ActionClean");
-            else if (isSafeCleanup)
-                runLabel = (string)FindResource("ActionCleanup");
-            else
-                runLabel = (string)FindResource("ActionRunTool");
-            BtnRun.Content = runLabel;
+            BtnRun.Content = GetLocalizedActionLabel(primaryActionLabel);
 
             ToolIdText.Text = tool.ToolId;
             ToolNameText.Text = Services.ThemeService.IsArabic(Services.SettingsService.Settings.Language) 
@@ -115,39 +112,34 @@ namespace KnouxRepair.Views
                 : (string)FindResource("ValueNotSupported");
             PathText.Text = tool.ScriptPath ?? "";
 
-            // Risk badge color
+            // Risk badge using mapper
             var risk = tool.RiskLevel?.ToUpper() ?? "";
-            RiskText.Text = risk.Replace("_", " ");
-            switch (risk)
-            {
-                case "READ_ONLY":
-                    RiskBadge.Background = SuccessBgBrush;
-                    RiskBadge.BorderBrush = GreenBrush;
-                    RiskBadge.BorderThickness = new Thickness(0.5);
-                    RiskText.Foreground = GreenBrush;
-                    break;
-                case "DESTRUCTIVE":
-                    RiskBadge.Background = DangerBgBrush;
-                    RiskBadge.BorderBrush = RedBrush;
-                    RiskBadge.BorderThickness = new Thickness(0.5);
-                    RiskText.Foreground = RedBrush;
-                    break;
-                case "SYSTEM_REPAIR":
-                    RiskBadge.Background = new SolidColorBrush(Color.FromArgb(0x33, 0xF4, 0xB9, 0x42));
-                    RiskBadge.BorderBrush = AmberBrush;
-                    RiskBadge.BorderThickness = new Thickness(0.5);
-                    RiskText.Foreground = AmberBrush;
-                    break;
-                default:
-                    RiskBadge.Background = new SolidColorBrush(Color.FromArgb(0x33, 0x34, 0x78, 0xF6));
-                    RiskBadge.BorderBrush = BlueBrush;
-                    RiskBadge.BorderThickness = new Thickness(0.5);
-                    RiskText.Foreground = BlueBrush;
-                    break;
-            }
+            RiskText.Text = RiskPresentationMapper.GetLabel(risk);
+            RiskBadge.Background = RiskPresentationMapper.GetBackgroundBrush(risk);
+            RiskBadge.BorderBrush = RiskPresentationMapper.GetBorderBrush(risk);
+            RiskBadge.BorderThickness = new Thickness(0.5);
+            RiskText.Foreground = RiskPresentationMapper.GetForegroundBrush(risk);
 
             AdminBadge.Visibility = tool.RequiresAdmin ? Visibility.Visible : Visibility.Collapsed;
             RestartBadge.Visibility = tool.RequiresRestart ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>
+        /// Gets localized action label from resource dictionary or falls back to English.
+        /// </summary>
+        private string GetLocalizedActionLabel(string actionKey)
+        {
+            try
+            {
+                var resourceKey = "Action" + actionKey.Replace(" ", "").Replace("-", "");
+                var resource = TryFindResource(resourceKey);
+                if (resource != null)
+                    return resource.ToString();
+            }
+            catch { }
+            
+            // Fallback mappings for common labels
+            return actionKey;
         }
 
         private ToolInfo GetCurrentTool() => DataContext as ToolInfo;
@@ -164,17 +156,28 @@ namespace KnouxRepair.Views
             var tool = GetCurrentTool();
             if (tool != null)
             {
-                var opts = MessageBoxOptions.DefaultDesktopOnly;
-                if (Services.ThemeService.IsArabic(Services.SettingsService.Settings.Language))
-                    opts |= MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign;
+                // Show confirmation for destructive or admin operations
+                var requiresConfirmation = tool.RiskLevel == "DESTRUCTIVE" || 
+                                          tool.RiskLevel == "SYSTEM_REPAIR" ||
+                                          tool.RequiresAdmin ||
+                                          tool.RequiresRestart;
 
-                var result = MessageBox.Show(
-                    (string)FindResource("ConfirmRunMessage"),
-                    (string)FindResource("ConfirmRunTitle"),
-                    MessageBoxButton.YesNo, MessageBoxImage.Warning,
-                    MessageBoxResult.No, opts);
-                if (result == MessageBoxResult.Yes)
-                    ToolExecutionRequested?.Invoke(tool.ScriptPath, false);
+                if (requiresConfirmation)
+                {
+                    var opts = MessageBoxOptions.DefaultDesktopOnly;
+                    if (Services.ThemeService.IsArabic(Services.SettingsService.Settings.Language))
+                        opts |= MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign;
+
+                    var result = MessageBox.Show(
+                        (string)FindResource("ConfirmRunMessage"),
+                        (string)FindResource("ConfirmRunTitle"),
+                        MessageBoxButton.YesNo, MessageBoxImage.Warning,
+                        MessageBoxResult.No, opts);
+                    if (result != MessageBoxResult.Yes)
+                        return;
+                }
+
+                ToolExecutionRequested?.Invoke(tool.ScriptPath, false);
             }
         }
     }
