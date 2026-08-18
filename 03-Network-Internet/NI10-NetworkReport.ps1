@@ -29,15 +29,22 @@ try {
         $netEAP = $ErrorActionPreference
         $ErrorActionPreference = 'SilentlyContinue'
         try { $ad = @(Get-NetAdapter -InterfaceIndex $c.InterfaceIndex)[0] } catch { $ad = $null } finally { $ErrorActionPreference = $netEAP }
+        $interface = if ($c.PSObject.Properties['InterfaceAlias']) { [string]$c.InterfaceAlias } else { '' }
+        $index = if ($c.PSObject.Properties['InterfaceIndex']) { $c.InterfaceIndex } else { $null }
+        $ipv4 = if ($c.PSObject.Properties['IPv4Address'] -and $c.IPv4Address) { (($c.IPv4Address | ForEach-Object { $_.IPAddress }) -join ', ') } else { '' }
+        $gateway = if ($c.PSObject.Properties['IPv4DefaultGateway'] -and $c.IPv4DefaultGateway) { [string]$c.IPv4DefaultGateway.NextHop } else { '' }
+        $dns = if ($c.PSObject.Properties['DNSServer'] -and $c.DNSServer) { (($c.DNSServer.ServerAddresses) -join ', ') } else { '' }
+        $dhcp = ''
+        if ($c.PSObject.Properties['NetAdapter'] -and $c.NetAdapter -and $c.NetAdapter.PSObject.Properties['DhcpEnabled']) { $dhcp = if ($c.NetAdapter.DhcpEnabled) { 'Enabled' } else { 'Static' } }
         $rows += [pscustomobject]@{
-            Interface = $c.InterfaceAlias
-            Index = $c.InterfaceIndex
+            Interface = $interface
+            Index = $index
             Status = if ($ad) { $ad.Status.ToString() } else { '' }
             LinkSpeed = if ($ad) { $ad.LinkSpeed.ToString() } else { '' }
-            IP = if ($c.IPv4Address) { (($c.IPv4Address.IPAddress) -join ', ') } else { '' }
-            Gateway = if ($c.IPv4DefaultGateway) { $c.IPv4DefaultGateway.NextHop } else { '' }
-            DNS = if ($c.DNSServer) { (($c.DNSServer.ServerAddresses) -join ', ') } else { '' }
-            DHCP = if ($c.NetAdapter) { if ($c.NetAdapter.DhcpEnabled) { 'Enabled' } else { 'Static' } } else { '' }
+            IP = $ipv4
+            Gateway = $gateway
+            DNS = $dns
+            DHCP = $dhcp
         }
     }
 
