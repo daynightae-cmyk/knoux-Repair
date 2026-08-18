@@ -5,7 +5,11 @@
 #  user to disable selected startup programs by moving the registry
 #  value to a parallel backup key (registry backup, not deletion).
 [CmdletBinding()]
-param([switch]$AnalyzeOnly, [switch]$WhatIf)
+param(
+    [switch]$AnalyzeOnly,
+    [switch]$WhatIf,
+    [string]$Selection = ""   # Comma-separated numbers or "all"
+)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -46,35 +50,49 @@ try {
             $i++
             Write-Host ('  {0,2}. {1,-30} {2}' -f $i, $r.Name, $r.Command)
         }
-        if ($AnalyzeOnly -or $WhatIf) {
-            Write-Host '[ANALYZE] No changes made. Run without -AnalyzeOnly to disable entries.' -ForegroundColor Green
+        
+        if ($WhatIf) {
+            Write-Host "WhatIf: Would disable startup entries based on selection: $Selection" -ForegroundColor Cyan
+            Write-KnouxLog -Session $Session "WhatIf: Would disable startup entries"
+            exit 0
+        }
+        
+        if ($AnalyzeOnly) {
+            Write-Host '[ANALYZE] Displaying startup entries only, no changes.' -ForegroundColor Green
             Write-KnouxLog -Session $Session ("Analyze: {0} startup entries, no changes" -f $rows.Count)
+            exit 0
+        }
+        
+        # Non-interactive execution: use Selection parameter
+        if ([string]::IsNullOrWhiteSpace($Selection)) {
+            Write-Error "Selection parameter is required for non-interactive execution. Provide comma-separated numbers or 'all'."
+            $Session.Status = 'Failed'
+            $Session.ErrorMessage = 'Missing Selection parameter'
+            exit 1
+        }
+        
+        $input = $Selection
+        $chosen = @($input -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^\d+$' } | ForEach-Object { [int]$_ })
+        $disabled = 0
+        foreach ($idx in $chosen) {
+            if ($idx -lt 1 -or $idx -gt $rows.Count) { continue }
+            $r = $rows[$idx - 1]
+            $backupKey = $r.Key -replace 'CurrentVersion\\Run$', 'CurrentVersion\RunKnouxBackup'
+            New-Item -Path $backupKey -Force | Out-Null
+            Set-ItemProperty -LiteralPath $backupKey -Name $r.Name -Value $r.Command
+            Remove-ItemProperty -LiteralPath $r.Key -Name $r.Name -ErrorAction SilentlyContinue
+            $disabled++
+            Write-Host ('  [DISABLED] ' + $r.Name) -ForegroundColor Green
+            Write-KnouxLog -Session $Session ("Backed up Run value {0} to {1} and removed from Run" -f $r.Name, $backupKey)
+        }
+        if ($disabled -gt 0) {
+            $Session.Status = 'Success'
+            $Session.ChangedSystem = $true
+            $Session.ItemsProcessed = $disabled
+            Write-Host ('[OK] Disabled {0} startup entry(ies).' -f $disabled) -ForegroundColor Green
         } else {
-            Write-Host ''
-            Write-Host 'Enter the numbers to disable (comma separated) or 0 to cancel:' -ForegroundColor Yellow
-            $input = Read-Host 'Selection'
-            $chosen = @($input -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^\d+$' } | ForEach-Object { [int]$_ })
-            $disabled = 0
-            foreach ($idx in $chosen) {
-                if ($idx -lt 1 -or $idx -gt $rows.Count) { continue }
-                $r = $rows[$idx - 1]
-                $backupKey = $r.Key -replace 'CurrentVersion\\Run$', 'CurrentVersion\RunKnouxBackup'
-                New-Item -Path $backupKey -Force | Out-Null
-                Set-ItemProperty -LiteralPath $backupKey -Name $r.Name -Value $r.Command
-                Remove-ItemProperty -LiteralPath $r.Key -Name $r.Name -ErrorAction SilentlyContinue
-                $disabled++
-                Write-Host ('  [DISABLED] ' + $r.Name) -ForegroundColor Green
-                Write-KnouxLog -Session $Session ("Backed up Run value {0} to {1} and removed from Run" -f $r.Name, $backupKey)
-            }
-            if ($disabled -gt 0) {
-                $Session.Status = 'Success'
-                $Session.ChangedSystem = $true
-                $Session.ItemsProcessed = $disabled
-                Write-Host ('[OK] Disabled {0} startup entry(ies).' -f $disabled) -ForegroundColor Green
-            } else {
-                $Session.Status = 'Cancelled'
-                Write-Host '[CANCELLED] No changes made.' -ForegroundColor Yellow
-            }
+            $Session.Status = 'Cancelled'
+            Write-Host '[CANCELLED] No changes made.' -ForegroundColor Yellow
         }
     }
 } catch {

@@ -5,7 +5,11 @@
 #  selective restoration with verification. Read-only until user
 #  confirms a restore action.
 [CmdletBinding()]
-param([switch]$AnalyzeOnly, [switch]$WhatIf)
+param(
+    [switch]$AnalyzeOnly,
+    [switch]$WhatIf,
+    [string]$Selection = ""   # Comma-separated numbers or "all"
+)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -66,43 +70,55 @@ try {
 
     $Session.ItemsFound = $entries.Count
 
-    if ($AnalyzeOnly -or $WhatIf) {
-        Write-Host '[ANALYZE] No changes made. Run without -AnalyzeOnly to restore selected items.' -ForegroundColor Green
-        $Session.Status = 'Success'
+    if ($WhatIf) {
+        Write-Host "WhatIf: Would restore quarantined items based on selection: $Selection" -ForegroundColor Cyan
+        Write-KnouxLog -Session $Session "WhatIf: Would restore quarantined items"
+        exit 0
+    }
+    
+    if ($AnalyzeOnly) {
+        Write-Host '[ANALYZE] Displaying quarantine entries only, no changes.' -ForegroundColor Green
         Write-KnouxLog -Session $Session ("Analyze: {0} quarantine entries listed" -f $entries.Count)
-    } else {
-        Write-Host ''
-        Write-Host 'Enter the numbers to restore (comma separated) or 0 to cancel:' -ForegroundColor Yellow
-        $input = Read-Host 'Selection'
-        $chosen = @($input -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^\d+$' } | ForEach-Object { [int]$_ })
-        if ($chosen -contains 0 -or $chosen.Count -eq 0) {
-            Write-Host '[CANCELLED] No changes made.' -ForegroundColor Yellow
-            $Session.Status = 'Cancelled'
-            return (Stop-KnouxSession -Session $Session)
-        }
+        exit 0
+    }
+    
+    # Non-interactive execution: use Selection parameter
+    if ([string]::IsNullOrWhiteSpace($Selection)) {
+        Write-Error "Selection parameter is required for non-interactive execution. Provide comma-separated numbers or 'all'."
+        $Session.Status = 'Failed'
+        $Session.ErrorMessage = 'Missing Selection parameter'
+        exit 1
+    }
+    
+    $input = $Selection
+    $chosen = @($input -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^\d+$' } | ForEach-Object { [int]$_ })
+    if ($chosen -contains 0 -or $chosen.Count -eq 0) {
+        Write-Host '[CANCELLED] No changes made.' -ForegroundColor Yellow
+        $Session.Status = 'Cancelled'
+        return (Stop-KnouxSession -Session $Session)
+    }
 
-        $restored = 0
-        foreach ($idx in $chosen) {
-            if ($idx -lt 1 -or $idx -gt $entries.Count) { continue }
-            $e = $entries[$idx - 1]
-            Write-Host ('Restoring [{0}] {1}...' -f $idx, $e.OriginalPath) -ForegroundColor Cyan
-            $result = Restore-KnouxQuarantinedItem -QuarantinePath $e.QDir -Session $Session
-            if ($result) {
-                $restored++
-                Write-Host ('  [OK] Restored {0}' -f $e.OriginalPath) -ForegroundColor Green
-            } else {
-                Write-Host ('  [FAILED] Could not restore {0}' -f $e.OriginalPath) -ForegroundColor Red
-            }
-        }
-        if ($restored -gt 0) {
-            $Session.Status = 'Success'
-            $Session.ChangedSystem = $true
-            $Session.ItemsProcessed = $restored
-            Write-Host ('[OK] Restored {0} item(s).' -f $restored) -ForegroundColor Green
+    $restored = 0
+    foreach ($idx in $chosen) {
+        if ($idx -lt 1 -or $idx -gt $entries.Count) { continue }
+        $e = $entries[$idx - 1]
+        Write-Host ('Restoring [{0}] {1}...' -f $idx, $e.OriginalPath) -ForegroundColor Cyan
+        $result = Restore-KnouxQuarantinedItem -QuarantinePath $e.QDir -Session $Session
+        if ($result) {
+            $restored++
+            Write-Host ('  [OK] Restored {0}' -f $e.OriginalPath) -ForegroundColor Green
         } else {
-            $Session.Status = 'Failed'
-            Write-Host '[ERROR] No items restored.' -ForegroundColor Red
+            Write-Host ('  [FAILED] Could not restore {0}' -f $e.OriginalPath) -ForegroundColor Red
         }
+    }
+    if ($restored -gt 0) {
+        $Session.Status = 'Success'
+        $Session.ChangedSystem = $true
+        $Session.ItemsProcessed = $restored
+        Write-Host ('[OK] Restored {0} item(s).' -f $restored) -ForegroundColor Green
+    } else {
+        $Session.Status = 'Failed'
+        Write-Host '[ERROR] No items restored.' -ForegroundColor Red
     }
 } catch {
     $Session.Status = 'Failed'

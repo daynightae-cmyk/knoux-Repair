@@ -7,7 +7,11 @@
 #  offers to restore each service to its original start type. Restored
 #  start types are verified after the change.
 [CmdletBinding()]
-param([switch]$AnalyzeOnly, [switch]$WhatIf)
+param(
+    [switch]$AnalyzeOnly,
+    [switch]$WhatIf,
+    [string]$Selection = ""   # Backup number to use (1-N) or "all"
+)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -53,11 +57,27 @@ try {
         Write-Host ('  {0,2}. {1}  (run {2})' -f $i, $b.LastWriteTime, $runName) -ForegroundColor Yellow
     }
 
-    if ($AnalyzeOnly -or $WhatIf) {
-        Write-Host '[ANALYZE] No changes made. Run without -AnalyzeOnly to restore.' -ForegroundColor Green
+    if ($WhatIf) {
+        Write-Host "WhatIf: Would restore start types for selection: $Selection" -ForegroundColor Cyan
+        Write-KnouxLog -Session $Session "WhatIf: Would restore service start types"
+        exit 0
+    }
+    
+    if ($AnalyzeOnly) {
+        Write-Host '[ANALYZE] Displaying current start types without restoration.' -ForegroundColor Green
         Write-KnouxLog -Session $Session ("Analyze: {0} backup(s) available, no changes" -f $backups.Count)
-        $Session.Status = 'Success'
-    } elseif (-not (Test-KnouxAdministrator)) {
+        exit 0
+    }
+    
+    # Non-interactive execution: use Selection parameter
+    if ([string]::IsNullOrWhiteSpace($Selection)) {
+        Write-Error "Selection parameter is required for non-interactive execution. Provide backup number (1-N) or 'all'."
+        $Session.Status = 'Failed'
+        $Session.ErrorMessage = 'Missing Selection parameter'
+        exit 1
+    }
+    
+    if (-not (Test-KnouxAdministrator)) {
         $Session.Status = 'Failed'
         $Session.ErrorMessage = 'Administrator privileges are required.'
         Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
@@ -65,7 +85,7 @@ try {
     } else {
         Write-Host ''
         Write-Host ('Enter the backup number to use (1-{0}) or 0 to cancel:' -f $backups.Count) -ForegroundColor Yellow
-        $input = Read-Host 'Selection'
+        $input = $Selection
         $n = 0
         if ($input -match '^\d+$') { $n = [int]$input }
         if ($n -lt 1 -or $n -gt $backups.Count) {

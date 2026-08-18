@@ -1,22 +1,22 @@
-```
-# Build artifacts
-*.o
-*.obj
-*.exe
-*.dll
-*.so
-*.a
-*.out
+# PowerShell/Windows specific
+Thumbs.db
+ehthumbs.db
+*.tmp
+*.temp
+*.log
+*.bak
+*.old
+*.orig
+*~
+.DS_Store
+desktop.ini
+$RECYCLE.BIN/
+System Volume Information/
 
-# Dependencies
-node_modules/
-venv/
-.venv/
-__pycache__/
-.mypy_cache/
-.pytest_cache/
-target/
-.gradle/
+# Environment variables
+.env
+.env.local
+*.env.*
 
 # IDE/Editor files
 .vscode/
@@ -25,20 +25,28 @@ target/
 *.swo
 *.tmp
 
+# Build/output directories
+bin/
+obj/
+out/
+dist/
+build/
+target/
+release/
+debug/
+
+# Dependencies
+node_modules/
+vendor/
+packages/
+.npm/
+.yarn/
+
 # Logs
 *.log
-
-# System files
-.DS_Store
-Thumbs.db
-.env
-.env.local
-*.env.*
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
+logs/
+temp/
+tmp/
 
 # Compressed files
 *.zip
@@ -63,4 +71,3 @@ htmlcov/
 *.tar.bz2
 *.tar.xz
 *.tar.zst
-```
