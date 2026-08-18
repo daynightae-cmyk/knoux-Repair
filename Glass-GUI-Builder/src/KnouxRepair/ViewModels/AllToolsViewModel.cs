@@ -44,6 +44,10 @@ namespace KnouxRepair.ViewModels
 
         public int TotalFiltered => FilteredTools.Count;
 
+        // Commands for ToolCard binding
+        public RelayCommand ExecuteToolCommand { get; set; }
+        public RelayCommand PreviewToolCommand { get; set; }
+
         private void LoadCategories()
         {
             Categories.Add("All");

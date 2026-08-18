@@ -19,6 +19,22 @@ namespace KnouxRepair.Converters
             => throw new NotImplementedException();
     }
 
+    /// <summary>
+    /// Converts OfflineCapability string "FULL" to Visibility.Visible
+    /// </summary>
+    public class StringEqualsFullToVisConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is string s && s.ToUpper() == "FULL")
+                return Visibility.Visible;
+            return Visibility.Collapsed;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
     public class RiskToBrushConverter : IValueConverter
     {
         private static readonly SolidColorBrush ReadOnlyBrush = new SolidColorBrush(Color.FromRgb(0x4C, 0xE3, 0x8A));

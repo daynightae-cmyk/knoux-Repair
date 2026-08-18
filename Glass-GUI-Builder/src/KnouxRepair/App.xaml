@@ -23,6 +23,7 @@
 
             <!-- Converters -->
             <local:BoolToVisibilityConverter x:Key="BoolToVis"/>
+            <local:StringEqualsFullToVisConverter x:Key="StringEqualsFullToVis"/>
             <local:RiskToBrushConverter x:Key="RiskToBrush"/>
             <local:RiskToVisibilityConverter x:Key="RiskToVis"/>
         </ResourceDictionary>
