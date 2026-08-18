@@ -22,14 +22,17 @@ export interface Category {
 
 export type ToolStatus = 'idle' | 'running' | 'success' | 'error';
 
+export type ConsoleEntryType = 'info' | 'success' | 'error' | 'warning' | 'system' | 'data';
+
 export interface ConsoleEntry {
   id: number;
   text: string;
-  type: 'info' | 'success' | 'error' | 'warning' | 'system';
+  type: ConsoleEntryType;
   timestamp: string;
 }
 
 export type ActiveSection =
+  | 'dashboard'
   | 'maintenance'
   | 'cleanup'
   | 'network'
@@ -47,6 +50,7 @@ export type ActiveSection =
   | 'about';
 
 export const SECTION_MAP: Record<ActiveSection, string> = {
+  dashboard: '',
   maintenance: '01-System-Maintenance',
   cleanup: '02-System-Cleanup',
   network: '03-Network-Internet',

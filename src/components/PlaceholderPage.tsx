@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { FileText, Archive, Database, Settings, Info, Shield, HardDrive } from 'lucide-react';
+import { FileText, Archive, Database, Settings, Info, Shield, HardDrive, LayoutDashboard } from 'lucide-react';
 import type { ActiveSection } from '../types';
 
 interface PlaceholderPageProps {
@@ -7,6 +7,7 @@ interface PlaceholderPageProps {
 }
 
 const PAGE_CONFIG: Record<ActiveSection, { title: string; subtitle: string; icon: React.ReactNode; desc: string }> = {
+  dashboard: { title: 'DASHBOARD', subtitle: 'SYS.OVERVIEW // NEXUS CORE', icon: <LayoutDashboard size={32} />, desc: 'Welcome to KNOUX REPAIR NEXUS. Select a module from the navigation to begin system diagnostics and repair.' },
   reports: { title: 'REPORTS', subtitle: 'SYS.REPORTS // TELEMETRY ARCHIVE', icon: <FileText size={32} />, desc: 'System diagnostic reports and execution logs are stored here. Run tools to generate reports.' },
   quarantine: { title: 'QUARANTINE', subtitle: 'SYS.QUARANTINE // ISOLATION VAULT', icon: <Archive size={32} />, desc: 'Modified system files are quarantined before any repair operation. Restore or purge from here.' },
   backups: { title: 'BACKUPS', subtitle: 'SYS.BACKUP // SNAPSHOT REPOSITORY', icon: <Database size={32} />, desc: 'System state backups created before destructive operations. Restore points managed here.' },

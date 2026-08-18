@@ -1,13 +1,5 @@
 import { useCallback, useRef } from 'react';
-
-export type ConsoleEntryType = 'info' | 'success' | 'error' | 'warning' | 'system' | 'data';
-
-export interface ConsoleEntry {
-  id: number;
-  text: string;
-  type: ConsoleEntryType;
-  timestamp: string;
-}
+import type { ConsoleEntryType } from '../types';
 
 export interface ConsoleLineDef {
   text: string;
@@ -17,9 +9,6 @@ export interface ConsoleLineDef {
 
 export function buildToolSimulation(
   tool: { Id: string; Name: string; Risk: string; RequiresAdmin: boolean },
-  addEntry: (text: string, type: ConsoleEntryType) => void,
-  onDone: (finalStatus: 'success' | 'error') => void,
-  onLineCount: (count: number) => void,
 ): ConsoleLineDef[] {
   const id = tool.Id;
   const name = tool.Name;

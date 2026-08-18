@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useState, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import SplashScreen from './components/SplashScreen';
@@ -23,7 +23,7 @@ function NexusApp() {
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
   const [activeTool, setActiveTool] = useState<Tool | null>(null);
   const [consoleStatus, setConsoleStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
-  const [lineCount, setLineCount] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { run: runTypewriter, cancel: cancelTypewriter } = useTypewriterRunner();
 
@@ -41,18 +41,9 @@ function NexusApp() {
     setConsoleVisible(true);
     setConsoleEntries([]);
     setConsoleStatus('running');
-    setLineCount(0);
     setToolStatuses(prev => ({ ...prev, [tool.Id]: 'running' }));
 
-    const lines = buildToolSimulation(
-      tool,
-      addEntry,
-      (finalStatus) => {
-        setToolStatuses(prev => ({ ...prev, [tool.Id]: finalStatus }));
-        setConsoleStatus(finalStatus);
-      },
-      setLineCount,
-    );
+    const lines = buildToolSimulation(tool);
 
     runTypewriter(lines, addEntry, (finalStatus) => {
       setToolStatuses(prev => ({ ...prev, [tool.Id]: finalStatus }));
@@ -64,7 +55,6 @@ function NexusApp() {
     if (activeTool) {
       cancelTypewriter();
       setConsoleEntries([]);
-      setLineCount(0);
       simulateToolRun(activeTool);
     }
   }, [activeTool, simulateToolRun, cancelTypewriter]);
@@ -89,6 +79,8 @@ function NexusApp() {
           onSelect={setActiveSection}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
         />
 
         {/* Main Glass Canvas */}
