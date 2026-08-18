@@ -276,8 +276,13 @@ Test-Knoux -Name '22 Report schema is generated' -Body {
 # --- 23. Every tool accepts -AnalyzeOnly and -WhatIf ---
 Test-Knoux -Name '23 Every tool declares AnalyzeOnly/WhatIf switches' -Body {
     $bad = @($toolFiles | Where-Object {
-        $head = (Get-Content -LiteralPath $_.FullName -TotalCount 10 -Encoding UTF8) -join "`n"
-        $head -notmatch '\[switch\]\$AnalyzeOnly' -or $head -notmatch '\[switch\]\$WhatIf'
+        $head = (Get-Content -LiteralPath $_.FullName -TotalCount 15 -Encoding UTF8) -join "`n"
+        # Check for [CmdletBinding()] and both [switch] parameters
+        $hasCmdletBinding = $head -match '\[CmdletBinding\(\)\]'
+        $hasAnalyzeOnly = $head -match '\[switch\]\s*\$AnalyzeOnly'
+        $hasWhatIf = $head -match '\[switch\]\s*\$WhatIf'
+        # Tool passes if it has CmdletBinding AND both switches
+        -not ($hasCmdletBinding -and $hasAnalyzeOnly -and $hasWhatIf)
     })
     return $bad.Count -eq 0
 }
