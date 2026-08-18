@@ -113,6 +113,16 @@
     <sys:String x:Key="ActionRun">تشغيل</sys:String>
     <sys:String x:Key="ActionAnalyzeSafely">تحليل آمن</sys:String>
     <sys:String x:Key="ActionRunTool">تشغيل الأداة</sys:String>
+    <sys:String x:Key="ActionPreviewChanges">معاينة التغييرات</sys:String>
+    <sys:String x:Key="ActionRepair">إصلاح</sys:String>
+    <sys:String x:Key="ActionClean">تنظيف</sys:String>
+    <sys:String x:Key="ActionCleanup">تنظيف شامل</sys:String>
+    <sys:String x:Key="ActionGenerateReport">إنشاء تقرير</sys:String>
+    <sys:String x:Key="ActionRestore">استعادة</sys:String>
+    <sys:String x:Key="ActionTest">اختبار</sys:String>
+    <sys:String x:Key="ActionScan">فحص</sys:String>
+    <sys:String x:Key="ActionVerify">تحقق</sys:String>
+    <sys:String x:Key="ActionReset">إعادة تعيين</sys:String>
     <sys:String x:Key="ActionOpenReports">فتح التقارير</sys:String>
     <sys:String x:Key="ActionOpenReportFolder">فتح مجلد التقارير</sys:String>
     <sys:String x:Key="ActionRunTests">تشغيل الاختبارات</sys:String>

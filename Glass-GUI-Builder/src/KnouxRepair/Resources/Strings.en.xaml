@@ -116,6 +116,16 @@
     <sys:String x:Key="ActionRun">Run</sys:String>
     <sys:String x:Key="ActionAnalyzeSafely">Analyze Safely</sys:String>
     <sys:String x:Key="ActionRunTool">Run Tool</sys:String>
+    <sys:String x:Key="ActionPreviewChanges">Preview Changes</sys:String>
+    <sys:String x:Key="ActionRepair">Repair</sys:String>
+    <sys:String x:Key="ActionClean">Clean</sys:String>
+    <sys:String x:Key="ActionCleanup">Cleanup</sys:String>
+    <sys:String x:Key="ActionGenerateReport">Generate Report</sys:String>
+    <sys:String x:Key="ActionRestore">Restore</sys:String>
+    <sys:String x:Key="ActionTest">Test</sys:String>
+    <sys:String x:Key="ActionScan">Scan</sys:String>
+    <sys:String x:Key="ActionVerify">Verify</sys:String>
+    <sys:String x:Key="ActionReset">Reset</sys:String>
     <sys:String x:Key="ActionOpenReports">Open Reports</sys:String>
     <sys:String x:Key="ActionOpenReportFolder">Open Report Folder</sys:String>
     <sys:String x:Key="ActionRunTests">Run Tests</sys:String>
