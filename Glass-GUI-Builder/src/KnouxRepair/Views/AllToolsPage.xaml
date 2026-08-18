@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:KnouxRepair.ViewModels"
              xmlns:views="clr-namespace:KnouxRepair.Views"
+             xmlns:controls="clr-namespace:KnouxRepair.Controls"
              Background="Transparent">
     <UserControl.Resources>
         <vm:AllToolsViewModel x:Key="VM"/>
@@ -54,193 +55,20 @@
                           BorderBrush="{DynamicResource InputBorderBrush}"/>
             </Grid>
 
-            <!-- Tool Cards -->
+            <!-- Tool Cards with Virtualization -->
             <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                 <ItemsControl ItemsSource="{Binding FilteredTools}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <WrapPanel/>
+                            <WrapPanel IsItemsHost="True"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border x:Name="Card" Background="{DynamicResource CardFillColorDefaultBrush}"
-                                    BorderBrush="{DynamicResource CardStrokeDefaultBrush}"
-                                    BorderThickness="1" CornerRadius="10"
-                                    Width="240" Height="180" Margin="0,0,10,10"
-                                    Padding="14" Cursor="Hand"
-                                    MouseLeftButtonDown="ToolCard_Click"
-                                    Tag="{Binding}">
-                                <Border.Effect>
-                                    <DropShadowEffect BlurRadius="8" ShadowDepth="1"
-                                                      Opacity="0.1" Color="Black"/>
-                                </Border.Effect>
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource CardFillColorHoverBrush}"/>
-                                                <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeHoverBrush}"/>
-                                                <Setter Property="Effect">
-                                                    <Setter.Value>
-                                                        <DropShadowEffect BlurRadius="16" ShadowDepth="3"
-                                                                          Opacity="0.25" Color="Black"/>
-                                                    </Setter.Value>
-                                                </Setter>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="6"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="6"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    
-                                    <!-- Header: Category icon + Admin badge -->
-                                    <Grid Grid.Row="0">
-                                        <TextBlock Text="{Binding ToolId}"
-                                                   Foreground="{DynamicResource BrushCyan}"
-                                                   FontSize="9" FontWeight="Bold"
-                                                   VerticalAlignment="Center"
-                                                   Opacity="0.7"/>
-                                        <StackPanel Orientation="Horizontal"
-                                                    HorizontalAlignment="Right"
-                                                    Visibility="{Binding RequiresAdmin, Converter={StaticResource BoolToVis}}">
-                                            <Border Background="{DynamicResource BrushSurface}"
-                                                    CornerRadius="3" Padding="4,1"
-                                                    BorderBrush="{DynamicResource BrushAmberDim}"
-                                                    BorderThickness="0.5">
-                                                <TextBlock Text="&#xE7EF;" FontFamily="{DynamicResource FontIcon}"
-                                                           Foreground="{DynamicResource BrushAmber}"
-                                                           FontSize="8" FontWeight="Bold"/>
-                                            </Border>
-                                        </StackPanel>
-                                    </Grid>
-                                    
-                                    <!-- Human-readable name -->
-                                    <TextBlock Grid.Row="2" 
-                                               Text="{Binding EnglishName}"
-                                               Foreground="{DynamicResource TextMainBrush}"
-                                               FontSize="13" FontWeight="SemiBold"
-                                               TextWrapping="Wrap"
-                                               TextTrimming="CharacterEllipsis"
-                                               LineHeight="16"/>
-                                    
-                                    <!-- Capability chips row -->
-                                    <WrapPanel Grid.Row="3" Margin="0,4,0,0">
-                                        <!-- AnalyzeOnly chip -->
-                                        <Border Background="{DynamicResource BrushSurface}"
-                                                CornerRadius="3" Padding="4,2" Margin="0,0,4,0"
-                                                Visibility="{Binding AnalyzeOnlySupported, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="Analyze" FontSize="8"
-                                                       Foreground="{DynamicResource BrushCyan}"
-                                                       FontWeight="SemiBold"/>
-                                        </Border>
-                                        <!-- WhatIf chip -->
-                                        <Border Background="{DynamicResource BrushSurface}"
-                                                CornerRadius="3" Padding="4,2" Margin="0,0,4,0"
-                                                Visibility="{Binding WhatIfSupported, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="WhatIf" FontSize="8"
-                                                       Foreground="{DynamicResource BrushSkyBlue}"
-                                                       FontWeight="SemiBold"/>
-                                        </Border>
-                                        <!-- Restart badge -->
-                                        <Border Background="{DynamicResource BrushBg3}"
-                                                CornerRadius="3" Padding="4,2" Margin="0,0,4,0"
-                                                BorderThickness="0.5" BorderBrush="{DynamicResource BrushBorder}"
-                                                Visibility="{Binding RequiresRestart, Converter={StaticResource BoolToVis}}">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="&#xE777;" FontFamily="{DynamicResource FontIcon}"
-                                                           FontSize="8" VerticalAlignment="Center" Margin="0,0,2,0"/>
-                                                <TextBlock Text="Restart" FontSize="8"
-                                                           Foreground="{DynamicResource BrushSkyBlue}"
-                                                           FontWeight="SemiBold"/>
-                                            </StackPanel>
-                                        </Border>
-                                    </WrapPanel>
-                                    
-                                    <!-- Risk indicator at bottom -->
-                                    <Grid Grid.Row="5">
-                                        <Border x:Name="RiskIndicator" CornerRadius="4" Padding="6,3"
-                                                HorizontalAlignment="Left">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="&#xE7BA;" FontFamily="{DynamicResource FontIcon}"
-                                                           FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                <TextBlock FontSize="9" FontWeight="SemiBold"
-                                                           Foreground="White"/>
-                                            </StackPanel>
-                                        </Border>
-                                    </Grid>
-                                </Grid>
-                            </Border>
-                            
-                            <DataTemplate.Triggers>
-                                <DataTrigger Binding="{Binding RiskLevel}" Value="READ_ONLY">
-                                    <Setter TargetName="RiskIndicator" Property="Background" Value="{DynamicResource BrushGreenTransparent}"/>
-                                    <Setter TargetName="RiskIndicator" Property="BorderBrush" Value="{DynamicResource BrushGreen}"/>
-                                    <Setter TargetName="RiskIndicator" Property="BorderThickness" Value="0.5"/>
-                                    <Setter TargetName="RiskIndicator" Property="Child">
-                                        <Setter.Value>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="&#xE7BA;" FontFamily="{DynamicResource FontIcon}"
-                                                           FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                <TextBlock Text="Read Only" FontSize="9" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource BrushGreen}"/>
-                                            </StackPanel>
-                                        </Setter.Value>
-                                    </Setter>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding RiskLevel}" Value="DESTRUCTIVE">
-                                    <Setter TargetName="RiskIndicator" Property="Background" Value="{DynamicResource BrushRedTransparent}"/>
-                                    <Setter TargetName="RiskIndicator" Property="BorderBrush" Value="{DynamicResource BrushRed}"/>
-                                    <Setter TargetName="RiskIndicator" Property="BorderThickness" Value="0.5"/>
-                                    <Setter TargetName="RiskIndicator" Property="Child">
-                                        <Setter.Value>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="&#xE7BA;" FontFamily="{DynamicResource FontIcon}"
-                                                           FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                <TextBlock Text="Destructive" FontSize="9" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource BrushRed}"/>
-                                            </StackPanel>
-                                        </Setter.Value>
-                                    </Setter>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding RiskLevel}" Value="SYSTEM_REPAIR">
-                                    <Setter TargetName="RiskIndicator" Property="Background" Value="{DynamicResource BrushAmberTransparent}"/>
-                                    <Setter TargetName="RiskIndicator" Property="BorderBrush" Value="{DynamicResource BrushAmber}"/>
-                                    <Setter TargetName="RiskIndicator" Property="BorderThickness" Value="0.5"/>
-                                    <Setter TargetName="RiskIndicator" Property="Child">
-                                        <Setter.Value>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="&#xE7BA;" FontFamily="{DynamicResource FontIcon}"
-                                                           FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                <TextBlock Text="System Repair" FontSize="9" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource BrushAmber}"/>
-                                            </StackPanel>
-                                        </Setter.Value>
-                                    </Setter>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding RiskLevel}" Value="SAFE_CLEANUP">
-                                    <Setter TargetName="RiskIndicator" Property="Background" Value="{DynamicResource BrushBlueTransparent}"/>
-                                    <Setter TargetName="RiskIndicator" Property="BorderBrush" Value="{DynamicResource BrushBlue}"/>
-                                    <Setter TargetName="RiskIndicator" Property="BorderThickness" Value="0.5"/>
-                                    <Setter TargetName="RiskIndicator" Property="Child">
-                                        <Setter.Value>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="&#xE7BA;" FontFamily="{DynamicResource FontIcon}"
-                                                           FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                <TextBlock Text="Safe Cleanup" FontSize="9" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource BrushBlue}"/>
-                                            </StackPanel>
-                                        </Setter.Value>
-                                    </Setter>
-                                </DataTrigger>
-                            </DataTemplate.Triggers>
+                            <controls:ToolCard Tool="{Binding}"
+                                               PrimaryActionCommand="{Binding DataContext.ExecuteToolCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                               SecondaryActionCommand="{Binding DataContext.PreviewToolCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                               Margin="0,0,10,10"/>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

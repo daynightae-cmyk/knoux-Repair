@@ -1,8 +1,10 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using KnouxRepair.Models;
 using KnouxRepair.ViewModels;
+using KnouxRepair.Mvvm;
 
 namespace KnouxRepair.Views
 {
@@ -11,6 +13,7 @@ namespace KnouxRepair.Views
         private AllToolsViewModel _vm;
 
         public event Action<string, bool> ToolExecutionRequested;
+        public event Action<ToolInfo> ToolPreviewRequested;
 
         public AllToolsPage()
         {
@@ -18,6 +21,31 @@ namespace KnouxRepair.Views
             _vm = (AllToolsViewModel)FindResource("VM");
             DataContext = _vm;
             DetailPanel.ToolExecutionRequested += OnToolExecutionRequested;
+            
+            // Create commands for ToolCard binding
+            _vm.ExecuteToolCommand = new RelayCommand(ExecuteTool);
+            _vm.PreviewToolCommand = new RelayCommand(PreviewTool);
+        }
+
+        private void ExecuteTool(object parameter)
+        {
+            if (parameter is ToolInfo tool)
+            {
+                _vm.SelectedTool = tool;
+                DetailPanel.DataContext = tool;
+                // Trigger execution with analyzeOnly=false
+                ToolExecutionRequested?.Invoke(tool.ScriptPath, false);
+            }
+        }
+
+        private void PreviewTool(object parameter)
+        {
+            if (parameter is ToolInfo tool)
+            {
+                _vm.SelectedTool = tool;
+                DetailPanel.DataContext = tool;
+                ToolPreviewRequested?.Invoke(tool);
+            }
         }
 
         public void ApplyGlobalFilter(string filterText)
@@ -36,15 +64,6 @@ namespace KnouxRepair.Views
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             _vm.FilterText = ((TextBox)sender).Text;
-        }
-
-        private void ToolCard_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
-        {
-            if (sender is FrameworkElement fe && fe.DataContext is ToolInfo tool)
-            {
-                _vm.SelectedTool = tool;
-                DetailPanel.DataContext = tool;
-            }
         }
     }
 }
