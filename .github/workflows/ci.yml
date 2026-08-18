@@ -1,0 +1,61 @@
+name: KNOUX Repair CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: knoux-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gate:
+    name: Windows quality gate
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web-frontend/package-lock.json
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install Web dependencies
+        working-directory: web-frontend
+        run: npm ci
+
+      - name: Type-check Web frontend
+        working-directory: web-frontend
+        run: npx tsc --noEmit
+
+      - name: Build Web frontend
+        working-directory: web-frontend
+        run: npm run build
+
+      - name: Restore Desktop project
+        run: dotnet restore Glass-GUI-Builder/src/KnouxRepair/KnouxRepair.csproj
+
+      - name: Build Desktop release
+        run: dotnet build Glass-GUI-Builder/src/KnouxRepair/KnouxRepair.csproj -c Release --no-restore
+
+      - name: Verify isolated bridge timeout handling
+        shell: pwsh
+        run: ./Tests/Test-BridgeTimeout.ps1
+
+      - name: Run Desktop functional suite
+        shell: pwsh
+        run: ./Tests/Run-Tests.ps1
