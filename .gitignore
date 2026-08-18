@@ -1,25 +1,24 @@
 ```
 # Build artifacts
-*.csproj
-obj/
-bin/
-Debug/
-Release/
-*.dll
+*.obj
 *.exe
+*.dll
 *.pdb
 *.userprefs
 *.cache
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+build/
+dist/
 
 # Dependencies
 packages/
 node_modules/
-.nuget/
-.npm/
+vendor/
 
 # Logs
 *.log
@@ -27,7 +26,7 @@ node_modules/
 # Environment
 .env
 .env.local
-.env.*
+*.env.*
 
 # Editors
 .vs/
@@ -39,4 +38,13 @@ node_modules/
 # OS
 .DS_Store
 Thumbs.db
+
+# Test coverage
+coverage/
+htmlcov/
+*.coverage
+
+# Temporary files
+*.tmp
+*.temp
 ```
