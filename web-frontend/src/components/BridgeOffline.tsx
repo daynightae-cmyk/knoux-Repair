@@ -18,8 +18,8 @@ export default function BridgeOffline({ error, lang, onRetry }: BridgeOfflinePro
       animate={{ opacity: 1, y: 0 }}
       className="flex-1 flex items-center justify-center"
     >
-      <div className="glass-panel rounded-2xl p-10 max-w-lg text-center border-red-500/20">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 mb-6">
+      <div className="glass-panel rounded-2xl p-10 max-w-lg text-center border-amber-500/25">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-300 mb-6">
           <Unplug size={26} />
         </div>
         <h2 className="font-display text-xl font-bold tracking-wider text-white text-glow mb-3">
@@ -28,7 +28,7 @@ export default function BridgeOffline({ error, lang, onRetry }: BridgeOfflinePro
         <p className="text-sm text-slate-400 leading-relaxed mb-4" dir="auto">
           {t.bridgeOfflineBody}
         </p>
-        <p className="font-mono text-[10px] text-red-400/60 tracking-wider mb-6">
+        <p className="font-mono text-[10px] text-amber-300/70 tracking-wider mb-6">
           {error}
         </p>
         <button

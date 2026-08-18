@@ -177,3 +177,10 @@
 .animate-blink {
   animation: blink-cursor 1s step-end infinite;
 }
+/* GLASS_NEXUS_PATCH */
+:root{--nx-bg:#0b0f1a;--nx-surface:rgba(255,255,255,.055);--nx-border:rgba(255,255,255,.1);--nx-primary:#4f7cff;--nx-violet:#9f7aff;--nx-text:#f2f5ff;--nx-muted:#9aa3bf}
+:root[data-theme=light]{color-scheme:light;--nx-bg:#eef3ff;--nx-surface:rgba(255,255,255,.62);--nx-border:rgba(14,27,58,.12);--nx-text:#18213b;--nx-muted:#52607e}
+.nexus-shell{background:radial-gradient(circle at 8% 8%,rgba(79,124,255,.14),transparent 28%),radial-gradient(circle at 92% 90%,rgba(159,122,255,.12),transparent 30%),linear-gradient(135deg,var(--nx-bg),#070a12)}
+.glass-interactive{transition:transform 180ms ease,border-color 180ms ease,box-shadow 180ms ease}.glass-interactive:hover{transform:translateY(-2px);border-color:rgba(79,124,255,.45);box-shadow:0 18px 48px rgba(0,0,0,.28),0 0 26px rgba(79,124,255,.12)}.glass-interactive:active{transform:translateY(0) scale(.985)}
+.nexus-shimmer{position:relative;overflow:hidden}.nexus-shimmer:after{content:"";position:absolute;inset:0;transform:translateX(-110%);background:linear-gradient(105deg,transparent 25%,rgba(255,255,255,.1) 48%,transparent 70%);animation:nexus-shimmer 1.8s ease-in-out infinite}@keyframes nexus-shimmer{0%{transform:translateX(-110%)}60%,100%{transform:translateX(110%)}}
+button:focus-visible,input:focus-visible{outline:2px solid rgba(79,124,255,.8);outline-offset:2px;box-shadow:0 0 0 4px rgba(79,124,255,.18)}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}

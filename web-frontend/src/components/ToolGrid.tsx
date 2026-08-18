@@ -128,7 +128,7 @@ export default function ToolGrid({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ delay: i * 0.03, duration: 0.3 }}
-                  className={`glass-panel rounded-xl p-4 relative overflow-hidden group transition-all duration-300 ${
+                  className={`glass-panel glass-interactive rounded-xl p-4 relative overflow-hidden group transition-all duration-300 ${
                     isRunning ? 'neon-glow-strong border-cyan-500/30' : 'hover:border-cyan-500/10'
                   }`}
                 >

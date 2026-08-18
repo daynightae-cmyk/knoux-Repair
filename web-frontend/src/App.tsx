@@ -158,7 +158,7 @@ function NexusApp() {
   const showTools = TOOL_SECTIONS.has(activeSection);
 
   return (
-    <div className="h-screen w-screen bg-black overflow-hidden relative" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className="h-screen w-screen nexus-shell overflow-hidden relative" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <div className="absolute inset-0 bg-grid-pattern-sm opacity-100" />
       <div className="absolute inset-0 bg-gradient-to-tr from-cyan-900/10 via-black to-purple-900/10" />
       <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-cyan-500/[0.06] blur-[120px] pointer-events-none" />
