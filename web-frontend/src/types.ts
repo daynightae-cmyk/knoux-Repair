@@ -1,10 +1,12 @@
 export interface Tool {
-  Id: string;
-  Name: string;
-  File: string;
-  Risk: RiskLevel;
+  ToolId: string;
+  Category: string;
+  ScriptPath: string;
+  EnglishName: string;
+  ArabicName: string;
+  Purpose: string;
+  RiskLevel: RiskLevel;
   RequiresAdmin: boolean;
-  Category?: string;
 }
 
 export type RiskLevel =
@@ -14,13 +16,7 @@ export type RiskLevel =
   | 'REBOOT_REQUIRED'
   | 'DESTRUCTIVE';
 
-export interface Category {
-  Category: string;
-  Folder: string;
-  Tools: Tool[];
-}
-
-export type ToolStatus = 'idle' | 'running' | 'success' | 'error';
+export type ToolStatus = 'idle' | 'running' | 'success' | 'error' | 'cancelled';
 
 export type ConsoleEntryType = 'info' | 'success' | 'error' | 'warning' | 'system' | 'data';
 

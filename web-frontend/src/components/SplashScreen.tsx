@@ -22,7 +22,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
 
   const tick = useCallback(() => {
     setProgress(prev => {
-      const next = prev + Math.random() * 12 + 3;
+      const next = prev + 9 + Math.max(0, 3 - Math.floor(prev / 35));
       return next >= 100 ? 100 : next;
     });
   }, []);
