@@ -18,7 +18,6 @@ Diagnostics/
 TEST-RESULTS.txt
 
 # ─── Separate / optional projects & dev tooling (NOT part of Desktop release) ───
-web-frontend/
 .claude/
 .qodo/
 Knoux-Repair-Glass-GUI-v1.0/
