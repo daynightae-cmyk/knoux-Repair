@@ -1,0 +1,26 @@
+{
+  "version": "2.0.2",
+  "productName": "knoux Repair",
+  "language": "English",
+  "defaultMaxFiles": 20000,
+  "defaultHashByteBudgetMB": 500,
+  "reportEncoding": "UTF-8-BOM",
+  "reportsKeepDays": 30,
+  "menuPause": true,
+  "nativeCommandTimeoutSec": 120,
+  "scan": {
+    "skipReparsePoints": true,
+    "skipOffline": true,
+    "skipSystemProtected": true
+  },
+  "duplicates": {
+    "hashAlgorithm": "SHA256",
+    "keepNewestByDefault": false
+  },
+  "safety": {
+    "quarantineEnabled": true,
+    "restorePointBeforeDestructive": true,
+    "typedConfirmationRequired": true
+  }
+}
+

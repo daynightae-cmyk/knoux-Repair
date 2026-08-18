@@ -1,0 +1,657 @@
+[
+  {
+    "Path": "01-System-Maintenance/SM01-VerifySystemFiles.ps1",
+    "Size": 5999,
+    "LastWriteTime": "2026-08-04T06:42:31.3098564+04:00"
+  },
+  {
+    "Path": "01-System-Maintenance/SM02-RepairSystemFiles.ps1",
+    "Size": 7280,
+    "LastWriteTime": "2026-08-04T06:42:31.3338438+04:00"
+  },
+  {
+    "Path": "01-System-Maintenance/SM03-CheckComponentStore.ps1",
+    "Size": 3731,
+    "LastWriteTime": "2026-08-04T06:42:31.3358429+04:00"
+  },
+  {
+    "Path": "01-System-Maintenance/SM04-ScanSystemImage.ps1",
+    "Size": 3634,
+    "LastWriteTime": "2026-08-04T06:42:31.3398414+04:00"
+  },
+  {
+    "Path": "01-System-Maintenance/SM05-RepairSystemImage.ps1",
+    "Size": 14008,
+    "LastWriteTime": "2026-08-04T06:42:31.3608286+04:00"
+  },
+  {
+    "Path": "01-System-Maintenance/SM06-CheckDiskOnline.ps1",
+    "Size": 3700,
+    "LastWriteTime": "2026-08-04T06:42:31.3648264+04:00"
+  },
+  {
+    "Path": "01-System-Maintenance/SM07-ScheduleDiskCheck.ps1",
+    "Size": 3560,
+    "LastWriteTime": "2026-08-04T06:42:31.3688252+04:00"
+  },
+  {
+    "Path": "01-System-Maintenance/SM08-AnalyzeComponentStore.ps1",
+    "Size": 3782,
+    "LastWriteTime": "2026-08-04T06:42:31.3718233+04:00"
+  },
+  {
+    "Path": "01-System-Maintenance/SM09-ResetWindowsUpdate.ps1",
+    "Size": 6574,
+    "LastWriteTime": "2026-08-04T06:42:31.3758397+04:00"
+  },
+  {
+    "Path": "01-System-Maintenance/SM10-SystemMaintenanceReport.ps1",
+    "Size": 2950,
+    "LastWriteTime": "2026-08-04T02:22:24.2946162+04:00"
+  },
+  {
+    "Path": "02-System-Cleanup/SC01-CleanUserTempFiles.ps1",
+    "Size": 2121,
+    "LastWriteTime": "2026-08-04T02:22:24.2966150+04:00"
+  },
+  {
+    "Path": "02-System-Cleanup/SC02-EmptyRecycleBin.ps1",
+    "Size": 3630,
+    "LastWriteTime": "2026-08-04T02:22:24.3016128+04:00"
+  },
+  {
+    "Path": "02-System-Cleanup/SC03-CleanBrowserCache.ps1",
+    "Size": 7587,
+    "LastWriteTime": "2026-08-04T02:22:24.3106075+04:00"
+  },
+  {
+    "Path": "02-System-Cleanup/SC04-CleanWindowsErrorReports.ps1",
+    "Size": 2620,
+    "LastWriteTime": "2026-08-04T06:42:31.3808378+04:00"
+  },
+  {
+    "Path": "02-System-Cleanup/SC05-AnalyzeCleanupPotential.ps1",
+    "Size": 2357,
+    "LastWriteTime": "2026-08-04T02:22:24.3176028+04:00"
+  },
+  {
+    "Path": "02-System-Cleanup/SC06-CleanUpdateDownloadCache.ps1",
+    "Size": 13168,
+    "LastWriteTime": "2026-08-04T06:41:03.1900659+04:00"
+  },
+  {
+    "Path": "02-System-Cleanup/SC07-CleanSystemTemp.ps1",
+    "Size": 2450,
+    "LastWriteTime": "2026-08-04T06:42:31.3958290+04:00"
+  },
+  {
+    "Path": "02-System-Cleanup/SC08-CleanLargeTempFiles.ps1",
+    "Size": 3711,
+    "LastWriteTime": "2026-08-04T02:22:24.3295963+04:00"
+  },
+  {
+    "Path": "02-System-Cleanup/SC09-CleanThumbnailCache.ps1",
+    "Size": 2084,
+    "LastWriteTime": "2026-08-04T02:22:24.3375917+04:00"
+  },
+  {
+    "Path": "02-System-Cleanup/SC10-ComprehensiveCleanup.ps1",
+    "Size": 3870,
+    "LastWriteTime": "2026-08-04T02:22:24.3485851+04:00"
+  },
+  {
+    "Path": "03-Network-Internet/NI01-TestNetworkConnectivity.ps1",
+    "Size": 4498,
+    "LastWriteTime": "2026-08-04T07:19:53.2341561+04:00"
+  },
+  {
+    "Path": "03-Network-Internet/NI02-RenewIPAddress.ps1",
+    "Size": 3600,
+    "LastWriteTime": "2026-08-04T06:42:31.4118203+04:00"
+  },
+  {
+    "Path": "03-Network-Internet/NI03-FlushDnsCache.ps1",
+    "Size": 2879,
+    "LastWriteTime": "2026-08-04T06:42:31.4138209+04:00"
+  },
+  {
+    "Path": "03-Network-Internet/NI04-ResetWinsock.ps1",
+    "Size": 3218,
+    "LastWriteTime": "2026-08-04T06:42:31.4168188+04:00"
+  },
+  {
+    "Path": "03-Network-Internet/NI05-RefreshNetworkTables.ps1",
+    "Size": 3250,
+    "LastWriteTime": "2026-08-04T06:42:31.4188181+04:00"
+  },
+  {
+    "Path": "03-Network-Internet/NI06-TestConnectionQuality.ps1",
+    "Size": 2496,
+    "LastWriteTime": "2026-08-04T02:22:24.3765696+04:00"
+  },
+  {
+    "Path": "03-Network-Internet/NI07-ShowNetworkConfiguration.ps1",
+    "Size": 3166,
+    "LastWriteTime": "2026-08-04T02:22:24.3795676+04:00"
+  },
+  {
+    "Path": "03-Network-Internet/NI08-ResetNetworkStack.ps1",
+    "Size": 3389,
+    "LastWriteTime": "2026-08-04T06:42:31.4208157+04:00"
+  },
+  {
+    "Path": "03-Network-Internet/NI09-OptimizeTcpIpSettings.ps1",
+    "Size": 3731,
+    "LastWriteTime": "2026-08-04T06:42:31.4218149+04:00"
+  },
+  {
+    "Path": "03-Network-Internet/NI10-NetworkReport.ps1",
+    "Size": 3552,
+    "LastWriteTime": "2026-08-04T07:09:14.3192256+04:00"
+  },
+  {
+    "Path": "04-Programs-Applications/PA01-ListInstalledPrograms.ps1",
+    "Size": 3249,
+    "LastWriteTime": "2026-08-04T02:22:24.4355357+04:00"
+  },
+  {
+    "Path": "04-Programs-Applications/PA02-RepairProgramInstallations.ps1",
+    "Size": 4635,
+    "LastWriteTime": "2026-08-04T06:42:31.4238137+04:00"
+  },
+  {
+    "Path": "04-Programs-Applications/PA03-UninstallResidualFiles.ps1",
+    "Size": 4348,
+    "LastWriteTime": "2026-08-04T02:22:24.4485288+04:00"
+  },
+  {
+    "Path": "04-Programs-Applications/PA04-RepairStartMenuShortcuts.ps1",
+    "Size": 4209,
+    "LastWriteTime": "2026-08-04T02:22:24.4765129+04:00"
+  },
+  {
+    "Path": "04-Programs-Applications/PA05-ManageStartupPrograms.ps1",
+    "Size": 4303,
+    "LastWriteTime": "2026-08-04T02:22:24.4805103+04:00"
+  },
+  {
+    "Path": "04-Programs-Applications/PA06-CheckRuntimeComponents.ps1",
+    "Size": 3894,
+    "LastWriteTime": "2026-08-04T02:22:24.4825096+04:00"
+  },
+  {
+    "Path": "04-Programs-Applications/PA07-RemoveUnnecessaryWindowsApps.ps1",
+    "Size": 4789,
+    "LastWriteTime": "2026-08-04T02:22:24.5184888+04:00"
+  },
+  {
+    "Path": "04-Programs-Applications/PA08-RepairProgramUninstaller.ps1",
+    "Size": 3578,
+    "LastWriteTime": "2026-08-04T02:22:24.5244853+04:00"
+  },
+  {
+    "Path": "04-Programs-Applications/PA09-CheckProgramUpdates.ps1",
+    "Size": 3763,
+    "LastWriteTime": "2026-08-04T02:22:24.5294955+04:00"
+  },
+  {
+    "Path": "04-Programs-Applications/PA10-ProgramsReport.ps1",
+    "Size": 4685,
+    "LastWriteTime": "2026-08-04T02:22:24.5334928+04:00"
+  },
+  {
+    "Path": "05-Duplicate-Files/DF01-AnalyzeDuplicateFiles.ps1",
+    "Size": 3215,
+    "LastWriteTime": "2026-08-04T02:22:24.5354917+04:00"
+  },
+  {
+    "Path": "05-Duplicate-Files/DF02-CleanDuplicateFiles.ps1",
+    "Size": 4138,
+    "LastWriteTime": "2026-08-04T02:22:24.5395054+04:00"
+  },
+  {
+    "Path": "05-Duplicate-Files/DF03-CleanDuplicatePictures.ps1",
+    "Size": 4541,
+    "LastWriteTime": "2026-08-04T02:22:24.5445016+04:00"
+  },
+  {
+    "Path": "05-Duplicate-Files/DF04-CleanDuplicateDocuments.ps1",
+    "Size": 4679,
+    "LastWriteTime": "2026-08-04T02:22:24.5484990+04:00"
+  },
+  {
+    "Path": "05-Duplicate-Files/DF05-CleanDuplicateMusicAndVideo.ps1",
+    "Size": 4701,
+    "LastWriteTime": "2026-08-04T02:22:24.5514970+04:00"
+  },
+  {
+    "Path": "05-Duplicate-Files/DF06-RemoveEmptyFolders.ps1",
+    "Size": 4143,
+    "LastWriteTime": "2026-08-04T02:22:24.5634910+04:00"
+  },
+  {
+    "Path": "05-Duplicate-Files/DF07-MoveDuplicatesToFolder.ps1",
+    "Size": 4318,
+    "LastWriteTime": "2026-08-04T02:22:24.5964869+04:00"
+  },
+  {
+    "Path": "05-Duplicate-Files/DF08-DeduplicateDownloads.ps1",
+    "Size": 4476,
+    "LastWriteTime": "2026-08-04T02:22:24.6004848+04:00"
+  },
+  {
+    "Path": "05-Duplicate-Files/DF09-ListDuplicateSystemFiles.ps1",
+    "Size": 2662,
+    "LastWriteTime": "2026-08-04T02:22:24.6024833+04:00"
+  },
+  {
+    "Path": "05-Duplicate-Files/DF10-RestoreQuarantinedItems.ps1",
+    "Size": 5293,
+    "LastWriteTime": "2026-08-04T06:40:17.3882771+04:00"
+  },
+  {
+    "Path": "06-Disk-Space/DS01-AnalyzeDiskSpaceUsage.ps1",
+    "Size": 2678,
+    "LastWriteTime": "2026-08-04T02:22:24.6114785+04:00"
+  },
+  {
+    "Path": "06-Disk-Space/DS02-FindLargeFiles.ps1",
+    "Size": 4874,
+    "LastWriteTime": "2026-08-04T02:22:24.6144764+04:00"
+  },
+  {
+    "Path": "06-Disk-Space/DS03-FindSpaceHogs.ps1",
+    "Size": 6595,
+    "LastWriteTime": "2026-08-04T02:22:24.6194866+04:00"
+  },
+  {
+    "Path": "06-Disk-Space/DS04-CleanRecycleBin.ps1",
+    "Size": 3305,
+    "LastWriteTime": "2026-08-04T02:22:24.6234872+04:00"
+  },
+  {
+    "Path": "06-Disk-Space/DS05-ClearFileHistoryCache.ps1",
+    "Size": 3246,
+    "LastWriteTime": "2026-08-04T02:22:24.6283279+04:00"
+  },
+  {
+    "Path": "06-Disk-Space/DS06-CompactSystemFiles.ps1",
+    "Size": 3059,
+    "LastWriteTime": "2026-08-04T06:42:31.8331069+04:00"
+  },
+  {
+    "Path": "06-Disk-Space/DS07-CheckDiskHealth.ps1",
+    "Size": 3028,
+    "LastWriteTime": "2026-08-04T02:22:24.6694866+04:00"
+  },
+  {
+    "Path": "06-Disk-Space/DS08-RunDiskCleanup.ps1",
+    "Size": 5081,
+    "LastWriteTime": "2026-08-04T02:22:24.6734861+04:00"
+  },
+  {
+    "Path": "06-Disk-Space/DS09-DisableHibernation.ps1",
+    "Size": 2807,
+    "LastWriteTime": "2026-08-04T06:42:31.9180591+04:00"
+  },
+  {
+    "Path": "06-Disk-Space/DS10-DiskSpaceReport.ps1",
+    "Size": 3148,
+    "LastWriteTime": "2026-08-04T02:22:24.6804801+04:00"
+  },
+  {
+    "Path": "07-Services-Processes/SP01-ListServices.ps1",
+    "Size": 2066,
+    "LastWriteTime": "2026-08-04T02:22:24.6824795+04:00"
+  },
+  {
+    "Path": "07-Services-Processes/SP02-AnalyzeProcesses.ps1",
+    "Size": 3186,
+    "LastWriteTime": "2026-08-04T02:22:24.6854779+04:00"
+  },
+  {
+    "Path": "07-Services-Processes/SP03-RestartExplorer.ps1",
+    "Size": 2358,
+    "LastWriteTime": "2026-08-04T02:22:24.6884760+04:00"
+  },
+  {
+    "Path": "07-Services-Processes/SP04-CleanupHangingProcesses.ps1",
+    "Size": 3020,
+    "LastWriteTime": "2026-08-04T02:22:24.6934731+04:00"
+  },
+  {
+    "Path": "07-Services-Processes/SP05-ResetServiceStartTypes.ps1",
+    "Size": 5990,
+    "LastWriteTime": "2026-08-04T02:22:24.6969788+04:00"
+  },
+  {
+    "Path": "07-Services-Processes/SP06-RestartWindowsUpdateServices.ps1",
+    "Size": 3106,
+    "LastWriteTime": "2026-08-04T02:22:24.6984830+04:00"
+  },
+  {
+    "Path": "07-Services-Processes/SP07-FindServiceDependencies.ps1",
+    "Size": 3092,
+    "LastWriteTime": "2026-08-04T02:22:24.7014816+04:00"
+  },
+  {
+    "Path": "07-Services-Processes/SP08-ServiceRecommendations.ps1",
+    "Size": 10819,
+    "LastWriteTime": "2026-08-04T06:40:17.3892766+04:00"
+  },
+  {
+    "Path": "07-Services-Processes/SP09-RestoreServiceStartTypes.ps1",
+    "Size": 6564,
+    "LastWriteTime": "2026-08-04T02:22:24.7514785+04:00"
+  },
+  {
+    "Path": "07-Services-Processes/SP10-ServicesProcessesReport.ps1",
+    "Size": 3463,
+    "LastWriteTime": "2026-08-04T02:22:24.7544781+04:00"
+  },
+  {
+    "Path": "08-Performance/PF01-BootDurationReport.ps1",
+    "Size": 2718,
+    "LastWriteTime": "2026-08-04T02:22:24.7584761+04:00"
+  },
+  {
+    "Path": "08-Performance/PF02-StartupImpactAnalysis.ps1",
+    "Size": 1877,
+    "LastWriteTime": "2026-08-04T02:22:24.7604742+04:00"
+  },
+  {
+    "Path": "08-Performance/PF03-PowerPlanAudit.ps1",
+    "Size": 1874,
+    "LastWriteTime": "2026-08-04T02:22:24.7624728+04:00"
+  },
+  {
+    "Path": "08-Performance/PF04-MemoryPressureAnalysis.ps1",
+    "Size": 2806,
+    "LastWriteTime": "2026-08-04T02:22:24.7644715+04:00"
+  },
+  {
+    "Path": "08-Performance/PF05-DiskTrimAudit.ps1",
+    "Size": 3043,
+    "LastWriteTime": "2026-08-04T02:22:24.7674699+04:00"
+  },
+  {
+    "Path": "08-Performance/PF06-ScheduledTasksReview.ps1",
+    "Size": 2847,
+    "LastWriteTime": "2026-08-04T02:22:24.7694687+04:00"
+  },
+  {
+    "Path": "08-Performance/PF07-ResourceSampling.ps1",
+    "Size": 3537,
+    "LastWriteTime": "2026-08-04T02:22:24.7774914+04:00"
+  },
+  {
+    "Path": "08-Performance/PF08-ThermalInformation.ps1",
+    "Size": 2706,
+    "LastWriteTime": "2026-08-04T02:22:24.7794772+04:00"
+  },
+  {
+    "Path": "08-Performance/PF09-VisualEffectsConfig.ps1",
+    "Size": 4977,
+    "LastWriteTime": "2026-08-04T02:22:24.7824756+04:00"
+  },
+  {
+    "Path": "08-Performance/PF10-FullPerformanceReport.ps1",
+    "Size": 3005,
+    "LastWriteTime": "2026-08-04T02:22:24.7854735+04:00"
+  },
+  {
+    "Path": "09-Security/SE01-SecurityAudit.ps1",
+    "Size": 3206,
+    "LastWriteTime": "2026-08-04T02:22:24.8084607+04:00"
+  },
+  {
+    "Path": "09-Security/SE02-EnableRealtimeProtection.ps1",
+    "Size": 3496,
+    "LastWriteTime": "2026-08-04T02:22:24.8114589+04:00"
+  },
+  {
+    "Path": "09-Security/SE03-RepairWindowsDefender.ps1",
+    "Size": 5152,
+    "LastWriteTime": "2026-08-04T02:22:24.8144572+04:00"
+  },
+  {
+    "Path": "09-Security/SE04-FirewallStatus.ps1",
+    "Size": 1901,
+    "LastWriteTime": "2026-08-04T02:22:24.8169656+04:00"
+  },
+  {
+    "Path": "09-Security/SE05-EnableFirewall.ps1",
+    "Size": 2828,
+    "LastWriteTime": "2026-08-04T02:22:24.8194692+04:00"
+  },
+  {
+    "Path": "09-Security/SE06-RepairFirewall.ps1",
+    "Size": 5678,
+    "LastWriteTime": "2026-08-04T02:22:24.8234693+04:00"
+  },
+  {
+    "Path": "09-Security/SE07-UACSettings.ps1",
+    "Size": 5359,
+    "LastWriteTime": "2026-08-04T06:42:31.9500409+04:00"
+  },
+  {
+    "Path": "09-Security/SE08-RunAntivirusScan.ps1",
+    "Size": 3815,
+    "LastWriteTime": "2026-08-04T02:22:24.8304629+04:00"
+  },
+  {
+    "Path": "09-Security/SE09-SecurityReport.ps1",
+    "Size": 3984,
+    "LastWriteTime": "2026-08-04T02:22:24.8344606+04:00"
+  },
+  {
+    "Path": "09-Security/SE10-UpdateVirusSignatures.ps1",
+    "Size": 2718,
+    "LastWriteTime": "2026-08-04T02:22:24.8364598+04:00"
+  },
+  {
+    "Path": "10-Diagnostics-Reports/DR01-SystemInformation.ps1",
+    "Size": 3164,
+    "LastWriteTime": "2026-08-04T02:22:24.8404587+04:00"
+  },
+  {
+    "Path": "10-Diagnostics-Reports/DR02-HardwareSummary.ps1",
+    "Size": 2657,
+    "LastWriteTime": "2026-08-04T02:22:24.8794521+04:00"
+  },
+  {
+    "Path": "10-Diagnostics-Reports/DR03-EventLogErrors.ps1",
+    "Size": 2629,
+    "LastWriteTime": "2026-08-04T02:22:24.8824479+04:00"
+  },
+  {
+    "Path": "10-Diagnostics-Reports/DR04-ReliabilityReport.ps1",
+    "Size": 2766,
+    "LastWriteTime": "2026-08-04T02:22:24.8854465+04:00"
+  },
+  {
+    "Path": "10-Diagnostics-Reports/DR05-DriverReport.ps1",
+    "Size": 2416,
+    "LastWriteTime": "2026-08-04T02:22:24.8874456+04:00"
+  },
+  {
+    "Path": "10-Diagnostics-Reports/DR06-BootPerformance.ps1",
+    "Size": 2835,
+    "LastWriteTime": "2026-08-04T02:22:24.8904445+04:00"
+  },
+  {
+    "Path": "10-Diagnostics-Reports/DR07-MemoryDiagnostics.ps1",
+    "Size": 2853,
+    "LastWriteTime": "2026-08-04T02:22:24.8944412+04:00"
+  },
+  {
+    "Path": "10-Diagnostics-Reports/DR08-DiskSMARTReport.ps1",
+    "Size": 2740,
+    "LastWriteTime": "2026-08-04T02:22:24.8974647+04:00"
+  },
+  {
+    "Path": "10-Diagnostics-Reports/DR09-PerformanceSnapshot.ps1",
+    "Size": 3059,
+    "LastWriteTime": "2026-08-04T02:22:24.8994521+04:00"
+  },
+  {
+    "Path": "10-Diagnostics-Reports/DR10-FullDiagnosticReport.ps1",
+    "Size": 4609,
+    "LastWriteTime": "2026-08-04T02:22:24.9024499+04:00"
+  },
+  {
+    "Path": "CHANGELOG.md",
+    "Size": 9426,
+    "LastWriteTime": "2026-08-04T07:31:39.8736352+04:00"
+  },
+  {
+    "Path": "Config/menus.json",
+    "Size": 20676,
+    "LastWriteTime": "2026-08-04T02:32:01.4640928+04:00"
+  },
+  {
+    "Path": "Config/protected-paths.json",
+    "Size": 467,
+    "LastWriteTime": "2026-08-03T09:39:57.1801304+04:00"
+  },
+  {
+    "Path": "Config/protected-processes.json",
+    "Size": 515,
+    "LastWriteTime": "2026-08-03T09:39:57.1811297+04:00"
+  },
+  {
+    "Path": "Config/service-allowlist.json",
+    "Size": 526,
+    "LastWriteTime": "2026-08-04T02:33:57.5654280+04:00"
+  },
+  {
+    "Path": "Config/settings.json",
+    "Size": 608,
+    "LastWriteTime": "2026-08-04T02:21:03.9520716+04:00"
+  },
+  {
+    "Path": "Core/KnouxRepair.Core.psm1",
+    "Size": 16118,
+    "LastWriteTime": "2026-08-04T02:24:26.3720562+04:00"
+  },
+  {
+    "Path": "Core/KnouxRepair.NativeCommands.psm1",
+    "Size": 4198,
+    "LastWriteTime": "2026-08-04T02:25:21.5465242+04:00"
+  },
+  {
+    "Path": "Core/KnouxRepair.Reporting.psm1",
+    "Size": 6677,
+    "LastWriteTime": "2026-08-04T02:24:51.0331872+04:00"
+  },
+  {
+    "Path": "Core/KnouxRepair.Safety.psm1",
+    "Size": 46907,
+    "LastWriteTime": "2026-08-04T06:50:39.2707051+04:00"
+  },
+  {
+    "Path": "Docs/ACCEPTANCE-REPORT.md",
+    "Size": 8866,
+    "LastWriteTime": "2026-08-04T07:34:40.6344591+04:00"
+  },
+  {
+    "Path": "Docs/AUDIT-AFTER.md",
+    "Size": 6802,
+    "LastWriteTime": "2026-08-04T07:34:45.9737933+04:00"
+  },
+  {
+    "Path": "Docs/AUDIT-BEFORE.md",
+    "Size": 1928,
+    "LastWriteTime": "2026-08-04T02:21:36.6533659+04:00"
+  },
+  {
+    "Path": "Docs/BUILD-VALIDATION-AR.txt",
+    "Size": 965,
+    "LastWriteTime": "2026-08-04T07:34:58.3015789+04:00"
+  },
+  {
+    "Path": "Docs/BUILD-VALIDATION-EN.txt",
+    "Size": 1735,
+    "LastWriteTime": "2026-08-04T07:34:52.0470830+04:00"
+  },
+  {
+    "Path": "Docs/KNOWN-LIMITATIONS.md",
+    "Size": 4849,
+    "LastWriteTime": "2026-08-04T07:30:22.5618381+04:00"
+  },
+  {
+    "Path": "Docs/PACKAGE-INSPECTION.md",
+    "Size": 5505,
+    "LastWriteTime": "2026-08-04T07:34:36.2240948+04:00"
+  },
+  {
+    "Path": "Docs/RESTORE-GUIDE-AR.md",
+    "Size": 2806,
+    "LastWriteTime": "2026-08-03T09:39:57.1851259+04:00"
+  },
+  {
+    "Path": "Docs/RESTORE-GUIDE-EN.md",
+    "Size": 2509,
+    "LastWriteTime": "2026-08-03T09:39:57.1861247+04:00"
+  },
+  {
+    "Path": "Docs/SAFETY-MODEL.md",
+    "Size": 3554,
+    "LastWriteTime": "2026-08-03T09:39:57.1861247+04:00"
+  },
+  {
+    "Path": "Docs/TEST-RESULTS.md",
+    "Size": 9897,
+    "LastWriteTime": "2026-08-04T07:28:26.4657927+04:00"
+  },
+  {
+    "Path": "Docs/TOOLS-CATALOG-AR.md",
+    "Size": 11340,
+    "LastWriteTime": "2026-08-03T09:39:57.2241033+04:00"
+  },
+  {
+    "Path": "Docs/TOOLS-MANIFEST.csv",
+    "Size": 37777,
+    "LastWriteTime": "2026-08-04T07:23:16.1376561+04:00"
+  },
+  {
+    "Path": "Docs/TOOLS-MANIFEST.json",
+    "Size": 72389,
+    "LastWriteTime": "2026-08-04T07:23:16.1856300+04:00"
+  },
+  {
+    "Path": "Menu.ps1",
+    "Size": 8884,
+    "LastWriteTime": "2026-08-04T06:40:17.4242582+04:00"
+  },
+  {
+    "Path": "README-AR.md",
+    "Size": 4463,
+    "LastWriteTime": "2026-08-04T07:32:15.6435679+04:00"
+  },
+  {
+    "Path": "README-EN.md",
+    "Size": 3653,
+    "LastWriteTime": "2026-08-04T07:31:44.1796505+04:00"
+  },
+  {
+    "Path": "START-KNOUX-REPAIR.cmd",
+    "Size": 894,
+    "LastWriteTime": "2026-08-04T05:54:49.9490059+04:00"
+  },
+  {
+    "Path": "Tests/Run-Tests.ps1",
+    "Size": 58659,
+    "LastWriteTime": "2026-08-04T07:13:09.3403632+04:00"
+  },
+  {
+    "Path": "Tests/TEST-RESULTS.txt",
+    "Size": 6737,
+    "LastWriteTime": "2026-08-04T07:33:15.5812149+04:00"
+  },
+  {
+    "Path": "VERSION",
+    "Size": 7,
+    "LastWriteTime": "2026-08-04T02:18:29.4931779+04:00"
+  }
+]

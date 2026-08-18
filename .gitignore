@@ -1,0 +1,32 @@
+# ─── Build outputs (generated) ───
+bin/
+obj/
+publish-tmp/
+
+# ─── Published / generated release artifacts ───
+KnouxRepair.exe
+Reports/
+QA-Screenshots/
+
+# ─── Logs, diagnostics, runtime output (generated) ───
+*.log
+Launcher-Diagnostic.log
+KNOUX-STARTUP-DIAGNOSTIC*.json
+Diagnostics/
+
+# ─── Test artifacts (generated) ───
+TEST-RESULTS.txt
+
+# ─── Separate / optional projects & dev tooling (NOT part of Desktop release) ───
+web-frontend/
+.claude/
+.qodo/
+Knoux-Repair-Glass-GUI-v1.0/
+Knoux-Repair-Glass-GUI-v1.0.zip
+
+# ─── IDE / OS noise ───
+.vs/
+*.user
+*.suo
+Thumbs.db
+Desktop.ini

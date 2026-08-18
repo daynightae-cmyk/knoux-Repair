@@ -1,0 +1,91 @@
+<UserControl x:Class="KnouxRepair.Views.AboutPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="Transparent">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="0,0,24,24" MaxWidth="640" HorizontalAlignment="Left">
+            <!-- Brand card -->
+            <Border Background="{DynamicResource CardFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeDefaultBrush}"
+                    BorderThickness="1" CornerRadius="12"
+                    Padding="32,28">
+                <StackPanel>
+                    <TextBlock Text="KNOUX" Foreground="{DynamicResource BrushCyan}"
+                               FontFamily="{DynamicResource FontDisplay}"
+                               FontSize="28" FontWeight="Bold"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="Repair" Style="{DynamicResource TitleLargeTextBlockStyle}"
+                               HorizontalAlignment="Center" Margin="0,-2,0,0"/>
+
+                    <TextBlock Text="v2.0.2"
+                               Style="{DynamicResource CaptionTextBlockStyle}"
+                               HorizontalAlignment="Center" Margin="0,8,0,0"/>
+
+                    <Border Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}"
+                            Margin="0,20"/>
+
+                    <TextBlock Text="{DynamicResource AboutAuthor}"
+                               Style="{DynamicResource BodyTextBlockStyle}"
+                               HorizontalAlignment="Center" Margin="0,16,0,0"/>
+                    <TextBlock Text="{DynamicResource AppCredit}"
+                               Style="{DynamicResource CaptionTextBlockStyle}"
+                               HorizontalAlignment="Center" Margin="0,4,0,0"/>
+
+                    <Border Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}"
+                            Margin="0,20"/>
+
+                    <TextBlock TextWrapping="Wrap" TextAlignment="Center"
+                               Style="{DynamicResource CaptionTextBlockStyle}" FontSize="12">
+                        Premium local interface for 100 controlled Windows maintenance tools.
+                        Zero internet required. Zero NuGet dependencies.
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+
+            <!-- System Information card -->
+            <Border Background="{DynamicResource CardFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeDefaultBrush}"
+                    BorderThickness="1" CornerRadius="12"
+                    Padding="20,16" Margin="0,16,0,0">
+                <StackPanel>
+                    <Grid>
+                        <TextBlock Text="{DynamicResource SysInfoTitle}"
+                                   Style="{DynamicResource BodyStrongTextBlockStyle}"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock x:Name="SysInfoStatusText" Text="..."
+                                   Style="{DynamicResource CaptionTextBlockStyle}"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}"
+                            Margin="0,12"/>
+
+                    <ItemsControl x:Name="SysInfoRows">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="110"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Label}"
+                                               Style="{DynamicResource CaptionTextBlockStyle}"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Value}"
+                                               Style="{DynamicResource CaptionTextBlockStyle}"
+                                               Foreground="{DynamicResource TextMainBrush}"
+                                               FontSize="11.5" TextWrapping="Wrap"
+                                               FlowDirection="LeftToRight"
+                                               VerticalAlignment="Center"
+                                               TextAlignment="Left"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

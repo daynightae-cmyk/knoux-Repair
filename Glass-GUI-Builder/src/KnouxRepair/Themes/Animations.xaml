@@ -1,0 +1,184 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         KNOUX REPAIR v2.0.2 — Premium Animations
+         ═══════════════════════════════════════════════════════════════════════ -->
+
+    <!-- ── Window drop shadow (used by custom chrome) ── -->
+    <DropShadowEffect x:Key="WindowShadow" BlurRadius="40" ShadowDepth="0"
+                      Opacity="0.5" Color="Black"/>
+
+    <!-- ── Fade in (standard) ── -->
+    <Storyboard x:Key="FadeIn">
+        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                         From="0" To="1"
+                         Duration="0:0:0.35"
+                         FillBehavior="HoldEnd">
+            <DoubleAnimation.EasingFunction>
+                <CubicEase EasingMode="EaseOut"/>
+            </DoubleAnimation.EasingFunction>
+        </DoubleAnimation>
+    </Storyboard>
+
+    <!-- ── Fade out ── -->
+    <Storyboard x:Key="FadeOut">
+        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                         From="1" To="0"
+                         Duration="0:0:0.25"
+                         FillBehavior="HoldEnd">
+            <DoubleAnimation.EasingFunction>
+                <CubicEase EasingMode="EaseIn"/>
+            </DoubleAnimation.EasingFunction>
+        </DoubleAnimation>
+    </Storyboard>
+
+    <!-- ── Premium Fade In (slower, smoother) ── -->
+    <Storyboard x:Key="PremiumFadeIn">
+        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                         From="0" To="1"
+                         Duration="0:0:0.5"
+                         FillBehavior="HoldEnd">
+            <DoubleAnimation.EasingFunction>
+                <ExponentialEase EasingMode="EaseOut" Exponent="4"/>
+            </DoubleAnimation.EasingFunction>
+        </DoubleAnimation>
+    </Storyboard>
+
+    <!-- ── Slide in from right ── -->
+    <Storyboard x:Key="SlideInFromRight">
+        <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                         From="40" To="0"
+                         Duration="0:0:0.3"
+                         FillBehavior="HoldEnd">
+            <DoubleAnimation.EasingFunction>
+                <CubicEase EasingMode="EaseOut"/>
+            </DoubleAnimation.EasingFunction>
+        </DoubleAnimation>
+        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                         From="0" To="1"
+                         Duration="0:0:0.3"
+                         FillBehavior="HoldEnd"/>
+    </Storyboard>
+
+    <!-- ── Slide in from left ── -->
+    <Storyboard x:Key="SlideInFromLeft">
+        <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                         From="-40" To="0"
+                         Duration="0:0:0.3"
+                         FillBehavior="HoldEnd">
+            <DoubleAnimation.EasingFunction>
+                <CubicEase EasingMode="EaseOut"/>
+            </DoubleAnimation.EasingFunction>
+        </DoubleAnimation>
+        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                         From="0" To="1"
+                         Duration="0:0:0.3"
+                         FillBehavior="HoldEnd"/>
+    </Storyboard>
+
+    <!-- ── Slide in from bottom (for cards/panels) ── -->
+    <Storyboard x:Key="SlideInFromBottom">
+        <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                         From="30" To="0"
+                         Duration="0:0:0.4"
+                         FillBehavior="HoldEnd">
+            <DoubleAnimation.EasingFunction>
+                <CubicEase EasingMode="EaseOut"/>
+            </DoubleAnimation.EasingFunction>
+        </DoubleAnimation>
+        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                         From="0" To="1"
+                         Duration="0:0:0.35"
+                         FillBehavior="HoldEnd"/>
+    </Storyboard>
+
+    <!-- ── Scale in (pop effect) ── -->
+    <Storyboard x:Key="ScaleIn">
+        <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                         From="0.9" To="1"
+                         Duration="0:0:0.35"
+                         FillBehavior="HoldEnd">
+            <DoubleAnimation.EasingFunction>
+                <CubicEase EasingMode="EaseOut"/>
+            </DoubleAnimation.EasingFunction>
+        </DoubleAnimation>
+        <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                         From="0.9" To="1"
+                         Duration="0:0:0.35"
+                         FillBehavior="HoldEnd">
+            <DoubleAnimation.EasingFunction>
+                <CubicEase EasingMode="EaseOut"/>
+            </DoubleAnimation.EasingFunction>
+        </DoubleAnimation>
+        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                         From="0" To="1"
+                         Duration="0:0:0.3"
+                         FillBehavior="HoldEnd"/>
+    </Storyboard>
+
+    <!-- ── Card Reveal (slide + fade + scale) ── -->
+    <Storyboard x:Key="CardReveal">
+        <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                         From="20" To="0"
+                         Duration="0:0:0.45"
+                         FillBehavior="HoldEnd">
+            <DoubleAnimation.EasingFunction>
+                <CubicEase EasingMode="EaseOut"/>
+            </DoubleAnimation.EasingFunction>
+        </DoubleAnimation>
+        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                         From="0" To="1"
+                         Duration="0:0:0.4"
+                         FillBehavior="HoldEnd">
+            <DoubleAnimation.EasingFunction>
+                <CubicEase EasingMode="EaseOut"/>
+            </DoubleAnimation.EasingFunction>
+        </DoubleAnimation>
+    </Storyboard>
+
+    <!-- ── Pulse Glow (breathing glow effect for health dots) ── -->
+    <Storyboard x:Key="PulseGlow" RepeatBehavior="Forever" AutoReverse="True">
+        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                         From="0.5" To="1"
+                         Duration="0:0:1.5"
+                         FillBehavior="HoldEnd">
+            <DoubleAnimation.EasingFunction>
+                <SineEase EasingMode="EaseInOut"/>
+            </DoubleAnimation.EasingFunction>
+        </DoubleAnimation>
+    </Storyboard>
+
+    <!-- ── Glow Ring rotation (for splash screen arc) ── -->
+    <Storyboard x:Key="GlowRingSpin" RepeatBehavior="Forever">
+        <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                         From="0" To="360"
+                         Duration="0:0:2.5"
+                         FillBehavior="HoldEnd"/>
+    </Storyboard>
+
+    <!-- ── Progress bar shimmer ── -->
+    <Storyboard x:Key="Shimmer" RepeatBehavior="Forever">
+        <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(TranslateTransform.X)"
+                         From="-200" To="200"
+                         Duration="0:0:1.8"
+                         FillBehavior="HoldEnd">
+            <DoubleAnimation.EasingFunction>
+                <SineEase EasingMode="EaseInOut"/>
+            </DoubleAnimation.EasingFunction>
+        </DoubleAnimation>
+    </Storyboard>
+
+    <!-- ── Status bar glow pulse ── -->
+    <Storyboard x:Key="StatusBarPulse" RepeatBehavior="Forever" AutoReverse="True">
+        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                         From="0.6" To="1"
+                         Duration="0:0:2"
+                         FillBehavior="HoldEnd">
+            <DoubleAnimation.EasingFunction>
+                <SineEase EasingMode="EaseInOut"/>
+            </DoubleAnimation.EasingFunction>
+        </DoubleAnimation>
+    </Storyboard>
+
+</ResourceDictionary>

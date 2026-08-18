@@ -1,0 +1,275 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!-- App -->
+    <sys:String x:Key="AppTitle">KNOUX Repair</sys:String>
+    <sys:String x:Key="AppTitleSuffix"> Repair</sys:String>
+    <sys:String x:Key="AppSubtitle">Advanced Windows Maintenance &amp; Diagnostics</sys:String>
+    <sys:String x:Key="AppCredit">A Knoux Product</sys:String>
+    <sys:String x:Key="AppAuthor">Crafted by Eng. Sadek Elgazar</sys:String>
+
+    <!-- Sidebar Section Headers -->
+    <sys:String x:Key="NavSectionDashboard">DASHBOARD</sys:String>
+    <sys:String x:Key="NavSectionRepair">REPAIR</sys:String>
+    <sys:String x:Key="NavSectionManagement">MANAGEMENT</sys:String>
+    <sys:String x:Key="NavSectionSystem">SYSTEM</sys:String>
+
+    <!-- Navigation -->
+    <sys:String x:Key="NavDashboard">Dashboard</sys:String>
+    <sys:String x:Key="NavAllTools">All Tools</sys:String>
+    <sys:String x:Key="NavReports">Reports</sys:String>
+    <sys:String x:Key="NavQuarantine">Quarantine</sys:String>
+    <sys:String x:Key="NavBackups">Backups</sys:String>
+    <sys:String x:Key="NavTestCenter">Test Center</sys:String>
+    <sys:String x:Key="NavSettings">Settings</sys:String>
+    <sys:String x:Key="NavAbout">About</sys:String>
+
+    <!-- Categories -->
+    <sys:String x:Key="Cat01">System Maintenance</sys:String>
+    <sys:String x:Key="Cat02">System Cleanup</sys:String>
+    <sys:String x:Key="Cat03">Network &amp; Internet</sys:String>
+    <sys:String x:Key="Cat04">Programs &amp; Applications</sys:String>
+    <sys:String x:Key="Cat05">Duplicate Files</sys:String>
+    <sys:String x:Key="Cat06">Disk Space</sys:String>
+    <sys:String x:Key="Cat07">Services &amp; Processes</sys:String>
+    <sys:String x:Key="Cat08">Performance</sys:String>
+    <sys:String x:Key="Cat09">Security</sys:String>
+    <sys:String x:Key="Cat10">Diagnostics &amp; Reports</sys:String>
+
+    <!-- Dashboard Hero -->
+    <sys:String x:Key="DashTitle">System Health</sys:String>
+    <sys:String x:Key="DashSubtitle">Your PC command center</sys:String>
+    <sys:String x:Key="DashHealthHealthy">HEALTHY</sys:String>
+    <sys:String x:Key="DashHealthAttention">ATTENTION</sys:String>
+    <sys:String x:Key="DashHealthCritical">CRITICAL</sys:String>
+    <sys:String x:Key="DashHealthNormalDesc">Your system is operating normally.</sys:String>
+    <sys:String x:Key="DashHealthAttentionDesc">Some areas need attention.</sys:String>
+    <sys:String x:Key="DashHealthCriticalDesc">Critical issues detected.</sys:String>
+
+    <!-- Primary Actions -->
+    <sys:String x:Key="DashRunCheck">Run System Check</sys:String>
+    <sys:String x:Key="DashAnalyzeSystem">Analyze System</sys:String>
+    <sys:String x:Key="DashRunCheckDesc">Scan all categories for issues</sys:String>
+
+    <!-- Quick Actions -->
+    <sys:String x:Key="DashQuickMaintenance">Maintenance</sys:String>
+    <sys:String x:Key="DashQuickCleanup">Cleanup</sys:String>
+    <sys:String x:Key="DashQuickNetwork">Network</sys:String>
+    <sys:String x:Key="DashQuickSecurity">Security</sys:String>
+    <sys:String x:Key="DashQuickPerformance">Performance</sys:String>
+    <sys:String x:Key="DashQuickDisk">Disk</sys:String>
+    <sys:String x:Key="DashQuickDiagnostics">Diagnostics</sys:String>
+
+    <!-- Recent Activity -->
+    <sys:String x:Key="DashRecentActivity">Recent Activity</sys:String>
+    <sys:String x:Key="DashNoActivity">No recent activity</sys:String>
+    <sys:String x:Key="DashRunTool">Run a tool to see activity here.</sys:String>
+
+    <!-- Metrics -->
+    <sys:String x:Key="MetricTotalTools">Total Tools</sys:String>
+    <sys:String x:Key="MetricSafeTools">Safe Tools</sys:String>
+    <sys:String x:Key="MetricAdminTools">Admin Tools</sys:String>
+    <sys:String x:Key="MetricReports">Reports</sys:String>
+    <sys:String x:Key="MetricReadOnly">Read-only</sys:String>
+    <sys:String x:Key="MetricDestructive">Destructive</sys:String>
+    <sys:String x:Key="MetricRebootRequired">Reboot Required</sys:String>
+    <sys:String x:Key="MetricLastStatus">Last Status</sys:String>
+
+    <!-- System Health -->
+    <sys:String x:Key="DashHealthTitle">System Health</sys:String>
+    <sys:String x:Key="HealthCpu">CPU Usage</sys:String>
+    <sys:String x:Key="HealthRam">Memory Usage</sys:String>
+    <sys:String x:Key="HealthDisk">Disk Usage</sys:String>
+
+    <!-- System Information -->
+    <sys:String x:Key="SysInfoTitle">System Information</sys:String>
+    <sys:String x:Key="SysOs">Operating System</sys:String>
+    <sys:String x:Key="SysCpu">Processor</sys:String>
+    <sys:String x:Key="SysCores">Logical Cores</sys:String>
+    <sys:String x:Key="SysRam">Memory</sys:String>
+    <sys:String x:Key="SysDisk">System Drive</sys:String>
+    <sys:String x:Key="SysUptime">Uptime</sys:String>
+    <sys:String x:Key="SysAdmin">Privileges</sys:String>
+    <sys:String x:Key="SysEngine">PowerShell Engine</sys:String>
+    <sys:String x:Key="SysProject">Project Root</sys:String>
+    <sys:String x:Key="SysTools">Loaded Tools</sys:String>
+
+    <!-- Status -->
+    <sys:String x:Key="StatusReady">Ready</sys:String>
+    <sys:String x:Key="StatusRunning">Running</sys:String>
+    <sys:String x:Key="StatusCompleted">Completed</sys:String>
+    <sys:String x:Key="StatusWarning">Warning</sys:String>
+    <sys:String x:Key="StatusFailed">Failed</sys:String>
+    <sys:String x:Key="StatusCancelled">Cancelled</sys:String>
+    <sys:String x:Key="StatusBusy">A tool is already running</sys:String>
+    <sys:String x:Key="StatusIdle">Idle</sys:String>
+    <sys:String x:Key="StatusNavigate">Navigate to: {0}</sys:String>
+    <sys:String x:Key="StatusToolsLoaded">{0} tools loaded</sys:String>
+
+    <!-- Admin -->
+    <sys:String x:Key="AdminElevated">ADMINISTRATOR</sys:String>
+    <sys:String x:Key="AdminStandard">STANDARD USER</sys:String>
+
+    <!-- Actions -->
+    <sys:String x:Key="ActionAnalyze">Analyze</sys:String>
+    <sys:String x:Key="ActionRun">Run</sys:String>
+    <sys:String x:Key="ActionAnalyzeSafely">Analyze Safely</sys:String>
+    <sys:String x:Key="ActionRunTool">Run Tool</sys:String>
+    <sys:String x:Key="ActionOpenReports">Open Reports</sys:String>
+    <sys:String x:Key="ActionOpenReportFolder">Open Report Folder</sys:String>
+    <sys:String x:Key="ActionRunTests">Run Tests</sys:String>
+    <sys:String x:Key="ActionSend">Send</sys:String>
+    <sys:String x:Key="ActionStop">Stop</sys:String>
+    <sys:String x:Key="ActionCancel">Cancel</sys:String>
+    <sys:String x:Key="ActionClose">Close</sys:String>
+    <sys:String x:Key="ActionMinimize">Minimize</sys:String>
+    <sys:String x:Key="ActionMaximize">Maximize</sys:String>
+    <sys:String x:Key="ActionRestore">Restore</sys:String>
+    <sys:String x:Key="ActionNotifications">Notifications</sys:String>
+    <sys:String x:Key="ActionViewReport">View Report</sys:String>
+    <sys:String x:Key="ActionReturnWorkspace">Return to Workspace</sys:String>
+
+    <!-- Tool -->
+    <sys:String x:Key="ToolSelectTool">Select a tool</sys:String>
+    <sys:String x:Key="ToolSelectHint">Select any card to view details.</sys:String>
+    <sys:String x:Key="ToolRisk">Risk</sys:String>
+    <sys:String x:Key="ToolAdmin">Admin</sys:String>
+    <sys:String x:Key="ToolRestart">Restart</sys:String>
+    <sys:String x:Key="ToolOffline">Offline</sys:String>
+    <sys:String x:Key="ToolPath">Path</sys:String>
+    <sys:String x:Key="ToolBackup">Backup</sys:String>
+    <sys:String x:Key="ToolRollback">Rollback</sys:String>
+    <sys:String x:Key="ToolWhatIf">WhatIf</sys:String>
+    <sys:String x:Key="ToolAnalyzeOnly">AnalyzeOnly</sys:String>
+    <sys:String x:Key="ToolDescription">Description</sys:String>
+    <sys:String x:Key="ToolSafetyLevel">Safety Level</sys:String>
+    <sys:String x:Key="ToolPrerequisites">Prerequisites</sys:String>
+    <sys:String x:Key="ToolWhatItDoes">What it does</sys:String>
+    <sys:String x:Key="ToolWhatItChanges">What it changes</sys:String>
+    <sys:String x:Key="ValueNone">None</sys:String>
+    <sys:String x:Key="ValueSupported">Supported</sys:String>
+    <sys:String x:Key="ValueNotSupported">Not supported</sys:String>
+
+    <!-- Tool Workspace -->
+    <sys:String x:Key="WorkAllTools">All Tools</sys:String>
+    <sys:String x:Key="WorkToolsInCategory">{0} tools in this category</sys:String>
+    <sys:String x:Key="WorkSearchTools">Search tools...</sys:String>
+    <sys:String x:Key="WorkSortBy">Sort by</sys:String>
+    <sys:String x:Key="WorkSortName">Name</sys:String>
+    <sys:String x:Key="WorkSortRisk">Risk</sys:String>
+    <sys:String x:Key="WorkSortId">ID</sys:String>
+
+    <!-- Execution -->
+    <sys:String x:Key="ExecRunning">Running</sys:String>
+    <sys:String x:Key="ExecSuccess">Success</sys:String>
+    <sys:String x:Key="ExecFailed">Failed</sys:String>
+    <sys:String x:Key="ExecCancelled">Cancelled</sys:String>
+    <sys:String x:Key="ExecCurrentOp">Current operation:</sys:String>
+    <sys:String x:Key="ExecElapsed">Elapsed:</sys:String>
+    <sys:String x:Key="ExecExitCode">Exit Code: {0}</sys:String>
+    <sys:String x:Key="ExecOutput">OUTPUT</sys:String>
+
+    <!-- Analyze Only -->
+    <sys:String x:Key="AnalyzeOnlyOn">Analyze-only: ON</sys:String>
+    <sys:String x:Key="AnalyzeOnlyOff">Analyze-only: OFF</sys:String>
+
+    <!-- Console -->
+    <sys:String x:Key="ConsoleTitle">Live Execution Console</sys:String>
+    <sys:String x:Key="ConsoleModeAnalyze">Mode: Analyze-only</sys:String>
+    <sys:String x:Key="ConsoleModeRun">Mode: Full run</sys:String>
+    <sys:String x:Key="ConsoleDoneOk">Completed successfully</sys:String>
+    <sys:String x:Key="ConsoleDoneCode">Exit code: {0}</sys:String>
+    <sys:String x:Key="ConsoleStopped">Stopped</sys:String>
+
+    <!-- Confirmation -->
+    <sys:String x:Key="ConfirmRunTitle">Confirm Tool Execution</sys:String>
+    <sys:String x:Key="ConfirmRunMessage">The tool will run in normal mode. Review its risk and backup requirements before continuing.</sys:String>
+    <sys:String x:Key="ConfirmStopTitle">Stop Current Tool?</sys:String>
+    <sys:String x:Key="ConfirmStopMessage">Are you sure you want to stop the current operation?</sys:String>
+    <sys:String x:Key="ConfirmExitTitle">Exit KNOUX Repair?</sys:String>
+    <sys:String x:Key="ConfirmExitMessage">A tool is currently running. Stop it and exit?</sys:String>
+
+    <!-- Settings -->
+    <sys:String x:Key="SettingsTitle">Settings</sys:String>
+    <sys:String x:Key="SettingsLanguage">Language</sys:String>
+    <sys:String x:Key="SettingsTheme">Theme</sys:String>
+    <sys:String x:Key="SettingsReducedMotion">Reduced Motion</sys:String>
+    <sys:String x:Key="SettingsCompactNav">Compact Navigation</sys:String>
+    <sys:String x:Key="SettingsAnalyzeDefault">Default Analyze-only Mode</sys:String>
+    <sys:String x:Key="SettingsConsoleAutoScroll">Console Auto-scroll</sys:String>
+    <sys:String x:Key="SettingsConsoleFontSize">Console Font Size</sys:String>
+    <sys:String x:Key="SettingsMaxReportHistory">Max Report History</sys:String>
+    <sys:String x:Key="SettingsOpenProjectFolder">Open Project Folder</sys:String>
+
+    <!-- Splash -->
+    <sys:String x:Key="SplashValidating">Validating project structure</sys:String>
+    <sys:String x:Key="SplashManifest">Loading manifest</sys:String>
+    <sys:String x:Key="SplashTools">Loading 100 tools</sys:String>
+    <sys:String x:Key="SplashCore">Verifying Core modules</sys:String>
+    <sys:String x:Key="SplashReports">Preparing report engine</sys:String>
+    <sys:String x:Key="SplashAdmin">Checking Administrator status</sys:String>
+    <sys:String x:Key="SplashReady">Ready to launch</sys:String>
+    <sys:String x:Key="SplashFinish">Enter Application</sys:String>
+
+    <!-- About -->
+    <sys:String x:Key="AboutTitle">About KNOUX Repair</sys:String>
+    <sys:String x:Key="AboutVersion">Version</sys:String>
+    <sys:String x:Key="AboutAuthor">Crafted by Eng. Sadek Elgazar</sys:String>
+
+    <!-- Notifications -->
+    <sys:String x:Key="NotifReportCreated">Report created</sys:String>
+    <sys:String x:Key="NotifBackupCreated">Backup created</sys:String>
+    <sys:String x:Key="NotifToolComplete">Tool completed</sys:String>
+
+    <!-- Search -->
+    <sys:String x:Key="SearchPlaceholder">Search tools by name, ID, or purpose...</sys:String>
+    <sys:String x:Key="SearchClear">Clear</sys:String>
+    <sys:String x:Key="SearchResults">results</sys:String>
+
+    <!-- Common actions -->
+    <sys:String x:Key="ActionRefresh">Refresh</sys:String>
+    <sys:String x:Key="ActionOpenFolder">Open Folder</sys:String>
+    <sys:String x:Key="ActionRestoreSelected">Restore Selected</sys:String>
+
+    <!-- Quarantine -->
+    <sys:String x:Key="QuarantineSubtitle">Quarantined files from destructive tools, safe to restore or inspect.</sys:String>
+    <sys:String x:Key="QuarantineColItem">Item</sys:String>
+    <sys:String x:Key="QuarantineColTool">Tool</sys:String>
+    <sys:String x:Key="QuarantineColType">Type</sys:String>
+    <sys:String x:Key="QuarantineColSize">Size</sys:String>
+    <sys:String x:Key="QuarantineColOrigin">Original Path</sys:String>
+    <sys:String x:Key="QuarantineColDate">Quarantined At</sys:String>
+    <sys:String x:Key="QuarantineColState">State</sys:String>
+    <sys:String x:Key="QuarantineRestoreTitle">Restore Quarantined Item?</sys:String>
+    <sys:String x:Key="QuarantineRestoreConfirm">Restore '{0}' to its original location? The safety module verifies the result before deleting the quarantine copy.</sys:String>
+    <sys:String x:Key="QuarantineRestoreRunning">Restoring item...</sys:String>
+
+    <!-- Backups -->
+    <sys:String x:Key="BackupsSubtitle">Backup registry keys, configs, and service states before changes.</sys:String>
+    <sys:String x:Key="BackupsColTool">Tool</sys:String>
+    <sys:String x:Key="BackupsColStamp">Timestamp</sys:String>
+    <sys:String x:Key="BackupsColSize">Size</sys:String>
+    <sys:String x:Key="BackupsColFiles">Files</sys:String>
+    <sys:String x:Key="BackupsColPath">Location</sys:String>
+
+    <!-- Test Center -->
+    <sys:String x:Key="TestCenterSubtitle">Dry-run all tools with -WhatIf and -AnalyzeOnly to verify safety.</sys:String>
+    <sys:String x:Key="TestCenterLastRun">Last run:</sys:String>
+    <sys:String x:Key="TestCenterColName">Test</sys:String>
+    <sys:String x:Key="TestCenterColStatus">Status</sys:String>
+    <sys:String x:Key="TestCenterColDetail">Detail</sys:String>
+
+    <!-- Reports -->
+    <sys:String x:Key="ReportsColItems">Items</sys:String>
+    <sys:String x:Key="ReportsColStarted">Started</sys:String>
+    <sys:String x:Key="ReportsSelectHint">Select a report to see details</sys:String>
+    <sys:String x:Key="ReportsRestartNeeded">Restart needed</sys:String>
+    <sys:String x:Key="ReportsItemsLabel">Items</sys:String>
+    <sys:String x:Key="ReportsBackupLabel">Backup</sys:String>
+    <sys:String x:Key="ReportsErrorLabel">Error</sys:String>
+
+    <!-- Language toggle -->
+    <sys:String x:Key="LangToggle">العربية</sys:String>
+
+</ResourceDictionary>

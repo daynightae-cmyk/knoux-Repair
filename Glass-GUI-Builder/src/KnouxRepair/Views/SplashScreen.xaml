@@ -1,0 +1,178 @@
+<Window x:Class="KnouxRepair.Views.SplashScreen"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="KNOUX Repair"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Width="560" Height="420"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+
+    <Border x:Name="RootBorder" CornerRadius="18"
+            BorderThickness="1" BorderBrush="{DynamicResource GlassBorderBrush}"
+            Opacity="0" RenderTransformOrigin="0.5,0.5">
+        <Border.RenderTransform>
+            <ScaleTransform x:Name="RootScale" ScaleX="0.92" ScaleY="0.92"/>
+        </Border.RenderTransform>
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="50" ShadowDepth="0" Opacity="0.6" Color="Black"/>
+        </Border.Effect>
+        <Border.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#FF060E1A" Offset="0"/>
+                <GradientStop Color="#FF0A1628" Offset="1"/>
+            </LinearGradientBrush>
+        </Border.Background>
+        <Grid ClipToBounds="True">
+            <!-- Radial glow backdrop -->
+            <Border Opacity="0.35" IsHitTestVisible="False">
+                <Border.Background>
+                    <RadialGradientBrush GradientOrigin="0.5,0.35" Center="0.5,0.45"
+                                         RadiusX="0.45" RadiusY="0.5">
+                        <GradientStop Color="#2800E5FF" Offset="0"/>
+                        <GradientStop Color="#1000E5FF" Offset="0.4"/>
+                        <GradientStop Color="#00000000" Offset="1"/>
+                    </RadialGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- Rotating ring arc -->
+            <Canvas Width="120" Height="120" HorizontalAlignment="Center"
+                    VerticalAlignment="Center" Margin="0,-30,0,0">
+                <Canvas.RenderTransform>
+                    <RotateTransform x:Name="RingRotation" Angle="0" CenterX="60" CenterY="60"/>
+                </Canvas.RenderTransform>
+                <!-- Ring track (faint) -->
+                <Ellipse Canvas.Left="10" Canvas.Top="10"
+                         Width="100" Height="100"
+                         Stroke="#18FFFFFF" StrokeThickness="3"
+                         Fill="Transparent"/>
+                <!-- Ring arc (gradient stroke via Path) -->
+                <Path Canvas.Left="10" Canvas.Top="10"
+                      Width="100" Height="100"
+                      StrokeThickness="3.5" Fill="Transparent"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                    <Path.Stroke>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#FF00E5FF" Offset="0"/>
+                            <GradientStop Color="#FF448AFF" Offset="0.5"/>
+                            <GradientStop Color="#FF00E676" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Path.Stroke>
+                    <Path.Data>
+                        <PathGeometry x:Name="RingGeometry">
+                            <PathFigure StartPoint="50,2" IsClosed="False">
+                                <ArcSegment Size="48,48" SweepDirection="Clockwise"
+                                            IsLargeArc="False" Point="98,50"/>
+                            </PathFigure>
+                        </PathGeometry>
+                    </Path.Data>
+                    <Path.Effect>
+                        <DropShadowEffect BlurRadius="12" ShadowDepth="0"
+                                          Opacity="0.5" Color="#00E5FF"/>
+                    </Path.Effect>
+                </Path>
+                <!-- Center dot -->
+                <Ellipse Canvas.Left="46" Canvas.Top="46"
+                         Width="28" Height="28" Opacity="0.15"
+                         Fill="{DynamicResource BrushCyan}"/>
+                <Ellipse Canvas.Left="50" Canvas.Top="50"
+                         Width="20" Height="20"
+                         Fill="{DynamicResource BrushCyan}" Opacity="0.6">
+                    <Ellipse.Effect>
+                        <DropShadowEffect BlurRadius="10" ShadowDepth="0"
+                                          Opacity="0.5" Color="#00E5FF"/>
+                    </Ellipse.Effect>
+                </Ellipse>
+            </Canvas>
+
+            <!-- Content grid -->
+            <Grid Margin="40,30">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="140"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="6"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="4"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="24"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="18"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Spacer for ring area -->
+                <Border Grid.Row="0"/>
+
+                <!-- App Name -->
+                <TextBlock Grid.Row="1" x:Name="TitleText" Text="KNOUX Repair"
+                           Foreground="{DynamicResource BrushCyan}"
+                           FontFamily="{DynamicResource FontDisplay}"
+                           FontSize="34" FontWeight="Bold"
+                           HorizontalAlignment="Center"
+                           Opacity="0">
+                    <TextBlock.Effect>
+                        <DropShadowEffect BlurRadius="16" ShadowDepth="0"
+                                          Opacity="0.4" Color="#00E5FF"/>
+                    </TextBlock.Effect>
+                </TextBlock>
+
+                <!-- Subtitle -->
+                <TextBlock Grid.Row="3" x:Name="Subtitle"
+                           Text="{DynamicResource AppSubtitle}"
+                           Style="{DynamicResource BodyTextBlockStyle}"
+                           Foreground="{DynamicResource BrushMuted}"
+                           HorizontalAlignment="Center"
+                           Opacity="0"/>
+
+                <TextBlock Grid.Row="5" x:Name="VersionText"
+                           Text="v2.0.2"
+                           Style="{DynamicResource CaptionTextBlockStyle}"
+                           Foreground="{DynamicResource BrushMuted}"
+                           HorizontalAlignment="Center" Opacity="0.5"/>
+
+                <!-- Status -->
+                <TextBlock Grid.Row="7" x:Name="StatusText"
+                           Text="{DynamicResource SplashValidating}"
+                           Style="{DynamicResource CaptionTextBlockStyle}"
+                           Foreground="{DynamicResource BrushMuted}"
+                           HorizontalAlignment="Center"
+                           Opacity="0"/>
+
+                <!-- Finish button -->
+                <Button Grid.Row="9" x:Name="BtnFinish"
+                        Content="{DynamicResource SplashFinish}"
+                        Style="{DynamicResource AccentButton}"
+                        HorizontalAlignment="Center"
+                        MinWidth="180" Padding="30,11"
+                        Visibility="Collapsed"
+                        Click="BtnFinish_Click"/>
+
+                <!-- Progress bar -->
+                <Grid Grid.Row="11" x:Name="ProgressTrack" VerticalAlignment="Bottom">
+                    <Border Height="4" CornerRadius="2"
+                            Background="#18FFFFFF" HorizontalAlignment="Stretch">
+                        <Border x:Name="ProgressBar" Height="4" CornerRadius="2"
+                                HorizontalAlignment="Left" Width="0">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#FF00E5FF" Offset="0"/>
+                                    <GradientStop Color="#FF448AFF" Offset="0.5"/>
+                                    <GradientStop Color="#FF00E676" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="6" ShadowDepth="0"
+                                                  Opacity="0.5" Color="#00E5FF"/>
+                            </Border.Effect>
+                        </Border>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

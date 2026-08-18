@@ -1,0 +1,762 @@
+﻿[
+  {
+    "Category": "01-System-Maintenance",
+    "Folder": "01-System-Maintenance",
+    "Tools": [
+      {
+        "Id": "SM01",
+        "Name": "Verify System Files",
+        "File": "SM01-VerifySystemFiles.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SM02",
+        "Name": "Repair System Files",
+        "File": "SM02-RepairSystemFiles.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SM03",
+        "Name": "Check Component Store",
+        "File": "SM03-CheckComponentStore.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SM04",
+        "Name": "Scan System Image",
+        "File": "SM04-ScanSystemImage.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SM05",
+        "Name": "Repair System Image",
+        "File": "SM05-RepairSystemImage.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SM06",
+        "Name": "Check Disk Online",
+        "File": "SM06-CheckDiskOnline.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SM07",
+        "Name": "Schedule Disk Check",
+        "File": "SM07-ScheduleDiskCheck.ps1",
+        "Risk": "REBOOT_REQUIRED",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SM08",
+        "Name": "Analyze Component Store",
+        "File": "SM08-AnalyzeComponentStore.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SM09",
+        "Name": "Reset Windows Update",
+        "File": "SM09-ResetWindowsUpdate.ps1",
+        "Risk": "DESTRUCTIVE",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SM10",
+        "Name": "System Maintenance Report",
+        "File": "SM10-SystemMaintenanceReport.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      }
+    ]
+  },
+  {
+    "Category": "02-System-Cleanup",
+    "Folder": "02-System-Cleanup",
+    "Tools": [
+      {
+        "Id": "SC01",
+        "Name": "Clean User Temp Files",
+        "File": "SC01-CleanUserTempFiles.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SC02",
+        "Name": "Empty Recycle Bin",
+        "File": "SC02-EmptyRecycleBin.ps1",
+        "Risk": "DESTRUCTIVE",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SC03",
+        "Name": "Clean Browser Cache",
+        "File": "SC03-CleanBrowserCache.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SC04",
+        "Name": "Clean Windows Error Reports",
+        "File": "SC04-CleanWindowsErrorReports.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SC05",
+        "Name": "Analyze Cleanup Potential",
+        "File": "SC05-AnalyzeCleanupPotential.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SC06",
+        "Name": "Clean Update Download Cache",
+        "File": "SC06-CleanUpdateDownloadCache.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SC07",
+        "Name": "Clean System Temp",
+        "File": "SC07-CleanSystemTemp.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SC08",
+        "Name": "Clean Large Temp Files",
+        "File": "SC08-CleanLargeTempFiles.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SC09",
+        "Name": "Clean Thumbnail Cache",
+        "File": "SC09-CleanThumbnailCache.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SC10",
+        "Name": "Comprehensive Cleanup",
+        "File": "SC10-ComprehensiveCleanup.ps1",
+        "Risk": "DESTRUCTIVE",
+        "RequiresAdmin": true
+      }
+    ]
+  },
+  {
+    "Category": "03-Network-Internet",
+    "Folder": "03-Network-Internet",
+    "Tools": [
+      {
+        "Id": "NI01",
+        "Name": "Test Network Connectivity",
+        "File": "NI01-TestNetworkConnectivity.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "NI02",
+        "Name": "Renew IP Address",
+        "File": "NI02-RenewIPAddress.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "NI03",
+        "Name": "Flush DNS Cache",
+        "File": "NI03-FlushDnsCache.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "NI04",
+        "Name": "Reset Winsock",
+        "File": "NI04-ResetWinsock.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "NI05",
+        "Name": "Refresh Network Tables",
+        "File": "NI05-RefreshNetworkTables.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "NI06",
+        "Name": "Test Connection Quality",
+        "File": "NI06-TestConnectionQuality.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "NI07",
+        "Name": "Show Network Configuration",
+        "File": "NI07-ShowNetworkConfiguration.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "NI08",
+        "Name": "Reset Network Stack",
+        "File": "NI08-ResetNetworkStack.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "NI09",
+        "Name": "Optimize TCP/IP Settings",
+        "File": "NI09-OptimizeTcpIpSettings.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "NI10",
+        "Name": "Network Report",
+        "File": "NI10-NetworkReport.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      }
+    ]
+  },
+  {
+    "Category": "04-Programs-Applications",
+    "Folder": "04-Programs-Applications",
+    "Tools": [
+      {
+        "Id": "PA01",
+        "Name": "List Installed Programs",
+        "File": "PA01-ListInstalledPrograms.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PA02",
+        "Name": "Repair Program Installations",
+        "File": "PA02-RepairProgramInstallations.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "PA03",
+        "Name": "Uninstall Residual Files",
+        "File": "PA03-UninstallResidualFiles.ps1",
+        "Risk": "DESTRUCTIVE",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PA04",
+        "Name": "Repair Start Menu Shortcuts",
+        "File": "PA04-RepairStartMenuShortcuts.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PA05",
+        "Name": "Manage Startup Programs",
+        "File": "PA05-ManageStartupPrograms.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PA06",
+        "Name": "Check Runtime Components",
+        "File": "PA06-CheckRuntimeComponents.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PA07",
+        "Name": "Remove Unnecessary Windows Apps",
+        "File": "PA07-RemoveUnnecessaryWindowsApps.ps1",
+        "Risk": "DESTRUCTIVE",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PA08",
+        "Name": "Repair Program Uninstaller",
+        "File": "PA08-RepairProgramUninstaller.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PA09",
+        "Name": "Check Program Updates",
+        "File": "PA09-CheckProgramUpdates.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PA10",
+        "Name": "Programs Report",
+        "File": "PA10-ProgramsReport.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      }
+    ]
+  },
+  {
+    "Category": "05-Duplicate-Files",
+    "Folder": "05-Duplicate-Files",
+    "Tools": [
+      {
+        "Id": "DF01",
+        "Name": "Analyze Duplicate Files",
+        "File": "DF01-AnalyzeDuplicateFiles.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DF02",
+        "Name": "Clean Duplicate Files",
+        "File": "DF02-CleanDuplicateFiles.ps1",
+        "Risk": "DESTRUCTIVE",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DF03",
+        "Name": "Clean Duplicate Pictures",
+        "File": "DF03-CleanDuplicatePictures.ps1",
+        "Risk": "DESTRUCTIVE",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DF04",
+        "Name": "Clean Duplicate Documents",
+        "File": "DF04-CleanDuplicateDocuments.ps1",
+        "Risk": "DESTRUCTIVE",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DF05",
+        "Name": "Clean Duplicate Music and Video",
+        "File": "DF05-CleanDuplicateMusicAndVideo.ps1",
+        "Risk": "DESTRUCTIVE",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DF06",
+        "Name": "Remove Empty Folders",
+        "File": "DF06-RemoveEmptyFolders.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DF07",
+        "Name": "Move Duplicates to Folder",
+        "File": "DF07-MoveDuplicatesToFolder.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DF08",
+        "Name": "Deduplicate Downloads",
+        "File": "DF08-DeduplicateDownloads.ps1",
+        "Risk": "DESTRUCTIVE",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DF09",
+        "Name": "List Duplicate System Files",
+        "File": "DF09-ListDuplicateSystemFiles.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DF10",
+        "Name": "Restore Quarantined Items",
+        "File": "DF10-RestoreQuarantinedItems.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      }
+    ]
+  },
+  {
+    "Category": "06-Disk-Space",
+    "Folder": "06-Disk-Space",
+    "Tools": [
+      {
+        "Id": "DS01",
+        "Name": "Analyze Disk Space Usage",
+        "File": "DS01-AnalyzeDiskSpaceUsage.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DS02",
+        "Name": "Find Large Files",
+        "File": "DS02-FindLargeFiles.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DS03",
+        "Name": "Find Space Hogs",
+        "File": "DS03-FindSpaceHogs.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DS04",
+        "Name": "Clean Recycle Bin",
+        "File": "DS04-CleanRecycleBin.ps1",
+        "Risk": "DESTRUCTIVE",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DS05",
+        "Name": "Clear File History Cache",
+        "File": "DS05-ClearFileHistoryCache.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DS06",
+        "Name": "Compact System Files",
+        "File": "DS06-CompactSystemFiles.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "DS07",
+        "Name": "Check Disk Health",
+        "File": "DS07-CheckDiskHealth.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DS08",
+        "Name": "Run Disk Cleanup",
+        "File": "DS08-RunDiskCleanup.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DS09",
+        "Name": "Disable Hibernation",
+        "File": "DS09-DisableHibernation.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "DS10",
+        "Name": "Disk Space Report",
+        "File": "DS10-DiskSpaceReport.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      }
+    ]
+  },
+  {
+    "Category": "07-Services-Processes",
+    "Folder": "07-Services-Processes",
+    "Tools": [
+      {
+        "Id": "SP01",
+        "Name": "List Services",
+        "File": "SP01-ListServices.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SP02",
+        "Name": "Analyze Processes",
+        "File": "SP02-AnalyzeProcesses.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SP03",
+        "Name": "Restart Explorer",
+        "File": "SP03-RestartExplorer.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SP04",
+        "Name": "Cleanup Hanging Processes",
+        "File": "SP04-CleanupHangingProcesses.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SP05",
+        "Name": "Reset Service Start Types",
+        "File": "SP05-ResetServiceStartTypes.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SP06",
+        "Name": "Restart Windows Update Services",
+        "File": "SP06-RestartWindowsUpdateServices.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SP07",
+        "Name": "Find Service Dependencies",
+        "File": "SP07-FindServiceDependencies.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SP08",
+        "Name": "Service Recommendations",
+        "File": "SP08-ServiceRecommendations.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SP09",
+        "Name": "Restore Service Start Types",
+        "File": "SP09-RestoreServiceStartTypes.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SP10",
+        "Name": "Services & Processes Report",
+        "File": "SP10-ServicesProcessesReport.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      }
+    ]
+  },
+  {
+    "Category": "08-Performance",
+    "Folder": "08-Performance",
+    "Tools": [
+      {
+        "Id": "PF01",
+        "Name": "Boot Duration Report",
+        "File": "PF01-BootDurationReport.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PF02",
+        "Name": "Startup Impact Analysis",
+        "File": "PF02-StartupImpactAnalysis.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PF03",
+        "Name": "Power Plan Audit",
+        "File": "PF03-PowerPlanAudit.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PF04",
+        "Name": "Memory Pressure Analysis",
+        "File": "PF04-MemoryPressureAnalysis.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PF05",
+        "Name": "Disk & TRIM Audit",
+        "File": "PF05-DiskTrimAudit.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PF06",
+        "Name": "Scheduled Tasks Review",
+        "File": "PF06-ScheduledTasksReview.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PF07",
+        "Name": "Resource Sampling",
+        "File": "PF07-ResourceSampling.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PF08",
+        "Name": "Thermal Information",
+        "File": "PF08-ThermalInformation.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PF09",
+        "Name": "Visual Effects Configuration",
+        "File": "PF09-VisualEffectsConfig.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PF10",
+        "Name": "Full Performance Report",
+        "File": "PF10-FullPerformanceReport.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      }
+    ]
+  },
+  {
+    "Category": "09-Security",
+    "Folder": "09-Security",
+    "Tools": [
+      {
+        "Id": "SE01",
+        "Name": "Security Audit",
+        "File": "SE01-SecurityAudit.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SE02",
+        "Name": "Enable Real-time Protection",
+        "File": "SE02-EnableRealtimeProtection.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SE03",
+        "Name": "Repair Windows Defender",
+        "File": "SE03-RepairWindowsDefender.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SE04",
+        "Name": "Firewall Status",
+        "File": "SE04-FirewallStatus.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SE05",
+        "Name": "Enable Firewall",
+        "File": "SE05-EnableFirewall.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SE06",
+        "Name": "Repair Firewall",
+        "File": "SE06-RepairFirewall.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SE07",
+        "Name": "UAC Settings",
+        "File": "SE07-UACSettings.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SE08",
+        "Name": "Run Antivirus Scan",
+        "File": "SE08-RunAntivirusScan.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "SE09",
+        "Name": "Security Report",
+        "File": "SE09-SecurityReport.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SE10",
+        "Name": "Update Virus Signatures",
+        "File": "SE10-UpdateVirusSignatures.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      }
+    ]
+  },
+  {
+    "Category": "10-Diagnostics-Reports",
+    "Folder": "10-Diagnostics-Reports",
+    "Tools": [
+      {
+        "Id": "DR01",
+        "Name": "System Information",
+        "File": "DR01-SystemInformation.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DR02",
+        "Name": "Hardware Summary",
+        "File": "DR02-HardwareSummary.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DR03",
+        "Name": "Event Log Errors",
+        "File": "DR03-EventLogErrors.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DR04",
+        "Name": "Reliability Report",
+        "File": "DR04-ReliabilityReport.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DR05",
+        "Name": "Driver Report",
+        "File": "DR05-DriverReport.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DR06",
+        "Name": "Boot Performance",
+        "File": "DR06-BootPerformance.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DR07",
+        "Name": "Memory Diagnostics",
+        "File": "DR07-MemoryDiagnostics.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DR08",
+        "Name": "Disk SMART Report",
+        "File": "DR08-DiskSMARTReport.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DR09",
+        "Name": "Performance Snapshot",
+        "File": "DR09-PerformanceSnapshot.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DR10",
+        "Name": "Full Diagnostic Report",
+        "File": "DR10-FullDiagnosticReport.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      }
+    ]
+  }
+]

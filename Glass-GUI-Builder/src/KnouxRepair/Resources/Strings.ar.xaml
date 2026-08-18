@@ -1,0 +1,272 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!-- App -->
+    <sys:String x:Key="AppTitle">KNOUX Repair</sys:String>
+    <sys:String x:Key="AppTitleSuffix"> الإصلاح</sys:String>
+    <sys:String x:Key="AppSubtitle">أداة متقدمة لصيانة وتشخيص الويندوز</sys:String>
+    <sys:String x:Key="AppCredit">منتج Knoux</sys:String>
+    <sys:String x:Key="AppAuthor">إعداد م. صادق الجزار</sys:String>
+
+    <!-- Navigation -->
+    <sys:String x:Key="NavSectionDashboard">لوحة التحكم</sys:String>
+    <sys:String x:Key="NavSectionRepair">الإصلاح</sys:String>
+    <sys:String x:Key="NavSectionManagement">الإدارة</sys:String>
+    <sys:String x:Key="NavSectionSystem">النظام</sys:String>
+
+    <sys:String x:Key="NavDashboard">لوحة التحكم</sys:String>
+    <sys:String x:Key="NavAllTools">كل الأدوات</sys:String>
+    <sys:String x:Key="NavReports">التقارير</sys:String>
+    <sys:String x:Key="NavQuarantine">الحجر الصحي</sys:String>
+    <sys:String x:Key="NavBackups">النسخ الاحتياطية</sys:String>
+    <sys:String x:Key="NavTestCenter">مركز الاختبارات</sys:String>
+    <sys:String x:Key="NavSettings">الإعدادات</sys:String>
+    <sys:String x:Key="NavAbout">حول</sys:String>
+
+    <!-- Categories -->
+    <sys:String x:Key="Cat01">صيانة النظام</sys:String>
+    <sys:String x:Key="Cat02">تنظيف النظام</sys:String>
+    <sys:String x:Key="Cat03">الشبكة والإنترنت</sys:String>
+    <sys:String x:Key="Cat04">البرامج والتطبيقات</sys:String>
+    <sys:String x:Key="Cat05">الملفات المكررة</sys:String>
+    <sys:String x:Key="Cat06">مساحة القرص</sys:String>
+    <sys:String x:Key="Cat07">الخدمات والعمليات</sys:String>
+    <sys:String x:Key="Cat08">الأداء</sys:String>
+    <sys:String x:Key="Cat09">الأمان</sys:String>
+    <sys:String x:Key="Cat10">التشخيص والتقارير</sys:String>
+
+    <!-- Dashboard -->
+    <sys:String x:Key="DashTitle">لوحة إصلاح وصيانة الويندوز</sys:String>
+    <sys:String x:Key="DashSubtitle">واجهة محلية متميزة لـ 100 أداة محكومة</sys:String>
+    <sys:String x:Key="DashHealthHealthy">سليم</sys:String>
+    <sys:String x:Key="DashHealthAttention">يحتاج انتباه</sys:String>
+    <sys:String x:Key="DashHealthCritical">حرج</sys:String>
+    <sys:String x:Key="DashHealthNormalDesc">نظامك يعمل بشكل طبيعي.</sys:String>
+    <sys:String x:Key="DashHealthAttentionDesc">بعض المناطق تحتاج انتباه.</sys:String>
+    <sys:String x:Key="DashHealthCriticalDesc">تم اكتشاف مشاكل حرجة.</sys:String>
+
+    <!-- Primary Actions -->
+    <sys:String x:Key="DashRunCheck">تشغيل فحص النظام</sys:String>
+    <sys:String x:Key="DashAnalyzeSystem">تحليل النظام</sys:String>
+    <sys:String x:Key="DashRunCheckDesc">فحص جميع الفئات بحثًا عن مشاكل</sys:String>
+
+    <!-- Quick Actions -->
+    <sys:String x:Key="DashQuickMaintenance">الصيانة</sys:String>
+    <sys:String x:Key="DashQuickCleanup">التنظيف</sys:String>
+    <sys:String x:Key="DashQuickNetwork">الشبكة</sys:String>
+    <sys:String x:Key="DashQuickSecurity">الأمان</sys:String>
+    <sys:String x:Key="DashQuickPerformance">الأداء</sys:String>
+    <sys:String x:Key="DashQuickDisk">القرص</sys:String>
+    <sys:String x:Key="DashQuickDiagnostics">التشخيص</sys:String>
+
+    <!-- Recent Activity -->
+    <sys:String x:Key="DashRecentActivity">النشاط الأخير</sys:String>
+    <sys:String x:Key="DashNoActivity">لا يوجد نشاط حديث</sys:String>
+    <sys:String x:Key="DashRunTool">شغّل أداة لرؤية النشاط هنا.</sys:String>
+    <sys:String x:Key="MetricTotalTools">إجمالي الأدوات</sys:String>
+    <sys:String x:Key="MetricSafeTools">أدوات آمنة</sys:String>
+    <sys:String x:Key="MetricAdminTools">أدوات إدارية</sys:String>
+    <sys:String x:Key="MetricReports">التقارير</sys:String>
+    <sys:String x:Key="MetricReadOnly">للقراءة فقط</sys:String>
+    <sys:String x:Key="MetricDestructive">مدمرة</sys:String>
+    <sys:String x:Key="MetricRebootRequired">تتطلب إعادة تشغيل</sys:String>
+    <sys:String x:Key="MetricLastStatus">آخر حالة</sys:String>
+
+    <!-- System Health -->
+    <sys:String x:Key="DashHealthTitle">صحة النظام</sys:String>
+    <sys:String x:Key="HealthCpu">استخدام المعالج</sys:String>
+    <sys:String x:Key="HealthRam">استخدام الذاكرة</sys:String>
+    <sys:String x:Key="HealthDisk">استخدام القرص</sys:String>
+
+    <!-- System Information -->
+    <sys:String x:Key="SysInfoTitle">معلومات النظام</sys:String>
+    <sys:String x:Key="SysOs">نظام التشغيل</sys:String>
+    <sys:String x:Key="SysCpu">المعالج</sys:String>
+    <sys:String x:Key="SysCores">الأنوية المنطقية</sys:String>
+    <sys:String x:Key="SysRam">الذاكرة</sys:String>
+    <sys:String x:Key="SysDisk">قرص النظام</sys:String>
+    <sys:String x:Key="SysUptime">مدة التشغيل</sys:String>
+    <sys:String x:Key="SysAdmin">الصلاحيات</sys:String>
+    <sys:String x:Key="SysEngine">محرك PowerShell</sys:String>
+    <sys:String x:Key="SysProject">جذر المشروع</sys:String>
+    <sys:String x:Key="SysTools">الأدوات المحمّلة</sys:String>
+
+    <!-- Status -->
+    <sys:String x:Key="StatusReady">جاهز</sys:String>
+    <sys:String x:Key="StatusRunning">قيد التشغيل</sys:String>
+    <sys:String x:Key="StatusCompleted">اكتمل</sys:String>
+    <sys:String x:Key="StatusWarning">تحذير</sys:String>
+    <sys:String x:Key="StatusFailed">فشل</sys:String>
+    <sys:String x:Key="StatusCancelled">أُلغي</sys:String>
+    <sys:String x:Key="StatusBusy">أداة قيد التشغيل بالفعل</sys:String>
+    <sys:String x:Key="StatusIdle">خامل</sys:String>
+    <sys:String x:Key="StatusNavigate">الانتقال إلى: {0}</sys:String>
+    <sys:String x:Key="StatusToolsLoaded">تم تحميل {0} أداة</sys:String>
+
+    <!-- Admin -->
+    <sys:String x:Key="AdminElevated">مدير النظام</sys:String>
+    <sys:String x:Key="AdminStandard">مستخدم عادي</sys:String>
+
+    <!-- Actions -->
+    <sys:String x:Key="ActionAnalyze">تحليل</sys:String>
+    <sys:String x:Key="ActionRun">تشغيل</sys:String>
+    <sys:String x:Key="ActionAnalyzeSafely">تحليل آمن</sys:String>
+    <sys:String x:Key="ActionRunTool">تشغيل الأداة</sys:String>
+    <sys:String x:Key="ActionOpenReports">فتح التقارير</sys:String>
+    <sys:String x:Key="ActionOpenReportFolder">فتح مجلد التقارير</sys:String>
+    <sys:String x:Key="ActionRunTests">تشغيل الاختبارات</sys:String>
+    <sys:String x:Key="ActionSend">إرسال</sys:String>
+    <sys:String x:Key="ActionStop">إيقاف</sys:String>
+    <sys:String x:Key="ActionCancel">إلغاء</sys:String>
+    <sys:String x:Key="ActionClose">إغلاق</sys:String>
+    <sys:String x:Key="ActionMinimize">تصغير</sys:String>
+    <sys:String x:Key="ActionMaximize">تكبير</sys:String>
+    <sys:String x:Key="ActionRestore">استعادة</sys:String>
+    <sys:String x:Key="ActionNotifications">الإشعارات</sys:String>
+
+    <!-- Tool -->
+    <sys:String x:Key="ToolSelectTool">اختر أداة</sys:String>
+    <sys:String x:Key="ToolSelectHint">اختر أي بطاقة لعرض التفاصيل.</sys:String>
+    <sys:String x:Key="ToolRisk">الخطورة</sys:String>
+    <sys:String x:Key="ToolAdmin">إداري</sys:String>
+    <sys:String x:Key="ToolRestart">إعادة تشغيل</sys:String>
+    <sys:String x:Key="ToolOffline">بدون اتصال</sys:String>
+    <sys:String x:Key="ToolPath">المسار</sys:String>
+    <sys:String x:Key="ToolBackup">النسخ الاحتياطي</sys:String>
+    <sys:String x:Key="ToolRollback">التراجع</sys:String>
+    <sys:String x:Key="ToolWhatIf">ماذا لو</sys:String>
+    <sys:String x:Key="ToolAnalyzeOnly">تحليل فقط</sys:String>
+    <sys:String x:Key="ToolDescription">الوصف</sys:String>
+    <sys:String x:Key="ToolSafetyLevel">مستوى الأمان</sys:String>
+    <sys:String x:Key="ToolPrerequisites">المتطلبات</sys:String>
+    <sys:String x:Key="ToolWhatItDoes">ما الذي يفعله</sys:String>
+    <sys:String x:Key="ToolWhatItChanges">ما الذي يغيره</sys:String>
+    <sys:String x:Key="ValueNone">لا يوجد</sys:String>
+    <sys:String x:Key="ValueSupported">مدعوم</sys:String>
+    <sys:String x:Key="ValueNotSupported">غير مدعوم</sys:String>
+
+    <!-- Analyze Only -->
+    <sys:String x:Key="AnalyzeOnlyOn">التحليل فقط: مفعّل</sys:String>
+    <sys:String x:Key="AnalyzeOnlyOff">التحليل فقط: معطّل</sys:String>
+
+    <!-- Console -->
+    <sys:String x:Key="ConsoleTitle">وحدة التنفيذ المباشر</sys:String>
+    <sys:String x:Key="ConsoleModeAnalyze">الوضع: تحليل فقط</sys:String>
+    <sys:String x:Key="ConsoleModeRun">الوضع: تنفيذ كامل</sys:String>
+    <sys:String x:Key="ConsoleDoneOk">اكتمل بنجاح</sys:String>
+    <sys:String x:Key="ConsoleDoneCode">رمز الخروج: {0}</sys:String>
+    <sys:String x:Key="ConsoleStopped">متوقف</sys:String>
+
+    <!-- Confirmation -->
+    <sys:String x:Key="ConfirmRunTitle">تأكيد تنفيذ الأداة</sys:String>
+    <sys:String x:Key="ConfirmRunMessage">ستعمل الأداة في الوضع العادي. راجع درجة الخطورة ومتطلبات النسخ الاحتياطي قبل المتابعة.</sys:String>
+    <sys:String x:Key="ConfirmStopTitle">إيقاف الأداة الحالية؟</sys:String>
+    <sys:String x:Key="ConfirmStopMessage">هل أنت متأكد من رغبتك في إيقاف العملية الحالية؟</sys:String>
+    <sys:String x:Key="ConfirmExitTitle">الخروج من KNOUX Repair؟</sys:String>
+    <sys:String x:Key="ConfirmExitMessage">أداة قيد التشغيل الآن. هل تريد إيقافها والخروج؟</sys:String>
+
+    <!-- Settings -->
+    <sys:String x:Key="SettingsTitle">الإعدادات</sys:String>
+    <sys:String x:Key="SettingsLanguage">اللغة</sys:String>
+    <sys:String x:Key="SettingsTheme">المظهر</sys:String>
+    <sys:String x:Key="SettingsReducedMotion">تقليل الحركة</sys:String>
+    <sys:String x:Key="SettingsCompactNav">تنقل مضغوط</sys:String>
+    <sys:String x:Key="SettingsAnalyzeDefault">التحليل الافتراضي</sys:String>
+    <sys:String x:Key="SettingsConsoleAutoScroll">تمرير تلقائي</sys:String>
+    <sys:String x:Key="SettingsConsoleFontSize">حجم خط الوحدة</sys:String>
+    <sys:String x:Key="SettingsMaxReportHistory">الحد الأقصى للتقارير</sys:String>
+    <sys:String x:Key="SettingsOpenProjectFolder">فتح مجلد المشروع</sys:String>
+
+    <!-- Splash -->
+    <sys:String x:Key="SplashValidating">جارٍ التحقق من بنية المشروع</sys:String>
+    <sys:String x:Key="SplashManifest">تحميل مذكرة الأدوات</sys:String>
+    <sys:String x:Key="SplashTools">تحميل 100 أداة</sys:String>
+    <sys:String x:Key="SplashCore">التحقق من الوحدات الأساسية</sys:String>
+    <sys:String x:Key="SplashReports">تجهيز محرك التقارير</sys:String>
+    <sys:String x:Key="SplashAdmin">التحقق من صلاحيات المدير</sys:String>
+    <sys:String x:Key="SplashReady">جاهز للإطلاق</sys:String>
+    <sys:String x:Key="SplashFinish">دخول التطبيق</sys:String>
+
+    <!-- About -->
+    <sys:String x:Key="AboutTitle">حول KNOUX Repair</sys:String>
+    <sys:String x:Key="AboutVersion">الإصدار</sys:String>
+    <sys:String x:Key="AboutAuthor">إعداد م. صادق الجزار</sys:String>
+
+    <!-- Notifications -->
+    <sys:String x:Key="NotifReportCreated">تم إنشاء التقرير</sys:String>
+    <sys:String x:Key="NotifBackupCreated">تم إنشاء نسخة احتياطية</sys:String>
+    <sys:String x:Key="NotifToolComplete">اكتملت الأداة</sys:String>
+
+    <!-- Search -->
+    <sys:String x:Key="SearchPlaceholder">ابحث عن الأدوات بالاسم أو المعرّف أو الغرض...</sys:String>
+    <sys:String x:Key="SearchClear">مسح</sys:String>
+    <sys:String x:Key="SearchResults">نتائج</sys:String>
+
+    <!-- Tool Workspace -->
+    <sys:String x:Key="WorkAllTools">كل الأدوات</sys:String>
+    <sys:String x:Key="WorkToolsInCategory">{0} أدوات في هذه الفئة</sys:String>
+    <sys:String x:Key="WorkSearchTools">بحث عن الأدوات...</sys:String>
+    <sys:String x:Key="WorkSortBy">ترتيب حسب</sys:String>
+    <sys:String x:Key="WorkSortName">الاسم</sys:String>
+    <sys:String x:Key="WorkSortRisk">الخطورة</sys:String>
+    <sys:String x:Key="WorkSortId">المعرّف</sys:String>
+
+    <!-- Execution -->
+    <sys:String x:Key="ExecRunning">قيد التشغيل</sys:String>
+    <sys:String x:Key="ExecSuccess">نجاح</sys:String>
+    <sys:String x:Key="ExecFailed">فشل</sys:String>
+    <sys:String x:Key="ExecCancelled">أُلغي</sys:String>
+    <sys:String x:Key="ExecCurrentOp">العملية الحالية:</sys:String>
+    <sys:String x:Key="ExecElapsed">المنقضي:</sys:String>
+    <sys:String x:Key="ExecExitCode">رمز الخروج: {0}</sys:String>
+    <sys:String x:Key="ExecOutput">المخرجات</sys:String>
+
+    <!-- Common actions -->
+    <sys:String x:Key="ActionRefresh">تحديث</sys:String>
+    <sys:String x:Key="ActionOpenFolder">فتح المجلد</sys:String>
+    <sys:String x:Key="ActionRestoreSelected">استعادة المحدد</sys:String>
+    <sys:String x:Key="ActionViewReport">عرض التقرير</sys:String>
+    <sys:String x:Key="ActionReturnWorkspace">العودة لمساحة العمل</sys:String>
+
+    <!-- Quarantine -->
+    <sys:String x:Key="QuarantineSubtitle">الملفات التي وضعها الحجر الصحي من الأدوات المدمرة، آمنة للاستعادة أو الفحص.</sys:String>
+    <sys:String x:Key="QuarantineColItem">العنصر</sys:String>
+    <sys:String x:Key="QuarantineColTool">الأداة</sys:String>
+    <sys:String x:Key="QuarantineColType">النوع</sys:String>
+    <sys:String x:Key="QuarantineColSize">الحجم</sys:String>
+    <sys:String x:Key="QuarantineColOrigin">المسار الأصلي</sys:String>
+    <sys:String x:Key="QuarantineColDate">تاريخ الحجر</sys:String>
+    <sys:String x:Key="QuarantineColState">الحالة</sys:String>
+    <sys:String x:Key="QuarantineRestoreTitle">استعادة العنصر المحجوز؟</sys:String>
+    <sys:String x:Key="QuarantineRestoreConfirm">استعادة '{0}' إلى موقعه الأصلي؟ يتحقق نظام الأمان من النتيجة قبل حذف نسخة الحجر الصحي.</sys:String>
+    <sys:String x:Key="QuarantineRestoreRunning">جارٍ الاستعادة...</sys:String>
+
+    <!-- Backups -->
+    <sys:String x:Key="BackupsSubtitle">نسخ احتياطي لمفاتيح التسجيل والإعدادات وحالات الخدمات قبل التغييرات.</sys:String>
+    <sys:String x:Key="BackupsColTool">الأداة</sys:String>
+    <sys:String x:Key="BackupsColStamp">الوقت</sys:String>
+    <sys:String x:Key="BackupsColSize">الحجم</sys:String>
+    <sys:String x:Key="BackupsColFiles">الملفات</sys:String>
+    <sys:String x:Key="BackupsColPath">الموقع</sys:String>
+
+    <!-- Test Center -->
+    <sys:String x:Key="TestCenterSubtitle">تشغيل تجريبي لجميع الأدوات مع -WhatIf و -AnalyzeOnly للتحقق من الأمان.</sys:String>
+    <sys:String x:Key="TestCenterLastRun">آخر تشغيل:</sys:String>
+    <sys:String x:Key="TestCenterColName">الاختبار</sys:String>
+    <sys:String x:Key="TestCenterColStatus">الحالة</sys:String>
+    <sys:String x:Key="TestCenterColDetail">التفاصيل</sys:String>
+
+    <!-- Reports -->
+    <sys:String x:Key="ReportsColItems">العناصر</sys:String>
+    <sys:String x:Key="ReportsColStarted">البداية</sys:String>
+    <sys:String x:Key="ReportsSelectHint">اختر تقريرًا لعرض التفاصيل</sys:String>
+    <sys:String x:Key="ReportsRestartNeeded">إعادة تشغيل مطلوبة</sys:String>
+    <sys:String x:Key="ReportsItemsLabel">العناصر</sys:String>
+    <sys:String x:Key="ReportsBackupLabel">النسخ الاحتياطي</sys:String>
+    <sys:String x:Key="ReportsErrorLabel">الخطأ</sys:String>
+
+    <!-- Language toggle -->
+    <sys:String x:Key="LangToggle">English</sys:String>
+
+</ResourceDictionary>

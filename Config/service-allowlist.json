@@ -1,0 +1,17 @@
+{
+    "wuauserv": {
+        "Action": "SetStartupType",
+        "DesiredStartupType": "Automatic",
+        "Reason": "Windows Update must be Automatic for security updates"
+    },
+    "bits": {
+        "Action": "SetStartupType",
+        "DesiredStartupType": "Automatic",
+        "Reason": "BITS required for Windows Update downloads"
+    },
+    "cryptsvc": {
+        "Action": "SetStartupType",
+        "DesiredStartupType": "Automatic",
+        "Reason": "Cryptographic Services required for signature verification"
+    }
+}

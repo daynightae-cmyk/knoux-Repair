@@ -1,0 +1,18 @@
+KNOUX REPAIR - BUILD VALIDATION
+================================
+Version: 2.0.2
+Categories: 10
+Scripts per category: 10
+Total specialized scripts: 100
+Root launcher (START-KNOUX-REPAIR.cmd -> Menu.ps1): PASS
+Arabic reports: Preserved (summary-ar.txt per run)
+Manifest references: 100 unique / 0 missing (TOOLS-MANIFEST.json + .csv)
+Manifest TestResult: 100/100 PASS (all tools behaviorally executed)
+File inventory: 131 entries (FILE-INVENTORY.json); 132 files shipped in the ZIP
+Tests: 83 PASS on Windows PowerShell 5.1 and pwsh (exit code 0)
+Tool harness: 23 previously-untested tools verified via menu-equivalent invocation (all PASS)
+ZIP integrity: PASS (external SHA-256 sidecar + round-trip verify)
+Safety model: Preview + explicit confirmation for cleanup/repair actions
+Offline dependencies: None
+Environment evidence (2026-08-04): Core module import + 33 exported functions +
+session round-trip PASS on both PowerShell 7 (7.6.3) and Windows PowerShell 5.1

@@ -1,0 +1,34 @@
+Version: 2.0.2
+Script files: 100
+Categories: 10
+01-System-Maintenance: 10 scripts (SM01-SM10)
+02-System-Cleanup: 10 scripts (SC01-SC10)
+03-Network-Internet: 10 scripts (NI01-NI10)
+04-Programs-Applications: 10 scripts (PA01-PA10)
+05-Duplicate-Files: 10 scripts (DF01-DF10)
+06-Disk-Space: 10 scripts (DS01-DS10)
+07-Services-Processes: 10 scripts (SP01-SP10)
+08-Performance: 10 scripts (PF01-PF10)
+09-Security: 10 scripts (SE01-SE10)
+10-Diagnostics-Reports: 10 scripts (DR01-DR10)
+START CMD: ASCII + CRLF (START-KNOUX-REPAIR.cmd -> Menu.ps1)
+Launcher menu: English (Menu.ps1, data-driven from Config\menus.json)
+Manifest titles: English
+Arabic reports: Preserved (summary-ar.txt per run)
+Tests: 83 (Windows PowerShell 5.1 and pwsh both green, exit code 0)
+TestResult in manifest: 100/100 PASS (every tool behaviorally executed)
+Tool harness: 23 previously-untested tools verified via menu-equivalent invocation (all PASS)
+File inventory: 131 entries (FILE-INVENTORY.json); 132 files shipped in the ZIP
+   (the inventory itself is also packaged)
+
+=== Environment Evidence (2026-08-04, Windows 10 Pro 19045) ===
+--- PowerShell 7 (pwsh 7.6.3) ---
+Core module import: OK (KnouxRepair.Core + Safety + NativeCommands + Reporting)
+Export-ModuleMember gate: 33 exported functions (identical across engines)
+Session round-trip: Start-KnouxSession -> Stop-KnouxSession -> report dir with
+  summary-en.txt, summary-ar.txt, results.json, results.csv, operation.log,
+  errors.log, raw-output\  -> all present, Status=Success, ExitCode=0. PASS
+--- Windows PowerShell 5.1 (5.1.19041) ---
+Core module import: OK
+Export-ModuleMember gate: 33 exported functions (identical to pwsh)
+Session round-trip: PASS (same report schema, Status=Success, ExitCode=0)

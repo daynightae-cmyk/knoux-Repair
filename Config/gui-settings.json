@@ -1,0 +1,11 @@
+{
+  "language": "English",
+  "theme": "DarkGlass",
+  "reducedMotion": false,
+  "compactNav": false,
+  "analyzeOnlyDefault": false,
+  "consoleAutoScroll": true,
+  "consoleFontSize": 13,
+  "maxReportHistory": 200,
+  "reportsAutoOpen": true
+}
