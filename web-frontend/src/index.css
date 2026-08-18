@@ -1,0 +1,173 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════════════
+   KNOUX REPAIR — NEXUS CORE / Vanguard Protocol
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    background: #000;
+    color: #e2e8f0;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background: rgba(0, 229, 255, 0.3);
+    color: #cffafe;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  /* ── Grid Pattern (Blueprint) ── */
+  .bg-grid-pattern {
+    background-image:
+      linear-gradient(rgba(0, 229, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 229, 255, 0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  .bg-grid-pattern-sm {
+    background-image:
+      linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+
+  /* ── Glass Panel ── */
+  .glass-panel {
+    background: rgba(5, 5, 5, 0.6);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .glass-panel-light {
+    background: rgba(0, 229, 255, 0.03);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 229, 255, 0.08);
+  }
+
+  /* ── Neon Glow ── */
+  .neon-glow {
+    box-shadow:
+      0 0 10px rgba(0, 229, 255, 0.15),
+      0 0 30px rgba(0, 229, 255, 0.08),
+      inset 0 0 20px rgba(0, 229, 255, 0.03);
+  }
+
+  .neon-glow-strong {
+    box-shadow:
+      0 0 15px rgba(0, 229, 255, 0.3),
+      0 0 40px rgba(0, 229, 255, 0.15),
+      0 0 80px rgba(0, 229, 255, 0.05);
+  }
+
+  .neon-glow-red {
+    box-shadow:
+      0 0 10px rgba(255, 82, 82, 0.2),
+      0 0 30px rgba(255, 82, 82, 0.1);
+  }
+
+  .neon-glow-green {
+    box-shadow:
+      0 0 10px rgba(0, 230, 118, 0.2),
+      0 0 30px rgba(0, 230, 118, 0.1);
+  }
+
+  .neon-glow-amber {
+    box-shadow:
+      0 0 10px rgba(255, 215, 64, 0.2),
+      0 0 30px rgba(255, 215, 64, 0.1);
+  }
+
+  /* ── Text Glow ── */
+  .text-glow {
+    text-shadow:
+      0 0 8px rgba(0, 229, 255, 0.6),
+      0 0 20px rgba(0, 229, 255, 0.3),
+      0 0 40px rgba(0, 229, 255, 0.1);
+  }
+
+  .text-glow-strong {
+    text-shadow:
+      0 0 10px rgba(0, 229, 255, 0.8),
+      0 0 30px rgba(0, 229, 255, 0.5),
+      0 0 60px rgba(0, 229, 255, 0.2);
+  }
+
+  /* ── Scanlines (CRT Effect) ── */
+  .scanlines {
+    background-image: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 229, 255, 0.015) 2px,
+      rgba(0, 229, 255, 0.015) 4px
+    );
+    pointer-events: none;
+  }
+
+  /* ── Focus Glow ── */
+  .focus-glow:focus {
+    outline: none;
+    border-color: rgba(0, 229, 255, 0.5);
+    box-shadow: 0 0 15px rgba(0, 229, 255, 0.15);
+  }
+}
+
+/* ── Custom Scrollbar ── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 229, 255, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 229, 255, 0.4);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 229, 255, 0.15) transparent;
+}
+
+/* ── Keyframe Animations ── */
+@keyframes cylon-scanner {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+.animate-cylon {
+  animation: cylon-scanner 1.5s ease-in-out infinite;
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink-cursor 1s step-end infinite;
+}
