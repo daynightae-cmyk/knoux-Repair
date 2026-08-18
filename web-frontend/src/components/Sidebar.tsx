@@ -3,7 +3,7 @@ import {
   Shield, Wrench, Trash2, Wifi, AppWindow, Copy,
   HardDrive, Cpu, Gauge, Lock, Activity, FileText,
   Archive, Database, Settings, Info, Search, LayoutDashboard,
-  Languages, CircleDot,
+  Languages, CircleDot, Sun, Moon,
 } from 'lucide-react';
 import type { ActiveSection } from '../types';
 import type { Lang } from '../lib/i18n';
@@ -18,6 +18,8 @@ interface SidebarProps {
   onClose: () => void;
   lang: Lang;
   setLang: (l: Lang) => void;
+  theme: 'dark' | 'light';
+  setTheme: (theme: 'dark' | 'light') => void;
   bridgeOnline: boolean | null;
   bridgeElevated: boolean;
 }
@@ -49,7 +51,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export default function Sidebar({
-  active, onSelect, searchQuery, onSearchChange, open, onClose, lang, setLang, bridgeOnline, bridgeElevated,
+  active, onSelect, searchQuery, onSearchChange, open, onClose, lang, setLang, theme, setTheme, bridgeOnline, bridgeElevated,
 }: SidebarProps) {
   const t = STRINGS[lang];
   const groups = [...new Set(NAV_ITEMS.map(i => i.group))];
@@ -159,6 +161,16 @@ export default function Sidebar({
               AR
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            aria-label={theme === 'dark' ? t.themeLight : t.themeDark}
+            title={theme === 'dark' ? t.themeLight : t.themeDark}
+            className="mt-1 inline-flex items-center gap-1 rounded px-2 py-1 font-mono text-[9px] text-slate-500 transition-all hover:bg-white/[0.06] hover:text-cyan-400"
+          >
+            {theme === 'dark' ? <Sun size={11} /> : <Moon size={11} />}
+            {theme === 'dark' ? t.themeLight : t.themeDark}
+          </button>
         </div>
       </div>
     </>

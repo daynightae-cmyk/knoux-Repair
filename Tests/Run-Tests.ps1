@@ -50,6 +50,28 @@ function Get-ManifestJson {
     return ,$rows
 }
 
+function Invoke-KnouxBoundedChild {
+    param([Parameter(Mandatory = $true)][string]$ScriptPath,[string]$Arguments = '',[int]$TimeoutSeconds = 180)
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = Join-Path $env:windir 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $psi.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + $ScriptPath + '"' + $Arguments
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardInput = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.CreateNoWindow = $true
+    $process = [System.Diagnostics.Process]::Start($psi)
+    $process.StandardInput.WriteLine()
+    $process.StandardInput.Close()
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+    $finished = $process.WaitForExit([Math]::Max(1000, $TimeoutSeconds * 1000))
+    if (-not $finished) { try { & taskkill.exe /PID $process.Id /T /F 2>&1 | Out-Null } catch { }; $process.WaitForExit() }
+    $stdout = $stdoutTask.GetAwaiter().GetResult()
+    $stderr = $stderrTask.GetAwaiter().GetResult()
+    return [pscustomobject]@{ TimedOut = (-not $finished); ExitCode = if ($finished) { $process.ExitCode } else { $null }; Stdout = $stdout; Stderr = $stderr; ProcessId = $process.Id }
+}
+
 Write-Host 'knoux Repair v2.0 | Test suite' -ForegroundColor Cyan
 Write-Host '================================' -ForegroundColor Cyan
 
@@ -220,17 +242,25 @@ Test-Knoux -Name '19 Risk levels use the valid set' -Body {
 Test-Knoux -Name '20 Read-only sample tool produces a report' -Body {
     $reportsDir = Join-Path $ProjectRoot 'Reports'
     $before = @(Get-ChildItem -LiteralPath $reportsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
-    $null = powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ProjectRoot '10-Diagnostics-Reports\DR10-FullDiagnosticReport.ps1')
+    $run = Invoke-KnouxBoundedChild -ScriptPath (Join-Path $ProjectRoot '10-Diagnostics-Reports\DR10-FullDiagnosticReport.ps1') -TimeoutSeconds 180
+    if ($run.TimedOut) { throw ('TIMEOUT after 180s. stdout: ' + $run.Stdout + ' stderr: ' + $run.Stderr) }
+    if ($run.ExitCode -ne 0) { throw ('DR10 exited with code ' + $run.ExitCode + '. stdout: ' + $run.Stdout + ' stderr: ' + $run.Stderr) }
     $after = @(Get-ChildItem -LiteralPath $reportsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
     $new = @($after | Where-Object { $_ -notin $before })
-    return $new.Count -ge 1
+    if ($new.Count -ne 1) { return $false }
+    $reportPath = Join-Path (Join-Path $reportsDir $new[0]) 'results.json'
+    if (-not (Test-Path -LiteralPath $reportPath)) { return $false }
+    $report = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    return $report.ToolId -eq 'DR10' -and $report.Status -eq 'Success' -and $report.ExitCode -eq 0
 }
 
 # --- 21. Admin tool runs in analyze mode without changes ---
 Test-Knoux -Name '21 Admin tool runs analyze-only cleanly' -Body {
     $reportsDir = Join-Path $ProjectRoot 'Reports'
     $before = @(Get-ChildItem -LiteralPath $reportsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
-    $null = powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ProjectRoot '09-Security\SE05-EnableFirewall.ps1') -AnalyzeOnly
+    $run = Invoke-KnouxBoundedChild -ScriptPath (Join-Path $ProjectRoot '09-Security\SE05-EnableFirewall.ps1') -Arguments ' -AnalyzeOnly' -TimeoutSeconds 120
+    if ($run.TimedOut) { throw ('TIMEOUT after 120s. stdout: ' + $run.Stdout + ' stderr: ' + $run.Stderr) }
+    if ($run.ExitCode -ne 0) { throw ('SE05 analyze-only exited with code ' + $run.ExitCode + '. stdout: ' + $run.Stdout + ' stderr: ' + $run.Stderr) }
     $after = @(Get-ChildItem -LiteralPath $reportsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
     $new = @($after | Where-Object { $_ -notin $before })
     return $new.Count -eq 1

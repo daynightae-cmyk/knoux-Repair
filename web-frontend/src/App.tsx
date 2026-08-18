@@ -37,6 +37,7 @@ function NexusApp() {
     const saved = localStorage.getItem('knoux-lang');
     return saved === 'ar' ? 'ar' : 'en';
   });
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => localStorage.getItem('knoux-theme') === 'light' ? 'light' : 'dark');
   const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [toolStatuses, setToolStatuses] = useState<Record<string, ToolStatus>>({});
@@ -59,6 +60,11 @@ function NexusApp() {
     document.documentElement.setAttribute('lang', lang);
     localStorage.setItem('knoux-lang', lang);
   }, [lang]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('knoux-theme', theme);
+  }, [theme]);
 
   useEffect(() => () => {
     if (pollTimer.current) window.clearTimeout(pollTimer.current);
@@ -158,7 +164,7 @@ function NexusApp() {
   const showTools = TOOL_SECTIONS.has(activeSection);
 
   return (
-    <div className="h-screen w-screen nexus-shell overflow-hidden relative" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className="h-screen w-screen nexus-shell overflow-hidden relative" dir={lang === 'ar' ? 'rtl' : 'ltr'} data-theme={theme}>
       <div className="absolute inset-0 bg-grid-pattern-sm opacity-100" />
       <div className="absolute inset-0 bg-gradient-to-tr from-cyan-900/10 via-black to-purple-900/10" />
       <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-cyan-500/[0.06] blur-[120px] pointer-events-none" />
@@ -174,6 +180,8 @@ function NexusApp() {
           onClose={() => setSidebarOpen(false)}
           lang={lang}
           setLang={setLang}
+          theme={theme}
+          setTheme={setTheme}
           bridgeOnline={bridgeOnline}
           bridgeElevated={bridgeElevated}
         />

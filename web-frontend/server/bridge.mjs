@@ -19,7 +19,12 @@ const REPO_ROOT = path.resolve(SERVER_DIR, '..', '..');
 const MANIFEST_PATH = path.join(REPO_ROOT, 'Docs', 'TOOLS-MANIFEST.json');
 const LOG_PATH = path.join(os.tmpdir(), 'knoux-bridge.log');
 const PORT = Number(process.env.KNOUX_BRIDGE_PORT || 8787);
-const RUN_TIMEOUT_MS = 10 * 60 * 1000;
+const DEFAULT_RUN_TIMEOUT_MS = 10 * 60 * 1000;
+const TEST_MODE = process.env.KNOUX_BRIDGE_TEST_MODE === '1';
+const TEST_TIMEOUT_MS = Number(process.env.KNOUX_BRIDGE_TEST_TIMEOUT_MS || 0);
+const RUN_TIMEOUT_MS = TEST_MODE && Number.isInteger(TEST_TIMEOUT_MS) && TEST_TIMEOUT_MS >= 250 && TEST_TIMEOUT_MS <= 30000 ? TEST_TIMEOUT_MS : DEFAULT_RUN_TIMEOUT_MS;
+const TEST_TIMEOUT_TOOL_ID = '__KNOUX_TEST_TIMEOUT__';
+const TEST_TIMEOUT_SCRIPT_PATH = path.join(os.tmpdir(), `knoux-bridge-timeout-${process.pid}.ps1`);
 const MAX_BUFFERED_LINES = 5000;
 const SYSTEM_CACHE_MS = 30 * 1000;
 
@@ -69,6 +74,11 @@ log('Bridge v2.0.2 | repo:', REPO_ROOT);
 log('PowerShell:', PS, '| elevated:', isElevated());
 
 const manifest = readManifest();
+if (TEST_MODE) {
+  fs.writeFileSync(TEST_TIMEOUT_SCRIPT_PATH, "Write-Output '[KNOUX TEST] timeout probe started.'\r\nStart-Sleep -Seconds 30\r\n", 'utf8');
+  manifest.set(TEST_TIMEOUT_TOOL_ID, { ToolId: TEST_TIMEOUT_TOOL_ID, Category: 'TEST_ONLY', ScriptPath: '[generated test-only timeout probe]', EnglishName: 'Test-only timeout probe', ArabicName: 'اختبار مهلة داخلي', Purpose: 'Harmless process used only to verify bridge timeout handling.', RiskLevel: 'READ_ONLY', RequiresAdmin: false });
+  log(`Test-only timeout mode enabled (${RUN_TIMEOUT_MS}ms).`);
+}
 log('Manifest loaded:', manifest.size, 'tools');
 
 /* ---------------- run registry ---------------- */
@@ -78,8 +88,9 @@ let activeRunId = null;
 
 function createRun(toolId) {
   const tool = manifest.get(toolId);
-  const scriptPath = path.resolve(REPO_ROOT, tool.ScriptPath);
-  if (!scriptPath.startsWith(REPO_ROOT + path.sep) || !fs.existsSync(scriptPath)) {
+  const isTestTimeoutTool = TEST_MODE && toolId === TEST_TIMEOUT_TOOL_ID;
+  const scriptPath = isTestTimeoutTool ? TEST_TIMEOUT_SCRIPT_PATH : path.resolve(REPO_ROOT, tool.ScriptPath);
+  if ((!isTestTimeoutTool && !scriptPath.startsWith(REPO_ROOT + path.sep)) || !fs.existsSync(scriptPath)) {
     throw Object.assign(new Error('Tool script not found'), { status: 500, code: 'SCRIPT_MISSING' });
   }
   if (tool.RequiresAdmin && !isElevated()) {
@@ -126,7 +137,8 @@ function createRun(toolId) {
 
   run.timer = setTimeout(() => {
     if (run.status === 'running') {
-      pushLine('err', '[BRIDGE] Execution timed out after 10 minutes.');
+      const timeoutText = TEST_MODE ? `${RUN_TIMEOUT_MS}ms` : '10 minutes';
+      pushLine('err', `[BRIDGE] Execution timed out after ${timeoutText}.`);
       try { child.kill('SIGKILL'); } catch { /* ignore */ }
       finishRun(run.id, -1, 'TIMEOUT');
     }
@@ -155,7 +167,7 @@ function finishRun(runId, exitCode, reason) {
     run.lines.push({ t: run.finishedAt, s: 'err', text: '[BRIDGE] Execution cancelled by user.' });
   } else if (reason === 'TIMEOUT') {
     run.status = 'error';
-    run.error = 'Execution timed out after 10 minutes.';
+    run.error = TEST_MODE ? `Execution timed out after ${RUN_TIMEOUT_MS}ms.` : 'Execution timed out after 10 minutes.';
   } else if (reason === 'SPAWN_FAILED') {
     run.status = 'error';
     run.error = 'Failed to start the PowerShell process.';
@@ -352,3 +364,5 @@ process.on('SIGINT', () => {
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 2000).unref();
 });
+
+process.on('exit', () => { if (TEST_MODE) { try { fs.unlinkSync(TEST_TIMEOUT_SCRIPT_PATH); } catch { /* ignore */ } } });
