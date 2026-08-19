@@ -1,0 +1,26 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <SolidColorBrush x:Key="BgDeepBrush" Color="#F4F7FB"/>
+  <SolidColorBrush x:Key="Bg1Brush" Color="#EAF0F8"/>
+  <SolidColorBrush x:Key="Bg2Brush" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="Bg3Brush" Color="#F7FAFF"/>
+  <SolidColorBrush x:Key="GlassSurfaceBrush" Color="#F2FFFFFF"/>
+  <SolidColorBrush x:Key="GlassSurfaceHoverBrush" Color="#FFFFFFFF"/>
+  <SolidColorBrush x:Key="GlassSurfaceActiveBrush" Color="#E6EAF3FF"/>
+  <SolidColorBrush x:Key="GlassBorderBrush" Color="#550057B8"/>
+  <SolidColorBrush x:Key="GlassBorderSubtleBrush" Color="#330057B8"/>
+  <SolidColorBrush x:Key="TextMainBrush" Color="#071A33"/>
+  <SolidColorBrush x:Key="TextSecondaryBrush" Color="#2E4763"/>
+  <SolidColorBrush x:Key="MutedBrush" Color="#55708C"/>
+  <SolidColorBrush x:Key="TextDimBrush" Color="#71859B"/>
+  <SolidColorBrush x:Key="BrushBg2" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="BrushBg3" Color="#F7FAFF"/>
+  <SolidColorBrush x:Key="BrushSurface" Color="#FFFFFFFF"/>
+  <SolidColorBrush x:Key="BrushBorder" Color="#330057B8"/>
+  <SolidColorBrush x:Key="BrushTextMain" Color="#071A33"/>
+  <SolidColorBrush x:Key="BrushMuted" Color="#55708C"/>
+  <SolidColorBrush x:Key="InputBgBrush" Color="#FFFFFFFF"/>
+  <SolidColorBrush x:Key="InputBorderBrush" Color="#440057B8"/>
+  <SolidColorBrush x:Key="CardFillColorDefaultBrush" Color="#FFFFFFFF"/>
+  <SolidColorBrush x:Key="CardStrokeDefaultBrush" Color="#330057B8"/>
+  <SolidColorBrush x:Key="DividerStrokeDefaultBrush" Color="#220057B8"/>
+</ResourceDictionary>

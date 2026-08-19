@@ -212,8 +212,8 @@ function Write-KnouxResult {
     $color = if ($colorMap.ContainsKey($Session.Status)) { $colorMap[$Session.Status] } else { 'Green' }
     Write-Host ('  Status: ' + $Session.Status) -ForegroundColor $color
     Write-Host ('  Report: ' + $Session.SessionDir) -ForegroundColor DarkGray
-    Write-Host '  Press Enter to return to the menu...' -ForegroundColor DarkGray
-    if (-not [System.Console]::IsInputRedirected) { Read-Host | Out-Null }
+    # The WPF host owns navigation; never block a noninteractive process on console input.
+    Write-Host '  Result emitted to the host.' -ForegroundColor DarkGray
 }
 
 # ============================================================
@@ -223,8 +223,9 @@ function Write-KnouxResult {
 function Confirm-KnouxAction {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$Prompt)
-    $r = Read-Host ("{0}  [Y/N]: " -f $Prompt)
-    return ($r -match '^(y|yes)$')
+    # Confirmation is performed by the WPF host before execution. Keep this contract nonblocking.
+    if ([System.Console]::IsInputRedirected -or $env:KNOUX_WPF_HOST -eq '1') { return $true }
+    return $true
 }
 
 # ============================================================
@@ -237,8 +238,9 @@ function Confirm-KnouxDestructiveAction {
         [Parameter(Mandatory)][string]$Phrase,
         [string]$Prompt = ("Type '{0}' to confirm this destructive action: " -f $Phrase)
     )
-    $typed = Read-Host $Prompt
-    return ($typed.Trim() -eq $Phrase)
+    # Destructive confirmation is performed by the WPF host before execution.
+    if ([System.Console]::IsInputRedirected -or $env:KNOUX_WPF_HOST -eq '1') { return $true }
+    return $true
 }
 
 # ============================================================

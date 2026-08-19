@@ -1,4 +1,4 @@
-<UserControl x:Class="KnouxRepair.Views.SettingsPage"
+﻿<UserControl x:Class="KnouxRepair.Views.SettingsPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="Transparent">
@@ -24,6 +24,12 @@
                         <RadioButton Content="العربية" GroupName="Lang"
                                      Style="{DynamicResource NavRadioButton}"
                                      Click="LangArabic_Click"/>
+                    </StackPanel>
+
+                    <TextBlock Text="{DynamicResource SettingsTheme}" Style="{DynamicResource BodyStrongTextBlockStyle}" Margin="0,14,0,8"/>
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton x:Name="DarkThemeRadio" Content="{DynamicResource ThemeDark}" GroupName="Theme" IsChecked="True" Style="{DynamicResource NavRadioButton}" Margin="0,0,8,0" Click="ThemeDark_Click"/>
+                        <RadioButton x:Name="LightThemeRadio" Content="{DynamicResource ThemeLight}" GroupName="Theme" Style="{DynamicResource NavRadioButton}" Click="ThemeLight_Click"/>
                     </StackPanel>
 
                     <Border Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,14"/>
@@ -69,9 +75,7 @@
                                       IsChecked="True"
                                       Style="{DynamicResource GlassToggle}"
                                       Click="AnalyzeToggle_Click"/>
-                    </Grid>
-
-                    <Border Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,14"/>
+                    </Grid><Border Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,14"/>
 
                     <!-- Max Report History -->
                     <Grid>
@@ -90,9 +94,7 @@
                                    Foreground="{DynamicResource BrushCyan}"
                                    FontSize="14" FontWeight="Bold"
                                    VerticalAlignment="Center"/>
-                    </Grid>
-
-                    <Border Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,14"/>
+                    </Grid><Border Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,14"/>
 
                     <!-- Open Project Folder -->
                     <Button Content="{DynamicResource SettingsOpenProjectFolder}"

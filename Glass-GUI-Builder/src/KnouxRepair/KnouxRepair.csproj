@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -6,7 +6,7 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>KnouxRepair</AssemblyName>
     <RootNamespace>KnouxRepair</RootNamespace>
-    <ApplicationIcon>..\..\assets\KnouxRepair.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\KnouxOfficialLogo.ico</ApplicationIcon>
     <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
     <Version>2.0.2</Version>
     <AssemblyVersion>2.0.2.0</AssemblyVersion>
@@ -18,8 +18,6 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-    <EnableDefaultPageItems>false</EnableDefaultPageItems>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
@@ -28,100 +26,63 @@
     <Optimize>true</Optimize>
   </PropertyGroup>
 
-  <!-- XAML Pages -->
+  <!-- Offline official branding resources. -->
   <ItemGroup>
-    <Page Include="App.xaml" />
-    <Page Include="Controls\ToolCard.xaml" />
-    <Page Include="Views\AboutPage.xaml" />
-    <Page Include="Views\AllToolsPage.xaml" />
-    <Page Include="Views\BackupsPage.xaml" />
-    <Page Include="Views\DashboardPage.xaml" />
-    <Page Include="Views\MainWindow.xaml" />
-    <Page Include="Views\QuarantinePage.xaml" />
-    <Page Include="Views\ReportsPage.xaml" />
-    <Page Include="Views\SettingsPage.xaml" />
-    <Page Include="Views\SplashScreen.xaml" />
-    <Page Include="Views\TestCenterPage.xaml" />
-    <Page Include="Views\ToolDetailPanel.xaml" />
+    <Resource Update="Assets\KnouxOfficialLogo.png" />
   </ItemGroup>
 
-  <!-- C# Source Files -->
+  <!-- Runtime content required by the existing manifest-driven desktop engine. -->
   <ItemGroup>
-    <Compile Include="App.xaml.cs" />
-    <Compile Include="Controls\ToolCard.xaml.cs">
-      <DependentUpon>ToolCard.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Converters\Converters.cs" />
-    <Compile Include="Core\ProjectValidator.cs" />
-    <Compile Include="Core\SystemInfoProvider.cs" />
-    <Compile Include="Mappers\CategoryIconMapper.cs" />
-    <Compile Include="Mappers\RiskAndActionMappers.cs" />
-    <Compile Include="Models\AppSettings.cs" />
-    <Compile Include="Models\BackupEntry.cs" />
-    <Compile Include="Models\CategoryInfo.cs" />
-    <Compile Include="Models\NotificationItem.cs" />
-    <Compile Include="Models\QuarantineEntry.cs" />
-    <Compile Include="Models\ReportEntry.cs" />
-    <Compile Include="Models\TestResultEntry.cs" />
-    <Compile Include="Models\ToolInfo.cs" />
-    <Compile Include="Services\BackupsService.cs" />
-    <Compile Include="Services\ManifestService.cs" />
-    <Compile Include="Services\NotificationService.cs" />
-    <Compile Include="Services\PowerShellService.cs" />
-    <Compile Include="Services\QuarantineService.cs" />
-    <Compile Include="Services\ReportsService.cs" />
-    <Compile Include="Services\SettingsService.cs" />
-    <Compile Include="Services\ThemeService.cs" />
-    <Compile Include="ViewModels\AllToolsViewModel.cs" />
-    <Compile Include="ViewModels\AsyncRelayCommand.cs" />
-    <Compile Include="ViewModels\DashboardViewModel.cs" />
-    <Compile Include="ViewModels\RelayCommand.cs" />
-    <Compile Include="ViewModels\ReportsViewModel.cs" />
-    <Compile Include="ViewModels\ViewModelBase.cs" />
-    <Compile Include="Views\AboutPage.xaml.cs">
-      <DependentUpon>AboutPage.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\AllToolsPage.xaml.cs">
-      <DependentUpon>AllToolsPage.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\BackupsPage.xaml.cs">
-      <DependentUpon>BackupsPage.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\DashboardPage.xaml.cs">
-      <DependentUpon>DashboardPage.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\MainWindow.xaml.cs">
-      <DependentUpon>MainWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\QuarantinePage.xaml.cs">
-      <DependentUpon>QuarantinePage.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\ReportsPage.xaml.cs">
-      <DependentUpon>ReportsPage.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SettingsPage.xaml.cs">
-      <DependentUpon>SettingsPage.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\SplashScreen.xaml.cs">
-      <DependentUpon>SplashScreen.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestCenterPage.xaml.cs">
-      <DependentUpon>TestCenterPage.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\ToolDetailPanel.xaml.cs">
-      <DependentUpon>ToolDetailPanel.xaml</DependentUpon>
-    </Compile>
-  </ItemGroup>
-
-  <!-- Resource Files -->
-  <ItemGroup>
-    <Resource Include="Resources\Strings.ar.xaml" />
-    <Resource Include="Resources\Strings.en.xaml" />
-    <Resource Include="Themes\Animations.xaml" />
-    <Resource Include="Themes\Colors.xaml" />
-    <Resource Include="Themes\Controls.xaml" />
-    <Resource Include="Themes\Typography.xaml" />
-    <Resource Include="Themes\Variables.xaml" />
-  </ItemGroup>
-
-</Project>
+    <Content Include="..\..\..\Docs\TOOLS-MANIFEST.json" Link="Docs\TOOLS-MANIFEST.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\..\Config\*.json" Link="Config\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\..\Core\**\*" Link="Core\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\..\01-System-Maintenance\**\*" Link="01-System-Maintenance\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\..\02-System-Cleanup\**\*" Link="02-System-Cleanup\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\..\03-Network-Internet\**\*" Link="03-Network-Internet\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\..\04-Programs-Applications\**\*" Link="04-Programs-Applications\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\..\05-Duplicate-Files\**\*" Link="05-Duplicate-Files\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\..\06-Disk-Space\**\*" Link="06-Disk-Space\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\..\07-Services-Processes\**\*" Link="07-Services-Processes\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\..\08-Performance\**\*" Link="08-Performance\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\..\09-Security\**\*" Link="09-Security\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\..\10-Diagnostics-Reports\**\*" Link="10-Diagnostics-Reports\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup></Project>

@@ -1,8 +1,9 @@
-# Safe functional verification harness for the 100 manifest tools.
+﻿# Safe functional verification harness for the 100 manifest tools.
 # Each tool is invoked only through its declared -AnalyzeOnly mode.
 [CmdletBinding()]
 param(
     [int]$TimeoutSeconds = 5,
+    [string[]]$ToolIds = @(),
     [string]$OutputPath = ''
 )
 
@@ -11,6 +12,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($OutputPath)) { $OutputPath = Join-Path $root 'Reports\100-Tool-Functional-Verification.csv' }
 $manifest = Get-Content -LiteralPath (Join-Path $root 'Docs\TOOLS-MANIFEST.json') -Raw | ConvertFrom-Json
+if (@($ToolIds).Count -gt 0) { $manifest = @($manifest | Where-Object { $_.ToolId -in @($ToolIds) }) }
 $pwsh = (Get-Command powershell.exe -ErrorAction Stop).Source
 $results = foreach ($tool in $manifest) {
     $scriptPath = Join-Path $root $tool.ScriptPath
@@ -47,7 +49,9 @@ $results = foreach ($tool in $manifest) {
             $stdoutTask = $proc.StandardOutput.ReadToEndAsync()
             $stderrTask = $proc.StandardError.ReadToEndAsync()
             if (-not $proc.WaitForExit($TimeoutSeconds * 1000)) {
-                try { & taskkill.exe /PID $proc.Id /T /F | Out-Null } catch { }
+                try { & taskkill.exe /PID $proc.Id /T /F | Out-Null; $proc.WaitForExit(1000) | Out-Null } catch { }
+                if ($stdoutTask.IsCompleted) { $stdout = $stdoutTask.GetAwaiter().GetResult() }
+                if ($stderrTask.IsCompleted) { $stderr = $stderrTask.GetAwaiter().GetResult() }
                 $status = 'UNVERIFIED'
                 $reason = 'AnalyzeOnly timed out before a safe result could be observed.'
             }
@@ -96,8 +100,9 @@ $results | Export-Csv -LiteralPath $OutputPath -NoTypeInformation -Encoding utf8
 $pass = @($results | Where-Object Status -eq 'PASS').Count
 $unverified = @($results | Where-Object Status -eq 'UNVERIFIED').Count
 $failed = @($results | Where-Object Status -eq 'FAIL').Count
-Write-Host ('FUNCTIONALLY_VERIFIED=' + $pass + '/' + $results.Count)
-Write-Host ('UNVERIFIED=' + $unverified + '/' + $results.Count)
-Write-Host ('FAILED=' + $failed + '/' + $results.Count)
+$total = @($results).Count
+Write-Host ('FUNCTIONALLY_VERIFIED=' + $pass + '/' + $total)
+Write-Host ('UNVERIFIED=' + $unverified + '/' + $total)
+Write-Host ('FAILED=' + $failed + '/' + $total)
 Write-Host ('OUTPUT=' + (Resolve-Path -LiteralPath $OutputPath))
 if ($failed -gt 0) { exit 2 }

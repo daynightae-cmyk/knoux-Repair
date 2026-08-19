@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -19,6 +19,20 @@ namespace KnouxRepair.Views
             ReducedMotionToggle.IsChecked = s.ReducedMotion;
             FontSizeLabel.Text = s.ConsoleFontSize.ToString("0");
             MaxReportsLabel.Text = s.MaxReportHistory.ToString();
+            DarkThemeRadio.IsChecked = !string.Equals(s.Theme, "Light", System.StringComparison.OrdinalIgnoreCase);
+            LightThemeRadio.IsChecked = string.Equals(s.Theme, "Light", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void ThemeDark_Click(object sender, RoutedEventArgs e)
+        {
+            Services.SettingsService.SetTheme("DarkGlass");
+            Services.ThemeService.ApplyTheme("DarkGlass");
+        }
+
+        private void ThemeLight_Click(object sender, RoutedEventArgs e)
+        {
+            Services.SettingsService.SetTheme("Light");
+            Services.ThemeService.ApplyTheme("Light");
         }
 
         private void LangEnglish_Click(object sender, RoutedEventArgs e)

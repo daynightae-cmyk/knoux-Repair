@@ -6,12 +6,7 @@
 #  Runs CheckHealth and ScanHealth first. Runs post-repair ScanHealth.
 #  Returns Inconclusive when result cannot be proven.
 [CmdletBinding()]
-param(
-    [switch]$AnalyzeOnly,
-    [switch]$WhatIf,
-    [string]$SourcePath = '',
-    [string]$SourceIndex = ''
-)
+param([switch]$AnalyzeOnly, [switch]$WhatIf, [string]$LocalSourcePath, [int]$LocalSourceIndex)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -85,68 +80,66 @@ if (-not ($AnalyzeOnly -or $WhatIf) -and $Session.RequiresAdmin -and -not (Test-
             $useOffline = $false
 
             if ($needsRepair -or (Confirm-KnouxAction 'Run DISM RestoreHealth to repair any corruption?')) {
-                # Get local source if available via parameter or prompt
-                $sourcePathParam = $SourcePath.Trim()
-                $sourceIndexParam = $SourceIndex.Trim()
-                
-                # Use parameters if provided, otherwise skip interactive source selection in non-interactive mode
-                if ($sourcePathParam) {
-                    if (-not (Test-Path -LiteralPath $sourcePathParam)) {
-                        Write-Host ('[ERROR] Source not found: ' + $sourcePathParam) -ForegroundColor Red
-                        $Session.Status = 'Failed'
-                        $Session.ErrorMessage = "Local source not found: $sourcePathParam"
-                        Write-KnouxLog -Session $Session -Message $Session.ErrorMessage 'ERROR'
-                    } else {
-                        $sourcePath = $sourcePathParam
-                        # Detect WIM or ESD and get image info
-                        $info = Invoke-KnouxNativeCommand -FilePath "$env:SystemRoot\System32\Dism.exe" -ArgumentList @('/Get-WimInfo', '/WimFile:' + $sourcePath) -TimeoutSeconds 60
-                        if (-not $info) {
+                # Get local source if available
+                $sourcePath = $null
+                if (-not [string]::IsNullOrWhiteSpace($LocalSourcePath)) {
+                    $src = $LocalSourcePath.Trim()
+                    if ($src) {
+                        if (-not (Test-Path -LiteralPath $src.Trim())) {
+                            Write-Host ('[ERROR] Source not found: ' + $src) -ForegroundColor Red
                             $Session.Status = 'Failed'
-                            $Session.ErrorMessage = 'Could not read WIM/ESD info.'
-                            Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
+                            $Session.ErrorMessage = "Local source not found: $src"
+                            Write-KnouxLog -Session $Session -Message $Session.ErrorMessage 'ERROR'
                         } else {
-                            $info.Stdout | Out-File -LiteralPath (Join-Path $Session.RawDir 'dism-wiminfo-output.txt') -Encoding UTF8
-                            Write-KnouxLog -Session $Session 'DISM Get-WimInfo completed'
-                            # Parse image indexes
-                            $indexes = @()
-                            foreach ($line in $info.Stdout -split "`r?`n") {
-                                if ($line -match '^\s*(\d+)\s+.*') {
-                                    $idx = $matches[1]
-                                    $desc = $line -replace '^\s*\d+\s+', ''
-                                    $indexes += [pscustomobject]@{ Index = $idx; Description = $desc.Trim() }
-                                }
-                            }
-                            if ($indexes.Count -eq 0) {
+                            $sourcePath = $src.Trim()
+                            # Detect WIM or ESD and get image info
+                            $info = Invoke-KnouxNativeCommand -FilePath "$env:SystemRoot\System32\Dism.exe" -ArgumentList @('/Get-WimInfo', '/WimFile:' + $sourcePath) -TimeoutSeconds 60
+                            if (-not $info) {
                                 $Session.Status = 'Failed'
-                                $Session.ErrorMessage = 'No image indexes found in source.'
+                                $Session.ErrorMessage = 'Could not read WIM/ESD info.'
                                 Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
                             } else {
-                                Write-Host 'Available image indexes:' -ForegroundColor Cyan
-                                foreach ($i in $indexes) {
-                                    Write-Host ("  [{0}] {1}" -f $i.Index, $i.Description) -ForegroundColor Gray
+                                $info.Stdout | Out-File -LiteralPath (Join-Path $Session.RawDir 'dism-wiminfo-output.txt') -Encoding UTF8
+                                Write-KnouxLog -Session $Session 'DISM Get-WimInfo completed'
+                                # Parse image indexes
+                                $indexes = @()
+                                foreach ($line in $info.Stdout -split "`r?`n") {
+                                    if ($line -match '^\s*(\d+)\s+.*') {
+                                        $idx = $matches[1]
+                                        $desc = $line -replace '^\s*\d+\s+', ''
+                                        $indexes += [pscustomobject]@{ Index = $idx; Description = $desc.Trim() }
+                                    }
                                 }
-                                # Detect Windows edition
-                                $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
-                                $edition = $os.Caption
-                                Write-Host ("Detected edition: {0}" -f $edition) -ForegroundColor Cyan
-                                # Try to match edition
-                                $matched = $indexes | Where-Object { $_.Description -match [regex]::Escape($edition) } | Select-Object -First 1
-                                if ($matched) {
-                                    Write-Host ("Recommended index: {0} ({1})" -f $matched.Index, $matched.Description) -ForegroundColor Green
+                                if ($indexes.Count -eq 0) {
+                                    $Session.Status = 'Failed'
+                                    $Session.ErrorMessage = 'No image indexes found in source.'
+                                    Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
                                 } else {
-                                    Write-Host 'No automatic edition match. Using first index.' -ForegroundColor Yellow
+                                    Write-Host 'Available image indexes:' -ForegroundColor Cyan
+                                    foreach ($i in $indexes) {
+                                        Write-Host ("  [{0}] {1}" -f $i.Index, $i.Description) -ForegroundColor Gray
+                                    }
+                                    # Detect Windows edition
+                                    $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
+                                    $edition = $os.Caption
+                                    Write-Host ("Detected edition: {0}" -f $edition) -ForegroundColor Cyan
+                                    # Try to match edition
+                                    $matched = $indexes | Where-Object { $_.Description -match [regex]::Escape($edition) } | Select-Object -First 1
+                                    if ($matched) {
+                                        Write-Host ("Recommended index: {0} ({1})" -f $matched.Index, $matched.Description) -ForegroundColor Green
+                                    } else {
+                                        Write-Host 'No automatic edition match. Please select index manually.' -ForegroundColor Yellow
+                                    }
+                                    $selIdx = if ($LocalSourceIndex -gt 0) { $LocalSourceIndex } elseif ($matched) { $matched.Index } else { $indexes[0].Index }
+                                    if ($selIdx -match '^\d+$' -and ($indexes.Index -contains [int]$selIdx)) {
+                                        $sourceIndex = $selIdx
+                                        $source = $sourcePath
+                                        if ($sourcePath -match '\.esd$') { $sourceType = 'esd' } else { $sourceType = 'wim' }
+                                        $useOffline = $true
+                                    } else {
+                                        Write-Host '[WARN] Invalid index, falling back to Windows Update.' -ForegroundColor Yellow
+                                    }
                                 }
-                                # Use provided index or matched/default
-                                if ($sourceIndexParam -match '^\d+$' -and ($indexes.Index -contains [int]$sourceIndexParam)) {
-                                    $sourceIndex = $sourceIndexParam
-                                } elseif ($matched) {
-                                    $sourceIndex = $matched.Index
-                                } else {
-                                    $sourceIndex = $indexes[0].Index
-                                }
-                                $source = $sourcePath
-                                if ($sourcePath -match '\.esd$') { $sourceType = 'esd' } else { $sourceType = 'wim' }
-                                $useOffline = $true
                             }
                         }
                     }

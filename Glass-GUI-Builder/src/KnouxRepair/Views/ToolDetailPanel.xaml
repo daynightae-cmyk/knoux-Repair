@@ -1,150 +1,17 @@
-<UserControl x:Class="KnouxRepair.Views.ToolDetailPanel"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Background="Transparent">
-    <Grid Margin="0,40,24,24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-
-        <!-- Placeholder when no tool selected -->
-        <StackPanel x:Name="PlaceholderPanel" VerticalAlignment="Center"
-                    HorizontalAlignment="Center">
-            <TextBlock Text="&#xE74B;" FontFamily="{DynamicResource FontIcon}"
-                       Foreground="{DynamicResource MutedBrush}"
-                       FontSize="36" HorizontalAlignment="Center"/>
-            <TextBlock Text="{DynamicResource ToolSelectTool}"
-                       Style="{DynamicResource SubtitleTextBlockStyle}"
-                       HorizontalAlignment="Center" Margin="0,10,0,0"/>
-            <TextBlock Text="{DynamicResource ToolSelectHint}"
-                       Style="{DynamicResource CaptionTextBlockStyle}"
-                       HorizontalAlignment="Center" Margin="0,4,0,0"/>
-        </StackPanel>
-
-        <!-- Tool detail content (visible when tool selected) -->
-        <ScrollViewer x:Name="DetailContent" VerticalScrollBarVisibility="Auto"
-                      Visibility="Collapsed">
-            <StackPanel>
-                <!-- Tool name + ID -->
-                <Grid>
-                    <StackPanel>
-                        <TextBlock FontSize="10" Foreground="{DynamicResource BrushCyan}"
-                                   FontWeight="Bold" x:Name="ToolIdText"/>
-                        <TextBlock FontSize="17" Foreground="{DynamicResource TextMainBrush}"
-                                   FontWeight="Bold" Margin="0,4,0,0"
-                                   x:Name="ToolNameText"
-                                   FontFamily="{DynamicResource FontDisplay}"/>
-                    </StackPanel>
-                </Grid>
-
-                <!-- Badges row -->
-                <WrapPanel Margin="0,12,0,0">
-                    <Border x:Name="RiskBadge" CornerRadius="4" Padding="6,3" Margin="0,0,6,6">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE7BA;" FontFamily="{DynamicResource FontIcon}"
-                                       FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                            <TextBlock x:Name="RiskText" FontSize="10.5" FontWeight="SemiBold"
-                                       Foreground="White"/>
-                        </StackPanel>
-                    </Border>
-                    <Border x:Name="AdminBadge" Background="{DynamicResource BrushSurface}"
-                            CornerRadius="4" Padding="6,3" Margin="0,0,6,6"
-                            BorderThickness="0.5" BorderBrush="{DynamicResource BrushAmberDim}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE7EF;" FontFamily="{DynamicResource FontIcon}"
-                                       FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                            <TextBlock Text="{DynamicResource ToolAdmin}"
-                                       FontSize="10.5" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource BrushAmber}"/>
-                        </StackPanel>
-                    </Border>
-                    <Border x:Name="RestartBadge" Background="{DynamicResource BrushBg3}"
-                            CornerRadius="4" Padding="6,3" Margin="0,0,6,6"
-                            BorderThickness="0.5" BorderBrush="{DynamicResource BrushBorder}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE777;" FontFamily="{DynamicResource FontIcon}"
-                                       FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                            <TextBlock Text="{DynamicResource ToolRestart}"
-                                       FontSize="10.5" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource BrushSkyBlue}"/>
-                        </StackPanel>
-                    </Border>
-                </WrapPanel>
-
-                <!-- Purpose -->
-                <TextBlock x:Name="PurposeText" FontSize="12"
-                           Foreground="{DynamicResource TextMainBrush}"
-                           TextWrapping="Wrap" Margin="0,14,0,0"/>
-
-                <!-- Metadata grid -->
-                <Grid Margin="0,14,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="8"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="8"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="8"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="8"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Offline"
-                               Style="{DynamicResource CaptionTextBlockStyle}"
-                               FontWeight="SemiBold" Width="110"/>
-                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="OfflineText"
-                               Style="{DynamicResource CaptionTextBlockStyle}"
-                               FontSize="11.5" Foreground="{DynamicResource TextMainBrush}"/>
-
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{DynamicResource ToolBackup}"
-                               Style="{DynamicResource CaptionTextBlockStyle}"
-                               FontWeight="SemiBold"/>
-                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="BackupText"
-                               Style="{DynamicResource CaptionTextBlockStyle}"
-                               FontSize="11.5" Foreground="{DynamicResource TextMainBrush}"
-                               TextWrapping="Wrap"/>
-
-                    <TextBlock Grid.Row="4" Grid.Column="0" Text="{DynamicResource ToolRollback}"
-                               Style="{DynamicResource CaptionTextBlockStyle}"
-                               FontWeight="SemiBold"/>
-                    <TextBlock Grid.Row="4" Grid.Column="1" x:Name="RollbackText"
-                               Style="{DynamicResource CaptionTextBlockStyle}"
-                               FontSize="11.5" Foreground="{DynamicResource TextMainBrush}"
-                               TextWrapping="Wrap"/>
-
-                    <TextBlock Grid.Row="6" Grid.Column="0" Text="WhatIf"
-                               Style="{DynamicResource CaptionTextBlockStyle}"
-                               FontWeight="SemiBold"/>
-                    <TextBlock Grid.Row="6" Grid.Column="1" x:Name="WhatIfText"
-                               Style="{DynamicResource CaptionTextBlockStyle}"
-                               FontSize="11.5" Foreground="{DynamicResource TextMainBrush}"/>
-
-                    <TextBlock Grid.Row="8" Grid.Column="0" Text="{DynamicResource ToolPath}"
-                               Style="{DynamicResource CaptionTextBlockStyle}"
-                               FontWeight="SemiBold"/>
-                    <TextBlock Grid.Row="8" Grid.Column="1" x:Name="PathText"
-                               Foreground="{DynamicResource BrushCyan}" FontSize="11"
-                               FontFamily="{DynamicResource FontMono}"
-                               FlowDirection="LeftToRight"
-                               TextWrapping="Wrap"/>
-                </Grid>
-            </StackPanel>
-        </ScrollViewer>
-
-        <!-- Action buttons -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,12,0,0">
-            <Button x:Name="BtnAnalyze" Content="{DynamicResource ActionAnalyzeSafely}"
-                    Style="{DynamicResource AccentButton}"
-                    Click="BtnAnalyze_Click" Margin="0,0,8,0"/>
-            <Button x:Name="BtnRun" Content="{DynamicResource ActionRunTool}"
-                    Style="{DynamicResource DangerButton}"
-                    Click="BtnRun_Click"/>
-        </StackPanel>
-    </Grid>
-</UserControl>
+<UserControl x:Class="KnouxRepair.Views.ToolDetailPanel" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:automation="clr-namespace:System.Windows.Automation;assembly=PresentationCore" Background="Transparent">
+<Grid Margin="0,40,24,24"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+<StackPanel x:Name="PlaceholderPanel" VerticalAlignment="Center" HorizontalAlignment="Center"><TextBlock Text="Select a tool" Style="{DynamicResource SubtitleTextBlockStyle}" HorizontalAlignment="Center"/><TextBlock Text="Preview its real contract and available actions" Style="{DynamicResource CaptionTextBlockStyle}" HorizontalAlignment="Center" Margin="0,4,0,0"/></StackPanel>
+<ScrollViewer x:Name="DetailContent" Visibility="Collapsed" VerticalScrollBarVisibility="Auto"><StackPanel>
+<TextBlock x:Name="CategoryText" Foreground="{DynamicResource BrushCyan}" FontWeight="Bold" FontSize="10"/><TextBlock x:Name="ToolNameText" Foreground="{DynamicResource TextMainBrush}" FontSize="19" FontWeight="Bold" Margin="0,4,0,0"/><TextBlock x:Name="ToolIdText" Foreground="{DynamicResource MutedBrush}" FontFamily="{DynamicResource FontMono}" FontSize="9" Margin="0,2,0,0"/>
+<WrapPanel Margin="0,12,0,0"><Border x:Name="RiskBadge" CornerRadius="4" Padding="6,3" Margin="0,0,6,6"><TextBlock x:Name="RiskText" FontSize="10.5" FontWeight="SemiBold"/></Border><Border x:Name="AdminBadge" Background="{DynamicResource BrushSurface}" CornerRadius="4" Padding="6,3" Margin="0,0,6,6"><TextBlock Text="Administrator" Foreground="{DynamicResource BrushAmber}" FontSize="10.5"/></Border><Border x:Name="RestartBadge" Background="{DynamicResource BrushSurface}" CornerRadius="4" Padding="6,3" Margin="0,0,6,6"><TextBlock Text="Restart required" Foreground="{DynamicResource BrushSkyBlue}" FontSize="10.5"/></Border></WrapPanel>
+<TextBlock Text="Purpose" Style="{DynamicResource CaptionTextBlockStyle}" FontWeight="SemiBold" Margin="0,10,0,2"/><TextBlock x:Name="PurposeText" Foreground="{DynamicResource TextMainBrush}" TextWrapping="Wrap"/>
+<TextBlock Text="Capabilities" Style="{DynamicResource CaptionTextBlockStyle}" FontWeight="SemiBold" Margin="0,14,0,2"/><ItemsControl x:Name="CapabilitiesList"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Background="{DynamicResource BrushSurface}" CornerRadius="3" Padding="5,3" Margin="0,0,5,5"><TextBlock Text="{Binding}" Foreground="{DynamicResource BrushCyan}" FontSize="9"/></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+<TextBlock Text="Preview contract" Style="{DynamicResource CaptionTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,2"/><TextBlock x:Name="PreviewText" Foreground="{DynamicResource TextMainBrush}" TextWrapping="Wrap"/>
+<TextBlock Text="Script parameters" Style="{DynamicResource CaptionTextBlockStyle}" FontWeight="SemiBold" Margin="0,10,0,2"/><TextBlock x:Name="ParametersText" Foreground="{DynamicResource TextMainBrush}" TextWrapping="Wrap"/>
+<TextBlock Text="Preserved / backup" Style="{DynamicResource CaptionTextBlockStyle}" FontWeight="SemiBold" Margin="0,10,0,2"/><TextBlock x:Name="BackupText" Foreground="{DynamicResource TextMainBrush}" TextWrapping="Wrap"/>
+<TextBlock Text="Recovery / rollback" Style="{DynamicResource CaptionTextBlockStyle}" FontWeight="SemiBold" Margin="0,10,0,2"/><TextBlock x:Name="RollbackText" Foreground="{DynamicResource TextMainBrush}" TextWrapping="Wrap"/>
+<TextBlock Text="Expected output" Style="{DynamicResource CaptionTextBlockStyle}" FontWeight="SemiBold" Margin="0,10,0,2"/><TextBlock x:Name="ExpectedText" Foreground="{DynamicResource TextMainBrush}" TextWrapping="Wrap"/>
+<TextBlock Text="Last execution evidence" Style="{DynamicResource CaptionTextBlockStyle}" FontWeight="SemiBold" Margin="0,14,0,2"/><TextBlock x:Name="EvidenceText" Foreground="{DynamicResource TextMainBrush}" TextWrapping="Wrap"/>
+<TextBlock Text="Script path" Style="{DynamicResource CaptionTextBlockStyle}" FontWeight="SemiBold" Margin="0,12,0,2"/><TextBlock x:Name="PathText" Foreground="{DynamicResource BrushCyan}" FontFamily="{DynamicResource FontMono}" FontSize="10" TextWrapping="Wrap"/>
+</StackPanel></ScrollViewer>
+<StackPanel Grid.Row="1" Margin="0,12,0,0"><TextBlock x:Name="SelectionLabel" Visibility="Collapsed" Style="{DynamicResource CaptionTextBlockStyle}" Margin="0,0,0,4"/><TextBox x:Name="SelectionBox" Visibility="Collapsed" ToolTip="Enter the exact value for the script Selection parameter" automation:AutomationProperties.Name="Tool selection" Margin="0,0,0,8" Padding="8"/><WrapPanel x:Name="ActionBar"/></StackPanel></Grid></UserControl>
