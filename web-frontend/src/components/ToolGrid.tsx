@@ -1,12 +1,14 @@
 import { useMemo } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, ShieldAlert, Wrench, Trash2, Wifi, AppWindow, Copy,
   HardDrive, Cpu, Gauge, Lock, Activity, Square, RefreshCw, CheckCircle2,
-  XCircle, Ban, Terminal,
+  XCircle, Ban, BarChart3, Layers, ScanLine, FileCheck,
+  ArchiveRestore, Settings2, Zap, Eye, ClipboardList,
 } from 'lucide-react';
 import type { ToolStatus } from '../types';
-import { RISK_COLORS, CATEGORY_LABELS } from '../types';
+import { RISK_COLORS, CATEGORY_LABELS, CATEGORY_CONFIG, SECTION_MAP } from '../types';
 import type { BridgeTool } from '../lib/api';
 import type { Lang } from '../lib/i18n';
 import { STRINGS, pickName } from '../lib/i18n';
@@ -33,6 +35,50 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   '09-Security': ShieldAlert,
   '10-Diagnostics-Reports': Activity,
 };
+
+// Capability-based icon mapping for tools
+const CAPABILITY_ICONS: Record<string, React.ElementType> = {
+  analyze: BarChart3,
+  clean: Trash2,
+  repair: Wrench,
+  restore: ArchiveRestore,
+  report: FileCheck,
+  reset: Settings2,
+  renew: RefreshCw,
+  flush: Zap,
+  move: Layers,
+  schedule: ClipboardList,
+  test: Zap,
+  scan: ScanLine,
+  inspect: Eye,
+  whatif: Eye,
+};
+
+function getToolCapabilities(tool: BridgeTool): string[] {
+  const caps: string[] = [];
+  
+  // From manifest flags
+  if ((tool as any).AnalyzeOnlySupported) caps.push('analyze');
+  if ((tool as any).WhatIfSupported) caps.push('whatif');
+  
+  const name = tool.EnglishName.toLowerCase();
+  const purpose = tool.Purpose.toLowerCase();
+  
+  if (name.includes('clean') || purpose.includes('clean') || tool.RiskLevel === 'DESTRUCTIVE' || tool.RiskLevel === 'SAFE_CLEANUP') caps.push('clean');
+  if (name.includes('repair') || purpose.includes('repair')) caps.push('repair');
+  if (name.includes('restore') || purpose.includes('restore') || purpose.includes('quarantin')) caps.push('restore');
+  if (name.includes('report') || purpose.includes('report')) caps.push('report');
+  if (name.includes('reset') || purpose.includes('reset')) caps.push('reset');
+  if (name.includes('renew') || purpose.includes('renew')) caps.push('renew');
+  if (name.includes('flush') || purpose.includes('flush')) caps.push('flush');
+  if (name.includes('move') || purpose.includes('move')) caps.push('move');
+  if (name.includes('schedule') || purpose.includes('schedule')) caps.push('schedule');
+  if (name.includes('test') || purpose.includes('test')) caps.push('test');
+  if (name.includes('scan') || purpose.includes('scan')) caps.push('scan');
+  if (name.includes('list') || purpose.includes('inspect')) caps.push('inspect');
+  
+  return [...new Set(caps)];
+}
 
 const RISK_LABEL: Record<string, Record<Lang, string>> = {
   READ_ONLY: { en: 'READ ONLY', ar: 'قراءة فقط' },
@@ -68,6 +114,10 @@ export default function ToolGrid({
 }: ToolGridProps) {
   const t = STRINGS[lang];
 
+  // Get the category from SECTION_MAP
+  const categoryId = Object.entries(SECTION_MAP).find(([k]) => k === activeSection)?.[1] || '';
+  const categoryConfig = CATEGORY_CONFIG[categoryId];
+  
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return tools;
     const q = searchQuery.toLowerCase();
@@ -80,25 +130,52 @@ export default function ToolGrid({
     );
   }, [tools, searchQuery]);
 
-  const catLabel = CATEGORY_LABELS[activeSection] || activeSection.toUpperCase();
+  const catLabel = categoryConfig ? (lang === 'ar' ? categoryConfig.arabicName : categoryConfig.name) : (CATEGORY_LABELS[activeSection] || activeSection.toUpperCase());
+  const catPurpose = categoryConfig ? (lang === 'ar' ? categoryConfig.arabicPurpose : categoryConfig.purpose) : '';
+  const accentColor = categoryConfig?.accent || '#06B6D4';
 
   return (
     <div className="flex-1 overflow-y-auto pr-2 rtl:pl-2 rtl:pr-0">
+      {/* Category Hero */}
       <motion.div
         key={activeSection}
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
+        className="mb-6 glass-panel rounded-2xl p-6 relative overflow-hidden"
+        style={{ borderTop: `2px solid ${accentColor}` }}
       >
-        <div className="flex items-center gap-3 mb-1">
-          <Terminal size={16} className="text-cyan-400" />
-          <h2 className="font-display text-lg font-bold tracking-wider text-white text-glow">
-            {catLabel}
-          </h2>
+        <div 
+          className="absolute inset-0 opacity-10 pointer-events-none"
+          style={{ background: `radial-gradient(ellipse at top, ${accentColor}22, transparent 70%)` }}
+        />
+        <div className="relative z-10 flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-4">
+            <div 
+              className="w-12 h-12 rounded-xl flex items-center justify-center border shadow-lg"
+              style={{ backgroundColor: `${accentColor}15`, borderColor: `${accentColor}30`, color: accentColor }}
+            >
+              {categoryConfig && React.createElement(CATEGORY_ICONS[categoryId] || Wrench, { size: 24 })}
+            </div>
+            <div>
+              <h2 className="font-display text-xl font-bold tracking-wider text-white text-glow">
+                {catLabel}
+              </h2>
+              {catPurpose && (
+                <p className="font-mono text-[10px] text-white/40 mt-1 tracking-wide">
+                  {catPurpose}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="font-display text-3xl font-bold" style={{ color: accentColor }}>
+              {filtered.length}
+            </p>
+            <p className="font-mono text-[9px] text-white/30 tracking-widest">
+              {t.toolsCount}
+            </p>
+          </div>
         </div>
-        <p className="font-mono text-[10px] text-cyan-400/40 tracking-widest ms-7">
-          {filtered.length} {t.modules}
-        </p>
       </motion.div>
 
       {filtered.length === 0 ? (
@@ -174,6 +251,28 @@ export default function ToolGrid({
                       </span>
                     )}
                   </div>
+
+                  {/* Capability Chips */}
+                  {(() => {
+                    const caps = getToolCapabilities(tool);
+                    if (caps.length === 0) return null;
+                    return (
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {caps.slice(0, 4).map(cap => {
+                          const CapIcon = CAPABILITY_ICONS[cap] || Eye;
+                          return (
+                            <span 
+                              key={cap}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/[0.03] border border-white/[0.06]"
+                            >
+                              <CapIcon size={8} className="text-cyan-400/60" />
+                              <span className="font-mono text-[8px] text-white/40 uppercase">{cap}</span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
 
                   <motion.button
                     onClick={() => (isRunning ? onCancelTool() : onRunTool(tool))}
