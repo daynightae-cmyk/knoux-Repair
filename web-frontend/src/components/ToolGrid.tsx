@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, ShieldAlert, Wrench, Trash2, Wifi, AppWindow, Copy,
   HardDrive, Cpu, Gauge, Lock, Activity, Square, RefreshCw, CheckCircle2,
-  XCircle, Ban, Terminal, BarChart3, Layers, ScanLine, FileCheck,
-  FolderOpen, ArchiveRestore, Settings2, Zap, Thermometer, Eye, ClipboardList,
+  XCircle, Ban, BarChart3, Layers, ScanLine, FileCheck,
+  ArchiveRestore, Settings2, Zap, Eye, ClipboardList,
 } from 'lucide-react';
 import type { ToolStatus } from '../types';
 import { RISK_COLORS, CATEGORY_LABELS, CATEGORY_CONFIG, SECTION_MAP } from '../types';
@@ -64,18 +64,18 @@ function getToolCapabilities(tool: BridgeTool): string[] {
   const name = tool.EnglishName.toLowerCase();
   const purpose = tool.Purpose.toLowerCase();
   
-  if ('clean' in name || 'clean' in purpose || tool.RiskLevel === 'DESTRUCTIVE' || tool.RiskLevel === 'SAFE_CLEANUP') caps.push('clean');
-  if ('repair' in name || 'repair' in purpose) caps.push('repair');
-  if ('restore' in name || 'restore' in purpose || 'quarantin' in purpose) caps.push('restore');
-  if ('report' in name || 'report' in purpose) caps.push('report');
-  if ('reset' in name || 'reset' in purpose) caps.push('reset');
-  if ('renew' in name || 'renew' in purpose) caps.push('renew');
-  if ('flush' in name || 'flush' in purpose) caps.push('flush');
-  if ('move' in name || 'move' in purpose) caps.push('move');
-  if ('schedule' in name || 'schedule' in purpose) caps.push('schedule');
-  if ('test' in name || 'test' in purpose) caps.push('test');
-  if ('scan' in name || 'scan' in purpose) caps.push('scan');
-  if ('list' in name || 'inspect' in purpose) caps.push('inspect');
+  if (name.includes('clean') || purpose.includes('clean') || tool.RiskLevel === 'DESTRUCTIVE' || tool.RiskLevel === 'SAFE_CLEANUP') caps.push('clean');
+  if (name.includes('repair') || purpose.includes('repair')) caps.push('repair');
+  if (name.includes('restore') || purpose.includes('restore') || purpose.includes('quarantin')) caps.push('restore');
+  if (name.includes('report') || purpose.includes('report')) caps.push('report');
+  if (name.includes('reset') || purpose.includes('reset')) caps.push('reset');
+  if (name.includes('renew') || purpose.includes('renew')) caps.push('renew');
+  if (name.includes('flush') || purpose.includes('flush')) caps.push('flush');
+  if (name.includes('move') || purpose.includes('move')) caps.push('move');
+  if (name.includes('schedule') || purpose.includes('schedule')) caps.push('schedule');
+  if (name.includes('test') || purpose.includes('test')) caps.push('test');
+  if (name.includes('scan') || purpose.includes('scan')) caps.push('scan');
+  if (name.includes('list') || purpose.includes('inspect')) caps.push('inspect');
   
   return [...new Set(caps)];
 }
