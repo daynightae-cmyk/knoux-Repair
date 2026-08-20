@@ -1976,7 +1976,7 @@
     "WhatIfSupported": true,
     "TestResult": "UNTESTED"
   },
-  {
+    {
     "ToolId": "DV03",
     "Category": "14-Driver-Management",
     "ScriptPath": "14-Driver-Management/DV03-ExportThirdPartyDrivers.ps1",
@@ -1993,6 +1993,24 @@
     "WhatIfSupported": true,
     "TestResult": "UNTESTED"
   },
+  {
+    "ToolId": "DV04",
+    "Category": "14-Driver-Management",
+    "ScriptPath": "14-Driver-Management/DV04-InteractiveDriverPreview.ps1",
+    "EnglishName": "Interactive Driver Preview",
+    "ArabicName": "معاينة التعريفات التفاعلية",
+    "Purpose": "Reads installed driver and device inventory, signature state, device-problem codes, provider grouping, and driver dates without changing Driver Store or device configuration. Signals are for review, not an automatic update recommendation.",
+    "RiskLevel": "READ_ONLY",
+    "RequiresAdmin": false,
+    "RequiresRestart": false,
+    "OfflineCapability": "FULL",
+    "BackupMethod": "None (read-only inventory)",
+    "RollbackMethod": "None required",
+    "AnalyzeOnlySupported": true,
+    "WhatIfSupported": false,
+    "TestResult": "PASS"
+  }
+,
   {
     "ToolId": "MO01",
     "Category": "15-System-Monitoring",

@@ -232,6 +232,38 @@ export interface BackupRecoveryPreview {
   Safety: { ChangesMade: boolean; Sources: string[]; Notice: string };
 }
 
+export interface DriverPreviewDeviceProblem {
+  DeviceId: string;
+  Name: string;
+  Status: string;
+  ErrorCode: number;
+}
+
+export interface DriverPreviewItem {
+  DeviceName: string;
+  DeviceClass: string;
+  Provider: string;
+  ProviderGroup: 'Microsoft' | 'ThirdParty' | 'Unknown';
+  Version: string;
+  DriverDate: string | null;
+  AgeYears: number | null;
+  InfName: string;
+  Signed: boolean;
+  DeviceStatus: string;
+  ProblemCode: number;
+  ReviewSignals: string[];
+}
+
+export interface DriversPreview {
+  CapturedAt: string;
+  Summary: { TotalDrivers: number; SignedDrivers: number; UnsignedDrivers: number; ThirdPartyDrivers: number; OlderDateSignals: number; DeviceProblems: number };
+  DeviceProblems: DriverPreviewDeviceProblem[];
+  ReviewDrivers: DriverPreviewItem[];
+  ClassSummary: { Class: string; Count: number }[];
+  RecentInventory: DriverPreviewItem[];
+  Safety: { ChangesMade: boolean; Sources: string[]; Notice: string };
+}
+
 export interface SoftwarePreviewItem {
   Name: string;
   Version: string;
@@ -395,6 +427,7 @@ export const api = {
   performancePreview: () => request<{ preview: PerformancePreview }>('/api/performance/preview', undefined, 125000),
   diagnosticsPreview: () => request<{ preview: DiagnosticsPreview }>('/api/diagnostics/preview', undefined, 125000),
   backupRecoveryPreview: () => request<{ preview: BackupRecoveryPreview }>('/api/backup-recovery/preview', undefined, 125000),
+  driversPreview: () => request<{ preview: DriversPreview }>('/api/drivers/preview', undefined, 125000),
 
   sonarAiStatus: () => request<ProjectSonarAiStatus>('/api/sonar/ai-status', undefined, 15000),
   sonarExport: (folderPath: string, format: 'pdf' | 'markdown', language: LangCode) => request<{ export: ProjectSonarExport }>('/api/sonar/export', { method: 'POST', body: JSON.stringify({ path: folderPath, format, language }) }, 125000),

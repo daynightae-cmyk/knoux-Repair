@@ -983,6 +983,13 @@
         "File": "DV03-ExportThirdPartyDrivers.ps1",
         "Risk": "SYSTEM_REPAIR",
         "RequiresAdmin": true
+      },
+      {
+        "Id": "DV04",
+        "Name": "Interactive Driver Preview",
+        "File": "DV04-InteractiveDriverPreview.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
       }
     ]
   },
