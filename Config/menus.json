@@ -224,6 +224,13 @@
         "File": "NI10-NetworkReport.ps1",
         "Risk": "READ_ONLY",
         "RequiresAdmin": false
+      },
+      {
+        "Id": "NI11",
+        "Name": "Interactive Network Preview",
+        "File": "NI11-InteractiveNetworkPreview.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
       }
     ]
   },
@@ -375,6 +382,13 @@
         "Name": "Restore Quarantined Items",
         "File": "DF10-RestoreQuarantinedItems.ps1",
         "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DF11",
+        "Name": "Interactive Duplicate Preview",
+        "File": "DF11-InteractiveDuplicatePreview.ps1",
+        "Risk": "READ_ONLY",
         "RequiresAdmin": false
       }
     ]
@@ -1015,6 +1029,13 @@
         "Name": "Uninstall Winget Package",
         "File": "SW06-UninstallWingetPackage.ps1",
         "Risk": "DESTRUCTIVE",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SW07",
+        "Name": "Interactive Software Preview",
+        "File": "SW07-InteractiveSoftwarePreview.ps1",
+        "Risk": "READ_ONLY",
         "RequiresAdmin": false
       }
     ]

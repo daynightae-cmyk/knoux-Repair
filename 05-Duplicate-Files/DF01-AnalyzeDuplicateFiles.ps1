@@ -2,7 +2,8 @@
 #  knoux Repair v2.0.2 | 05-Duplicate-Files | DF01 - Analyze Duplicate Files
 #  Risk: READ_ONLY
 [CmdletBinding()]
-param([switch]$AnalyzeOnly, [switch]$WhatIf)
+param([string]$LocalSourcePath, [switch]$AnalyzeOnly, [switch]$WhatIf)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -14,14 +15,19 @@ $rc = 0
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf
 
 try {
-    $roots = @(
-        [Environment]::GetFolderPath('MyDocuments'),
-        (Join-Path $env:USERPROFILE 'Downloads'),
-        [Environment]::GetFolderPath('Desktop'),
-        [Environment]::GetFolderPath('MyPictures'),
-        [Environment]::GetFolderPath('MyMusic'),
-        [Environment]::GetFolderPath('MyVideos')
-    ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+    $roots = if ([string]::IsNullOrWhiteSpace($LocalSourcePath)) {
+        @(
+            [Environment]::GetFolderPath('MyDocuments'),
+            (Join-Path $env:USERPROFILE 'Downloads'),
+            [Environment]::GetFolderPath('Desktop'),
+            [Environment]::GetFolderPath('MyPictures'),
+            [Environment]::GetFolderPath('MyMusic'),
+            [Environment]::GetFolderPath('MyVideos')
+        ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+    } else {
+        if (-not [IO.Path]::IsPathRooted($LocalSourcePath) -or -not (Test-Path -LiteralPath $LocalSourcePath -PathType Container)) { throw 'The selected local folder is unavailable.' }
+        @((Resolve-Path -LiteralPath $LocalSourcePath).Path)
+    }
 
     Write-Host 'Scanning user folders (bounded to the first 20000 files)...' -ForegroundColor Cyan
     $files = Get-KnouxScanFiles -Roots $roots -MinBytes 1024

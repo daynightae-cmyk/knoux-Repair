@@ -2,7 +2,8 @@
 #  knoux Repair v2.0.2 | 05-Duplicate-Files | DF03 - Clean Duplicate Pictures
 #  Risk: DESTRUCTIVE | Quarantine-backed
 [CmdletBinding()]
-param([switch]$AnalyzeOnly, [switch]$WhatIf)
+param([string]$LocalSourcePath, [switch]$AnalyzeOnly, [switch]$WhatIf)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -15,15 +16,18 @@ $exts = @('.jpg', '.jpeg', '.png', '.bmp', '.gif', '.webp', '.tiff')
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf
 
 try {
-    $pictures = [Environment]::GetFolderPath('MyPictures')
-    if (-not $pictures -or -not (Test-Path -LiteralPath $pictures)) {
+        $pictures = if ([string]::IsNullOrWhiteSpace($LocalSourcePath)) { [Environment]::GetFolderPath('MyPictures') } else { $LocalSourcePath }
+    if (-not $pictures -or -not [IO.Path]::IsPathRooted($pictures) -or -not (Test-Path -LiteralPath $pictures -PathType Container)) {
+
         Write-Host '[WARN] Pictures folder not found.' -ForegroundColor Yellow
         $Session.Status = 'Failed'
         $Session.ErrorMessage = 'Pictures folder not found.'
         Write-KnouxLog -Session $Session -Message $Session.ErrorMessage 'ERROR'
     } else {
+                $pictures = (Resolve-Path -LiteralPath $pictures).Path
         Write-Host ('Scanning {0} ...' -f $pictures) -ForegroundColor Cyan
         $files = Get-KnouxScanFiles -Roots @($pictures) -IncludeExtensions $exts
+
         $groups = Find-KnouxDuplicateGroups -Files $files -HashByteBudget 500MB
 
         $toQuarantine = @()

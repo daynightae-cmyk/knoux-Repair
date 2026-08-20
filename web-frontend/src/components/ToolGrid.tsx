@@ -6,9 +6,17 @@ import {
   ShieldCheck, Square, Terminal, Trash2, Wrench,
 } from 'lucide-react';
 import type { CSSProperties, ElementType, ReactNode } from 'react';
-import type { ActiveSection, ToolStatus } from '../types';
+import type { ActiveSection, ConsoleEntry, ToolStatus } from '../types';
+
 import type { BridgeTool, ExecutionMode, OfflineCapability, ToolRunOptions } from '../lib/api';
 import ExecutionConfirmDialog from './ExecutionConfirmDialog';
+import DuplicateExplorerPanel from './DuplicateExplorerPanel';
+import DiskPulsePanel from './DiskPulsePanel';
+import SoftwareInventoryPanel from './SoftwareInventoryPanel';
+import NetworkPulsePanel from './NetworkPulsePanel';
+import SystemPulsePanel from './SystemPulsePanel';
+import ToolActivityRail from './ToolActivityRail';
+
 import ProjectSonarPanel from './ProjectSonarPanel';
 import type { Lang } from '../lib/i18n';
 import { pickName } from '../lib/i18n';
@@ -19,8 +27,12 @@ interface ToolGridProps {
   toolStatuses: Record<string, ToolStatus>;
   tools: BridgeTool[];
   lang: Lang;
-  bridgeElevated: boolean;
+    bridgeElevated: boolean;
+  activeTool: BridgeTool | null;
+  activityEntries: ConsoleEntry[];
+  activityStatus: ToolStatus;
   onRunTool: (tool: BridgeTool, mode: ExecutionMode, options?: ToolRunOptions) => void;
+
   onCancelTool: () => void;
 }
 
@@ -185,51 +197,7 @@ function Status({ status, lang }: { status: ToolStatus; lang: Lang }) {
   return <span className={`tool-status ${item.className}`}>{item.label}</span>;
 }
 
-function DuplicateWorkflow({ tools, lang }: { tools: BridgeTool[]; lang: Lang }) {
-  const quarantineProtected = tools.filter((tool) => /quarantine/i.test(tool.BackupMethod || '')).length;
-  const restore = tools.find((tool) => tool.ToolId === 'DF10');
-  const evidence = tools.filter((tool) => tool.ReportsEvidence).length;
-  const content = lang === 'ar'
-    ? {
-        title: 'مسار استرداد الملفات المكررة',
-        body: 'ابدأ بالتحليل، راجع المعاينة، ثم نفّذ العزل فقط بعد تأكيدك. يعرض DF10 العناصر المعزولة بأرقام حقيقية لاستعادتها انتقائيًا.',
-        analyze: '1. تحليل التجمعات',
-        quarantine: '2. عزل النسخ الزائدة',
-        restore: '3. استعادة انتقائية',
-        protected: 'عمليات محمية بالعزل',
-        evidence: 'خدمات تُنشئ أدلة تشغيل',
-        restoreReady: 'الاستعادة عبر DF10',
-      }
-    : {
-        title: 'Duplicate recovery workflow',
-        body: 'Analyze groups first, review a preview, then quarantine only after confirmation. DF10 lists real quarantined entries by number for selective restoration.',
-        analyze: '1. Analyze duplicate groups',
-        quarantine: '2. Quarantine redundant copies',
-        restore: '3. Selectively restore',
-        protected: 'Quarantine-protected operations',
-        evidence: 'Services producing run evidence',
-        restoreReady: 'Restore path through DF10',
-      };
 
-  return (
-    <aside className="duplicate-workflow" aria-label={content.title}>
-      <div className="duplicate-workflow-heading">
-        <div><p className="eyebrow">{content.title}</p><p>{content.body}</p></div>
-        <span className="duplicate-workflow-id">DF01 → DF10</span>
-      </div>
-      <div className="duplicate-workflow-steps">
-        <span><FileSearch size={14} /> {content.analyze}</span>
-        <span><Archive size={14} /> {content.quarantine}</span>
-        <span><ShieldCheck size={14} /> {content.restore}</span>
-      </div>
-      <div className="duplicate-workflow-facts">
-        <span><b>{quarantineProtected}</b> {content.protected}</span>
-        <span><b>{evidence}</b> {content.evidence}</span>
-        {restore && <span><b>{restore.ToolId}</b> {content.restoreReady}</span>}
-      </div>
-    </aside>
-  );
-}
 
 function StationBrief({ station, tools, lang }: { station: 'software' | 'setup'; tools: BridgeTool[]; lang: Lang }) {
   const readOnly = tools.filter((tool) => tool.RiskLevel === 'READ_ONLY').length;
@@ -415,7 +383,8 @@ function ToolCard({
 }
 
 export default function ToolGrid({
-  activeSection, toolStatuses, tools, lang, bridgeElevated, onRunTool, onCancelTool,
+    activeSection, toolStatuses, tools, lang, bridgeElevated, activeTool, activityEntries, activityStatus, onRunTool, onCancelTool,
+
 }: ToolGridProps) {
   const [query, setQuery] = useState('');
   const [pendingExecution, setPendingExecution] = useState<{ tool: BridgeTool; mode: ExecutionMode; options?: ToolRunOptions } | null>(null);
@@ -476,10 +445,20 @@ export default function ToolGrid({
           <span><Eye size={13} /> {stats.preview}</span>
           <span title={lang === 'ar' ? 'إجراءات مدمّرة تؤكد قبل التشغيل' : 'Destructive actions requiring confirmation'}><CircleAlert size={13} /> {stats.destructive}</span>
         </div>
-      </header>
+            </header>
 
-      {category.id === '05-Duplicate-Files' && <DuplicateWorkflow tools={tools} lang={lang} />}
+      <ToolActivityRail lang={lang} tool={activeTool} status={activityStatus} entries={activityEntries} />
+
+            {category.id === '05-Duplicate-Files' && <DuplicateExplorerPanel lang={lang} tools={tools} onRequestExecution={(tool, options) => setPendingExecution({ tool, mode: 'run', options })} />}
+
+            {category.id === '01-System-Maintenance' && <SystemPulsePanel lang={lang} mode="maintenance" />}
+      {category.id === '09-Security' && <SystemPulsePanel lang={lang} mode="security" />}
+      {category.id === '15-System-Monitoring' && <SystemPulsePanel lang={lang} mode="monitoring" />}
+      {category.id === '03-Network-Internet' && <NetworkPulsePanel lang={lang} />}
+      {category.id === '06-Disk-Space' && <DiskPulsePanel lang={lang} />}
+      {category.id === '16-Software-Environment' && <SoftwareInventoryPanel lang={lang} />}
       {category.id === '16-Software-Environment' && <StationBrief station="software" tools={tools} lang={lang} />}
+
       {category.id === '17-PostInstall-Setup' && <StationBrief station="setup" tools={tools} lang={lang} />}
       {category.id === '12-Developer-Tools' && <DeveloperCommandCenter tools={tools} lang={lang} />}
       {category.id === '18-Project-Sonar' && <ProjectSonarPanel lang={lang} tools={tools} onRequestExecution={(tool, options) => setPendingExecution({ tool, mode: 'run', options })} />}

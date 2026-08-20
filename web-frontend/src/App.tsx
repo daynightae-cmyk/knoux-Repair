@@ -190,8 +190,12 @@ function NexusApp() {
                   toolStatuses={toolStatuses}
                   tools={toolsByCategory[SECTION_MAP[activeSection]] || []}
                   lang={lang}
-                  bridgeElevated={bridgeElevated}
+                                    bridgeElevated={bridgeElevated}
+                  activeTool={activeTool}
+                  activityEntries={consoleEntries}
+                  activityStatus={consoleStatus}
                   onRunTool={runTool}
+
                   onCancelTool={cancelRun}
                 />
               </PageTransition>

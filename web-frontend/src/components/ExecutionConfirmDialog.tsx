@@ -28,8 +28,11 @@ const COPY = {
     selectionHint: 'Enter comma-separated item numbers exactly as listed by the Analyze result, for example: 1,3,5.',
     source: 'Local repair source',
     sourceHint: 'Optional absolute path to a valid WIM or ESD source. The script validates it before using it.',
-    workspace: 'Project workspace',
+        workspace: 'Project workspace',
     workspaceHint: 'Choose the local project folder. The selected path is passed only to this workspace-aware tool.',
+    targetFolder: 'Selected folder',
+    targetFolderHint: 'Choose the local folder that this tool will inspect. The path is validated before it reaches the registered script.',
+
     browse: 'Browse folders',
     sourceIndex: 'Source image index',
     packageId: 'Exact package identifier',
@@ -57,8 +60,11 @@ const COPY = {
     selectionHint: 'أدخل أرقام العناصر مفصولة بفواصل كما ظهرت حرفيًا في نتيجة التحليل، مثال: 1,3,5.',
     source: 'مصدر إصلاح محلي',
     sourceHint: 'مسار مطلق اختياري لملف WIM أو ESD صالح. يتحقق السكربت منه قبل استخدامه.',
-    workspace: 'مساحة عمل المشروع',
+        workspace: 'مساحة عمل المشروع',
     workspaceHint: 'اختر مجلد المشروع المحلي. لا يمرر المسار إلا إلى الأداة الحالية المرتبطة بمساحة العمل.',
+    targetFolder: 'المجلد المختار',
+    targetFolderHint: 'اختر المجلد المحلي الذي ستفحصه الأداة. يتحقق الجسر من المسار قبل تمريره إلى السكربت المسجل.',
+
     browse: 'تصفّح المجلدات',
     sourceIndex: 'فهرس صورة المصدر',
     packageId: 'معرّف الحزمة الدقيق',
@@ -97,7 +103,9 @@ export default function ExecutionConfirmDialog({ tool, mode, lang, onConfirm, on
   const needsSourceIndex = params.has('LocalSourceIndex');
   const needsPackageId = params.has('PackageId');
   const supportsQuick = params.has('Quick');
-  const isDeveloperWorkspace = ['12-Developer-Tools', '18-Project-Sonar'].includes(tool.Category) && needsSource;
+    const isDeveloperWorkspace = ['12-Developer-Tools', '18-Project-Sonar'].includes(tool.Category) && needsSource;
+  const isFolderTarget = (isDeveloperWorkspace || tool.Category === '05-Duplicate-Files') && needsSource;
+
   const typedConfirmation = mode === 'run' && requiresTypedConfirmation(tool);
   const hasRecovery = Boolean(tool.BackupMethod && !/^none(?:\b|\s)/i.test(tool.BackupMethod.trim()));
   const requiresRecoveryAcknowledgement = mode === 'run' && tool.RiskLevel !== 'READ_ONLY' && hasRecovery;
@@ -163,14 +171,15 @@ export default function ExecutionConfirmDialog({ tool, mode, lang, onConfirm, on
 
         {needsSource && (
           <label className="execution-dialog-field">
-            <span><FolderOpen size={14} /> {isDeveloperWorkspace ? text.workspace : text.source}</span>
-            {isDeveloperWorkspace ? (
+                        <span><FolderOpen size={14} /> {isDeveloperWorkspace ? text.workspace : isFolderTarget ? text.targetFolder : text.source}</span>
+            {isFolderTarget ? (
               <div className="execution-dialog-path-control">
-                <input value={localSourcePath} onChange={(event) => setLocalSourcePath(event.target.value)} placeholder="D:\\Projects\\my-app" />
+                <input value={localSourcePath} onChange={(event) => setLocalSourcePath(event.target.value)} placeholder={isDeveloperWorkspace ? 'D:\\Projects\\my-app' : 'D:\\Photos\\archive'} />
                 <button type="button" onClick={() => setFolderPickerOpen(true)}>{text.browse}</button>
               </div>
             ) : <input value={localSourcePath} onChange={(event) => setLocalSourcePath(event.target.value)} placeholder="D:\\sources\\install.wim" />}
-            <small>{isDeveloperWorkspace ? text.workspaceHint : text.sourceHint}</small>
+            <small>{isDeveloperWorkspace ? text.workspaceHint : isFolderTarget ? text.targetFolderHint : text.sourceHint}</small>
+
           </label>
         )}
 
@@ -212,7 +221,8 @@ export default function ExecutionConfirmDialog({ tool, mode, lang, onConfirm, on
 
         {secondsRemaining > 0 && <p className="execution-dialog-delay"><AlertTriangle size={14} /> {text.wait.replace('{seconds}', String(secondsRemaining))}</p>}
         <p className="execution-dialog-contract"><ShieldCheck size={14} /> {text.protected}</p>
-        {folderPickerOpen && isDeveloperWorkspace && (
+                {folderPickerOpen && isFolderTarget && (
+
           <WorkspaceFolderPicker
             lang={lang}
             initialPath={localSourcePath}

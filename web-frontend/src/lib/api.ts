@@ -100,7 +100,71 @@ export interface ProjectSonarFinding {
   FixAr: string;
 }
 
+export interface NetworkPreviewAdapter {
+  Description: string;
+  IPv4: string;
+  Gateway: string;
+  DNS: string[];
+  DHCP: boolean;
+  MacAddress: string;
+}
+
+export interface NetworkPreview {
+  Adapters: NetworkPreviewAdapter[];
+  ActiveAdapters: number;
+  WithGateway: number;
+  WithDns: number;
+  Safety: { ChangesMade: boolean; Sources: string[] };
+}
+
+export interface SoftwarePreviewItem {
+  Name: string;
+  Version: string;
+  Publisher: string;
+  Kind: 'Desktop' | 'Appx';
+  CanUninstall: boolean;
+}
+
+export interface SoftwarePreview {
+  Items: SoftwarePreviewItem[];
+  Total: number;
+  DesktopCount: number;
+  AppxCount: number;
+  Truncated: boolean;
+  Safety: { ChangesMade: boolean; InventorySources: string[] };
+}
+
+export interface DuplicatePreviewFile {
+  Path: string;
+  Name: string;
+  Extension: string;
+  SizeBytes: number;
+  LastWriteUtc: string;
+}
+
+export interface DuplicatePreviewGroup {
+  Id: string;
+  Hash: string;
+  Copies: number;
+  DuplicateCopies: number;
+  RecoverableBytes: number;
+  KeepPath: string;
+  Files: DuplicatePreviewFile[];
+}
+
+export interface DuplicatePreview {
+  Folder: string;
+  FilesObserved: number;
+  Groups: DuplicatePreviewGroup[];
+  GroupCount: number;
+  DuplicateCopies: number;
+  RecoverableBytes: number;
+  Truncated: boolean;
+  Safety: { ChangesMade: boolean; HashByteBudget: string; MaxGroupsShown: number };
+}
+
 export interface ProjectSonarExport {
+
   id: string;
   format: 'pdf' | 'markdown';
   name: string;
@@ -208,7 +272,11 @@ export const api = {
   system: () => request<{ system: SystemSnapshot }>('/api/system', undefined, 60000),
   folderRoots: () => request<{ roots: LocalFolderRoot[] }>('/api/folders/roots', undefined, 15000),
   folders: (folderPath?: string) => request<LocalFolderListing>(`/api/folders${folderPath ? `?path=${encodeURIComponent(folderPath)}` : ''}`, undefined, 15000),
-  sonarPreview: (folderPath: string) => request<{ preview: ProjectSonarPreview }>(`/api/sonar/preview?path=${encodeURIComponent(folderPath)}`, undefined, 125000),
+    sonarPreview: (folderPath: string) => request<{ preview: ProjectSonarPreview }>(`/api/sonar/preview?path=${encodeURIComponent(folderPath)}`, undefined, 125000),
+  duplicatePreview: (folderPath: string) => request<{ preview: DuplicatePreview }>(`/api/duplicates/preview?path=${encodeURIComponent(folderPath)}`, undefined, 125000),
+  softwarePreview: () => request<{ preview: SoftwarePreview }>('/api/software/preview', undefined, 125000),
+  networkPreview: () => request<{ preview: NetworkPreview }>('/api/network/preview', undefined, 125000),
+
   sonarAiStatus: () => request<ProjectSonarAiStatus>('/api/sonar/ai-status', undefined, 15000),
   sonarExport: (folderPath: string, format: 'pdf' | 'markdown', language: LangCode) => request<{ export: ProjectSonarExport }>('/api/sonar/export', { method: 'POST', body: JSON.stringify({ path: folderPath, format, language }) }, 125000),
   sonarAnalysis: (folderPath: string, language: LangCode) => request<ProjectSonarAiAnalysis>('/api/sonar/analysis', { method: 'POST', body: JSON.stringify({ path: folderPath, language }) }, 125000),
