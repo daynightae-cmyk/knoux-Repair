@@ -274,6 +274,15 @@ export interface PrivacyPreviewSetting {
   Detail: string;
 }
 
+export interface CleanupPreview {
+  CapturedAt: string;
+  Targets: { Category: string; ToolId: string; Path: string; Exists: boolean; FileCount: number; SizeBytes: number; UserDataExcluded: boolean; Evidence: string }[];
+  Drives: { Name: string; TotalBytes: number; FreeBytes: number }[];
+  Quarantine: { Category: string; ToolId: string; Path: string; Exists: boolean; FileCount: number; SizeBytes: number; UserDataExcluded: boolean; Evidence: string };
+  Summary: { TargetCount: number; ExistingTargetCount: number; TotalFiles: number; EstimatedReclaimableBytes: number; QuarantineBytes: number };
+  Safety: { ChangesMade: boolean; Sources: string[]; Excluded: string[]; Notice: string };
+}
+
 export interface PrivacyPreview {
   CapturedAt: string;
   Settings: PrivacyPreviewSetting[];
@@ -477,6 +486,7 @@ export const api = {
   backupRecoveryPreview: () => request<{ preview: BackupRecoveryPreview }>('/api/backup-recovery/preview', undefined, 125000),
   driversPreview: () => request<{ preview: DriversPreview }>('/api/drivers/preview', undefined, 125000),
   privacyPreview: () => request<{ preview: PrivacyPreview }>('/api/privacy/preview', undefined, 125000),
+  cleanupPreview: () => request<{ preview: CleanupPreview }>('/api/cleanup/preview', undefined, 125000),
   postInstallPreview: () => request<{ preview: PostInstallPreview }>('/api/post-install/preview', undefined, 125000),
   advancedSoftwarePreview: () => request<{ preview: AdvancedSoftwarePreview }>('/api/software-advanced/preview', undefined, 125000),
 

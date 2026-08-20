@@ -1226,6 +1226,24 @@
     "TestResult": "PASS"
   },
   {
+    "ToolId": "SC11",
+    "Category": "02-System-Cleanup",
+    "ScriptPath": "02-System-Cleanup/SC11-InteractiveCleanupPreview.ps1",
+    "EnglishName": "Interactive Cleanup Preview",
+    "ArabicName": "معاينة التنظيف الذكي",
+    "Purpose": "Measures safe cleanup target paths, file counts, sizes, drive free space, and restorable quarantine metadata without reading file contents or scanning user documents.",
+    "RiskLevel": "READ_ONLY",
+    "RequiresAdmin": false,
+    "RequiresRestart": false,
+    "OfflineCapability": "FULL",
+    "BackupMethod": "None (read-only measurement)",
+    "RollbackMethod": "None required",
+    "AnalyzeOnlySupported": true,
+    "WhatIfSupported": false,
+    "ReportsEvidence": true,
+    "RequiresConfirmation": true
+  },
+  {
     "ToolId": "SE01",
     "Category": "09-Security",
     "ScriptPath": "09-Security/SE01-SecurityAudit.ps1",

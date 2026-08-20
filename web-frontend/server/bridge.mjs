@@ -555,6 +555,7 @@ function getDiagnosticsPreview() { return getReadOnlyPreview('DR11', 'DIAGNOSTIC
 function getBackupRecoveryPreview() { return getReadOnlyPreview('BR04', 'BACKUP_RECOVERY', 'Backup and recovery'); }
 function getDriversPreview() { return getReadOnlyPreview('DV04', 'DRIVERS', 'Driver'); }
 function getPrivacyPreview() { return getReadOnlyPreview('PR04', 'PRIVACY', 'Privacy'); }
+function getCleanupPreview() { return getReadOnlyPreview('SC11', 'CLEANUP', 'Cleanup'); }
 function getPostInstallPreview() { return getReadOnlyPreview('PI06', 'POST_INSTALL', 'Post-install'); }
 function getAdvancedSoftwarePreview() { return getReadOnlyPreview('SW08', 'SOFTWARE_ADVANCED', 'Software environment'); }
 
@@ -817,6 +818,10 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'privacy' && pathParts[2] === 'preview') {
       return sendJson(res, 200, { ok: true, preview: getPrivacyPreview() }, corsHeaders);
+    }
+
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'cleanup' && pathParts[2] === 'preview') {
+      return sendJson(res, 200, { ok: true, preview: getCleanupPreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'post-install' && pathParts[2] === 'preview') {

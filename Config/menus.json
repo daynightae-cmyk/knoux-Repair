@@ -148,6 +148,13 @@
         "File": "SC10-ComprehensiveCleanup.ps1",
         "Risk": "DESTRUCTIVE",
         "RequiresAdmin": true
+      },
+      {
+        "Id": "SC11",
+        "Name": "Interactive Cleanup Preview",
+        "File": "SC11-InteractiveCleanupPreview.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
       }
     ]
   },

@@ -18,6 +18,7 @@ import SystemPulsePanel from './SystemPulsePanel';
 import OperationsPulsePanel from './OperationsPulsePanel';
 import PerformancePulsePanel from './PerformancePulsePanel';
 import DiagnosticsReportPanel from './DiagnosticsReportPanel';
+import SmartCleanupPanel from './SmartCleanupPanel';
 import BackupRecoveryPanel from './BackupRecoveryPanel';
 import DriverManagementPanel from './DriverManagementPanel';
 import PrivacyPanel from './PrivacyPanel';
@@ -466,6 +467,7 @@ export default function ToolGrid({
       {category.id === '06-Disk-Space' && <DiskPulsePanel lang={lang} />}
       {category.id === '07-Services-Processes' && <OperationsPulsePanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
       {category.id === '08-Performance' && <PerformancePulsePanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
+      {category.id === '02-System-Cleanup' && <SmartCleanupPanel lang={lang} tools={tools} onRequestExecution={(tool, mode = 'run') => setPendingExecution({ tool, mode })} />}
       {category.id === '10-Diagnostics-Reports' && <DiagnosticsReportPanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
       {category.id === '11-Backup-Recovery' && <BackupRecoveryPanel lang={lang} tools={tools} onRequestExecution={(tool, mode = 'run', options) => setPendingExecution({ tool, mode, options })} />}
       {category.id === '13-Privacy' && <PrivacyPanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
