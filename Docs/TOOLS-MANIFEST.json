@@ -2608,7 +2608,7 @@
     "OfflineCapability": "FULL",
     "RequiresConfirmation": true
   },
-  {
+    {
     "ToolId": "SW07",
     "Category": "16-Software-Environment",
     "ScriptPath": "16-Software-Environment/SW07-InteractiveSoftwarePreview.ps1",
@@ -2625,6 +2625,24 @@
     "OfflineCapability": "FULL",
     "RequiresConfirmation": true
   },
+  {
+    "ToolId": "SW08",
+    "Category": "16-Software-Environment",
+    "ScriptPath": "16-Software-Environment/SW08-AdvancedSoftwareEnvironmentPreview.ps1",
+    "EnglishName": "Advanced Software Environment Preview",
+    "ArabicName": "معاينة مركز البرامج والبيئات المتقدم",
+    "Purpose": "Reads developer command evidence, Chrome extension manifest metadata, safe cache-folder sizes, and a Winget upgrade listing without changing applications, browser data, package sources, caches, or environment settings.",
+    "RiskLevel": "READ_ONLY",
+    "RequiresAdmin": false,
+    "BackupMethod": "None (read-only inventory)",
+    "RollbackMethod": "None required",
+    "AnalyzeOnlySupported": true,
+    "WhatIfSupported": false,
+    "ReportsEvidence": true,
+    "OfflineCapability": "PARTIAL",
+    "RequiresConfirmation": true
+  }
+,
   {
     "ToolId": "NI11",
     "Category": "03-Network-Internet",

@@ -302,6 +302,16 @@ export interface PostInstallPreview {
   Safety: { ChangesMade: boolean; Sources: string[]; Notice: string };
 }
 
+export interface AdvancedSoftwarePreview {
+  CapturedAt: string;
+  DeveloperTools: { Command: string; Available: boolean; Source: string | null; Version: string | null }[];
+  ChromeExtensions: { Profile: string; ExtensionId: string; Version: string; Name: string; Description: string }[];
+  ChromeExtensionsTruncated: boolean;
+  CacheEvidence: { Name: string; Path: string; Exists: boolean; SizeBytes: number }[];
+  Winget: { Available: boolean; Version: string | null; UpgradeLines: string[]; Error: string | null };
+  Safety: { ChangesMade: boolean; Sources: string[]; Notice: string };
+}
+
 export interface SoftwarePreviewItem {
   Name: string;
   Version: string;
@@ -468,6 +478,7 @@ export const api = {
   driversPreview: () => request<{ preview: DriversPreview }>('/api/drivers/preview', undefined, 125000),
   privacyPreview: () => request<{ preview: PrivacyPreview }>('/api/privacy/preview', undefined, 125000),
   postInstallPreview: () => request<{ preview: PostInstallPreview }>('/api/post-install/preview', undefined, 125000),
+  advancedSoftwarePreview: () => request<{ preview: AdvancedSoftwarePreview }>('/api/software-advanced/preview', undefined, 125000),
 
   sonarAiStatus: () => request<ProjectSonarAiStatus>('/api/sonar/ai-status', undefined, 15000),
   sonarExport: (folderPath: string, format: 'pdf' | 'markdown', language: LangCode) => request<{ export: ProjectSonarExport }>('/api/sonar/export', { method: 'POST', body: JSON.stringify({ path: folderPath, format, language }) }, 125000),

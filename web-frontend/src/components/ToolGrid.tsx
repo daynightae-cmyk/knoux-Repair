@@ -22,6 +22,7 @@ import BackupRecoveryPanel from './BackupRecoveryPanel';
 import DriverManagementPanel from './DriverManagementPanel';
 import PrivacyPanel from './PrivacyPanel';
 import PostInstallPanel from './PostInstallPanel';
+import AdvancedSoftwareEnvironmentPanel from './AdvancedSoftwareEnvironmentPanel';
 import ToolActivityRail from './ToolActivityRail';
 
 import ProjectSonarPanel from './ProjectSonarPanel';
@@ -469,7 +470,8 @@ export default function ToolGrid({
       {category.id === '11-Backup-Recovery' && <BackupRecoveryPanel lang={lang} tools={tools} onRequestExecution={(tool, mode = 'run', options) => setPendingExecution({ tool, mode, options })} />}
       {category.id === '13-Privacy' && <PrivacyPanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
       {category.id === '14-Driver-Management' && <DriverManagementPanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
-            {category.id === '16-Software-Environment' && <SoftwareInventoryPanel lang={lang} />}
+            {category.id === '16-Software-Environment' && <AdvancedSoftwareEnvironmentPanel lang={lang} tools={tools} onRequestExecution={(tool, mode = 'run', options) => setPendingExecution({ tool, mode, options })} />}
+      {category.id === '16-Software-Environment' && <SoftwareInventoryPanel lang={lang} />}
       {category.id === '16-Software-Environment' && <StationBrief station="software" tools={tools} lang={lang} />}
 
       {category.id === '17-PostInstall-Setup' && <PostInstallPanel lang={lang} tools={tools} onRequestExecution={(tool, mode = 'run', options) => setPendingExecution({ tool, mode, options })} />}

@@ -556,6 +556,7 @@ function getBackupRecoveryPreview() { return getReadOnlyPreview('BR04', 'BACKUP_
 function getDriversPreview() { return getReadOnlyPreview('DV04', 'DRIVERS', 'Driver'); }
 function getPrivacyPreview() { return getReadOnlyPreview('PR04', 'PRIVACY', 'Privacy'); }
 function getPostInstallPreview() { return getReadOnlyPreview('PI06', 'POST_INSTALL', 'Post-install'); }
+function getAdvancedSoftwarePreview() { return getReadOnlyPreview('SW08', 'SOFTWARE_ADVANCED', 'Software environment'); }
 
 async function getProjectSonarAiAnalysis(value, language) {
 
@@ -820,6 +821,10 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'post-install' && pathParts[2] === 'preview') {
       return sendJson(res, 200, { ok: true, preview: getPostInstallPreview() }, corsHeaders);
+    }
+
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'software-advanced' && pathParts[2] === 'preview') {
+      return sendJson(res, 200, { ok: true, preview: getAdvancedSoftwarePreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'software' && pathParts[2] === 'preview') {
