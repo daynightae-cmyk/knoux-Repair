@@ -322,7 +322,7 @@
     "WhatIfSupported": false,
     "TestResult": "PASS"
   },
-  {
+    {
     "ToolId": "DR10",
     "Category": "10-Diagnostics-Reports",
     "ScriptPath": "10-Diagnostics-Reports/DR10-FullDiagnosticReport.ps1",
@@ -339,6 +339,24 @@
     "WhatIfSupported": false,
     "TestResult": "PASS"
   },
+  {
+    "ToolId": "DR11",
+    "Category": "10-Diagnostics-Reports",
+    "ScriptPath": "10-Diagnostics-Reports/DR11-InteractiveDiagnosticsPreview.ps1",
+    "EnglishName": "Interactive Diagnostics Preview",
+    "ArabicName": "معاينة التشخيص التفاعلية",
+    "Purpose": "Reads local Windows diagnostic evidence from event logs, reliability records, device state, boot context, and physical-disk SMART status without changing any system state.",
+    "RiskLevel": "READ_ONLY",
+    "RequiresAdmin": false,
+    "RequiresRestart": false,
+    "OfflineCapability": "FULL",
+    "BackupMethod": "None (read-only telemetry)",
+    "RollbackMethod": "None required",
+    "AnalyzeOnlySupported": true,
+    "WhatIfSupported": false,
+    "TestResult": "PASS"
+  }
+,
   {
     "ToolId": "DS01",
     "Category": "06-Disk-Space",

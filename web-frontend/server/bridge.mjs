@@ -551,6 +551,7 @@ function getReadOnlyPreview(toolId, marker, label) {
 
 function getOperationsPreview() { return getReadOnlyPreview('SP11', 'OPERATIONS', 'Operations'); }
 function getPerformancePreview() { return getReadOnlyPreview('PF11', 'PERFORMANCE', 'Performance'); }
+function getDiagnosticsPreview() { return getReadOnlyPreview('DR11', 'DIAGNOSTICS', 'Diagnostics'); }
 
 async function getProjectSonarAiAnalysis(value, language) {
 
@@ -795,6 +796,10 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'performance' && pathParts[2] === 'preview') {
       return sendJson(res, 200, { ok: true, preview: getPerformancePreview() }, corsHeaders);
+    }
+
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'diagnostics' && pathParts[2] === 'preview') {
+      return sendJson(res, 200, { ok: true, preview: getDiagnosticsPreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'software' && pathParts[2] === 'preview') {

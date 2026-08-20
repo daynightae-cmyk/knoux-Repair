@@ -784,6 +784,13 @@
         "File": "DR10-FullDiagnosticReport.ps1",
         "Risk": "READ_ONLY",
         "RequiresAdmin": false
+      },
+      {
+        "Id": "DR11",
+        "Name": "Interactive Diagnostics Preview",
+        "File": "DR11-InteractiveDiagnosticsPreview.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
       }
     ]
   },

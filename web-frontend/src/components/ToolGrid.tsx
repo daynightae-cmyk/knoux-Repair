@@ -17,6 +17,7 @@ import NetworkPulsePanel from './NetworkPulsePanel';
 import SystemPulsePanel from './SystemPulsePanel';
 import OperationsPulsePanel from './OperationsPulsePanel';
 import PerformancePulsePanel from './PerformancePulsePanel';
+import DiagnosticsReportPanel from './DiagnosticsReportPanel';
 import ToolActivityRail from './ToolActivityRail';
 
 import ProjectSonarPanel from './ProjectSonarPanel';
@@ -460,6 +461,7 @@ export default function ToolGrid({
       {category.id === '06-Disk-Space' && <DiskPulsePanel lang={lang} />}
       {category.id === '07-Services-Processes' && <OperationsPulsePanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
       {category.id === '08-Performance' && <PerformancePulsePanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
+      {category.id === '10-Diagnostics-Reports' && <DiagnosticsReportPanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
       {category.id === '16-Software-Environment' && <SoftwareInventoryPanel lang={lang} />}
       {category.id === '16-Software-Environment' && <StationBrief station="software" tools={tools} lang={lang} />}
 

@@ -159,6 +159,46 @@ export interface PerformancePreview {
   Safety: { ChangesMade: boolean; Sources: string[]; Notice: string };
 }
 
+export interface DiagnosticsPreviewEvent {
+  Time: string;
+  Log: string;
+  Provider: string;
+  EventId: number;
+  Level: string;
+}
+
+export interface DiagnosticsPreviewReliability {
+  Time: string;
+  Id: string;
+  Product: string;
+  Message: string;
+}
+
+export interface DiagnosticsPreviewDeviceProblem {
+  Name: string;
+  DeviceId: string;
+  ErrorCode: number;
+  Status: string;
+}
+
+export interface DiagnosticsPreviewDisk {
+  Model: string;
+  Index: number;
+  SizeGB: number;
+  SmartAvailable: boolean;
+  PredictFailure: boolean;
+}
+
+export interface DiagnosticsPreview {
+  CapturedAt: string;
+  System: { Os: string; Version: string; Build: string; Machine: string; Cpu: string; MemoryTotalGB: number; MemoryFreeGB: number; MemoryLoadPercent: number; UptimeHours: number; BootDurationMs: number | null };
+  Events: { WindowDays: number; ErrorOrCriticalCount: number; CriticalCount: number; Recent: DiagnosticsPreviewEvent[] };
+  Reliability: { WindowDays: number; RecordsObserved: number; Recent: DiagnosticsPreviewReliability[] };
+  Devices: { ProblemsObserved: number; Problems: DiagnosticsPreviewDeviceProblem[] };
+  Storage: { DisksObserved: number; SmartFailurePredicted: number; Disks: DiagnosticsPreviewDisk[] };
+  Safety: { ChangesMade: boolean; Sources: string[]; Notice: string };
+}
+
 export interface SoftwarePreviewItem {
   Name: string;
   Version: string;
@@ -320,6 +360,7 @@ export const api = {
   networkPreview: () => request<{ preview: NetworkPreview }>('/api/network/preview', undefined, 125000),
   operationsPreview: () => request<{ preview: OperationsPreview }>('/api/operations/preview', undefined, 125000),
   performancePreview: () => request<{ preview: PerformancePreview }>('/api/performance/preview', undefined, 125000),
+  diagnosticsPreview: () => request<{ preview: DiagnosticsPreview }>('/api/diagnostics/preview', undefined, 125000),
 
   sonarAiStatus: () => request<ProjectSonarAiStatus>('/api/sonar/ai-status', undefined, 15000),
   sonarExport: (folderPath: string, format: 'pdf' | 'markdown', language: LangCode) => request<{ export: ProjectSonarExport }>('/api/sonar/export', { method: 'POST', body: JSON.stringify({ path: folderPath, format, language }) }, 125000),
