@@ -1127,6 +1127,13 @@
         "File": "PI05-RefreshWingetSources.ps1",
         "Risk": "SAFE_CLEANUP",
         "RequiresAdmin": false
+      },
+      {
+        "Id": "PI06",
+        "Name": "Interactive Post-Install Preview",
+        "File": "PI06-InteractivePostInstallPreview.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
       }
     ]
   },

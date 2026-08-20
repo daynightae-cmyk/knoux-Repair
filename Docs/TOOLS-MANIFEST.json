@@ -2267,7 +2267,7 @@
     "WhatIfSupported": true,
     "TestResult": "UNTESTED"
   },
-  {
+    {
     "ToolId": "PI05",
     "Category": "17-PostInstall-Setup",
     "ScriptPath": "17-PostInstall-Setup/PI05-RefreshWingetSources.ps1",
@@ -2284,6 +2284,24 @@
     "WhatIfSupported": true,
     "TestResult": "UNTESTED"
   },
+  {
+    "ToolId": "PI06",
+    "Category": "17-PostInstall-Setup",
+    "ScriptPath": "17-PostInstall-Setup/PI06-InteractivePostInstallPreview.ps1",
+    "EnglishName": "Interactive Post-Install Preview",
+    "ArabicName": "معاينة تجهيز ما بعد التثبيت",
+    "Purpose": "Reads installed-program inventory, exact optional Winget catalog matches, Windows Update driver offer count, Winget availability, update service state, and pending-restart signals without installing, downloading, or refreshing anything.",
+    "RiskLevel": "READ_ONLY",
+    "RequiresAdmin": false,
+    "RequiresRestart": false,
+    "OfflineCapability": "PARTIAL",
+    "BackupMethod": "None (read-only inventory)",
+    "RollbackMethod": "None required",
+    "AnalyzeOnlySupported": true,
+    "WhatIfSupported": false,
+    "TestResult": "PASS"
+  }
+,
   {
     "ToolId": "DT04",
     "Category": "12-Developer-Tools",

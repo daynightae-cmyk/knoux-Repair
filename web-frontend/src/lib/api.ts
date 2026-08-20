@@ -281,6 +281,27 @@ export interface PrivacyPreview {
   Safety: { ChangesMade: boolean; Sources: string[]; Notice: string };
 }
 
+export interface PostInstallCatalogItem {
+  Selection: number;
+  Name: string;
+  PackageId: string;
+  Category: string;
+  Detected: boolean;
+  MatchedDisplayName: string | null;
+  MatchedVersion: string | null;
+  Evidence: string;
+}
+
+export interface PostInstallPreview {
+  CapturedAt: string;
+  System: { Caption: string; Build: string; LastBoot: string | null; InstalledProgramCount: number; PendingRestartSignals: string[] };
+  Winget: { Available: boolean; SourceCount: number | null; Version: string | null; Error: string | null };
+  UpdateServices: { Name: string; Status: string; StartType: string }[];
+  DriverOffers: { Available: boolean; Count: number | null; Offers: { Selection: number; Title: string; DriverClass: string; DriverModel: string; DriverVerDate: string }[]; Error: string | null };
+  Catalog: PostInstallCatalogItem[];
+  Safety: { ChangesMade: boolean; Sources: string[]; Notice: string };
+}
+
 export interface SoftwarePreviewItem {
   Name: string;
   Version: string;
@@ -446,6 +467,7 @@ export const api = {
   backupRecoveryPreview: () => request<{ preview: BackupRecoveryPreview }>('/api/backup-recovery/preview', undefined, 125000),
   driversPreview: () => request<{ preview: DriversPreview }>('/api/drivers/preview', undefined, 125000),
   privacyPreview: () => request<{ preview: PrivacyPreview }>('/api/privacy/preview', undefined, 125000),
+  postInstallPreview: () => request<{ preview: PostInstallPreview }>('/api/post-install/preview', undefined, 125000),
 
   sonarAiStatus: () => request<ProjectSonarAiStatus>('/api/sonar/ai-status', undefined, 15000),
   sonarExport: (folderPath: string, format: 'pdf' | 'markdown', language: LangCode) => request<{ export: ProjectSonarExport }>('/api/sonar/export', { method: 'POST', body: JSON.stringify({ path: folderPath, format, language }) }, 125000),
