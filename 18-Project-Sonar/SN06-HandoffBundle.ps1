@@ -1,4 +1,5 @@
 ﻿# Knoux Repair v2.0.2 | 18-Project-Sonar | SN06 - Model-Neutral Handoff Bundle
+# Risk: READ_ONLY
 [CmdletBinding()]
 param([string]$LocalSourcePath, [switch]$AnalyzeOnly, [switch]$WhatIf)
 Set-StrictMode -Version Latest

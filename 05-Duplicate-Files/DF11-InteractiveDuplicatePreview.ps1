@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Knoux Repair v2.0.2 | 05-Duplicate-Files | DF11 - Interactive Duplicate Preview
 # Risk: READ_ONLY
 [CmdletBinding()]

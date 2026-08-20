@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Knoux Repair v2.0.2 | 13-Privacy | PR04 - Interactive Privacy Preview
 # Risk: READ_ONLY
 [CmdletBinding()]

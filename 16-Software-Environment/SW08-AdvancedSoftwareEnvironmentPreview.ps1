@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Knoux Repair v2.0.2 | 16-Software-Environment | SW08 - Advanced Software Environment Preview
 # Risk: READ_ONLY
 [CmdletBinding()]

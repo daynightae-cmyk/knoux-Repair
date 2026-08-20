@@ -1,4 +1,5 @@
 ﻿# knoux Repair v2.0.2 | 12-Developer-Tools | DT01 - Developer Environment Audit
+# Risk: READ_ONLY
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)
 Set-StrictMode -Version Latest

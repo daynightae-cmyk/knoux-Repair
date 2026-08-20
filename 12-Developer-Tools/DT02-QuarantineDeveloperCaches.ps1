@@ -1,4 +1,5 @@
 ﻿# knoux Repair v2.0.2 | 12-Developer-Tools | DT02 - Quarantine Developer Caches
+# Risk: SAFE_CLEANUP
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)
 Set-StrictMode -Version Latest

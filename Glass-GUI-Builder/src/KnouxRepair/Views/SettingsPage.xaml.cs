@@ -21,6 +21,8 @@ namespace KnouxRepair.Views
             MaxReportsLabel.Text = s.MaxReportHistory.ToString();
             DarkThemeRadio.IsChecked = !string.Equals(s.Theme, "Light", System.StringComparison.OrdinalIgnoreCase);
             LightThemeRadio.IsChecked = string.Equals(s.Theme, "Light", System.StringComparison.OrdinalIgnoreCase);
+            EnglishLanguageRadio.IsChecked = !Services.ThemeService.IsArabic(s.Language);
+            ArabicLanguageRadio.IsChecked = Services.ThemeService.IsArabic(s.Language);
         }
 
         private void ThemeDark_Click(object sender, RoutedEventArgs e)

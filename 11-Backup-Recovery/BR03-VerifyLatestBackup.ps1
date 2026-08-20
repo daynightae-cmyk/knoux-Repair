@@ -1,4 +1,5 @@
 ﻿# knoux Repair v2.0.2 | 11-Backup-Recovery | BR03 - Verify Latest Backup
+# Risk: READ_ONLY
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)
 Set-StrictMode -Version Latest

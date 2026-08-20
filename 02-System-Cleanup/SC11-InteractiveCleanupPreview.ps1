@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Knoux Repair v2.0.2 | 02-System-Cleanup | SC11 - Interactive Cleanup Preview
 # Risk: READ_ONLY
 [CmdletBinding()]

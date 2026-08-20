@@ -1,4 +1,5 @@
 ﻿# knoux Repair v2.0.2 | 14-Driver-Management | DV01 - Driver Inventory
+# Risk: READ_ONLY
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)
 Set-StrictMode -Version Latest

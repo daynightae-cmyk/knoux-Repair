@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Knoux Repair v2.0.2 | 03-Network-Internet | NI11 - Interactive Network Preview
 # Risk: READ_ONLY
 [CmdletBinding()]

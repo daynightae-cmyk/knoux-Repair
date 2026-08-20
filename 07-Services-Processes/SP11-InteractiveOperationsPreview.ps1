@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Knoux Repair v2.0.2 | 07-Services-Processes | SP11 - Interactive Operations Preview
 # Risk: READ_ONLY
 [CmdletBinding()]

@@ -1,4 +1,5 @@
 ﻿# Knoux Repair v2.0.2 | 18-Project-Sonar | SN07 - Interactive Preview
+# Risk: READ_ONLY
 [CmdletBinding()]
 param([string]$LocalSourcePath, [switch]$AnalyzeOnly, [switch]$WhatIf, [switch]$EmitJson)
 Set-StrictMode -Version Latest

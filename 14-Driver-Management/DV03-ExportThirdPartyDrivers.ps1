@@ -1,10 +1,20 @@
 ﻿# knoux Repair v2.0.2 | 14-Driver-Management | DV03 - Export Third-Party Drivers
+# Risk: SYSTEM_REPAIR
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 $Session = Start-KnouxSession -ToolId 'DV03' -ToolName 'Export Third-Party Drivers' -Category '14-Driver-Management' -RiskLevel 'SYSTEM_REPAIR'
+$Session.RequiresAdmin = $true
+if (-not ($AnalyzeOnly -or $WhatIf) -and -not (Test-KnouxAdministrator)) {
+    $Session.Status = 'Failed'
+    $Session.ErrorMessage = 'Administrator privileges are required.'
+    Write-KnouxLog -Session $Session -Message $Session.ErrorMessage -Level ERROR
+    $result = Stop-KnouxSession -Session $Session
+    Write-KnouxResult -Session $Session
+    return $result
+}
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf
 try {
 $destination = Join-Path $Session.ProjectRoot ('Backups\Drivers-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))

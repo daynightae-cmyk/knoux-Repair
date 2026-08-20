@@ -1,4 +1,5 @@
 ﻿# knoux Repair v2.0.2 | 13-Privacy | PR01 - Privacy Audit
+# Risk: READ_ONLY
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)
 Set-StrictMode -Version Latest

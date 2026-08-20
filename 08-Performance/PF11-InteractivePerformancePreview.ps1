@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Knoux Repair v2.0.2 | 08-Performance | PF11 - Interactive Performance Preview
 # Risk: READ_ONLY
 [CmdletBinding()]

@@ -1,3 +1,4 @@
+﻿# Risk: SYSTEM_REPAIR
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf, [string]$Selection)
 Set-StrictMode -Version Latest

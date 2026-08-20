@@ -1,4 +1,5 @@
 ﻿# Knoux Repair v2.0.2 | 18-Project-Sonar | SN05 - Bilingual Engineering Brief
+# Risk: READ_ONLY
 [CmdletBinding()]
 param([string]$LocalSourcePath, [switch]$AnalyzeOnly, [switch]$WhatIf)
 Set-StrictMode -Version Latest

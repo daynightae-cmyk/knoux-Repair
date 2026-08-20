@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="KnouxRepair.Views.SettingsPage"
+<UserControl x:Class="KnouxRepair.Views.SettingsPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="Transparent">
@@ -11,17 +11,17 @@
             <!-- ===== APPEARANCE ===== -->
             <Border Style="{DynamicResource FluentCard}" Margin="0,0,0,16">
                 <StackPanel>
-                    <TextBlock Text="Appearance"
+                    <TextBlock Text="{DynamicResource SettingsAppearance}"
                                Style="{DynamicResource SubtitleTextBlockStyle}" Margin="0,0,0,16"/>
 
                     <!-- Language -->
                     <TextBlock Text="{DynamicResource SettingsLanguage}"
                                Style="{DynamicResource BodyStrongTextBlockStyle}" Margin="0,0,0,8"/>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <RadioButton Content="English" GroupName="Lang" IsChecked="True"
+                        <RadioButton x:Name="EnglishLanguageRadio" Content="{DynamicResource SettingsLanguageEnglish}" GroupName="Lang"
                                      Style="{DynamicResource NavRadioButton}" Margin="0,0,8,0"
                                      Click="LangEnglish_Click"/>
-                        <RadioButton Content="العربية" GroupName="Lang"
+                        <RadioButton x:Name="ArabicLanguageRadio" Content="{DynamicResource SettingsLanguageArabic}" GroupName="Lang"
                                      Style="{DynamicResource NavRadioButton}"
                                      Click="LangArabic_Click"/>
                     </StackPanel>
@@ -43,7 +43,7 @@
                         <StackPanel>
                             <TextBlock Text="{DynamicResource SettingsReducedMotion}"
                                        Style="{DynamicResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text="Disable splash animations and transitions for faster startup."
+                            <TextBlock Text="{DynamicResource SettingsReducedMotionDescription}"
                                        Style="{DynamicResource CaptionTextBlockStyle}" Margin="0,2,0,0"/>
                         </StackPanel>
                         <ToggleButton x:Name="ReducedMotionToggle" Grid.Column="1"
@@ -56,7 +56,7 @@
             <!-- ===== APPLICATION ===== -->
             <Border Style="{DynamicResource FluentCard}" Margin="0,0,0,16">
                 <StackPanel>
-                    <TextBlock Text="Application"
+                    <TextBlock Text="{DynamicResource SettingsApplication}"
                                Style="{DynamicResource SubtitleTextBlockStyle}" Margin="0,0,0,16"/>
 
                     <!-- Analyze Only Default -->
@@ -68,7 +68,7 @@
                         <StackPanel>
                             <TextBlock Text="{DynamicResource SettingsAnalyzeDefault}"
                                        Style="{DynamicResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text="When ON, tools run in analyze-only mode by default."
+                            <TextBlock Text="{DynamicResource SettingsAnalyzeDefaultDescription}"
                                        Style="{DynamicResource CaptionTextBlockStyle}" Margin="0,2,0,0"/>
                         </StackPanel>
                         <ToggleButton x:Name="AnalyzeToggle" Grid.Column="1"
@@ -86,7 +86,7 @@
                         <StackPanel>
                             <TextBlock Text="{DynamicResource SettingsMaxReportHistory}"
                                        Style="{DynamicResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text="Maximum number of report folders to retain in the UI."
+                            <TextBlock Text="{DynamicResource SettingsMaxReportHistoryDescription}"
                                        Style="{DynamicResource CaptionTextBlockStyle}" Margin="0,2,0,0"/>
                         </StackPanel>
                         <TextBlock x:Name="MaxReportsLabel" Grid.Column="1"
@@ -107,7 +107,7 @@
             <!-- ===== DIAGNOSTICS ===== -->
             <Border Style="{DynamicResource FluentCard}" Margin="0,0,0,16">
                 <StackPanel>
-                    <TextBlock Text="Diagnostics"
+                    <TextBlock Text="{DynamicResource SettingsDiagnostics}"
                                Style="{DynamicResource SubtitleTextBlockStyle}" Margin="0,0,0,16"/>
 
                     <!-- Console Font Size -->
@@ -119,7 +119,7 @@
                         <StackPanel>
                             <TextBlock Text="{DynamicResource SettingsConsoleFontSize}"
                                        Style="{DynamicResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text="Adjusts the live execution console font size."
+                            <TextBlock Text="{DynamicResource SettingsConsoleFontSizeDescription}"
                                        Style="{DynamicResource CaptionTextBlockStyle}" Margin="0,2,0,0"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal">

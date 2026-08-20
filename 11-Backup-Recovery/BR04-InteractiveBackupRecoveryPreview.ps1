@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Knoux Repair v2.0.2 | 11-Backup-Recovery | BR04 - Interactive Backup & Recovery Preview
 # Risk: READ_ONLY
 [CmdletBinding()]

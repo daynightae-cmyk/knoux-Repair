@@ -1,3 +1,4 @@
+﻿# Risk: SAFE_CLEANUP
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)
 Set-StrictMode -Version Latest

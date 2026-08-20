@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Knoux Repair v2.0.2 | 11-Backup-Recovery | BR05 - Restore Missing Profile Files
 # Risk: SYSTEM_REPAIR
 [CmdletBinding(SupportsShouldProcess = $true)]

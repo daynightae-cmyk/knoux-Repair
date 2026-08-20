@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Knoux Repair v2.0.2 | 14-Driver-Management | DV04 - Interactive Driver Preview
 # Risk: READ_ONLY
 [CmdletBinding()]

@@ -1,4 +1,5 @@
-# knoux Repair v2.0.2 | 15-System-Monitoring | MO04 - Process & Memory Watch
+﻿# knoux Repair v2.0.2 | 15-System-Monitoring | MO04 - Process & Memory Watch
+# Risk: READ_ONLY
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)
 Set-StrictMode -Version Latest

@@ -1,4 +1,5 @@
 ﻿# knoux Repair v2.0.2 | 11-Backup-Recovery | BR02 - Backup User Profile
+# Risk: SAFE_CLEANUP
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf)
 Set-StrictMode -Version Latest

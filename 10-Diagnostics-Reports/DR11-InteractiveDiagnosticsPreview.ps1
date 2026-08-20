@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Knoux Repair v2.0.2 | 10-Diagnostics-Reports | DR11 - Interactive Diagnostics Preview
 # Risk: READ_ONLY
 [CmdletBinding()]
