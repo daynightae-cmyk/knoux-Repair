@@ -117,6 +117,48 @@ export interface NetworkPreview {
   Safety: { ChangesMade: boolean; Sources: string[] };
 }
 
+export interface OperationsPreviewProcess {
+  Name: string;
+  ProcessId: number;
+  MemoryMB: number;
+  CpuSeconds: number;
+  Responding: boolean | null;
+}
+
+export interface OperationsPreviewService {
+  Name: string;
+  DisplayName: string;
+  Status: string;
+  StartMode: string;
+  ProcessId: number;
+}
+
+export interface OperationsPreview {
+  CapturedAt: string;
+  Services: { Total: number; Running: number; Stopped: number; Automatic: number; AutomaticStoppedForReview: OperationsPreviewService[] };
+  Processes: { Total: number; NotResponding: number; TopMemory: OperationsPreviewProcess[]; TopCpuTime: OperationsPreviewProcess[]; NotRespondingForReview: OperationsPreviewProcess[] };
+  Safety: { ChangesMade: boolean; Sources: string[]; Notice: string };
+}
+
+export interface PerformancePreviewDisk {
+  Name: string;
+  TotalGB: number;
+  FreeGB: number;
+  UsedPercent: number;
+  ActiveTimePercent: number | null;
+  ReadBytesPerSecond: number | null;
+  WriteBytesPerSecond: number | null;
+}
+
+export interface PerformancePreview {
+  CapturedAt: string;
+  Cpu: { Name: string; LoadPercent: number; LogicalProcessors: number };
+  Memory: { TotalGB: number; UsedGB: number; FreeGB: number; LoadPercent: number; AvailableMB: number; PagesPerSecond: number | null };
+  Disks: PerformancePreviewDisk[];
+  ProcessCount: number;
+  Safety: { ChangesMade: boolean; Sources: string[]; Notice: string };
+}
+
 export interface SoftwarePreviewItem {
   Name: string;
   Version: string;
@@ -276,6 +318,8 @@ export const api = {
   duplicatePreview: (folderPath: string) => request<{ preview: DuplicatePreview }>(`/api/duplicates/preview?path=${encodeURIComponent(folderPath)}`, undefined, 125000),
   softwarePreview: () => request<{ preview: SoftwarePreview }>('/api/software/preview', undefined, 125000),
   networkPreview: () => request<{ preview: NetworkPreview }>('/api/network/preview', undefined, 125000),
+  operationsPreview: () => request<{ preview: OperationsPreview }>('/api/operations/preview', undefined, 125000),
+  performancePreview: () => request<{ preview: PerformancePreview }>('/api/performance/preview', undefined, 125000),
 
   sonarAiStatus: () => request<ProjectSonarAiStatus>('/api/sonar/ai-status', undefined, 15000),
   sonarExport: (folderPath: string, format: 'pdf' | 'markdown', language: LangCode) => request<{ export: ProjectSonarExport }>('/api/sonar/export', { method: 'POST', body: JSON.stringify({ path: folderPath, format, language }) }, 125000),

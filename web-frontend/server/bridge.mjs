@@ -525,6 +525,33 @@ function getNetworkPreview() {
   try { return JSON.parse(jsonText); } catch { throw Object.assign(new Error('Network preview returned malformed structured output.'), { status: 500, code: 'NETWORK_PREVIEW_INVALID' }); }
 }
 
+function getReadOnlyPreview(toolId, marker, label) {
+  const tool = manifest.get(toolId);
+  const scriptPath = tool ? path.resolve(REPO_ROOT, tool.ScriptPath) : '';
+  const code = `${toolId}_PREVIEW_UNAVAILABLE`;
+  if (!tool || !scriptPath.startsWith(REPO_ROOT + path.sep) || menuIndex.get(toolId) !== tool.ScriptPath || !fs.existsSync(scriptPath)) {
+    throw Object.assign(new Error(`${label} preview is not registered or unavailable.`), { status: 500, code });
+  }
+  const result = spawnSync(PS, ['-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-AnalyzeOnly', '-EmitJson'], {
+    encoding: 'utf8', timeout: 120000, maxBuffer: 3 * 1024 * 1024, windowsHide: true, cwd: REPO_ROOT,
+  });
+  const output = String(result.stdout || '');
+  const startToken = `---KNOUX_${marker}_JSON_START---`;
+  const endToken = `---KNOUX_${marker}_JSON_END---`;
+  const start = output.indexOf(startToken); const end = output.indexOf(endToken);
+  if (result.error) throw Object.assign(new Error(`${label} preview failed to start: ${result.error.message}`), { status: 500, code: `${toolId}_PREVIEW_FAILED` });
+  if (result.status !== 0 || start < 0 || end < 0 || end <= start) {
+    const detail = String(result.stderr || '').trim() || output.slice(-1200).trim() || `${label} preview did not return valid evidence.`;
+    throw Object.assign(new Error(detail), { status: 500, code: `${toolId}_PREVIEW_FAILED` });
+  }
+  try { return JSON.parse(output.slice(start + startToken.length, end).trim()); } catch {
+    throw Object.assign(new Error(`${label} preview returned malformed structured output.`), { status: 500, code: `${toolId}_PREVIEW_INVALID` });
+  }
+}
+
+function getOperationsPreview() { return getReadOnlyPreview('SP11', 'OPERATIONS', 'Operations'); }
+function getPerformancePreview() { return getReadOnlyPreview('PF11', 'PERFORMANCE', 'Performance'); }
+
 async function getProjectSonarAiAnalysis(value, language) {
 
   if (!OPENROUTER_CONFIGURED) {
@@ -760,6 +787,14 @@ const server = http.createServer(async (req, res) => {
 
         if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'network' && pathParts[2] === 'preview') {
       return sendJson(res, 200, { ok: true, preview: getNetworkPreview() }, corsHeaders);
+    }
+
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'operations' && pathParts[2] === 'preview') {
+      return sendJson(res, 200, { ok: true, preview: getOperationsPreview() }, corsHeaders);
+    }
+
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'performance' && pathParts[2] === 'preview') {
+      return sendJson(res, 200, { ok: true, preview: getPerformancePreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'software' && pathParts[2] === 'preview') {

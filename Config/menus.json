@@ -542,6 +542,13 @@
         "File": "SP10-ServicesProcessesReport.ps1",
         "Risk": "READ_ONLY",
         "RequiresAdmin": false
+      },
+      {
+        "Id": "SP11",
+        "Name": "Interactive Operations Preview",
+        "File": "SP11-InteractiveOperationsPreview.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
       }
     ]
   },
@@ -616,6 +623,13 @@
         "Id": "PF10",
         "Name": "Full Performance Report",
         "File": "PF10-FullPerformanceReport.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PF11",
+        "Name": "Interactive Performance Preview",
+        "File": "PF11-InteractivePerformancePreview.ps1",
         "Risk": "READ_ONLY",
         "RequiresAdmin": false
       }

@@ -1002,7 +1002,7 @@
     "WhatIfSupported": true,
     "TestResult": "PASS"
   },
-  {
+    {
     "ToolId": "PF10",
     "Category": "08-Performance",
     "ScriptPath": "08-Performance/PF10-FullPerformanceReport.ps1",
@@ -1019,6 +1019,24 @@
     "WhatIfSupported": false,
     "TestResult": "PASS"
   },
+  {
+    "ToolId": "PF11",
+    "Category": "08-Performance",
+    "ScriptPath": "08-Performance/PF11-InteractivePerformancePreview.ps1",
+    "EnglishName": "Interactive Performance Preview",
+    "ArabicName": "معاينة الأداء التفاعلية",
+    "Purpose": "Reads local CPU, memory, logical-disk, and process telemetry for the live performance workstation without changing any Windows setting.",
+    "RiskLevel": "READ_ONLY",
+    "RequiresAdmin": false,
+    "RequiresRestart": false,
+    "OfflineCapability": "FULL",
+    "BackupMethod": "None (read-only telemetry)",
+    "RollbackMethod": "None required",
+    "AnalyzeOnlySupported": true,
+    "WhatIfSupported": false,
+    "TestResult": "PASS"
+  }
+,
   {
     "ToolId": "SC01",
     "Category": "02-System-Cleanup",
@@ -1682,7 +1700,7 @@
     "WhatIfSupported": true,
     "TestResult": "PASS"
   },
-  {
+    {
     "ToolId": "SP10",
     "Category": "07-Services-Processes",
     "ScriptPath": "07-Services-Processes/SP10-ServicesProcessesReport.ps1",
@@ -1699,6 +1717,24 @@
     "WhatIfSupported": false,
     "TestResult": "PASS"
   },
+  {
+    "ToolId": "SP11",
+    "Category": "07-Services-Processes",
+    "ScriptPath": "07-Services-Processes/SP11-InteractiveOperationsPreview.ps1",
+    "EnglishName": "Interactive Operations Preview",
+    "ArabicName": "معاينة العمليات والخدمات التفاعلية",
+    "Purpose": "Reads local Windows service state and process resource telemetry for the live operations workstation without ending a process or changing a service.",
+    "RiskLevel": "READ_ONLY",
+    "RequiresAdmin": false,
+    "RequiresRestart": false,
+    "OfflineCapability": "FULL",
+    "BackupMethod": "None (read-only telemetry)",
+    "RollbackMethod": "None required",
+    "AnalyzeOnlySupported": true,
+    "WhatIfSupported": false,
+    "TestResult": "PASS"
+  }
+,
   {
     "ToolId": "BR01",
     "Category": "11-Backup-Recovery",
