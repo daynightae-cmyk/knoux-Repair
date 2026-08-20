@@ -1787,7 +1787,7 @@
     "WhatIfSupported": true,
     "TestResult": "UNTESTED"
   },
-  {
+    {
     "ToolId": "BR03",
     "Category": "11-Backup-Recovery",
     "ScriptPath": "11-Backup-Recovery/BR03-VerifyLatestBackup.ps1",
@@ -1804,6 +1804,42 @@
     "WhatIfSupported": true,
     "TestResult": "UNTESTED"
   },
+  {
+    "ToolId": "BR04",
+    "Category": "11-Backup-Recovery",
+    "ScriptPath": "11-Backup-Recovery/BR04-InteractiveBackupRecoveryPreview.ps1",
+    "EnglishName": "Interactive Backup & Recovery Preview",
+    "ArabicName": "معاينة النسخ الاحتياطي والاستعادة التفاعلية",
+    "Purpose": "Reads available Windows restore points, VSS shadow-copy inventory, local Knoux backup folders, source-folder availability, and storage capacity without creating, copying, deleting, or restoring data.",
+    "RiskLevel": "READ_ONLY",
+    "RequiresAdmin": false,
+    "RequiresRestart": false,
+    "OfflineCapability": "FULL",
+    "BackupMethod": "None (read-only inventory)",
+    "RollbackMethod": "None required",
+    "AnalyzeOnlySupported": true,
+    "WhatIfSupported": false,
+    "TestResult": "PASS"
+  },
+  {
+    "ToolId": "BR05",
+    "Category": "11-Backup-Recovery",
+    "ScriptPath": "11-Backup-Recovery/BR05-RestoreMissingProfileFiles.ps1",
+    "EnglishName": "Restore Missing Profile Files",
+    "ArabicName": "استعادة ملفات ملف المستخدم المفقودة",
+    "Purpose": "Compares a selected local Knoux profile backup with Documents, Desktop, Pictures, Music, and Videos, then restores only files absent from the destination. Existing user files are never overwritten.",
+    "RiskLevel": "SYSTEM_REPAIR",
+    "RequiresAdmin": false,
+    "RequiresRestart": false,
+    "OfflineCapability": "FULL",
+    "BackupMethod": "Selected local backup is preserved as the source; restoration plan is saved before copy",
+    "RollbackMethod": "Copied missing files can be removed manually from their recorded destination paths if required",
+    "AnalyzeOnlySupported": true,
+    "WhatIfSupported": true,
+    "Parameters": ["LocalSourcePath"],
+    "TestResult": "PASS"
+  }
+,
   {
     "ToolId": "DT01",
     "Category": "12-Developer-Tools",

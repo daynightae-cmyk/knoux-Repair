@@ -104,7 +104,7 @@ export default function ExecutionConfirmDialog({ tool, mode, lang, onConfirm, on
   const needsPackageId = params.has('PackageId');
   const supportsQuick = params.has('Quick');
     const isDeveloperWorkspace = ['12-Developer-Tools', '18-Project-Sonar'].includes(tool.Category) && needsSource;
-  const isFolderTarget = (isDeveloperWorkspace || tool.Category === '05-Duplicate-Files') && needsSource;
+  const isFolderTarget = (isDeveloperWorkspace || ['05-Duplicate-Files', '11-Backup-Recovery'].includes(tool.Category)) && needsSource;
 
   const typedConfirmation = mode === 'run' && requiresTypedConfirmation(tool);
   const hasRecovery = Boolean(tool.BackupMethod && !/^none(?:\b|\s)/i.test(tool.BackupMethod.trim()));

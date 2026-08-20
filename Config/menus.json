@@ -818,6 +818,20 @@
         "File": "BR03-VerifyLatestBackup.ps1",
         "Risk": "READ_ONLY",
         "RequiresAdmin": false
+      },
+      {
+        "Id": "BR04",
+        "Name": "Interactive Backup & Recovery Preview",
+        "File": "BR04-InteractiveBackupRecoveryPreview.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "BR05",
+        "Name": "Restore Missing Profile Files",
+        "File": "BR05-RestoreMissingProfileFiles.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": false
       }
     ]
   },

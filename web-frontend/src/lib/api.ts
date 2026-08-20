@@ -199,6 +199,39 @@ export interface DiagnosticsPreview {
   Safety: { ChangesMade: boolean; Sources: string[]; Notice: string };
 }
 
+export interface BackupRecoveryRestorePoint {
+  SequenceNumber: number;
+  Description: string;
+  RestorePointType: number;
+  CreatedAt: string | null;
+}
+
+export interface BackupRecoveryShadowCopy {
+  Id: string;
+  Volume: string;
+  CreatedAt: string | null;
+  Persistent: boolean;
+  ClientAccessible: boolean;
+}
+
+export interface BackupRecoveryLocalBackup {
+  Name: string;
+  Path: string;
+  LastWriteAt: string;
+  FileCount: number;
+  SizeBytes: number;
+}
+
+export interface BackupRecoveryPreview {
+  CapturedAt: string;
+  RestorePoints: { QueryAvailable: boolean; Count: number; Items: BackupRecoveryRestorePoint[] };
+  ShadowCopies: { QueryAvailable: boolean; Count: number; Items: BackupRecoveryShadowCopy[] };
+  LocalBackups: { Root: string; RootAvailable: boolean; Count: number; Latest: BackupRecoveryLocalBackup | null; Items: BackupRecoveryLocalBackup[] };
+  BackupSources: { Name: string; Path: string; Exists: boolean }[];
+  Storage: { ProjectDrive: string; FreeGB: number | null; TotalGB: number | null };
+  Safety: { ChangesMade: boolean; Sources: string[]; Notice: string };
+}
+
 export interface SoftwarePreviewItem {
   Name: string;
   Version: string;
@@ -361,6 +394,7 @@ export const api = {
   operationsPreview: () => request<{ preview: OperationsPreview }>('/api/operations/preview', undefined, 125000),
   performancePreview: () => request<{ preview: PerformancePreview }>('/api/performance/preview', undefined, 125000),
   diagnosticsPreview: () => request<{ preview: DiagnosticsPreview }>('/api/diagnostics/preview', undefined, 125000),
+  backupRecoveryPreview: () => request<{ preview: BackupRecoveryPreview }>('/api/backup-recovery/preview', undefined, 125000),
 
   sonarAiStatus: () => request<ProjectSonarAiStatus>('/api/sonar/ai-status', undefined, 15000),
   sonarExport: (folderPath: string, format: 'pdf' | 'markdown', language: LangCode) => request<{ export: ProjectSonarExport }>('/api/sonar/export', { method: 'POST', body: JSON.stringify({ path: folderPath, format, language }) }, 125000),
