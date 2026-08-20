@@ -551,6 +551,7 @@ function getReadOnlyPreview(toolId, marker, label) {
 
 function getOperationsPreview() { return getReadOnlyPreview('SP11', 'OPERATIONS', 'Operations'); }
 function getPerformancePreview() { return getReadOnlyPreview('PF11', 'PERFORMANCE', 'Performance'); }
+function getOptimizationPreview() { return getReadOnlyPreview('PF12', 'OPTIMIZATION', 'Performance optimization'); }
 function getDiagnosticsPreview() { return getReadOnlyPreview('DR11', 'DIAGNOSTICS', 'Diagnostics'); }
 function getBackupRecoveryPreview() { return getReadOnlyPreview('BR04', 'BACKUP_RECOVERY', 'Backup and recovery'); }
 function getDriversPreview() { return getReadOnlyPreview('DV04', 'DRIVERS', 'Driver'); }
@@ -802,6 +803,10 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'performance' && pathParts[2] === 'preview') {
       return sendJson(res, 200, { ok: true, preview: getPerformancePreview() }, corsHeaders);
+    }
+
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'performance' && pathParts[2] === 'optimization-preview') {
+      return sendJson(res, 200, { ok: true, preview: getOptimizationPreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'diagnostics' && pathParts[2] === 'preview') {

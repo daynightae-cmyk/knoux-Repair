@@ -1053,6 +1053,24 @@
     "AnalyzeOnlySupported": true,
     "WhatIfSupported": false,
     "TestResult": "PASS"
+  },
+  {
+    "ToolId": "PF12",
+    "Category": "08-Performance",
+    "ScriptPath": "08-Performance/PF12-InteractiveOptimizationPreview.ps1",
+    "EnglishName": "Interactive Optimization Preview",
+    "ArabicName": "معاينة التحسين الذكي للأداء",
+    "Purpose": "Reads live CPU, memory, disk, process, active power-plan and visual-effects evidence and returns review signals without changing services, power, visual effects, processes, or disks.",
+    "RiskLevel": "READ_ONLY",
+    "RequiresAdmin": false,
+    "RequiresRestart": false,
+    "OfflineCapability": "PARTIAL",
+    "BackupMethod": "None (read-only evidence)",
+    "RollbackMethod": "None required",
+    "AnalyzeOnlySupported": true,
+    "WhatIfSupported": false,
+    "ReportsEvidence": true,
+    "RequiresConfirmation": true
   }
 ,
   {

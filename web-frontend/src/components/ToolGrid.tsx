@@ -17,6 +17,7 @@ import NetworkPulsePanel from './NetworkPulsePanel';
 import SystemPulsePanel from './SystemPulsePanel';
 import OperationsPulsePanel from './OperationsPulsePanel';
 import PerformancePulsePanel from './PerformancePulsePanel';
+import PerformanceOptimizationPanel from './PerformanceOptimizationPanel';
 import DiagnosticsReportPanel from './DiagnosticsReportPanel';
 import SmartCleanupPanel from './SmartCleanupPanel';
 import BackupRecoveryPanel from './BackupRecoveryPanel';
@@ -466,6 +467,7 @@ export default function ToolGrid({
       {category.id === '03-Network-Internet' && <NetworkPulsePanel lang={lang} />}
       {category.id === '06-Disk-Space' && <DiskPulsePanel lang={lang} />}
       {category.id === '07-Services-Processes' && <OperationsPulsePanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
+      {category.id === '08-Performance' && <PerformanceOptimizationPanel lang={lang} tools={tools} onRequestExecution={(tool, mode = 'analyze') => setPendingExecution({ tool, mode })} />}
       {category.id === '08-Performance' && <PerformancePulsePanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
       {category.id === '02-System-Cleanup' && <SmartCleanupPanel lang={lang} tools={tools} onRequestExecution={(tool, mode = 'run') => setPendingExecution({ tool, mode })} />}
       {category.id === '10-Diagnostics-Reports' && <DiagnosticsReportPanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}

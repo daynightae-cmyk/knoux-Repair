@@ -639,6 +639,13 @@
         "File": "PF11-InteractivePerformancePreview.ps1",
         "Risk": "READ_ONLY",
         "RequiresAdmin": false
+      },
+      {
+        "Id": "PF12",
+        "Name": "Interactive Optimization Preview",
+        "File": "PF12-InteractiveOptimizationPreview.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
       }
     ]
   },

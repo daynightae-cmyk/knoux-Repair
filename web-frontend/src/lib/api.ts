@@ -150,6 +150,19 @@ export interface PerformancePreviewDisk {
   WriteBytesPerSecond: number | null;
 }
 
+export interface OptimizationPreview {
+  CapturedAt: string;
+  Cpu: { LoadPercent: number; Name: string; LogicalProcessors: number };
+  Memory: { TotalGB: number; UsedGB: number; FreeGB: number; LoadPercent: number; PagesPerSecond: number | null };
+  Disks: { Name: string; TotalGB: number; FreeGB: number; UsedPercent: number; ActiveTimePercent: number | null }[];
+  TopProcesses: { Name: string; Id: number; MemoryMB: number; CpuSeconds: number | null }[];
+  ProcessCount: number;
+  PowerPlanEvidence: string[];
+  VisualEffectsSetting: number | null;
+  Signals: { Code: string; Level: string; Message: string; SuggestedTool: string }[];
+  Safety: { ChangesMade: boolean; Sources: string[]; Notice: string };
+}
+
 export interface PerformancePreview {
   CapturedAt: string;
   Cpu: { Name: string; LoadPercent: number; LogicalProcessors: number };
@@ -482,6 +495,7 @@ export const api = {
   networkPreview: () => request<{ preview: NetworkPreview }>('/api/network/preview', undefined, 125000),
   operationsPreview: () => request<{ preview: OperationsPreview }>('/api/operations/preview', undefined, 125000),
   performancePreview: () => request<{ preview: PerformancePreview }>('/api/performance/preview', undefined, 125000),
+  optimizationPreview: () => request<{ preview: OptimizationPreview }>('/api/performance/optimization-preview', undefined, 125000),
   diagnosticsPreview: () => request<{ preview: DiagnosticsPreview }>('/api/diagnostics/preview', undefined, 125000),
   backupRecoveryPreview: () => request<{ preview: BackupRecoveryPreview }>('/api/backup-recovery/preview', undefined, 125000),
   driversPreview: () => request<{ preview: DriversPreview }>('/api/drivers/preview', undefined, 125000),
