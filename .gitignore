@@ -1,1 +1,27 @@
-Nothing should be ignored based on the provided file changes. The only modified file is a source code file (.tsx) which should not be ignored.
+# Local runtime evidence and generated reports
+Reports/
+QA-Screenshots/
+Quarantine/
+"Quarantine/
+publish-tmp/
+
+# Build and staging artifacts
+Glass-GUI-Builder/
+Installer/Staging/
+Knoux-Repair-Glass-GUI-v1.0/
+Knoux-Repair-Glass-GUI-v1.0.zip
+KnouxRepair.exe
+KNOUX-STARTUP-DIAGNOSTIC-*.json
+Launcher-Diagnostic.log
+
+# Local secrets and transient test output
+.env.local
+web-frontend/.env.local
+Tests/TEST-RESULTS.txt
+.knoux-*
+*.cache
+*.log
+
+# Local agent configuration and diagnostic captures
+.claude/
+Diagnostics/

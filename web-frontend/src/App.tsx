@@ -1,24 +1,21 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import SplashScreen from './components/SplashScreen';
+
 import Sidebar from './components/Sidebar';
 import ToolGrid from './components/ToolGrid';
 import DiagnosticConsole from './components/DiagnosticConsole';
-import PlaceholderPage from './components/PlaceholderPage';
+
 import PageTransition from './components/PageTransition';
 import BridgeOffline from './components/BridgeOffline';
-import Dashboard from './components/Dashboard';
+
 import type { ActiveSection, ToolStatus, ConsoleEntry, ConsoleEntryType } from './types';
 import { SECTION_MAP } from './types';
-import type { BridgeTool, BridgeRun } from './lib/api';
+import type { BridgeTool, BridgeRun, ExecutionMode, ToolRunOptions } from './lib/api';
 import { api, BridgeError } from './lib/api';
 import type { Lang } from './lib/i18n';
 
-const TOOL_SECTIONS = new Set([
-  'maintenance', 'cleanup', 'network', 'programs', 'duplicates',
-  'disk', 'services', 'performance', 'security', 'diagnostics',
-]);
+
 
 let entryCounter = 0;
 
@@ -38,12 +35,12 @@ function NexusApp() {
     return saved === 'ar' ? 'ar' : 'en';
   });
   const [theme, setTheme] = useState<'dark' | 'light'>(() => localStorage.getItem('knoux-theme') === 'light' ? 'light' : 'dark');
-  const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeSection, setActiveSection] = useState<ActiveSection>('maintenance');
   const [toolStatuses, setToolStatuses] = useState<Record<string, ToolStatus>>({});
   const [consoleVisible, setConsoleVisible] = useState(false);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
-  const [activeTool, setActiveTool] = useState<BridgeTool | null>(null);
+    const [activeTool, setActiveTool] = useState<BridgeTool | null>(null);
+  const [activeRequest, setActiveRequest] = useState<{ tool: BridgeTool; mode: ExecutionMode; options: ToolRunOptions } | null>(null);
   const [consoleStatus, setConsoleStatus] = useState<'idle' | 'running' | 'success' | 'error' | 'cancelled'>('idle');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -127,15 +124,16 @@ function NexusApp() {
     tick();
   }, [finishRun]);
 
-  const runTool = useCallback(async (tool: BridgeTool) => {
+  const runTool = useCallback(async (tool: BridgeTool, mode: ExecutionMode = 'run', options: ToolRunOptions = {}) => {
     if (pollTimer.current) window.clearTimeout(pollTimer.current);
     setActiveTool(tool);
+    setActiveRequest({ tool, mode, options });
     setConsoleVisible(true);
     setConsoleEntries([]);
     setConsoleStatus('running');
     setToolStatuses(prev => ({ ...prev, [tool.ToolId]: 'running' }));
     try {
-      const { runId } = await api.startRun(tool.ToolId);
+      const { runId } = await api.startRun(tool.ToolId, mode, options);
       currentRunId.current = runId;
       pollRun(runId, tool);
     } catch (e) {
@@ -158,24 +156,16 @@ function NexusApp() {
   }, []);
 
   const handleRetry = useCallback(() => {
-    if (activeTool) runTool(activeTool);
-  }, [activeTool, runTool]);
-
-  const showTools = TOOL_SECTIONS.has(activeSection);
+    if (activeRequest) runTool(activeRequest.tool, activeRequest.mode, activeRequest.options);
+  }, [activeRequest, runTool]);
 
   return (
     <div className="h-screen w-screen nexus-shell overflow-hidden relative" dir={lang === 'ar' ? 'rtl' : 'ltr'} data-theme={theme}>
-      <div className="absolute inset-0 bg-grid-pattern-sm opacity-100" />
-      <div className="absolute inset-0 bg-gradient-to-tr from-cyan-900/10 via-black to-purple-900/10" />
-      <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-cyan-500/[0.06] blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-purple-500/[0.06] blur-[120px] pointer-events-none" />
-
-      <div className="relative z-10 h-full p-4 flex gap-4">
+      <div className="relative z-10 h-full p-3 md:p-4 flex gap-3 md:gap-4">
         <Sidebar
           active={activeSection}
           onSelect={setActiveSection}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          toolsByCategory={toolsByCategory}
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           lang={lang}
@@ -186,8 +176,7 @@ function NexusApp() {
           bridgeElevated={bridgeElevated}
         />
 
-        <div className="flex-1 glass-panel rounded-[2rem] p-6 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden">
-          <div className="absolute top-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
+        <main className="flex-1 nx-workspace rounded-[1.75rem] p-4 md:p-6 flex flex-col overflow-hidden">
 
           {bridgeOnline === false && (
             <BridgeOffline error={bridgeError} lang={lang} onRetry={connectBridge} />
@@ -195,29 +184,20 @@ function NexusApp() {
 
           {bridgeOnline === true && (
             <AnimatePresence mode="wait">
-              {activeSection === 'dashboard' ? (
-                <PageTransition key="page-dashboard">
-                  <Dashboard lang={lang} onNavigate={setActiveSection} toolStatuses={toolStatuses} />                </PageTransition>
-              ) : showTools ? (
-                <PageTransition key={`tools-${activeSection}`}>
-                  <ToolGrid
-                    activeSection={activeSection}
-                    searchQuery={searchQuery}
-                    toolStatuses={toolStatuses}
-                    tools={toolsByCategory[SECTION_MAP[activeSection]] || []}
-                    lang={lang}
-                    onRunTool={runTool}
-                    onCancelTool={cancelRun}
-                  />
-                </PageTransition>
-              ) : (
-                <PageTransition key={`page-${activeSection}`}>
-                  <PlaceholderPage section={activeSection} lang={lang} />
-                </PageTransition>
-              )}
+              <PageTransition key={`tools-${activeSection}`}>
+                <ToolGrid
+                  activeSection={activeSection}
+                  toolStatuses={toolStatuses}
+                  tools={toolsByCategory[SECTION_MAP[activeSection]] || []}
+                  lang={lang}
+                  bridgeElevated={bridgeElevated}
+                  onRunTool={runTool}
+                  onCancelTool={cancelRun}
+                />
+              </PageTransition>
             </AnimatePresence>
           )}
-        </div>
+        </main>
       </div>
 
       <DiagnosticConsole
@@ -235,18 +215,11 @@ function NexusApp() {
 }
 
 export default function App() {
-  const [splashDone, setSplashDone] = useState(false);
-
   return (
     <BrowserRouter>
-      <AnimatePresence>
-        {!splashDone && <SplashScreen onComplete={() => setSplashDone(true)} />}
-      </AnimatePresence>
-      {splashDone && (
-        <Routes>
-          <Route path="/*" element={<NexusApp />} />
-        </Routes>
-      )}
+      <Routes>
+        <Route path="/*" element={<NexusApp />} />
+      </Routes>
     </BrowserRouter>
   );
 }

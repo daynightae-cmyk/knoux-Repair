@@ -1,84 +1,55 @@
-import { useMemo } from 'react';
-import React from 'react';
+import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Play, ShieldAlert, Wrench, Trash2, Wifi, AppWindow, Copy,
-  HardDrive, Cpu, Gauge, Lock, Activity, Square, RefreshCw, CheckCircle2,
-  XCircle, Ban, BarChart3, Layers, ScanLine, FileCheck,
-  ArchiveRestore, Settings2, Zap, Eye, ClipboardList,
+  Activity, AppWindow, Archive, Boxes, ChevronDown, CircleAlert, Code2, Container, Copy, Cpu, Eye, FileSearch,
+  Gauge, GitBranch, HardDrive, Info, LockKeyhole, Network, Play, Radar, Rocket, RotateCcw, Search, Shield,
+  ShieldCheck, Square, Terminal, Trash2, Wrench,
 } from 'lucide-react';
-import type { ToolStatus } from '../types';
-import { RISK_COLORS, CATEGORY_LABELS, CATEGORY_CONFIG, SECTION_MAP } from '../types';
-import type { BridgeTool } from '../lib/api';
+import type { CSSProperties, ElementType, ReactNode } from 'react';
+import type { ActiveSection, ToolStatus } from '../types';
+import type { BridgeTool, ExecutionMode, OfflineCapability, ToolRunOptions } from '../lib/api';
+import ExecutionConfirmDialog from './ExecutionConfirmDialog';
+import ProjectSonarPanel from './ProjectSonarPanel';
 import type { Lang } from '../lib/i18n';
-import { STRINGS, pickName } from '../lib/i18n';
+import { pickName } from '../lib/i18n';
+import { getCategoryBySection, type CategoryIconKey } from '../data/categories';
 
 interface ToolGridProps {
-  activeSection: string;
-  searchQuery: string;
+  activeSection: ActiveSection;
   toolStatuses: Record<string, ToolStatus>;
   tools: BridgeTool[];
   lang: Lang;
-  onRunTool: (tool: BridgeTool) => void;
+  bridgeElevated: boolean;
+  onRunTool: (tool: BridgeTool, mode: ExecutionMode, options?: ToolRunOptions) => void;
   onCancelTool: () => void;
 }
 
-const CATEGORY_ICONS: Record<string, React.ElementType> = {
-  '01-System-Maintenance': Wrench,
-  '02-System-Cleanup': Trash2,
-  '03-Network-Internet': Wifi,
-  '04-Programs-Applications': AppWindow,
-  '05-Duplicate-Files': Copy,
-  '06-Disk-Space': HardDrive,
-  '07-Services-Processes': Cpu,
-  '08-Performance': Gauge,
-  '09-Security': ShieldAlert,
-  '10-Diagnostics-Reports': Activity,
-};
+type AccentStyle = CSSProperties & Record<'--accent', string>;
+type RiskFilter = 'all' | BridgeTool['RiskLevel'];
+type CapabilityFilter = 'all' | 'analyze' | 'preview';
+type AdminFilter = 'all' | 'admin' | 'standard';
+type OfflineFilter = 'all' | 'FULL' | 'PARTIAL' | 'NO';
 
-// Capability-based icon mapping for tools
-const CAPABILITY_ICONS: Record<string, React.ElementType> = {
-  analyze: BarChart3,
-  clean: Trash2,
-  repair: Wrench,
-  restore: ArchiveRestore,
-  report: FileCheck,
-  reset: Settings2,
-  renew: RefreshCw,
-  flush: Zap,
-  move: Layers,
-  schedule: ClipboardList,
-  test: Zap,
-  scan: ScanLine,
-  inspect: Eye,
-  whatif: Eye,
+const ICONS: Record<CategoryIconKey, ElementType> = {
+  maintenance: Wrench,
+  cleanup: Trash2,
+  network: Network,
+  programs: AppWindow,
+  duplicates: Copy,
+  disk: HardDrive,
+  services: Cpu,
+  performance: Gauge,
+  security: Shield,
+  diagnostics: Activity,
+  backup: HardDrive,
+  developer: AppWindow,
+  privacy: Shield,
+  drivers: Cpu,
+  monitoring: Activity,
+  software: Boxes,
+  setup: Rocket,
+  sonar: Radar,
 };
-
-function getToolCapabilities(tool: BridgeTool): string[] {
-  const caps: string[] = [];
-  
-  // From manifest flags
-  if ((tool as any).AnalyzeOnlySupported) caps.push('analyze');
-  if ((tool as any).WhatIfSupported) caps.push('whatif');
-  
-  const name = tool.EnglishName.toLowerCase();
-  const purpose = tool.Purpose.toLowerCase();
-  
-  if (name.includes('clean') || purpose.includes('clean') || tool.RiskLevel === 'DESTRUCTIVE' || tool.RiskLevel === 'SAFE_CLEANUP') caps.push('clean');
-  if (name.includes('repair') || purpose.includes('repair')) caps.push('repair');
-  if (name.includes('restore') || purpose.includes('restore') || purpose.includes('quarantin')) caps.push('restore');
-  if (name.includes('report') || purpose.includes('report')) caps.push('report');
-  if (name.includes('reset') || purpose.includes('reset')) caps.push('reset');
-  if (name.includes('renew') || purpose.includes('renew')) caps.push('renew');
-  if (name.includes('flush') || purpose.includes('flush')) caps.push('flush');
-  if (name.includes('move') || purpose.includes('move')) caps.push('move');
-  if (name.includes('schedule') || purpose.includes('schedule')) caps.push('schedule');
-  if (name.includes('test') || purpose.includes('test')) caps.push('test');
-  if (name.includes('scan') || purpose.includes('scan')) caps.push('scan');
-  if (name.includes('list') || purpose.includes('inspect')) caps.push('inspect');
-  
-  return [...new Set(caps)];
-}
 
 const RISK_LABEL: Record<string, Record<Lang, string>> = {
   READ_ONLY: { en: 'READ ONLY', ar: 'قراءة فقط' },
@@ -88,221 +59,499 @@ const RISK_LABEL: Record<string, Record<Lang, string>> = {
   DESTRUCTIVE: { en: 'DESTRUCTIVE', ar: 'تعديل دائم' },
 };
 
-function StatusPill({ status, lang }: { status: ToolStatus; lang: Lang }) {
-  const t = STRINGS[lang];
-  const map: Record<ToolStatus, { label: string; cls: string }> = {
-    idle: { label: t.statusIdle, cls: 'text-white/30 border-white/10' },
-    running: { label: t.statusRunning, cls: 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10' },
-    success: { label: t.statusSuccess, cls: 'text-green-400 border-green-500/30 bg-green-500/10' },
-    error: { label: t.statusError, cls: 'text-red-400 border-red-500/30 bg-red-500/10' },
-    cancelled: { label: t.statusCancelled, cls: 'text-amber-400 border-amber-500/30 bg-amber-500/10' },
-  };
-  const s = map[status];
+const OFFLINE_LABEL: Record<OfflineCapability, Record<Lang, string>> = {
+  FULL: { en: 'OFFLINE READY', ar: 'يعمل دون اتصال' },
+  PARTIAL: { en: 'PARTIAL OFFLINE', ar: 'دعم جزئي دون اتصال' },
+  NO: { en: 'ONLINE REQUIRED', ar: 'يتطلب اتصالًا' },
+  '': { en: 'CAPABILITY UNKNOWN', ar: 'القدرة غير محددة' },
+};
+
+const COPY = {
+  en: {
+    currentCategory: 'CURRENT WORKSTATION',
+    tools: 'TOOLS',
+    realData: 'Manifest-backed capability resolution',
+    search: 'Search this category',
+    risk: 'Risk',
+    capability: 'Capability',
+    admin: 'Access',
+    offline: 'Network',
+    all: 'All',
+    allCapabilities: 'All capabilities',
+    analyze: 'Analyze',
+    preview: 'Preview',
+    adminOnly: 'Admin required',
+    standard: 'Standard access',
+    anyNetwork: 'Any network state',
+    noResults: 'No real tools match the current filters.',
+    clearFilters: 'Clear filters',
+    recovery: 'Recovery & evidence',
+    backup: 'Backup',
+    rollback: 'Rollback',
+    restart: 'Restart required',
+    adminRequired: 'Administrator required for this action',
+    analyzeAction: 'ANALYZE',
+    previewAction: 'PREVIEW',
+    cancel: 'CANCEL',
+    resultIdle: 'Ready',
+    resultRunning: 'Running',
+    resultSuccess: 'Completed',
+    resultError: 'Needs review',
+    resultCancelled: 'Cancelled',
+  },
+  ar: {
+    currentCategory: 'محطة العمل الحالية',
+    tools: 'أدوات',
+    realData: 'حلّ القدرات مستند إلى ملف الأدوات',
+    search: 'ابحث في هذه الفئة',
+    risk: 'المخاطر',
+    capability: 'القدرة',
+    admin: 'الصلاحية',
+    offline: 'الاتصال',
+    all: 'الكل',
+    allCapabilities: 'كل القدرات',
+    analyze: 'تحليل',
+    preview: 'معاينة',
+    adminOnly: 'يتطلب مديرًا',
+    standard: 'صلاحية عادية',
+    anyNetwork: 'أي حالة اتصال',
+    noResults: 'لا توجد أدوات فعلية تطابق المرشحات الحالية.',
+    clearFilters: 'مسح المرشحات',
+    recovery: 'الاسترداد والأدلة',
+    backup: 'النسخ الاحتياطي',
+    rollback: 'التراجع',
+    restart: 'إعادة تشغيل مطلوبة',
+    adminRequired: 'تتطلب هذه العملية صلاحيات المدير',
+    analyzeAction: 'تحليل',
+    previewAction: 'معاينة',
+    cancel: 'إيقاف',
+    resultIdle: 'جاهز',
+    resultRunning: 'يعمل',
+    resultSuccess: 'اكتمل',
+    resultError: 'يتطلب مراجعة',
+    resultCancelled: 'أُلغي',
+  },
+};
+
+function SelectField<T extends string>({
+  label, value, onChange, children,
+}: { label: string; value: T; onChange: (value: T) => void; children: ReactNode }) {
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-semibold tracking-wider border ${s.cls}`}>
-      {status === 'running' && <span className="w-1 h-1 rounded-full bg-cyan-400 animate-pulse" />}
-      {status === 'success' && <CheckCircle2 size={9} />}
-      {status === 'error' && <XCircle size={9} />}
-      {status === 'cancelled' && <Ban size={9} />}
-      {s.label}
-    </span>
+    <label className="nx-filter">
+      <span>{label}</span>
+      <span className="relative">
+        <select value={value} onChange={(event) => onChange(event.target.value as T)}>
+          {children}
+        </select>
+        <ChevronDown size={13} aria-hidden="true" />
+      </span>
+    </label>
+  );
+}
+
+function primaryVerb(tool: BridgeTool, lang: Lang): string {
+  if (lang === 'ar') {
+    if (/Report|Information|Summary|Snapshot/i.test(tool.EnglishName)) return 'إنشاء تقرير';
+    if (/List|Show|Check|Find|Analyze|Audit|Test|Verify/i.test(tool.EnglishName)) return 'فحص';
+    if (/Clean/i.test(tool.EnglishName)) return 'تنظيف';
+    if (/Repair/i.test(tool.EnglishName)) return 'إصلاح';
+    if (/Reset/i.test(tool.EnglishName)) return 'إعادة تعيين';
+    if (/Restart/i.test(tool.EnglishName)) return 'إعادة تشغيل';
+    if (/Remove/i.test(tool.EnglishName)) return 'إزالة';
+    if (/Move/i.test(tool.EnglishName)) return 'نقل';
+    if (/Restore/i.test(tool.EnglishName)) return 'استعادة';
+    if (/Disable/i.test(tool.EnglishName)) return 'تعطيل';
+    if (/Enable/i.test(tool.EnglishName)) return 'تفعيل';
+    if (/Run/i.test(tool.EnglishName)) return 'تشغيل الفحص';
+    if (/Schedule/i.test(tool.EnglishName)) return 'جدولة';
+    return 'تنفيذ الأداة';
+  }
+
+  if (/Report|Information|Summary|Snapshot/i.test(tool.EnglishName)) return 'GENERATE REPORT';
+  const match = tool.EnglishName.match(/^(Verify|Analyze|Check|Scan|Test|List|Show|Find|Clean|Repair|Reset|Restart|Remove|Move|Restore|Disable|Enable|Schedule|Manage|Run)/i);
+  return match ? match[1].toUpperCase() : 'EXECUTE TOOL';
+}
+
+function Status({ status, lang }: { status: ToolStatus; lang: Lang }) {
+  const text = COPY[lang];
+  const statusMap: Record<ToolStatus, { label: string; className: string }> = {
+    idle: { label: text.resultIdle, className: 'is-idle' },
+    running: { label: text.resultRunning, className: 'is-running' },
+    success: { label: text.resultSuccess, className: 'is-success' },
+    error: { label: text.resultError, className: 'is-error' },
+    cancelled: { label: text.resultCancelled, className: 'is-cancelled' },
+  };
+  const item = statusMap[status];
+  return <span className={`tool-status ${item.className}`}>{item.label}</span>;
+}
+
+function DuplicateWorkflow({ tools, lang }: { tools: BridgeTool[]; lang: Lang }) {
+  const quarantineProtected = tools.filter((tool) => /quarantine/i.test(tool.BackupMethod || '')).length;
+  const restore = tools.find((tool) => tool.ToolId === 'DF10');
+  const evidence = tools.filter((tool) => tool.ReportsEvidence).length;
+  const content = lang === 'ar'
+    ? {
+        title: 'مسار استرداد الملفات المكررة',
+        body: 'ابدأ بالتحليل، راجع المعاينة، ثم نفّذ العزل فقط بعد تأكيدك. يعرض DF10 العناصر المعزولة بأرقام حقيقية لاستعادتها انتقائيًا.',
+        analyze: '1. تحليل التجمعات',
+        quarantine: '2. عزل النسخ الزائدة',
+        restore: '3. استعادة انتقائية',
+        protected: 'عمليات محمية بالعزل',
+        evidence: 'خدمات تُنشئ أدلة تشغيل',
+        restoreReady: 'الاستعادة عبر DF10',
+      }
+    : {
+        title: 'Duplicate recovery workflow',
+        body: 'Analyze groups first, review a preview, then quarantine only after confirmation. DF10 lists real quarantined entries by number for selective restoration.',
+        analyze: '1. Analyze duplicate groups',
+        quarantine: '2. Quarantine redundant copies',
+        restore: '3. Selectively restore',
+        protected: 'Quarantine-protected operations',
+        evidence: 'Services producing run evidence',
+        restoreReady: 'Restore path through DF10',
+      };
+
+  return (
+    <aside className="duplicate-workflow" aria-label={content.title}>
+      <div className="duplicate-workflow-heading">
+        <div><p className="eyebrow">{content.title}</p><p>{content.body}</p></div>
+        <span className="duplicate-workflow-id">DF01 → DF10</span>
+      </div>
+      <div className="duplicate-workflow-steps">
+        <span><FileSearch size={14} /> {content.analyze}</span>
+        <span><Archive size={14} /> {content.quarantine}</span>
+        <span><ShieldCheck size={14} /> {content.restore}</span>
+      </div>
+      <div className="duplicate-workflow-facts">
+        <span><b>{quarantineProtected}</b> {content.protected}</span>
+        <span><b>{evidence}</b> {content.evidence}</span>
+        {restore && <span><b>{restore.ToolId}</b> {content.restoreReady}</span>}
+      </div>
+    </aside>
+  );
+}
+
+function StationBrief({ station, tools, lang }: { station: 'software' | 'setup'; tools: BridgeTool[]; lang: Lang }) {
+  const readOnly = tools.filter((tool) => tool.RiskLevel === 'READ_ONLY').length;
+  const changes = tools.filter((tool) => tool.RiskLevel !== 'READ_ONLY').length;
+  const admin = tools.filter((tool) => tool.RequiresAdmin).length;
+  const software = lang === 'ar'
+    ? { title: 'مركز إدارة البرامج والبيئات', body: 'ابدأ بجرد البرامج وبيئات التطوير وإضافات Chrome. إجراءات الكاش والتحديث والإزالة لا تمر إلا عبر نافذة التأكيد ومعرّف حزمة دقيق.', facts: ['جرد البرامج والبيئات', 'إضافات Chrome محليًا', 'تحديث وإزالة بتأكيد'] }
+    : { title: 'Software & environment control center', body: 'Start with software, developer environment and Chrome extension inventories. Cache, update and uninstall actions pass only through confirmation with an exact package identifier.', facts: ['Software & runtime inventory', 'Local Chrome extensions', 'Confirmed update and uninstall'] };
+  const setup = lang === 'ar'
+    ? { title: 'مركز تجهيز ويندوز بعد التثبيت', body: 'ابحث عن عروض تعريفات Windows Update أولًا، ثم راجع كتالوج التطبيقات بأرقام اختيار واضحة قبل تثبيت أي عنصر.', facts: ['تعريفات Windows Update', 'كتالوج تطبيقات شفاف', 'اختيار قبل التثبيت'] }
+    : { title: 'Post-install setup center', body: 'Discover Windows Update driver offers first, then review a transparent numbered essentials catalog before installing any selection.', facts: ['Windows Update drivers', 'Transparent essentials catalog', 'Selection before install'] };
+  const content = station === 'software' ? software : setup;
+  const Icon = station === 'software' ? Boxes : Rocket;
+
+  return (
+    <aside className={`station-brief station-brief-${station}`} aria-label={content.title}>
+      <div className="station-brief-icon"><Icon size={20} /></div>
+      <div className="station-brief-copy"><p className="eyebrow">{content.title}</p><p>{content.body}</p></div>
+      <div className="station-brief-facts">
+        {content.facts.map((fact) => <span key={fact}>{fact}</span>)}
+        <span><b>{readOnly}</b> {lang === 'ar' ? 'قرائية' : 'read-only'}</span>
+        <span><b>{changes}</b> {lang === 'ar' ? 'تتطلب تأكيدًا' : 'need confirmation'}</span>
+        {admin > 0 && <span><b>{admin}</b> {lang === 'ar' ? 'مدير' : 'admin'}</span>}
+      </div>
+    </aside>
+  );
+}
+
+function DeveloperCommandCenter({ tools, lang }: { tools: BridgeTool[]; lang: Lang }) {
+  const present = (ids: string[]) => tools.filter((tool) => ids.includes(tool.ToolId));
+  const toolchain = present(['DT01', 'DT04']);
+  const workspace = present(['DT05', 'DT08', 'DT13']);
+  const runtime = present(['DT06', 'DT10', 'DT11']);
+  const editor = present(['DT07', 'DT12']);
+  const recovery = present(['DT02', 'DT03', 'DT09']);
+  const projectAware = tools.filter((tool) => tool.Parameters.includes('LocalSourcePath')).length;
+  const changes = tools.filter((tool) => tool.RiskLevel !== 'READ_ONLY').length;
+  const copy = lang === 'ar'
+    ? {
+        title: 'مركز قيادة المطوّر',
+        body: 'ابدأ بفحص البيئة، ثم افهم المشروع الفعلي، ثم راقب المنافذ والخدمات. لا ينفّذ النظام أي تنظيف أو إيقاف إلا بعد تأكيدك واختيارك المحدد.',
+        scope: 'خدمات مرتبطة بمسار مشروع',
+        changes: 'إجراءات محكومة بالتأكيد',
+        rail: [
+          { title: 'صحة الأدوات', body: 'نسخ الأدوات ومساراتها وتعارضات PATH', icon: Terminal, tools: toolchain },
+          { title: 'ذكاء المشروع', body: 'المؤشرات والاعتمادات وGit وملفات القفل', icon: GitBranch, tools: workspace },
+          { title: 'نبض وقت التشغيل', body: 'المنافذ وخوادم التطوير وحالة Docker', icon: Activity, tools: runtime },
+          { title: 'بيئة التحرير والثقة', body: 'إضافات IDE وشهادات وخرائط التطوير المحلي', icon: Code2, tools: editor },
+          { title: 'تنظيف قابل للتراجع', body: 'الكاش والتشخيص ومخلفات البناء المعزولة', icon: Archive, tools: recovery },
+        ],
+      }
+    : {
+        title: 'Developer command center',
+        body: 'Check the workstation first, understand the real project next, then observe ports and services. Cleanup or server release runs only after explicit selection and confirmation.',
+        scope: 'workspace-aware services',
+        changes: 'confirmation-governed actions',
+        rail: [
+          { title: 'Toolchain health', body: 'Tool versions, command paths and PATH collisions', icon: Terminal, tools: toolchain },
+          { title: 'Project intelligence', body: 'Markers, dependencies, Git and lockfiles', icon: GitBranch, tools: workspace },
+          { title: 'Runtime pulse', body: 'Ports, development servers and Docker status', icon: Activity, tools: runtime },
+          { title: 'Editor & trust', body: 'IDE extensions, local certificates and host mappings', icon: Code2, tools: editor },
+          { title: 'Recoverable cleanup', body: 'Caches, diagnostics and quarantined build artifacts', icon: Archive, tools: recovery },
+        ],
+      };
+
+  return (
+    <aside className="developer-command-center" aria-label={copy.title}>
+      <div className="developer-command-head">
+        <div className="developer-command-orb"><Container size={22} /></div>
+        <div><p className="eyebrow">{copy.title}</p><p>{copy.body}</p></div>
+        <div className="developer-command-metrics">
+          <span><b>{projectAware}</b> {copy.scope}</span>
+          <span><b>{changes}</b> {copy.changes}</span>
+        </div>
+      </div>
+      <div className="developer-command-rail">
+        {copy.rail.map((item) => {
+          const RailIcon = item.icon;
+          return (
+            <div className="developer-command-node" key={item.title}>
+              <span className="developer-command-node-icon"><RailIcon size={16} /></span>
+              <div><strong>{item.title}</strong><p>{item.body}</p></div>
+              <span className="developer-command-node-count">{item.tools.length}</span>
+            </div>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
+function ToolCard({
+  tool, lang, status, bridgeElevated, accent, onRequestExecution, onCancelTool,
+}: {
+  tool: BridgeTool;
+  lang: Lang;
+  status: ToolStatus;
+  bridgeElevated: boolean;
+  accent: string;
+  onRequestExecution: (tool: BridgeTool, mode: ExecutionMode) => void;
+  onCancelTool: () => void;
+}) {
+  const text = COPY[lang];
+  const isRunning = status === 'running';
+  const isReadOnly = tool.RiskLevel === 'READ_ONLY';
+  const requiresAdminForRun = tool.RequiresAdmin && !bridgeElevated;
+  const style: AccentStyle = { '--accent': accent };
+  const hasRecovery = [tool.BackupMethod, tool.RollbackMethod]
+    .some((method) => Boolean(method && !/^none(?:\b|\s)/i.test(method.trim())));
+
+  return (
+    <motion.article
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.18 }}
+      className={`tool-card ${isRunning ? 'is-running' : ''}`}
+      style={style}
+    >
+      <div className="tool-card-topline" />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="tool-name">{pickName(tool, lang)}</h3>
+          <p className="tool-purpose">{tool.Purpose}</p>
+        </div>
+        <Status status={status} lang={lang} />
+      </div>
+
+      <div className="tool-chip-row">
+        <span className={`tool-chip risk-${tool.RiskLevel.toLowerCase()}`}>{RISK_LABEL[tool.RiskLevel]?.[lang] || tool.RiskLevel}</span>
+        {tool.RequiresAdmin && <span className="tool-chip"><LockKeyhole size={11} /> {lang === 'ar' ? 'مدير' : 'ADMIN'}</span>}
+        {tool.RequiresRestart && <span className="tool-chip"><RotateCcw size={11} /> {text.restart}</span>}
+        {tool.OfflineCapability && <span className="tool-chip"><Network size={11} /> {OFFLINE_LABEL[tool.OfflineCapability]?.[lang]}</span>}
+      </div>
+
+      <div className="tool-actions" aria-label={lang === 'ar' ? 'إجراءات الأداة' : 'Tool actions'}>
+        {isRunning ? (
+          <button type="button" className="tool-action tool-action-cancel" onClick={onCancelTool}>
+            <Square size={13} /> {text.cancel}
+          </button>
+        ) : (
+          <>
+            {tool.AnalyzeOnlySupported && !isReadOnly && (
+              <button type="button" className="tool-action tool-action-secondary" onClick={() => onRequestExecution(tool, 'analyze')}>
+                <FileSearch size={14} /> {text.analyzeAction}
+              </button>
+            )}
+            {tool.WhatIfSupported && !isReadOnly && (
+              <button type="button" className="tool-action tool-action-secondary" onClick={() => onRequestExecution(tool, 'preview')}>
+                <Eye size={14} /> {text.previewAction}
+              </button>
+            )}
+            <button
+              type="button"
+              className="tool-action tool-action-primary"
+              disabled={requiresAdminForRun}
+              title={requiresAdminForRun ? text.adminRequired : undefined}
+              onClick={() => onRequestExecution(tool, 'run')}
+            >
+              {isReadOnly ? <ShieldCheck size={14} /> : <Play size={14} />}
+              {primaryVerb(tool, lang)}
+            </button>
+          </>
+        )}
+      </div>
+
+      {requiresAdminForRun && !isRunning && <p className="tool-access-note"><LockKeyhole size={11} /> {text.adminRequired}</p>}
+
+      {hasRecovery && (
+        <details className="tool-evidence">
+          <summary><Info size={13} /> {text.recovery}</summary>
+          <dl>
+            <div><dt>{text.backup}</dt><dd>{tool.BackupMethod || '—'}</dd></div>
+            <div><dt>{text.rollback}</dt><dd>{tool.RollbackMethod || '—'}</dd></div>
+          </dl>
+        </details>
+      )}
+
+      <span className="tool-id" aria-label={`Tool ID ${tool.ToolId}`}>{tool.ToolId}</span>
+    </motion.article>
   );
 }
 
 export default function ToolGrid({
-  activeSection, searchQuery, toolStatuses, tools, lang, onRunTool, onCancelTool,
+  activeSection, toolStatuses, tools, lang, bridgeElevated, onRunTool, onCancelTool,
 }: ToolGridProps) {
-  const t = STRINGS[lang];
+  const [query, setQuery] = useState('');
+  const [pendingExecution, setPendingExecution] = useState<{ tool: BridgeTool; mode: ExecutionMode; options?: ToolRunOptions } | null>(null);
+  const [risk, setRisk] = useState<RiskFilter>('all');
+  const [capability, setCapability] = useState<CapabilityFilter>('all');
+  const [admin, setAdmin] = useState<AdminFilter>('all');
+  const [offline, setOffline] = useState<OfflineFilter>('all');
+  const category = getCategoryBySection(activeSection);
+  const Icon = ICONS[category.icon];
+  const text = COPY[lang];
+  const style: AccentStyle = { '--accent': category.accent };
 
-  // Get the category from SECTION_MAP
-  const categoryId = Object.entries(SECTION_MAP).find(([k]) => k === activeSection)?.[1] || '';
-  const categoryConfig = CATEGORY_CONFIG[categoryId];
-  
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return tools;
-    const q = searchQuery.toLowerCase();
-    return tools.filter(tool =>
-      tool.ToolId.toLowerCase().includes(q) ||
-      tool.EnglishName.toLowerCase().includes(q) ||
-      (tool.ArabicName || '').toLowerCase().includes(q) ||
-      tool.Purpose.toLowerCase().includes(q) ||
-      tool.RiskLevel.toLowerCase().includes(q)
-    );
-  }, [tools, searchQuery]);
+    const normalized = query.trim().toLocaleLowerCase();
+    return tools.filter((tool) => {
+      const matchesQuery = !normalized || [tool.ToolId, tool.EnglishName, tool.ArabicName, tool.Purpose]
+        .some((value) => (value || '').toLocaleLowerCase().includes(normalized));
+      const matchesRisk = risk === 'all' || tool.RiskLevel === risk;
+      const matchesCapability = capability === 'all'
+        || (capability === 'analyze' && tool.AnalyzeOnlySupported)
+        || (capability === 'preview' && tool.WhatIfSupported);
+      const matchesAdmin = admin === 'all' || (admin === 'admin' ? tool.RequiresAdmin : !tool.RequiresAdmin);
+      const matchesOffline = offline === 'all' || tool.OfflineCapability === offline;
+      return matchesQuery && matchesRisk && matchesCapability && matchesAdmin && matchesOffline;
+    });
+  }, [tools, query, risk, capability, admin, offline]);
 
-  const catLabel = categoryConfig ? (lang === 'ar' ? categoryConfig.arabicName : categoryConfig.name) : (CATEGORY_LABELS[activeSection] || activeSection.toUpperCase());
-  const catPurpose = categoryConfig ? (lang === 'ar' ? categoryConfig.arabicPurpose : categoryConfig.purpose) : '';
-  const accentColor = categoryConfig?.accent || '#06B6D4';
+  const stats = useMemo(() => ({
+    admin: tools.filter((tool) => tool.RequiresAdmin).length,
+    offline: tools.filter((tool) => tool.OfflineCapability === 'FULL').length,
+    preview: tools.filter((tool) => tool.WhatIfSupported).length,
+    destructive: tools.filter((tool) => tool.RiskLevel === 'DESTRUCTIVE').length,
+  }), [tools]);
+
+  const clearFilters = () => {
+    setQuery('');
+    setRisk('all');
+    setCapability('all');
+    setAdmin('all');
+    setOffline('all');
+  };
 
   return (
-    <div className="flex-1 overflow-y-auto pr-2 rtl:pl-2 rtl:pr-0">
-      {/* Category Hero */}
-      <motion.div
-        key={activeSection}
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6 glass-panel rounded-2xl p-6 relative overflow-hidden"
-        style={{ borderTop: `2px solid ${accentColor}` }}
-      >
-        <div 
-          className="absolute inset-0 opacity-10 pointer-events-none"
-          style={{ background: `radial-gradient(ellipse at top, ${accentColor}22, transparent 70%)` }}
-        />
-        <div className="relative z-10 flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-4">
-            <div 
-              className="w-12 h-12 rounded-xl flex items-center justify-center border shadow-lg"
-              style={{ backgroundColor: `${accentColor}15`, borderColor: `${accentColor}30`, color: accentColor }}
-            >
-              {categoryConfig && React.createElement(CATEGORY_ICONS[categoryId] || Wrench, { size: 24 })}
-            </div>
-            <div>
-              <h2 className="font-display text-xl font-bold tracking-wider text-white text-glow">
-                {catLabel}
-              </h2>
-              {catPurpose && (
-                <p className="font-mono text-[10px] text-white/40 mt-1 tracking-wide">
-                  {catPurpose}
-                </p>
-              )}
-            </div>
+    <section className="workstation" style={style} aria-labelledby="category-title">
+      <header className="category-hero">
+        <div className="category-hero-icon"><Icon size={30} strokeWidth={1.8} /></div>
+        <div className="min-w-0 flex-1">
+          <p className="eyebrow">{text.currentCategory}</p>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 id="category-title">{category.name[lang]}</h2>
+            <span className="category-total">{tools.length} {text.tools}</span>
           </div>
-          <div className="text-right">
-            <p className="font-display text-3xl font-bold" style={{ color: accentColor }}>
-              {filtered.length}
-            </p>
-            <p className="font-mono text-[9px] text-white/30 tracking-widest">
-              {t.toolsCount}
-            </p>
-          </div>
+          <p className="category-purpose">{category.purpose[lang]}</p>
         </div>
-      </motion.div>
+        <div className="category-live-summary" aria-label={text.realData}>
+          <span><LockKeyhole size={13} /> {stats.admin}</span>
+          <span><Network size={13} /> {stats.offline}</span>
+          <span><Eye size={13} /> {stats.preview}</span>
+          <span title={lang === 'ar' ? 'إجراءات مدمّرة تؤكد قبل التشغيل' : 'Destructive actions requiring confirmation'}><CircleAlert size={13} /> {stats.destructive}</span>
+        </div>
+      </header>
+
+      {category.id === '05-Duplicate-Files' && <DuplicateWorkflow tools={tools} lang={lang} />}
+      {category.id === '16-Software-Environment' && <StationBrief station="software" tools={tools} lang={lang} />}
+      {category.id === '17-PostInstall-Setup' && <StationBrief station="setup" tools={tools} lang={lang} />}
+      {category.id === '12-Developer-Tools' && <DeveloperCommandCenter tools={tools} lang={lang} />}
+      {category.id === '18-Project-Sonar' && <ProjectSonarPanel lang={lang} tools={tools} onRequestExecution={(tool, options) => setPendingExecution({ tool, mode: 'run', options })} />}
+
+      <div className="category-toolbar">
+        <label className="category-search">
+          <Search size={15} aria-hidden="true" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={text.search} />
+        </label>
+        <div className="category-filters">
+          <SelectField label={text.risk} value={risk} onChange={setRisk}>
+            <option value="all">{text.all}</option>
+            {Object.keys(RISK_LABEL).map((value) => <option key={value} value={value}>{RISK_LABEL[value][lang]}</option>)}
+          </SelectField>
+          <SelectField label={text.capability} value={capability} onChange={setCapability}>
+            <option value="all">{text.allCapabilities}</option>
+            <option value="analyze">{text.analyze}</option>
+            <option value="preview">{text.preview}</option>
+          </SelectField>
+          <SelectField label={text.admin} value={admin} onChange={setAdmin}>
+            <option value="all">{text.all}</option>
+            <option value="admin">{text.adminOnly}</option>
+            <option value="standard">{text.standard}</option>
+          </SelectField>
+          <SelectField label={text.offline} value={offline} onChange={setOffline}>
+            <option value="all">{text.anyNetwork}</option>
+            <option value="FULL">{OFFLINE_LABEL.FULL[lang]}</option>
+            <option value="PARTIAL">{OFFLINE_LABEL.PARTIAL[lang]}</option>
+            <option value="NO">{OFFLINE_LABEL.NO[lang]}</option>
+          </SelectField>
+        </div>
+        <p className="toolbar-count">{filtered.length} / {tools.length}</p>
+      </div>
 
       {filtered.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="glass-panel rounded-2xl p-12 text-center"
-        >
-          <p className="font-mono text-sm text-cyan-400/50 tracking-wider">
-            {searchQuery ? t.noMatch : t.noTools}
-          </p>
-        </motion.div>
+        <div className="no-tool-results">
+          <CircleAlert size={22} />
+          <p>{text.noResults}</p>
+          <button type="button" onClick={clearFilters}>{text.clearFilters}</button>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="tool-grid">
           <AnimatePresence mode="popLayout">
-            {filtered.map((tool, i) => {
-              const status = toolStatuses[tool.ToolId] || 'idle';
-              const risk = RISK_COLORS[tool.RiskLevel] || RISK_COLORS.READ_ONLY;
-              const isRunning = status === 'running';
-              const Icon = CATEGORY_ICONS[tool.Category] || Wrench;
-
-              return (
-                <motion.div
-                  key={tool.ToolId}
-                  layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: i * 0.03, duration: 0.3 }}
-                  className={`glass-panel glass-interactive rounded-xl p-4 relative overflow-hidden group transition-all duration-300 ${
-                    isRunning ? 'neon-glow-strong border-cyan-500/30' : 'hover:border-cyan-500/10'
-                  }`}
-                >
-                  {isRunning && (
-                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                      <div
-                        className="absolute top-0 h-[2px] w-32 animate-cylon"
-                        style={{
-                          background: 'linear-gradient(90deg, transparent, #00e5ff, transparent)',
-                          boxShadow: '0 0 20px rgba(0, 229, 255, 0.4)',
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  <div className="flex items-start justify-between mb-3 gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg shrink-0 border ${risk.bg} ${risk.text} ${risk.border}`}>
-                        <Icon size={15} />
-                      </span>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-mono font-semibold tracking-wider border ${risk.text} ${risk.border}`}>
-                        {tool.ToolId}
-                      </span>
-                    </div>
-                    <StatusPill status={status} lang={lang} />
-                  </div>
-
-                  <h3 className="text-sm font-body font-medium text-slate-200 mb-1.5 leading-tight">
-                    {pickName(tool, lang)}
-                  </h3>
-
-                  <p className="text-[11px] text-white/35 leading-relaxed mb-3 line-clamp-2">
-                    {tool.Purpose}
-                  </p>
-
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className={`inline-flex items-center gap-1 font-mono text-[9px] tracking-wider ${risk.text} ${risk.bg} ${risk.border} rounded px-1.5 py-0.5`}>
-                      {RISK_LABEL[tool.RiskLevel]?.[lang] || tool.RiskLevel.replace(/_/g, ' ')}
-                    </span>
-                    {tool.RequiresAdmin && (
-                      <span className="inline-flex items-center gap-1 text-[9px] font-mono text-amber-400/70 tracking-wider">
-                        <Lock size={9} /> {t.admin}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Capability Chips */}
-                  {(() => {
-                    const caps = getToolCapabilities(tool);
-                    if (caps.length === 0) return null;
-                    return (
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        {caps.slice(0, 4).map(cap => {
-                          const CapIcon = CAPABILITY_ICONS[cap] || Eye;
-                          return (
-                            <span 
-                              key={cap}
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/[0.03] border border-white/[0.06]"
-                            >
-                              <CapIcon size={8} className="text-cyan-400/60" />
-                              <span className="font-mono text-[8px] text-white/40 uppercase">{cap}</span>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-
-                  <motion.button
-                    onClick={() => (isRunning ? onCancelTool() : onRunTool(tool))}
-                    className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg font-mono text-[11px] font-semibold tracking-wider transition-all ${
-                      isRunning
-                        ? 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 cursor-pointer'
-                        : 'bg-white/[0.03] text-slate-400 border border-white/[0.06] hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/20'
-                    }`}
-                    whileTap={isRunning ? { scale: 0.97 } : undefined}
-                  >
-                    {isRunning ? (
-                      <>
-                        <Square size={11} /> {t.cancel}
-                      </>
-                    ) : status === 'success' || status === 'error' || status === 'cancelled' ? (
-                      <>
-                        <RefreshCw size={12} /> {t.retry}
-                      </>
-                    ) : (
-                      <>
-                        <Play size={12} /> {t.run}
-                      </>
-                    )}
-                  </motion.button>
-                </motion.div>
-              );
-            })}
+            {filtered.map((tool) => (
+              <ToolCard
+                key={tool.ToolId}
+                tool={tool}
+                lang={lang}
+                status={toolStatuses[tool.ToolId] || 'idle'}
+                bridgeElevated={bridgeElevated}
+                accent={category.accent}
+                onRequestExecution={(tool, mode) => setPendingExecution({ tool, mode })}
+                onCancelTool={onCancelTool}
+              />
+            ))}
           </AnimatePresence>
         </div>
       )}
-    </div>
+
+      {pendingExecution && (
+        <ExecutionConfirmDialog
+          tool={pendingExecution.tool}
+          mode={pendingExecution.mode}
+          lang={lang}
+          onCancel={() => setPendingExecution(null)}
+          initialOptions={pendingExecution.options}
+          onConfirm={(options) => {
+            onRunTool(pendingExecution.tool, pendingExecution.mode, { ...pendingExecution.options, ...options });
+            setPendingExecution(null);
+          }}
+        />
+      )}
+    </section>
   );
 }

@@ -1,4 +1,4 @@
-﻿[
+[
   {
     "Category": "01-System-Maintenance",
     "Folder": "01-System-Maintenance",
@@ -754,6 +754,362 @@
         "Id": "DR10",
         "Name": "Full Diagnostic Report",
         "File": "DR10-FullDiagnosticReport.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      }
+    ]
+  },
+  {
+    "Category": "11-Backup-Recovery",
+    "Folder": "11-Backup-Recovery",
+    "Tools": [
+      {
+        "Id": "BR01",
+        "Name": "Create System Restore Point",
+        "File": "BR01-CreateRestorePoint.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "BR02",
+        "Name": "Backup User Profile",
+        "File": "BR02-BackupUserProfile.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "BR03",
+        "Name": "Verify Latest Backup",
+        "File": "BR03-VerifyLatestBackup.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      }
+    ]
+  },
+  {
+    "Category": "12-Developer-Tools",
+    "Folder": "12-Developer-Tools",
+    "Tools": [
+      {
+        "Id": "DT01",
+        "Name": "Developer Environment Audit",
+        "File": "DT01-DeveloperEnvironmentAudit.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DT02",
+        "Name": "Quarantine Developer Caches",
+        "File": "DT02-QuarantineDeveloperCaches.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DT03",
+        "Name": "Collect Developer Diagnostics",
+        "File": "DT03-CollectDeveloperDiagnostics.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DT04",
+        "Name": "Developer Toolchain Doctor",
+        "File": "DT04-DeveloperToolchainDoctor.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DT05",
+        "Name": "Project Intelligence Snapshot",
+        "File": "DT05-ProjectIntelligenceSnapshot.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DT06",
+        "Name": "Developer Port Observatory",
+        "File": "DT06-DeveloperPortObservatory.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DT07",
+        "Name": "IDE and Extension Inventory",
+        "File": "DT07-IdeExtensionInventory.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DT08",
+        "Name": "Git Workspace Insight",
+        "File": "DT08-GitWorkspaceInsight.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DT09",
+        "Name": "Project Artifact Quarantine",
+        "File": "DT09-ProjectArtifactQuarantine.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DT10",
+        "Name": "Release Development Servers",
+        "File": "DT10-ReleaseDevelopmentServers.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DT11",
+        "Name": "Docker and Local Development Status",
+        "File": "DT11-DockerLocalDevStatus.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DT12",
+        "Name": "Local Development Trust Inspector",
+        "File": "DT12-LocalDevTrustInspector.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DT13",
+        "Name": "Dependency and Lockfile Inspector",
+        "File": "DT13-DependencyLockfileInspector.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      }
+    ]
+  },
+  {
+    "Category": "13-Privacy",
+    "Folder": "13-Privacy",
+    "Tools": [
+      {
+        "Id": "PR01",
+        "Name": "Privacy Audit",
+        "File": "PR01-PrivacyAudit.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PR02",
+        "Name": "Clear Run Dialog History",
+        "File": "PR02-ClearRunHistory.ps1",
+        "Risk": "DESTRUCTIVE",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PR03",
+        "Name": "Flush DNS Privacy Cache",
+        "File": "PR03-FlushDnsPrivacyCache.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": true
+      }
+    ]
+  },
+  {
+    "Category": "14-Driver-Management",
+    "Folder": "14-Driver-Management",
+    "Tools": [
+      {
+        "Id": "DV01",
+        "Name": "Driver Inventory",
+        "File": "DV01-DriverInventory.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DV02",
+        "Name": "Driver Signature Audit",
+        "File": "DV02-DriverSignatureAudit.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "DV03",
+        "Name": "Export Third-Party Drivers",
+        "File": "DV03-ExportThirdPartyDrivers.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      }
+    ]
+  },
+  {
+    "Category": "15-System-Monitoring",
+    "Folder": "15-System-Monitoring",
+    "Tools": [
+      {
+        "Id": "MO01",
+        "Name": "Resource Snapshot",
+        "File": "MO01-ResourceSnapshot.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "MO02",
+        "Name": "Top Resource Processes",
+        "File": "MO02-TopResourceProcesses.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "MO03",
+        "Name": "Event Warning Digest",
+        "File": "MO03-EventWarningDigest.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "MO04",
+        "Name": "Process & Memory Watch",
+        "File": "MO04-ProcessMemoryWatch.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      }
+    ]
+  },
+  {
+    "Category": "16-Software-Environment",
+    "Folder": "16-Software-Environment",
+    "Tools": [
+      {
+        "Id": "SW01",
+        "Name": "Discover Installed Software",
+        "File": "SW01-DiscoverInstalledSoftware.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SW02",
+        "Name": "Audit Development Environments",
+        "File": "SW02-AuditDevEnvironments.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SW03",
+        "Name": "Discover Chrome Extensions",
+        "File": "SW03-DiscoverChromeExtensions.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SW04",
+        "Name": "Quarantine Software Caches",
+        "File": "SW04-QuarantineSoftwareCaches.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SW05",
+        "Name": "Upgrade Winget Packages",
+        "File": "SW05-UpgradeWingetPackages.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SW06",
+        "Name": "Uninstall Winget Package",
+        "File": "SW06-UninstallWingetPackage.ps1",
+        "Risk": "DESTRUCTIVE",
+        "RequiresAdmin": false
+      }
+    ]
+  },
+  {
+    "Category": "17-PostInstall-Setup",
+    "Folder": "17-PostInstall-Setup",
+    "Tools": [
+      {
+        "Id": "PI01",
+        "Name": "Discover Windows Driver Updates",
+        "File": "PI01-DiscoverWindowsDriverUpdates.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PI02",
+        "Name": "Install Windows Driver Updates",
+        "File": "PI02-InstallWindowsDriverUpdates.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": true
+      },
+      {
+        "Id": "PI03",
+        "Name": "Essential Apps Catalog",
+        "File": "PI03-EssentialAppsCatalog.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PI04",
+        "Name": "Install Essential Apps",
+        "File": "PI04-InstallEssentialApps.ps1",
+        "Risk": "SYSTEM_REPAIR",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "PI05",
+        "Name": "Refresh Winget Sources",
+        "File": "PI05-RefreshWingetSources.ps1",
+        "Risk": "SAFE_CLEANUP",
+        "RequiresAdmin": false
+      }
+    ]
+  },
+  {
+    "Category": "18-Project-Sonar",
+    "Folder": "18-Project-Sonar",
+    "Tools": [
+      {
+        "Id": "SN01",
+        "Name": "Project Sonar Discovery",
+        "File": "SN01-ProjectDiscovery.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SN02",
+        "Name": "Project Sonar Completeness Audit",
+        "File": "SN02-CompletenessAudit.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SN03",
+        "Name": "Project Sonar Git Readiness",
+        "File": "SN03-GitReadiness.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SN04",
+        "Name": "Project Sonar Build and Dependency Audit",
+        "File": "SN04-BuildDependencyAudit.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SN05",
+        "Name": "Project Sonar Bilingual Engineering Brief",
+        "File": "SN05-BilingualBrief.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SN06",
+        "Name": "Project Sonar Model-Neutral Handoff Bundle",
+        "File": "SN06-HandoffBundle.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
+      },
+      {
+        "Id": "SN07",
+        "Name": "Project Sonar Interactive Preview",
+        "File": "SN07-InteractivePreview.ps1",
         "Risk": "READ_ONLY",
         "RequiresAdmin": false
       }
