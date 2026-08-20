@@ -1925,7 +1925,7 @@
     "WhatIfSupported": true,
     "TestResult": "UNTESTED"
   },
-  {
+    {
     "ToolId": "PR03",
     "Category": "13-Privacy",
     "ScriptPath": "13-Privacy/PR03-FlushDnsPrivacyCache.ps1",
@@ -1942,6 +1942,24 @@
     "WhatIfSupported": true,
     "TestResult": "UNTESTED"
   },
+  {
+    "ToolId": "PR04",
+    "Category": "13-Privacy",
+    "ScriptPath": "13-Privacy/PR04-InteractivePrivacyPreview.ps1",
+    "EnglishName": "Interactive Privacy Preview",
+    "ArabicName": "معاينة الخصوصية التفاعلية",
+    "Purpose": "Reads selected Windows privacy, consent, activity, policy, and aggregate local-history states without changing registry values, revealing history contents, or clearing local data.",
+    "RiskLevel": "READ_ONLY",
+    "RequiresAdmin": false,
+    "RequiresRestart": false,
+    "OfflineCapability": "FULL",
+    "BackupMethod": "None (read-only inventory)",
+    "RollbackMethod": "None required",
+    "AnalyzeOnlySupported": true,
+    "WhatIfSupported": false,
+    "TestResult": "PASS"
+  }
+,
   {
     "ToolId": "DV01",
     "Category": "14-Driver-Management",

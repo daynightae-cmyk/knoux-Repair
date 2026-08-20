@@ -554,6 +554,7 @@ function getPerformancePreview() { return getReadOnlyPreview('PF11', 'PERFORMANC
 function getDiagnosticsPreview() { return getReadOnlyPreview('DR11', 'DIAGNOSTICS', 'Diagnostics'); }
 function getBackupRecoveryPreview() { return getReadOnlyPreview('BR04', 'BACKUP_RECOVERY', 'Backup and recovery'); }
 function getDriversPreview() { return getReadOnlyPreview('DV04', 'DRIVERS', 'Driver'); }
+function getPrivacyPreview() { return getReadOnlyPreview('PR04', 'PRIVACY', 'Privacy'); }
 
 async function getProjectSonarAiAnalysis(value, language) {
 
@@ -810,6 +811,10 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'drivers' && pathParts[2] === 'preview') {
       return sendJson(res, 200, { ok: true, preview: getDriversPreview() }, corsHeaders);
+    }
+
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'privacy' && pathParts[2] === 'preview') {
+      return sendJson(res, 200, { ok: true, preview: getPrivacyPreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'software' && pathParts[2] === 'preview') {

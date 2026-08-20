@@ -956,6 +956,13 @@
         "File": "PR03-FlushDnsPrivacyCache.ps1",
         "Risk": "SAFE_CLEANUP",
         "RequiresAdmin": true
+      },
+      {
+        "Id": "PR04",
+        "Name": "Interactive Privacy Preview",
+        "File": "PR04-InteractivePrivacyPreview.ps1",
+        "Risk": "READ_ONLY",
+        "RequiresAdmin": false
       }
     ]
   },

@@ -20,6 +20,7 @@ import PerformancePulsePanel from './PerformancePulsePanel';
 import DiagnosticsReportPanel from './DiagnosticsReportPanel';
 import BackupRecoveryPanel from './BackupRecoveryPanel';
 import DriverManagementPanel from './DriverManagementPanel';
+import PrivacyPanel from './PrivacyPanel';
 import ToolActivityRail from './ToolActivityRail';
 
 import ProjectSonarPanel from './ProjectSonarPanel';
@@ -465,6 +466,7 @@ export default function ToolGrid({
       {category.id === '08-Performance' && <PerformancePulsePanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
       {category.id === '10-Diagnostics-Reports' && <DiagnosticsReportPanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
       {category.id === '11-Backup-Recovery' && <BackupRecoveryPanel lang={lang} tools={tools} onRequestExecution={(tool, mode = 'run', options) => setPendingExecution({ tool, mode, options })} />}
+      {category.id === '13-Privacy' && <PrivacyPanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
       {category.id === '14-Driver-Management' && <DriverManagementPanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
       {category.id === '16-Software-Environment' && <SoftwareInventoryPanel lang={lang} />}
       {category.id === '16-Software-Environment' && <StationBrief station="software" tools={tools} lang={lang} />}

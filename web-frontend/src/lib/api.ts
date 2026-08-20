@@ -264,6 +264,23 @@ export interface DriversPreview {
   Safety: { ChangesMade: boolean; Sources: string[]; Notice: string };
 }
 
+export interface PrivacyPreviewSetting {
+  Id: string;
+  Name: string;
+  Category: string;
+  Available: boolean;
+  State: string;
+  Value: string | number | boolean | null;
+  Detail: string;
+}
+
+export interface PrivacyPreview {
+  CapturedAt: string;
+  Settings: PrivacyPreviewSetting[];
+  ActivityEvidence: { RunHistoryAvailable: boolean; RunHistoryEntryCount: number; DnsCacheAvailable: boolean; DnsCacheEntryCount: number | null };
+  Safety: { ChangesMade: boolean; Sources: string[]; Notice: string };
+}
+
 export interface SoftwarePreviewItem {
   Name: string;
   Version: string;
@@ -428,6 +445,7 @@ export const api = {
   diagnosticsPreview: () => request<{ preview: DiagnosticsPreview }>('/api/diagnostics/preview', undefined, 125000),
   backupRecoveryPreview: () => request<{ preview: BackupRecoveryPreview }>('/api/backup-recovery/preview', undefined, 125000),
   driversPreview: () => request<{ preview: DriversPreview }>('/api/drivers/preview', undefined, 125000),
+  privacyPreview: () => request<{ preview: PrivacyPreview }>('/api/privacy/preview', undefined, 125000),
 
   sonarAiStatus: () => request<ProjectSonarAiStatus>('/api/sonar/ai-status', undefined, 15000),
   sonarExport: (folderPath: string, format: 'pdf' | 'markdown', language: LangCode) => request<{ export: ProjectSonarExport }>('/api/sonar/export', { method: 'POST', body: JSON.stringify({ path: folderPath, format, language }) }, 125000),
