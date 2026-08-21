@@ -3,7 +3,7 @@ import {
   Activity, AppWindow, ArchiveRestore, ArrowRight, BadgeCheck, BarChart3, Boxes, Check,
   CheckCircle2, ChevronRight, CircleAlert, CloudCog, Copy, Cpu, DatabaseZap, Download, FolderKanban, Gauge, HardDrive,
   HeartPulse, Layers3, ListChecks, LoaderCircle, LockKeyhole, MemoryStick, MonitorCog, Network, PackageCheck, Radar, RefreshCw,
-  Rocket, ScanSearch, ShieldCheck, SlidersHorizontal, Sparkles, TimerReset, Trash2, TriangleAlert, UserRoundCheck,
+  Rocket, ScanSearch, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, TriangleAlert, UserRoundCheck,
   WandSparkles, Wrench,
 } from 'lucide-react';
 import type { ElementType } from 'react';
@@ -118,25 +118,34 @@ function ActionRail({ tools, lang, toolStatuses, bridgeElevated, onLaunch, onCan
 
 function SafetyNote({ lang }: { lang: Lang }) { const text = COPY[lang]; return <aside className="app-safety-note"><ShieldCheck size={18} /><div><strong>{text.safe}</strong><span>{text.safeBody}</span></div></aside>; }
 
-function HealthApp({ data, lang, onRunHealthCheck }: { data: SystemSnapshot; lang: Lang; onRunHealthCheck?: () => void }) {
-  const health = Math.max(40, Math.min(100, 100 - Math.round(data.CpuLoad * .32) - Math.round((1 - data.FreeRamGB / Math.max(1, data.TotalRamGB)) * 24)));
-  const text = COPY[lang];
+function SystemRepairApp({ data, lang, onRunHealthCheck }: { data: SystemSnapshot; lang: Lang; onRunHealthCheck?: () => void }) {
   const firewallOn = Boolean(data.Firewall?.length && data.Firewall.every((item) => item.Enabled));
-  const healthItems = [
-    { icon: Cpu, label: lang === 'ar' ? 'المعالج' : 'CPU', value: `${data.CpuLoad}%`, good: data.CpuLoad < 80 },
-    { icon: MemoryStick, label: lang === 'ar' ? 'الذاكرة' : 'Memory', value: `${number(data.FreeRamGB, lang)} GB`, good: data.FreeRamGB / Math.max(1, data.TotalRamGB) > .18 },
-    { icon: HardDrive, label: lang === 'ar' ? 'الأقراص' : 'Storage', value: `${number(data.Drives.reduce((sum, drive) => sum + drive.FreeGB, 0), lang)} GB`, good: data.Drives.every((drive) => drive.FreeGB / Math.max(1, drive.TotalGB) > .1) },
-    { icon: ShieldCheck, label: lang === 'ar' ? 'الحماية' : 'Protection', value: data.DefenderRealtime && firewallOn ? (lang === 'ar' ? 'جاهزة' : 'Ready') : (lang === 'ar' ? 'راجع' : 'Review'), good: data.DefenderRealtime && firewallOn },
+  const lowStorage = data.Drives.some((drive) => drive.FreeGB / Math.max(1, drive.TotalGB) < .1);
+  const highCpu = data.CpuLoad >= 85;
+  const lowMemory = data.FreeRamGB / Math.max(1, data.TotalRamGB) < .15;
+  const checks = [
+    { label: lang === 'ar' ? 'سلامة ملفات Windows' : 'Windows file integrity', state: 'ready', detail: lang === 'ar' ? 'جاهز للتحقق عبر محرك SFC عند بدء التشخيص.' : 'Ready to verify through the SFC engine when diagnosis starts.' },
+    { label: lang === 'ar' ? 'مخزن مكونات Windows' : 'Windows component store', state: 'ready', detail: lang === 'ar' ? 'جاهز للفحص والإصلاح عبر DISM عند التأكيد.' : 'Ready for DISM analysis and repair after confirmation.' },
+    { label: lang === 'ar' ? 'مساحة النظام' : 'System drive capacity', state: lowStorage ? 'review' : 'passed', detail: lowStorage ? (lang === 'ar' ? 'أحد الأقراص منخفض المساحة وقد يؤثر على الإصلاح.' : 'One drive is low on free space and may affect repair.') : (lang === 'ar' ? 'المساحة المتاحة كافية للفحص.' : 'Available drive capacity is sufficient for repair checks.') },
+    { label: lang === 'ar' ? 'موارد التشغيل' : 'Runtime resources', state: highCpu || lowMemory ? 'review' : 'passed', detail: highCpu || lowMemory ? (lang === 'ar' ? 'يفضل إغلاق التطبيقات الثقيلة قبل الإصلاح.' : 'Consider closing heavy apps before repair.') : (lang === 'ar' ? 'المعالج والذاكرة مناسبان للتشخيص.' : 'CPU and memory are suitable for diagnostics.') },
+    { label: lang === 'ar' ? 'حماية النظام' : 'System protection', state: data.DefenderRealtime && firewallOn ? 'passed' : 'review', detail: data.DefenderRealtime && firewallOn ? (lang === 'ar' ? 'الحماية الأساسية مفعّلة أثناء الإصلاح.' : 'Baseline protection is active during repair.') : (lang === 'ar' ? 'راجع Defender أو الجدار الناري بعد التشخيص.' : 'Review Defender or firewall after diagnosis.') },
   ];
-  return <div className="health-app-view health-product-view">
+  const reviewCount = checks.filter((check) => check.state === 'review').length;
+  const plan = [
+    lang === 'ar' ? 'تشخيص سلامة الملفات بدون تغيير الجهاز' : 'Diagnose file integrity without changing the device',
+    lang === 'ar' ? 'تحليل مخزن المكونات وتحديد الحاجة للإصلاح' : 'Analyze the component store and determine repair need',
+    lang === 'ar' ? 'تنفيذ الإصلاح فقط بعد نافذة التأكيد الآمنة' : 'Execute repair only after the safety confirmation dialog',
+    lang === 'ar' ? 'إعادة التحقق وإنشاء تقرير فني داخل التطبيق' : 'Re-verify and keep the technical report inside the app',
+  ];
+  return <div className="health-app-view health-product-view system-repair-product-view">
     <section className="product-command-hero health-command-hero">
-      <div className="health-copy"><p>{lang === 'ar' ? 'مركز صحة الجهاز' : 'Device health center'}</p><h2>{health > 76 ? text.healthy : text.attention}</h2><span>{lang === 'ar' ? 'مؤشر إرشادي محسوب من المعالج والذاكرة والتخزين وحالة الحماية الحالية.' : 'A guidance score calculated from current CPU, memory, storage and protection status.'}</span>{onRunHealthCheck && <button type="button" className="product-primary-action" onClick={onRunHealthCheck}><HeartPulse size={16} />{lang === 'ar' ? 'مراجعة فحص الصحة' : 'Review health check'}</button>}</div>
-      <div className="health-score" style={{ '--score': `${health * 3.6}deg` } as React.CSSProperties}><div><b>{health}</b><span>/ 100</span><small>{lang === 'ar' ? 'مؤشر إرشادي' : 'guidance score'}</small></div></div>
-      <aside className="health-live-summary"><span><Activity size={14} />{lang === 'ar' ? 'لقطة حيّة' : 'Live snapshot'}</span><strong>{data.Machine || '—'}</strong><small>{data.Os || '—'}</small></aside>
+      <div className="health-copy"><p>{lang === 'ar' ? 'تطبيق إصلاح النظام' : 'System repair application'}</p><h2>{reviewCount ? (lang === 'ar' ? `${reviewCount} إشارات تحتاج مراجعة` : `${reviewCount} signals need review`) : (lang === 'ar' ? 'جاهز للتشخيص الكامل' : 'Ready for full diagnosis')}</h2><span>{lang === 'ar' ? 'يعرض هذا الاستوديو خطة إصلاح مفهومة فوق محركات Windows الحقيقية دون كشف أوامر PowerShell كواجهة أساسية.' : 'This studio presents a clear repair plan over real Windows engines without exposing PowerShell as the primary experience.'}</span>{onRunHealthCheck && <button type="button" className="product-primary-action" onClick={onRunHealthCheck}><HeartPulse size={16} />{lang === 'ar' ? 'بدء مراجعة التشخيص' : 'Start diagnosis review'}</button>}</div>
+      <div className="health-score" style={{ '--score': `${(100 - reviewCount * 16) * 3.6}deg` } as React.CSSProperties}><div><b>{Math.max(52, 100 - reviewCount * 16)}</b><span>/ 100</span><small>{lang === 'ar' ? 'جاهزية الإصلاح' : 'repair readiness'}</small></div></div>
+      <aside className="health-live-summary"><span><DatabaseZap size={14} />{lang === 'ar' ? 'بيانات حية' : 'Live evidence'}</span><strong>{data.Machine || '—'}</strong><small>{data.Os || '—'} · build {data.Build || '—'}</small></aside>
     </section>
-    <section className="health-status-grid">{healthItems.map((item) => { const Icon = item.icon; return <article className={item.good ? 'is-good' : 'is-review'} key={item.label}><span><Icon size={17} /></span><div><small>{item.label}</small><strong>{item.value}</strong></div>{item.good ? <CheckCircle2 size={16} /> : <CircleAlert size={16} />}</article>; })}</section>
-    <section className="health-metric-ribbon"><Metric icon={Cpu} label={lang === 'ar' ? 'المعالج' : 'CPU'} value={`${data.CpuLoad}%`} /><Metric icon={Gauge} label={lang === 'ar' ? 'الذاكرة المتاحة' : 'Free memory'} value={`${number(data.FreeRamGB, lang)} GB`} /><Metric icon={TimerReset} label={lang === 'ar' ? 'وقت التشغيل' : 'Uptime'} value={`${Math.floor(data.UptimeSeconds / 3600)}h`} /><Metric icon={Activity} label={lang === 'ar' ? 'التطبيقات' : 'Processes'} value={number(data.Processes, lang)} /></section>
-    <section className="health-drive-deck"><div className="app-section-title"><div><p>{lang === 'ar' ? 'مساحة الجهاز' : 'Device storage'}</p><h2>{lang === 'ar' ? 'الأقراص المتصلة' : 'Connected drives'}</h2></div><span className="product-evidence-badge"><DatabaseZap size={13} />{lang === 'ar' ? 'بيانات الجهاز' : 'Device data'}</span></div>{data.Drives.map((drive) => <div className="health-drive" key={drive.Name}><span>{drive.Name}</span><div><i style={{ width: `${percent(100 - (drive.FreeGB / Math.max(1, drive.TotalGB)) * 100)}%` }} /></div><strong>{number(drive.FreeGB, lang)} GB {text.free}</strong></div>)}</section>
+    <section className="network-pipeline"><div className="app-section-title"><div><p>{lang === 'ar' ? 'دورة الإصلاح' : 'Repair lifecycle'}</p><h2>{lang === 'ar' ? 'اكتشاف ← تحليل ← خطة ← تأكيد ← تنفيذ ← تحقق ← تقرير' : 'Discover → Analyze → Plan → Confirm → Execute → Verify → Report'}</h2></div><span className="product-evidence-badge"><ShieldCheck size={13} />{lang === 'ar' ? 'آمن افتراضياً' : 'Safe by default'}</span></div><div>{checks.map((check, index) => <article className={check.state === 'passed' ? 'is-passed' : check.state === 'review' ? 'is-review' : ''} key={check.label}><span>{check.state === 'passed' ? <CheckCircle2 size={16} /> : check.state === 'review' ? <CircleAlert size={16} /> : <ScanSearch size={16} />}</span><div><strong>{index + 1}. {check.label}</strong><small>{check.detail}</small></div></article>)}</div></section>
+    <section className="product-findings">{plan.map((item, index) => <article key={item}><span className="signal-level low" /><div><strong>{lang === 'ar' ? `الخطوة ${index + 1}` : `Step ${index + 1}`}</strong><small>{item}</small></div><ChevronRight size={16} className="rtl:rotate-180" /></article>)}</section>
+    <section className="cleaner-review-summary"><div><span>{lang === 'ar' ? 'التفاصيل الفنية' : 'Technical details'}</span><strong>{lang === 'ar' ? 'SFC / DISM / Windows services خلف طبقة التنفيذ' : 'SFC / DISM / Windows services behind the execution layer'}</strong><small>{lang === 'ar' ? 'ستظهر المخرجات الخام فقط من لوحة التفاصيل المتقدمة بعد التشغيل.' : 'Raw output is reserved for advanced details after execution.'}</small></div><ShieldCheck size={22} /></section>
   </div>;
 }
 
@@ -262,7 +271,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
   const content = useMemo(() => {
     if (!available || !data) return null;
     switch (activeSection) {
-      case 'maintenance': return <HealthApp data={data as SystemSnapshot} lang={lang} onRunHealthCheck={healthReviewTool ? () => launch(healthReviewTool) : undefined} />;
+      case 'maintenance': return <SystemRepairApp data={data as SystemSnapshot} lang={lang} onRunHealthCheck={healthReviewTool ? () => launch(healthReviewTool) : undefined} />;
       case 'cleanup': return <CleanerApp data={data as CleanupPreview} lang={lang} reviewableToolIds={reviewableToolIds} onReviewTarget={launchToolById} />;
       case 'performance': return <PerformanceApp data={data as OptimizationPreview} lang={lang} reviewableToolIds={reviewableToolIds} onReviewSignal={launchToolById} />;
       case 'disk': return <StorageApp data={data as SystemSnapshot} lang={lang} />;
