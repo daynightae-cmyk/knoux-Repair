@@ -135,7 +135,6 @@
     <sys:String x:Key="ActionClose">Close</sys:String>
     <sys:String x:Key="ActionMinimize">Minimize</sys:String>
     <sys:String x:Key="ActionMaximize">Maximize</sys:String>
-    <sys:String x:Key="ActionRestore">Restore</sys:String>
     <sys:String x:Key="ActionNotifications">Notifications</sys:String>
     <sys:String x:Key="ActionViewReport">View Report</sys:String>
     <sys:String x:Key="ActionReturnWorkspace">Return to Workspace</sys:String>

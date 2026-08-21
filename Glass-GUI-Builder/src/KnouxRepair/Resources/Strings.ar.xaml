@@ -132,7 +132,6 @@
     <sys:String x:Key="ActionClose">إغلاق</sys:String>
     <sys:String x:Key="ActionMinimize">تصغير</sys:String>
     <sys:String x:Key="ActionMaximize">تكبير</sys:String>
-    <sys:String x:Key="ActionRestore">استعادة</sys:String>
     <sys:String x:Key="ActionNotifications">الإشعارات</sys:String>
 
     <!-- Tool -->

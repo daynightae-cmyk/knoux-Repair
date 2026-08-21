@@ -25,3 +25,9 @@ Tests/TEST-RESULTS.txt
 # Local agent configuration and diagnostic captures
 .claude/
 Diagnostics/
+
+# Generated release and NSIS toolchain artifacts
+/Release/
+/release-staging/
+/Installer/Release/
+/Installer/tools/
