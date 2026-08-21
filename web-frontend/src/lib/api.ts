@@ -12,6 +12,9 @@ export interface ToolRunOptions {
   localSourceIndex?: number;
   quick?: boolean;
   packageId?: string;
+  duplicatePreviewId?: string;
+  duplicateKeepPaths?: Array<{ groupId: string; keepPath: string }>;
+  quarantineIds?: string[];
 }
 
 export interface BridgeTool {
@@ -359,7 +362,11 @@ export interface SoftwarePreview {
   Safety: { ChangesMade: boolean; InventorySources: string[] };
 }
 
+export type DuplicateFileType = 'all' | 'images' | 'video' | 'documents' | 'audio' | 'archives' | 'other';
+export type DuplicateKeeperPolicy = 'OldestThenAlphabetical' | 'Newest';
+
 export interface DuplicatePreviewFile {
+
   Path: string;
   Name: string;
   Extension: string;
@@ -373,19 +380,41 @@ export interface DuplicatePreviewGroup {
   Copies: number;
   DuplicateCopies: number;
   RecoverableBytes: number;
-  KeepPath: string;
+    KeepPath: string;
+  HardLinkInvolved?: boolean;
   Files: DuplicatePreviewFile[];
+
 }
 
 export interface DuplicatePreview {
+    PreviewId: string;
+  PreviewExpiresAt: string;
   Folder: string;
+  FileTypes: DuplicateFileType[];
+  KeeperPolicy: DuplicateKeeperPolicy;
   FilesObserved: number;
+
   Groups: DuplicatePreviewGroup[];
   GroupCount: number;
   DuplicateCopies: number;
   RecoverableBytes: number;
   Truncated: boolean;
   Safety: { ChangesMade: boolean; HashByteBudget: string; MaxGroupsShown: number };
+}
+
+export interface DuplicateQuarantineEntry {
+  QuarantineId: string;
+  ToolId: string;
+  OriginalPath: string;
+  QuarantinePath: string;
+  OriginalSize: number;
+  QuarantinedAt: string;
+  TransactionState: string;
+}
+export interface DuplicateQuarantinePreview {
+  QuarantineRoot: string;
+  Entries: DuplicateQuarantineEntry[];
+  Truncated: boolean;
 }
 
 export interface ProjectSonarExport {
@@ -502,7 +531,14 @@ export const api = {
   folderRoots: () => request<{ roots: LocalFolderRoot[] }>('/api/folders/roots', undefined, 15000),
   folders: (folderPath?: string) => request<LocalFolderListing>(`/api/folders${folderPath ? `?path=${encodeURIComponent(folderPath)}` : ''}`, undefined, 15000),
     sonarPreview: (folderPath: string) => request<{ preview: ProjectSonarPreview }>(`/api/sonar/preview?path=${encodeURIComponent(folderPath)}`, undefined, 125000),
-  duplicatePreview: (folderPath: string) => request<{ preview: DuplicatePreview }>(`/api/duplicates/preview?path=${encodeURIComponent(folderPath)}`, undefined, 125000),
+    duplicatePreview: (folderPath: string, options: { types?: DuplicateFileType[]; keeperPolicy?: DuplicateKeeperPolicy } = {}) => {
+    const query = new URLSearchParams({ path: folderPath });
+    if (options.types?.length) query.set('types', options.types.join(','));
+    if (options.keeperPolicy) query.set('keeper', options.keeperPolicy);
+    return request<{ preview: DuplicatePreview }>(`/api/duplicates/preview?${query.toString()}`, undefined, 125000);
+  },
+  duplicateQuarantine: () => request<{ quarantine: DuplicateQuarantinePreview }>('/api/duplicates/quarantine', undefined, 30000),
+
   softwarePreview: () => request<{ preview: SoftwarePreview }>('/api/software/preview', undefined, 125000),
   networkPreview: () => request<{ preview: NetworkPreview }>('/api/network/preview', undefined, 125000),
   operationsPreview: () => request<{ preview: OperationsPreview }>('/api/operations/preview', undefined, 125000),

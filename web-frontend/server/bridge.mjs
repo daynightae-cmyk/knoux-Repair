@@ -50,6 +50,8 @@ const OPENROUTER_CONFIGURED = Boolean(process.env.OPENROUTER_API_KEY && /^sk-or-
 const SONAR_EXPORT_DIR = path.join(REPO_ROOT, 'Reports', 'Project-Sonar-Exports');
 const SONAR_EXPORT_TTL_MS = 60 * 60 * 1000;
 const sonarExports = new Map();
+const DUPLICATE_PREVIEW_TTL_MS = 20 * 60 * 1000;
+const duplicatePreviews = new Map();
 
 /* ---------------- local OAuth access control ----------------
  * OAuth tokens never leave this process. The browser receives only an HttpOnly
@@ -347,7 +349,44 @@ function optionArguments(scriptPath, options = {}) {
     }
     args.push('-PackageId', packageId);
   }
+
+  const quarantineIds = Array.isArray(options.quarantineIds) ? options.quarantineIds.map((id) => String(id).trim()).filter(Boolean) : [];
+  if (quarantineIds.length) {
+    if (!supported.has('QuarantineIds') || quarantineIds.length > 100 || quarantineIds.some((id) => !/^[a-fA-F0-9]{32}$/.test(id))) {
+      throw Object.assign(new Error('Only valid selected quarantine identifiers can be restored.'), { status: 400, code: 'INVALID_QUARANTINE_SELECTION' });
+    }
+    args.push('-QuarantineIds', quarantineIds.join(','));
+  }
   return args;
+}
+
+function clearExpiredDuplicatePreviews() {
+  const now = Date.now();
+  for (const [id, value] of duplicatePreviews) if (value.expiresAt < now) duplicatePreviews.delete(id);
+}
+
+function buildDuplicatePlanArgs(toolId, options = {}) {
+  if (toolId !== 'DF02' || !options.duplicatePreviewId) return { args: [], tempFiles: [] };
+  clearExpiredDuplicatePreviews();
+  const previewId = typeof options.duplicatePreviewId === 'string' ? options.duplicatePreviewId.trim() : '';
+  const snapshot = duplicatePreviews.get(previewId);
+  if (!snapshot) throw Object.assign(new Error('This duplicate preview expired. Scan again before quarantining files.'), { status: 409, code: 'DUPLICATE_PREVIEW_EXPIRED' });
+  const requested = Array.isArray(options.duplicateKeepPaths) ? options.duplicateKeepPaths : [];
+  if (!requested.length || requested.length > snapshot.preview.Groups.length) throw Object.assign(new Error('Select at least one duplicate group and its retained file.'), { status: 400, code: 'DUPLICATE_PLAN_INVALID' });
+  const seenGroups = new Set();
+  const planGroups = requested.map((item) => {
+    const groupId = typeof item?.groupId === 'string' ? item.groupId : '';
+    const keepPath = typeof item?.keepPath === 'string' ? item.keepPath : '';
+    const group = snapshot.preview.Groups.find((candidate) => candidate.Id === groupId);
+    if (!group || !keepPath || seenGroups.has(groupId) || !group.Files.some((file) => file.Path === keepPath)) {
+      throw Object.assign(new Error('The selected retained file does not belong to the current duplicate preview.'), { status: 400, code: 'DUPLICATE_PLAN_INVALID' });
+    }
+    seenGroups.add(groupId);
+    return { Hash: group.Hash, KeepPath: keepPath, Paths: group.Files.map((file) => file.Path) };
+  });
+  const planPath = path.join(os.tmpdir(), `knoux-duplicate-plan-${crypto.randomUUID()}.json`);
+  fs.writeFileSync(planPath, JSON.stringify({ Version: 1, Folder: snapshot.preview.Folder, Groups: planGroups }), { encoding: 'utf8', mode: 0o600 });
+  return { args: ['-PlanPath', planPath], tempFiles: [planPath] };
 }
 
 function createRun(toolId, mode = 'run', options = {}) {
@@ -368,9 +407,11 @@ function createRun(toolId, mode = 'run', options = {}) {
     );
   }
 
-  const args = [...executionArguments(tool, scriptPath, mode), ...optionArguments(scriptPath, options)];
+    const duplicatePlan = buildDuplicatePlanArgs(toolId, options);
+  const args = [...executionArguments(tool, scriptPath, mode), ...optionArguments(scriptPath, options), ...duplicatePlan.args];
 
   const run = {
+
     id: crypto.randomUUID(),
     toolId,
     toolName: tool.EnglishName,
@@ -383,8 +424,10 @@ function createRun(toolId, mode = 'run', options = {}) {
     error: null,
     cancelled: false,
     child: null,
-    timer: null,
+        timer: null,
+    tempFiles: duplicatePlan.tempFiles,
   };
+
   runs.set(run.id, run);
 
   const child = spawn(PS, [
@@ -447,6 +490,7 @@ function finishRun(runId, exitCode, reason) {
     run.status = exitCode === 0 ? 'success' : 'error';
     if (exitCode !== 0) run.error = `Tool exited with code ${exitCode}.`;
   }
+  for (const tempPath of run.tempFiles || []) { try { fs.unlinkSync(tempPath); } catch { /* non-critical temporary plan cleanup */ } }
   if (activeRunId === runId) activeRunId = null;
 }
 
@@ -591,17 +635,22 @@ function getProjectSonarPreview(value) {
   }
 }
 
-function getDuplicatePreview(value) {
+function getDuplicatePreview(value, typeQuery = '', keeperPolicy = 'OldestThenAlphabetical') {
+
   const folder = resolveBrowsePath(value);
   const tool = manifest.get('DF11');
   const scriptPath = tool ? path.resolve(REPO_ROOT, tool.ScriptPath) : '';
   if (!tool || !scriptPath.startsWith(REPO_ROOT + path.sep) || menuIndex.get('DF11') !== tool.ScriptPath || !fs.existsSync(scriptPath)) {
     throw Object.assign(new Error('Duplicate preview is not registered or unavailable.'), { status: 500, code: 'DUPLICATE_PREVIEW_UNAVAILABLE' });
   }
+    const requestedTypes = String(typeQuery || 'all').split(',').map((value) => value.trim().toLowerCase()).filter((value) => ['all','images','video','documents','audio','archives','other'].includes(value));
+  const safeTypes = requestedTypes.includes('all') || !requestedTypes.length ? ['all'] : [...new Set(requestedTypes)];
+  const safePolicy = keeperPolicy === 'Newest' ? 'Newest' : 'OldestThenAlphabetical';
   const result = spawnSync(PS, [
     '-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-    '-File', scriptPath, '-AnalyzeOnly', '-EmitJson', '-LocalSourcePath', folder,
+    '-File', scriptPath, '-AnalyzeOnly', '-EmitJson', '-LocalSourcePath', folder, '-FileTypes', ...safeTypes, '-KeeperPolicy', safePolicy,
   ], { encoding: 'utf8', timeout: 120000, maxBuffer: 3 * 1024 * 1024, windowsHide: true, cwd: REPO_ROOT });
+
   const output = String(result.stdout || '');
   const start = output.indexOf('---KNOUX_DUPLICATES_JSON_START---');
   const end = output.indexOf('---KNOUX_DUPLICATES_JSON_END---');
@@ -611,12 +660,41 @@ function getDuplicatePreview(value) {
     throw Object.assign(new Error(detail), { status: 500, code: 'DUPLICATE_PREVIEW_FAILED' });
   }
   const jsonText = output.slice(start + '---KNOUX_DUPLICATES_JSON_START---'.length, end).trim();
-  try { return JSON.parse(jsonText); } catch {
+    try {
+    const preview = JSON.parse(jsonText);
+    clearExpiredDuplicatePreviews();
+    const previewId = crypto.randomUUID();
+    duplicatePreviews.set(previewId, { preview, expiresAt: Date.now() + DUPLICATE_PREVIEW_TTL_MS });
+    return { ...preview, PreviewId: previewId, PreviewExpiresAt: new Date(Date.now() + DUPLICATE_PREVIEW_TTL_MS).toISOString() };
+  } catch {
     throw Object.assign(new Error('Duplicate preview returned malformed structured output.'), { status: 500, code: 'DUPLICATE_PREVIEW_INVALID' });
   }
 }
 
+function getDuplicateQuarantine() {
+  const root = path.join(REPO_ROOT, 'Quarantine');
+  const entries = [];
+  if (!fs.existsSync(root)) return { QuarantineRoot: root, Entries: entries };
+  for (const toolDir of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!toolDir.isDirectory() || !/^DF/i.test(toolDir.name)) continue;
+    const toolPath = path.join(root, toolDir.name);
+    for (const idDir of fs.readdirSync(toolPath, { withFileTypes: true })) {
+      if (!idDir.isDirectory()) continue;
+      const metaPath = path.join(toolPath, idDir.name, 'quarantine-meta.json');
+      if (!fs.existsSync(metaPath)) continue;
+      try {
+        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+        if (typeof meta.QuarantineId !== 'string' || typeof meta.OriginalPath !== 'string') continue;
+        entries.push({ QuarantineId: meta.QuarantineId, ToolId: meta.ToolId || toolDir.name, OriginalPath: meta.OriginalPath, QuarantinePath: meta.QuarantinePath || '', OriginalSize: Number(meta.OriginalSize || 0), QuarantinedAt: meta.QuarantinedAt || '', TransactionState: meta.TransactionState || 'Unknown' });
+      } catch { /* malformed metadata is ignored and remains untouched on disk */ }
+    }
+  }
+  entries.sort((a, b) => String(b.QuarantinedAt).localeCompare(String(a.QuarantinedAt)) || a.OriginalPath.localeCompare(b.OriginalPath));
+  return { QuarantineRoot: root, Entries: entries.slice(0, 500), Truncated: entries.length > 500 };
+}
+
 function getSoftwarePreview() {
+
   const tool = manifest.get('SW07');
   const scriptPath = tool ? path.resolve(REPO_ROOT, tool.ScriptPath) : '';
   if (!tool || !scriptPath.startsWith(REPO_ROOT + path.sep) || menuIndex.get('SW07') !== tool.ScriptPath || !fs.existsSync(scriptPath)) {
@@ -999,7 +1077,11 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'preview') {
       const requestedPath = url.searchParams.get('path') || '';
-      return sendJson(res, 200, { ok: true, preview: getDuplicatePreview(requestedPath) }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: getDuplicatePreview(requestedPath, url.searchParams.get('types') || '', url.searchParams.get('keeper') || 'OldestThenAlphabetical') }, corsHeaders);
+    }
+
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'quarantine') {
+      return sendJson(res, 200, { ok: true, quarantine: getDuplicateQuarantine() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'sonar' && pathParts[2] === 'preview') {

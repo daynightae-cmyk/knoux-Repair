@@ -32,6 +32,7 @@ const COPY = {
     workspaceHint: 'Choose the local project folder. The selected path is passed only to this workspace-aware tool.',
     targetFolder: 'Selected folder',
     targetFolderHint: 'Choose the local folder that this tool will inspect. The path is validated before it reaches the registered script.',
+    lockedPlanFolder: 'This folder is locked to the reviewed duplicate plan. Cancel and scan again to choose another location.',
 
     browse: 'Browse folders',
     sourceIndex: 'Source image index',
@@ -44,7 +45,10 @@ const COPY = {
     recoveryAck: 'I reviewed the listed recovery safeguard and rollback path.',
     wait: 'Safety delay: wait {seconds}s before execution.',
     continue: 'Continue with confirmed action',
-    protected: 'No simulated action is performed. The bridge invokes only the manifest-registered PowerShell script.',
+        protected: 'No simulated action is performed. The bridge invokes only the manifest-registered PowerShell script.',
+    duplicatePlan: 'Selected duplicate groups',
+    restorePlan: 'Selected quarantine items',
+
   },
   ar: {
     title: 'تأكيد التنفيذ الفعلي',
@@ -64,6 +68,7 @@ const COPY = {
     workspaceHint: 'اختر مجلد المشروع المحلي. لا يمرر المسار إلا إلى الأداة الحالية المرتبطة بمساحة العمل.',
     targetFolder: 'المجلد المختار',
     targetFolderHint: 'اختر المجلد المحلي الذي ستفحصه الأداة. يتحقق الجسر من المسار قبل تمريره إلى السكربت المسجل.',
+    lockedPlanFolder: 'هذا المجلد مقفل بخطة التكرارات التي راجعتها. ألغِ ثم افحص من جديد لاختيار موقع آخر.',
 
     browse: 'تصفّح المجلدات',
     sourceIndex: 'فهرس صورة المصدر',
@@ -76,7 +81,10 @@ const COPY = {
     recoveryAck: 'راجعت ضمان الاسترداد ومسار التراجع المذكورين.',
     wait: 'مهلة أمان: انتظر {seconds} ث قبل التنفيذ.',
     continue: 'المتابعة بالإجراء المؤكد',
-    protected: 'لا يُنفذ أي إجراء محاكى. يستدعي الجسر سكربت PowerShell المسجل في ملف الأدوات فقط.',
+        protected: 'لا يُنفذ أي إجراء محاكى. يستدعي الجسر سكربت PowerShell المسجل في ملف الأدوات فقط.',
+    duplicatePlan: 'مجموعات التكرارات المحددة',
+    restorePlan: 'عناصر الحجر المحددة',
+
   },
 };
 
@@ -102,7 +110,9 @@ export default function ExecutionConfirmDialog({ tool, mode, lang, onConfirm, on
   const needsSource = params.has('LocalSourcePath');
   const needsSourceIndex = params.has('LocalSourceIndex');
   const needsPackageId = params.has('PackageId');
-  const supportsQuick = params.has('Quick');
+    const supportsQuick = params.has('Quick');
+  const lockedDuplicatePlan = Boolean(initialOptions.duplicatePreviewId);
+
     const isDeveloperWorkspace = ['12-Developer-Tools', '18-Project-Sonar'].includes(tool.Category) && needsSource;
   const isFolderTarget = (isDeveloperWorkspace || ['05-Duplicate-Files', '11-Backup-Recovery'].includes(tool.Category)) && needsSource;
 
@@ -129,13 +139,15 @@ export default function ExecutionConfirmDialog({ tool, mode, lang, onConfirm, on
 
   const confirm = () => {
     if (!canConfirm) return;
-    onConfirm({
+        onConfirm({
+      ...initialOptions,
       selection: selection.trim() || undefined,
       localSourcePath: localSourcePath.trim() || undefined,
       localSourceIndex: localSourceIndex.trim() ? Number(localSourceIndex) : undefined,
       packageId: packageId.trim() || undefined,
       quick: supportsQuick ? quick : undefined,
     });
+
   };
 
   return (
@@ -159,9 +171,13 @@ export default function ExecutionConfirmDialog({ tool, mode, lang, onConfirm, on
           <div><dt>{text.risk}</dt><dd>{tool.RiskLevel.replace(/_/g, ' ')}</dd></div>
           <div><dt>{text.backup}</dt><dd>{tool.BackupMethod || '—'}</dd></div>
           <div><dt>{text.rollback}</dt><dd>{tool.RollbackMethod || '—'}</dd></div>
-        </dl>
+                </dl>
+
+        {initialOptions.duplicateKeepPaths?.length ? <p className="execution-dialog-contract"><ShieldCheck size={14} /> {text.duplicatePlan}: {initialOptions.duplicateKeepPaths.length}</p> : null}
+        {initialOptions.quarantineIds?.length ? <p className="execution-dialog-contract"><ShieldCheck size={14} /> {text.restorePlan}: {initialOptions.quarantineIds.length}</p> : null}
 
         {needsSelection && (
+
           <label className="execution-dialog-field">
             <span><FileKey2 size={14} /> {text.selection}</span>
             <input value={selection} onChange={(event) => setSelection(event.target.value)} placeholder="1,3,5" autoFocus />
@@ -174,11 +190,11 @@ export default function ExecutionConfirmDialog({ tool, mode, lang, onConfirm, on
                         <span><FolderOpen size={14} /> {isDeveloperWorkspace ? text.workspace : isFolderTarget ? text.targetFolder : text.source}</span>
             {isFolderTarget ? (
               <div className="execution-dialog-path-control">
-                <input value={localSourcePath} onChange={(event) => setLocalSourcePath(event.target.value)} placeholder={isDeveloperWorkspace ? 'D:\\Projects\\my-app' : 'D:\\Photos\\archive'} />
-                <button type="button" onClick={() => setFolderPickerOpen(true)}>{text.browse}</button>
+                <input value={localSourcePath} readOnly={lockedDuplicatePlan} onChange={(event) => setLocalSourcePath(event.target.value)} placeholder={isDeveloperWorkspace ? 'D:\\Projects\\my-app' : 'D:\\Photos\\archive'} />
+                {!lockedDuplicatePlan && <button type="button" onClick={() => setFolderPickerOpen(true)}>{text.browse}</button>}
               </div>
             ) : <input value={localSourcePath} onChange={(event) => setLocalSourcePath(event.target.value)} placeholder="D:\\sources\\install.wim" />}
-            <small>{isDeveloperWorkspace ? text.workspaceHint : isFolderTarget ? text.targetFolderHint : text.sourceHint}</small>
+            <small>{lockedDuplicatePlan ? text.lockedPlanFolder : isDeveloperWorkspace ? text.workspaceHint : isFolderTarget ? text.targetFolderHint : text.sourceHint}</small>
 
           </label>
         )}

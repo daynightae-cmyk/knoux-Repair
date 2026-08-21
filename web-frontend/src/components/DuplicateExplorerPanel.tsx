@@ -1,90 +1,40 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Copy, FileSearch, FolderOpen, Image, Radar, ScanSearch, ShieldCheck } from 'lucide-react';
-import { api, type BridgeTool, type DuplicatePreview } from '../lib/api';
+import { AlertTriangle, Archive, AudioLines, CheckCircle2, ChevronDown, ChevronUp, Clock3, Copy, FileText, FolderOpen, Image, LoaderCircle, LockKeyhole, RefreshCw, ScanSearch, ShieldCheck, SlidersHorizontal, Undo2, Video } from 'lucide-react';
+import { api, type BridgeTool, type DuplicateFileType, type DuplicateKeeperPolicy, type DuplicatePreview, type DuplicateQuarantineEntry } from '../lib/api';
 import type { Lang } from '../lib/i18n';
 import WorkspaceFolderPicker from './WorkspaceFolderPicker';
 
-interface DuplicateExplorerPanelProps {
-  lang: Lang;
-  tools: BridgeTool[];
-  onRequestExecution: (tool: BridgeTool, options: { localSourcePath: string }) => void;
-}
-
-const COPY = {
-  en: {
-    kicker: 'Duplicate evidence laboratory', title: 'Scan the folder you choose — not a hidden default', body: 'The scanner hashes eligible files inside the selected folder, groups byte-identical copies, and shows the intended retained file before any quarantine workflow.', choose: 'Choose folder', scan: 'Scan selected folder', scanning: 'Hashing local evidence…', chooseFirst: 'Choose a folder first', files: 'files observed', groups: 'duplicate groups', copies: 'extra copies', reclaim: 'recoverable', clear: 'No duplicate groups were found in the bounded scan.', results: 'Evidence queue', retain: 'Keep', candidates: 'copies in this group', seeFiles: 'Show files', hideFiles: 'Hide files', preview: 'Read-only preview', safe: 'No files are moved or deleted during this scan.', next: 'Open confirmed quarantine', nextHint: 'Uses the selected folder and the existing mandatory confirmation flow.', truncated: 'Only the first visible groups are shown. The report retains the full bounded evidence set.', error: 'The duplicate preview could not complete.',
-  },
-  ar: {
-    kicker: 'مختبر أدلة التكرار', title: 'افحص المجلد الذي تختاره — لا مسارًا افتراضيًا مخفيًا', body: 'يحسب الفاحص بصمات الملفات المؤهلة داخل المجلد المختار، ويجمع النسخ المتطابقة بالبايت، ويعرض الملف الذي سيُحتفظ به قبل أي مسار عزل.', choose: 'اختيار مجلد', scan: 'فحص المجلد المختار', scanning: 'يجري حساب بصمات الأدلة المحلية…', chooseFirst: 'اختر مجلدًا أولًا', files: 'ملف مرصود', groups: 'مجموعة مكررة', copies: 'نسخة زائدة', reclaim: 'قابل للاسترداد', clear: 'لم تُكتشف مجموعات مكررة ضمن نافذة الفحص المحددة.', results: 'طابور الأدلة', retain: 'يُحتفظ بـ', candidates: 'نسخ في هذه المجموعة', seeFiles: 'عرض الملفات', hideFiles: 'إخفاء الملفات', preview: 'معاينة للقراءة فقط', safe: 'لا يُنقل أو يُحذف أي ملف أثناء هذا الفحص.', next: 'فتح العزل المؤكد', nextHint: 'يستخدم المجلد المختار ومسار التأكيد الإلزامي الموجود.', truncated: 'يظهر أول مجموعات الأدلة فقط، بينما يحتفظ التقرير بمجموعة الأدلة المحددة كاملة.', error: 'تعذر إكمال معاينة التكرارات.',
-  },
-};
-
-function formatBytes(value: number, lang: Lang) {
-  if (!Number.isFinite(value) || value <= 0) return lang === 'ar' ? '0 بايت' : '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
-  return `${(value / (1024 ** index)).toLocaleString(lang === 'ar' ? 'ar' : 'en', { maximumFractionDigits: 1 })} ${units[index]}`;
-}
-
-export default function DuplicateExplorerPanel({ lang, tools, onRequestExecution }: DuplicateExplorerPanelProps) {
-  const text = COPY[lang];
-  const [folder, setFolder] = useState('');
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [preview, setPreview] = useState<DuplicatePreview | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [openGroup, setOpenGroup] = useState<string | null>(null);
-  const quarantineTool = tools.find((tool) => tool.ToolId === 'DF02') || tools.find((tool) => tool.ToolId === 'DF03');
-  const groups = useMemo(() => preview?.Groups || [], [preview]);
-
-  const scan = async () => {
-    if (!folder || loading) return;
-    setLoading(true); setError(''); setPreview(null); setOpenGroup(null);
-    try { setPreview((await api.duplicatePreview(folder)).preview); }
-    catch (e) { setError(e instanceof Error ? e.message : text.error); }
-    finally { setLoading(false); }
-  };
-
-  return (
-    <aside className="duplicate-explorer" aria-label={text.title}>
-      <div className="duplicate-explorer-glow" />
-      <header className="duplicate-explorer-head">
-        <div className="duplicate-explorer-radar"><Radar size={24} className={loading ? 'is-scanning' : ''} /></div>
-        <div><p className="eyebrow">{text.kicker}</p><h3>{text.title}</h3><p>{text.body}</p></div>
-        <span className="duplicate-explorer-safe"><ShieldCheck size={13} />{text.preview}</span>
-      </header>
-
-      <div className="duplicate-explorer-controls">
-        <div className="duplicate-explorer-path"><FolderOpen size={16} /><span>{folder || text.chooseFirst}</span></div>
-        <button type="button" onClick={() => setPickerOpen(true)}><FolderOpen size={15} />{text.choose}</button>
-        <button type="button" className="is-primary" onClick={scan} disabled={!folder || loading}><ScanSearch size={15} className={loading ? 'is-spinning' : ''} />{loading ? text.scanning : text.scan}</button>
-      </div>
-
-      <div className="duplicate-explorer-live" aria-live="polite">
-        <span><FileSearch size={14} /><b>{preview?.FilesObserved?.toLocaleString() || '—'}</b>{text.files}</span>
-        <span><Copy size={14} /><b>{preview?.GroupCount ?? '—'}</b>{text.groups}</span>
-        <span><Image size={14} /><b>{preview?.DuplicateCopies ?? '—'}</b>{text.copies}</span>
-        <span><CheckCircle2 size={14} /><b>{preview ? formatBytes(preview.RecoverableBytes, lang) : '—'}</b>{text.reclaim}</span>
-      </div>
-
-      {error && <p className="duplicate-explorer-error"><AlertTriangle size={15} />{error}</p>}
-      {preview && <>
-        <div className="duplicate-explorer-safety"><ShieldCheck size={15} />{text.safe}</div>
-        <div className="duplicate-explorer-results"><div className="duplicate-explorer-results-head"><strong>{text.results}</strong><span>{preview.Folder}</span></div>
-          {!groups.length && <div className="duplicate-explorer-empty"><CheckCircle2 size={19} />{text.clear}</div>}
-          {groups.map((group, index) => {
-            const expanded = openGroup === group.Id;
-            return <article className="duplicate-group" key={group.Id}>
-              <div className="duplicate-group-main"><span className="duplicate-group-index">{index + 1}</span><div><b>{group.Copies} {text.candidates}</b><p>{formatBytes(group.RecoverableBytes, lang)} {text.reclaim}</p></div><button type="button" onClick={() => setOpenGroup(expanded ? null : group.Id)}>{expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}{expanded ? text.hideFiles : text.seeFiles}</button></div>
-              <p className="duplicate-group-keep"><ShieldCheck size={13} /><span>{text.retain}</span><code>{group.KeepPath}</code></p>
-              {expanded && <div className="duplicate-group-files">{group.Files.map((file) => <div key={file.Path} className={file.Path === group.KeepPath ? 'is-retained' : ''}><span>{file.Path === group.KeepPath ? text.retain : file.Name}</span><code>{file.Path}</code><small>{formatBytes(file.SizeBytes, lang)}</small></div>)}</div>}
-            </article>;
-          })}
-        </div>
-        {preview.Truncated && <p className="duplicate-explorer-note">{text.truncated}</p>}
-        {quarantineTool && groups.length > 0 && <div className="duplicate-explorer-next"><div><strong>{text.next}</strong><p>{text.nextHint}</p></div><button type="button" onClick={() => onRequestExecution(quarantineTool, { localSourcePath: folder })}><ShieldCheck size={15} />{text.next}</button></div>}
-      </>}
-      {pickerOpen && <WorkspaceFolderPicker lang={lang} initialPath={folder} onClose={() => setPickerOpen(false)} onSelect={(path) => { setFolder(path); setPickerOpen(false); setPreview(null); setError(''); }} />}
-    </aside>
-  );
+interface Props { lang: Lang; tools: BridgeTool[]; onRequestExecution: (tool: BridgeTool, options: { localSourcePath?: string; duplicatePreviewId?: string; duplicateKeepPaths?: Array<{ groupId: string; keepPath: string }>; quarantineIds?: string[] }) => void; }
+type TypeCard = { id: DuplicateFileType; icon: typeof Image; en: string; ar: string; hint: string };
+const TYPES: TypeCard[] = [
+  { id: 'all', icon: Copy, en: 'All eligible files', ar: 'كل الملفات المؤهلة', hint: 'Any supported format' },
+  { id: 'images', icon: Image, en: 'Photos', ar: 'الصور', hint: 'JPG, PNG, HEIC…' },
+  { id: 'video', icon: Video, en: 'Video', ar: 'الفيديو', hint: 'MP4, MOV, MKV…' },
+  { id: 'documents', icon: FileText, en: 'Documents', ar: 'المستندات', hint: 'PDF, Office, TXT…' },
+  { id: 'audio', icon: AudioLines, en: 'Audio', ar: 'الصوتيات', hint: 'MP3, WAV, FLAC…' },
+  { id: 'archives', icon: Archive, en: 'Archives', ar: 'الأرشيفات', hint: 'ZIP, RAR, 7Z…' },
+];
+const COPY = { en: { kicker: 'Duplicate control center', title: 'Choose what to scan. Keep exactly what you want.', body: 'No hidden default folders. First choose a location and file types, then inspect every identical-file group before sending only selected copies to recoverable quarantine.', place: '1. Choose a location', choose: 'Browse folders', noFolder: 'Choose a folder to begin', types: '2. Choose file types', policy: '3. Choose the automatic keeper', oldest: 'Keep oldest file', newest: 'Keep newest file', policyHint: 'You can override the retained file per group after the scan.', scan: 'Scan selected files', scanning: 'Creating a read-only fingerprint preview…', preview: 'Preview results', files: 'files checked', groups: 'duplicate groups', copies: 'extra copies', reclaim: 'recoverable', keep: 'Keep this file', hardLink: 'Linked files are shown but excluded from automatic quarantine.', selected: 'selected groups', quarantine: 'Quarantine selected copies', quarantineHint: 'Files move to recoverable quarantine only after the mandatory confirmation.', noResults: 'No identical groups were found for these selections.', restore: 'Restore from quarantine', restoreHint: 'Choose files to restore to their original path. A confirmation is still required.', loadRestore: 'Load recoverable files', loading: 'Loading…', emptyRestore: 'No restorable files are currently available.', restoreSelected: 'Restore selected', back: 'Back to scan', expires: 'Selection expires', error: 'The local preview could not complete.', safe: 'Read-only until you confirm quarantine.', system: 'System files are intentionally excluded for safety.' }, ar: { kicker: 'مركز التحكم بالتكرارات', title: 'اختر ما تفحصه. واحتفظ بالملف الذي تريده بالضبط.', body: 'لا توجد مجلدات افتراضية مخفية. اختر الموقع وأنواع الملفات أولًا، ثم راجع كل مجموعة متطابقة قبل إرسال النسخ التي تحددها فقط إلى حجر قابل للاستعادة.', place: '١. اختر موقع الفحص', choose: 'استعراض المجلدات', noFolder: 'اختر مجلدًا للبدء', types: '٢. اختر أنواع الملفات', policy: '٣. اختر قاعدة الاحتفاظ التلقائية', oldest: 'الاحتفاظ بالأقدم', newest: 'الاحتفاظ بالأحدث', policyHint: 'يمكنك تغيير الملف المحتفظ به في كل مجموعة بعد الفحص.', scan: 'فحص الاختيارات', scanning: 'يجري إنشاء معاينة بصمات للقراءة فقط…', preview: 'نتائج المعاينة', files: 'ملف مفحوص', groups: 'مجموعة مكررة', copies: 'نسخة زائدة', reclaim: 'قابل للاسترداد', keep: 'احتفظ بهذا الملف', hardLink: 'تظهر الملفات المرتبطة لكن تُستبعد من الحجر التلقائي.', selected: 'مجموعة محددة', quarantine: 'عزل النسخ المحددة', quarantineHint: 'تُنقل الملفات إلى حجر قابل للاستعادة فقط بعد التأكيد الإلزامي.', noResults: 'لم توجد مجموعات متطابقة ضمن هذه الاختيارات.', restore: 'استعادة من الحجر', restoreHint: 'اختر الملفات لإعادتها إلى مسارها الأصلي. يبقى التأكيد إلزاميًا.', loadRestore: 'عرض الملفات القابلة للاستعادة', loading: 'جارٍ التحميل…', emptyRestore: 'لا توجد ملفات قابلة للاستعادة حاليًا.', restoreSelected: 'استعادة المحدد', back: 'العودة إلى الفحص', expires: 'تنتهي صلاحية الاختيار', error: 'تعذر إكمال المعاينة المحلية.', safe: 'قراءة فقط حتى تؤكد الحجر.', system: 'تُستبعد ملفات النظام عمدًا للحماية.' } };
+function bytes(value: number, lang: Lang) { if (!value) return lang === 'ar' ? '0 بايت' : '0 B'; const units = ['B','KB','MB','GB','TB']; const i = Math.min(Math.floor(Math.log(value) / Math.log(1024)), 4); return `${(value / 1024 ** i).toLocaleString(lang === 'ar' ? 'ar' : 'en', { maximumFractionDigits: 1 })} ${units[i]}`; }
+function displayDate(value: string, lang: Lang) { try { return new Intl.DateTimeFormat(lang === 'ar' ? 'ar' : 'en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); } catch { return value; } }
+export default function DuplicateExplorerPanel({ lang, tools, onRequestExecution }: Props) {
+  const t = COPY[lang]; const [folder, setFolder] = useState(''); const [pickerOpen, setPickerOpen] = useState(false); const [types, setTypes] = useState<DuplicateFileType[]>(['all']); const [policy, setPolicy] = useState<DuplicateKeeperPolicy>('OldestThenAlphabetical'); const [preview, setPreview] = useState<DuplicatePreview | null>(null); const [keepByGroup, setKeepByGroup] = useState<Record<string, string>>({}); const [openGroup, setOpenGroup] = useState<string | null>(null); const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const [restoreOpen, setRestoreOpen] = useState(false); const [quarantine, setQuarantine] = useState<DuplicateQuarantineEntry[] | null>(null); const [restoreLoading, setRestoreLoading] = useState(false); const [restoreIds, setRestoreIds] = useState<Set<string>>(new Set());
+  const df02 = tools.find(x => x.ToolId === 'DF02'); const df10 = tools.find(x => x.ToolId === 'DF10'); const actionable = useMemo(() => (preview?.Groups || []).filter(group => !group.HardLinkInvolved), [preview]);
+  const toggleType = (id: DuplicateFileType) => { setPreview(null); setKeepByGroup({}); if (id === 'all') return setTypes(['all']); setTypes(current => { const base = current.includes('all') ? [] : current; const next = base.includes(id) ? base.filter(x => x !== id) : [...base, id]; return next.length ? next : ['all']; }); };
+  const scan = async () => { if (!folder || loading) return; setLoading(true); setError(''); setPreview(null); try { const response = await api.duplicatePreview(folder, { types, keeperPolicy: policy }); setPreview(response.preview); setKeepByGroup(Object.fromEntries(response.preview.Groups.map(group => [group.Id, group.KeepPath]))); } catch (e) { setError(e instanceof Error ? e.message : t.error); } finally { setLoading(false); } };
+  const loadRestore = async () => { setRestoreLoading(true); try { const result = await api.duplicateQuarantine(); setQuarantine(result.quarantine.Entries); setRestoreIds(new Set()); } catch (e) { setError(e instanceof Error ? e.message : t.error); } finally { setRestoreLoading(false); } };
+  const plan = actionable.map(group => ({ groupId: group.Id, keepPath: keepByGroup[group.Id] || group.KeepPath }));
+  return <section className="duplicate-command-center" aria-label={t.title}><header className="duplicate-command-head"><div className="duplicate-command-mark"><Copy size={24}/></div><div><p className="eyebrow">{t.kicker}</p><h3>{t.title}</h3><p>{t.body}</p></div><button type="button" className="duplicate-restore-trigger" onClick={() => { setRestoreOpen(true); if (!quarantine) void loadRestore(); }}><Undo2 size={15}/>{t.restore}</button></header>
+    <div className="duplicate-safe-banner"><ShieldCheck size={15}/><span>{t.safe}</span><span><LockKeyhole size={13}/>{t.system}</span></div>
+    <div className="duplicate-setup-grid"><article className="duplicate-setup-card duplicate-location"><div className="duplicate-step">01</div><h4><FolderOpen size={16}/>{t.place}</h4><div className="duplicate-folder-path"><FolderOpen size={15}/><span>{folder || t.noFolder}</span></div><button type="button" onClick={() => setPickerOpen(true)}><FolderOpen size={14}/>{t.choose}</button></article>
+      <article className="duplicate-setup-card duplicate-type-card"><div className="duplicate-step">02</div><h4><SlidersHorizontal size={16}/>{t.types}</h4><div className="duplicate-type-grid">{TYPES.map(item => { const Icon = item.icon; const active = types.includes('all') ? item.id === 'all' : types.includes(item.id); return <button type="button" key={item.id} className={active ? 'is-active' : ''} onClick={() => toggleType(item.id)}><Icon size={16}/><span><b>{lang === 'ar' ? item.ar : item.en}</b><small>{item.hint}</small></span>{active && <CheckCircle2 size={15}/>}</button>; })}</div></article>
+      <article className="duplicate-setup-card duplicate-policy"><div className="duplicate-step">03</div><h4><Clock3 size={16}/>{t.policy}</h4><div className="duplicate-policy-options"><button type="button" className={policy === 'OldestThenAlphabetical' ? 'is-active' : ''} onClick={() => { setPolicy('OldestThenAlphabetical'); setPreview(null); }}><Clock3 size={16}/><span>{t.oldest}</span></button><button type="button" className={policy === 'Newest' ? 'is-active' : ''} onClick={() => { setPolicy('Newest'); setPreview(null); }}><RefreshCw size={16}/><span>{t.newest}</span></button></div><p>{t.policyHint}</p></article></div>
+    <div className="duplicate-scan-action"><button type="button" disabled={!folder || loading} onClick={() => void scan()}>{loading ? <LoaderCircle size={17} className="is-spinning"/> : <ScanSearch size={17}/>} {loading ? t.scanning : t.scan}</button></div>
+    {error && <p className="duplicate-command-error"><AlertTriangle size={15}/>{error}</p>}
+    {preview && <div className="duplicate-preview-zone"><header><div><p className="eyebrow">{t.preview}</p><h4>{preview.Folder}</h4></div><span><Clock3 size={13}/>{t.expires}: {displayDate(preview.PreviewExpiresAt, lang)}</span></header><div className="duplicate-live-stats"><span><b>{preview.FilesObserved.toLocaleString()}</b>{t.files}</span><span><b>{preview.GroupCount}</b>{t.groups}</span><span><b>{preview.DuplicateCopies}</b>{t.copies}</span><span><b>{bytes(preview.RecoverableBytes, lang)}</b>{t.reclaim}</span></div>{!preview.Groups.length && <div className="duplicate-no-results"><CheckCircle2 size={20}/>{t.noResults}</div>}
+      <div className="duplicate-groups">{preview.Groups.map((group, index) => { const opened = openGroup === group.Id; const selectedKeep = keepByGroup[group.Id] || group.KeepPath; return <article key={group.Id} className={group.HardLinkInvolved ? 'is-protected' : ''}><div className="duplicate-group-summary"><span className="duplicate-group-number">{index + 1}</span><div><b>{group.Copies} {t.copies}</b><p>{bytes(group.RecoverableBytes, lang)} {t.reclaim}</p></div>{group.HardLinkInvolved ? <small><LockKeyhole size={13}/>{t.hardLink}</small> : <button type="button" onClick={() => setOpenGroup(opened ? null : group.Id)}>{opened ? <ChevronUp size={15}/> : <ChevronDown size={15}/>} {opened ? 'Hide' : 'Review'}</button>}</div>{!group.HardLinkInvolved && <label className="duplicate-keeper-select"><span>{t.keep}</span><select value={selectedKeep} onChange={e => setKeepByGroup(current => ({ ...current, [group.Id]: e.target.value }))}>{group.Files.map(file => <option key={file.Path} value={file.Path}>{file.Name} — {bytes(file.SizeBytes, lang)} — {displayDate(file.LastWriteUtc, lang)}</option>)}</select></label>}{opened && <div className="duplicate-file-list">{group.Files.map(file => <div key={file.Path} className={file.Path === selectedKeep ? 'is-keeper' : ''}><span>{file.Path === selectedKeep ? <ShieldCheck size={14}/> : <Copy size={14}/>}</span><p><b>{file.Name}</b><code>{file.Path}</code></p><small>{bytes(file.SizeBytes, lang)}</small></div>)}</div>}</article>; })}</div>
+      {actionable.length > 0 && df02 && <footer className="duplicate-quarantine-action"><div><b>{plan.length} {t.selected}</b><p>{t.quarantineHint}</p></div><button type="button" onClick={() => onRequestExecution(df02, { localSourcePath: folder, duplicatePreviewId: preview.PreviewId, duplicateKeepPaths: plan })}><ShieldCheck size={16}/>{t.quarantine}</button></footer>}</div>}
+    {restoreOpen && <div className="duplicate-restore-sheet" role="dialog" aria-modal="true"><header><div><p className="eyebrow">{t.restore}</p><h4>{t.restoreHint}</h4></div><button type="button" onClick={() => setRestoreOpen(false)}>{t.back}</button></header>{restoreLoading && <div className="duplicate-sheet-state"><LoaderCircle size={18} className="is-spinning"/>{t.loading}</div>}{!restoreLoading && quarantine && !quarantine.length && <div className="duplicate-sheet-state"><CheckCircle2 size={18}/>{t.emptyRestore}</div>}{!restoreLoading && quarantine && quarantine.length > 0 && <><div className="duplicate-restore-list">{quarantine.map(entry => <label key={entry.QuarantineId}><input type="checkbox" checked={restoreIds.has(entry.QuarantineId)} onChange={() => setRestoreIds(current => { const next = new Set(current); next.has(entry.QuarantineId) ? next.delete(entry.QuarantineId) : next.add(entry.QuarantineId); return next; })}/><span><b>{entry.OriginalPath.split('\\').pop()}</b><code>{entry.OriginalPath}</code><small>{bytes(entry.OriginalSize, lang)} · {displayDate(entry.QuarantinedAt, lang)} · {entry.TransactionState}</small></span></label>)}</div>{df10 && <footer><button type="button" onClick={() => void loadRestore()}><RefreshCw size={14}/>{t.loadRestore}</button><button type="button" className="is-primary" disabled={!restoreIds.size} onClick={() => onRequestExecution(df10, { quarantineIds: [...restoreIds] })}><Undo2 size={15}/>{t.restoreSelected} ({restoreIds.size})</button></footer>}</>}</div>}
+    {pickerOpen && <WorkspaceFolderPicker lang={lang} initialPath={folder} onClose={() => setPickerOpen(false)} onSelect={path => { setFolder(path); setPreview(null); setKeepByGroup({}); setPickerOpen(false); }} />}
+  </section>;
 }
