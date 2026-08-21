@@ -3,11 +3,10 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 
 import Sidebar from './components/Sidebar';
-import ToolGrid from './components/ToolGrid';
+import ServicePlatform from './components/ServicePlatform';
 import DiagnosticConsole from './components/DiagnosticConsole';
 
 import PageTransition from './components/PageTransition';
-import BridgeOffline from './components/BridgeOffline';
 import SettingsCenter from './components/SettingsCenter';
 import NexusSplash from './components/NexusSplash';
 import AuthGate from './components/AuthGate';
@@ -54,7 +53,6 @@ function NexusApp() {
   const [bridgeOnline, setBridgeOnline] = useState<boolean | null>(null);
   const [bridgeElevated, setBridgeElevated] = useState(false);
   const [toolsByCategory, setToolsByCategory] = useState<Record<string, BridgeTool[]>>({});
-  const [bridgeError, setBridgeError] = useState('');
   const [authStatus, setAuthStatus] = useState<BridgeAuthStatus | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState('');
@@ -79,7 +77,6 @@ function NexusApp() {
 
   const connectBridge = useCallback(async () => {
     setBridgeOnline(null);
-    setBridgeError('');
     try {
       const [health, toolResponse] = await Promise.all([api.health(), api.tools()]);
       const auth = await api.authStatus().catch(() => null);
@@ -94,7 +91,6 @@ function NexusApp() {
       setAuthError(auth ? '' : 'Local OAuth routes are not available until the bridge is restarted with this release.');
       setBridgeOnline(true);
     } catch (e) {
-      setBridgeError(e instanceof BridgeError ? e.message : String(e));
       setBridgeOnline(false);
     }
   }, []);
@@ -198,12 +194,7 @@ function NexusApp() {
 
         <main className="flex-1 nx-workspace rounded-[1.75rem] p-4 md:p-6 flex flex-col overflow-hidden">
 
-          {bridgeOnline === false && activeView === 'tools' && (
-            <BridgeOffline error={bridgeError} lang={lang} onRetry={connectBridge} />
-          )}
-
-          {(activeView === 'workspaces' || bridgeOnline !== false) && (
-            <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait">
               {activeView === 'workspaces' ? (
                 <PageTransition key="workspaces">
                   <WorkspaceDashboard
@@ -215,22 +206,18 @@ function NexusApp() {
                 </PageTransition>
               ) : (
                 <PageTransition key={`tools-${activeSection}`}>
-                  <ToolGrid
+                  <ServicePlatform
                     activeSection={activeSection}
                     toolStatuses={toolStatuses}
                     tools={toolsByCategory[SECTION_MAP[activeSection]] || []}
                     lang={lang}
                     bridgeElevated={bridgeElevated}
-                    activeTool={activeTool}
-                    activityEntries={consoleEntries}
-                    activityStatus={consoleStatus}
                     onRunTool={runTool}
                     onCancelTool={cancelRun}
                   />
                 </PageTransition>
               )}
-            </AnimatePresence>
-          )}
+          </AnimatePresence>
         </main>
       </div>
 
