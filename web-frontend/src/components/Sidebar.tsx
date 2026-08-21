@@ -75,8 +75,8 @@ export default function Sidebar({
       >
         <div className="px-5 pt-6 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl nx-brand-mark flex items-center justify-center shrink-0" aria-hidden="true">
-              <span className="font-display text-sm font-black">K</span>
+            <div className="w-10 h-10 rounded-xl nx-brand-mark flex items-center justify-center shrink-0 overflow-hidden">
+              <img src="/brand/knoux-repair-logo.png" alt="" className="w-full h-full object-contain scale-[1.22]" />
             </div>
             <div className="min-w-0">
               <h1 className="font-display text-[13px] font-bold tracking-[0.12em] text-white">

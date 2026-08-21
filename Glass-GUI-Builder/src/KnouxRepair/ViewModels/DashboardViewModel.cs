@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using KnouxRepair.Models;
 using KnouxRepair.Mvvm;
 
@@ -18,18 +19,20 @@ namespace KnouxRepair.ViewModels
         private string _diskLabel;
         private string _uptimeLabel = "-";
         private bool _admin = true;
+        private int _reportCount;
 
         public DashboardViewModel()
         {
             _tools = Services.ManifestService.Tools;
             ComputeMetrics();
             RefreshHealth();
+            RefreshReportCountAsync();
         }
 
         public int TotalTools { get; private set; }
         public int SafeTools { get; private set; }
         public int AdminTools { get; private set; }
-        public int ReportCount { get; private set; }
+        public int ReportCount { get => _reportCount; private set => SetProperty(ref _reportCount, value); }
         public int ReadOnlyTools { get; private set; }
         public int DestructiveTools { get; private set; }
         public int RebootRequiredTools { get; private set; }
@@ -113,17 +116,7 @@ namespace KnouxRepair.ViewModels
             DestructiveTools = _tools.Count(t => t.RiskLevel == "DESTRUCTIVE");
             RebootRequiredTools = _tools.Count(t => t.RequiresRestart);
 
-            // Count reports
-            try
-            {
-                var reportsDir = System.IO.Path.Combine(
-                    AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "Reports");
-                if (!System.IO.Directory.Exists(reportsDir))
-                    reportsDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Reports");
-                if (System.IO.Directory.Exists(reportsDir))
-                    ReportCount = System.IO.Directory.GetDirectories(reportsDir).Length;
-            }
-            catch { ReportCount = 0; }
+            // Report enumeration is intentionally deferred to a background task.
 
             // Category breakdown
             var cats = _tools.GroupBy(t => t.Category).OrderBy(g => g.Key);
@@ -137,6 +130,26 @@ namespace KnouxRepair.ViewModels
                     Risky = cat.Count(t => t.RiskLevel == "DESTRUCTIVE" || t.RiskLevel == "SYSTEM_REPAIR")
                 });
             }
+        }
+
+        private void RefreshReportCountAsync()
+        {
+            _ = Task.Run(() =>
+            {
+                var count = 0;
+                try
+                {
+                    var reportsDir = Services.ReportsService.ReportsRoot;
+                    if (Directory.Exists(reportsDir)) count = Directory.EnumerateDirectories(reportsDir).Take(100000).Count();
+                }
+                catch { count = 0; }
+
+                try
+                {
+                    System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() => ReportCount = count));
+                }
+                catch { }
+            });
         }
 
         private static string FormatCategoryName(string raw)
