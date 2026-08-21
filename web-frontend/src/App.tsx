@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 
 import Sidebar from './components/Sidebar';
-import ServicePlatform from './components/ServicePlatform';
+import ServiceApps from './components/ServiceApps';
 import DiagnosticConsole from './components/DiagnosticConsole';
 
 import PageTransition from './components/PageTransition';
@@ -206,7 +206,7 @@ function NexusApp() {
                 </PageTransition>
               ) : (
                 <PageTransition key={`tools-${activeSection}`}>
-                  <ServicePlatform
+                  <ServiceApps
                     activeSection={activeSection}
                     toolStatuses={toolStatuses}
                     tools={toolsByCategory[SECTION_MAP[activeSection]] || []}
