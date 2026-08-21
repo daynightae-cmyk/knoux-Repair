@@ -11,6 +11,7 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types tests/*.test.mjs",
     "preview": "vite preview",
     "bridge": "node server/bridge.mjs",
     "desktop:dev": "npm run build && electron .",

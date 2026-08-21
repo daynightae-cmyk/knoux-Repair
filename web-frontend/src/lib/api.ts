@@ -73,12 +73,34 @@ export interface BridgeRun {
   finishedAt: string | null;
   lines: BridgeRunLine[];
   error: string | null;
+  result: KnouxRunResult | null;
+}
+
+export interface KnouxRunResult {
+  ToolId: string;
+  ToolName: string;
+  Category: string;
+  RiskLevel: string;
+  StartedAt: string;
+  FinishedAt: string;
+  Duration: string;
+  Status: string;
+  ExitCode: number;
+  ChangedSystem: boolean;
+  RestartNeeded: boolean;
+  ItemsFound: number;
+  ItemsProcessed: number;
+  VerificationPerformed: boolean;
+  VerificationResult: string | null;
+  ReportPath: string;
+  ErrorMessage: string | null;
 }
 
 export interface SystemDrive {
   Name: string;
   TotalGB: number;
   FreeGB: number;
+  IsSystem?: boolean;
 }
 
 export interface LocalFolderRoot {
@@ -473,6 +495,7 @@ export interface SystemSnapshot {
   CpuName: string;
   CpuLoad: number;
   Processes: number;
+  SystemDrive: string;
   Drives: SystemDrive[];
   Firewall: { Profile: string; Enabled: boolean }[] | null;
   DefenderRunning: boolean;

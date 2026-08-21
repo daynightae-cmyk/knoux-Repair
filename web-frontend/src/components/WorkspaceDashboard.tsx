@@ -30,7 +30,8 @@ interface Workspace {
   state: WorkspaceState;
   accent: string;
   icon: string;
-  lastActivity: Record<Lang, string>;
+  lastActivity: Record<Lang, string> | null;
+  status: Record<Lang, string>;
   owner: Record<Lang, string>;
 }
 
@@ -42,17 +43,17 @@ interface WorkspaceDashboardProps {
 }
 
 const SEED_WORKSPACES: Workspace[] = [
-  { id: 'sonar', name: { en: 'Project Sonar', ar: 'مشروع سونار' }, code: 'SONAR-01', section: 'projectSonar', category: '18-Project-Sonar', state: 'active', accent: '#25c8dd', icon: '◉', lastActivity: { en: 'Now', ar: 'الآن' }, owner: { en: 'Project intelligence', ar: 'ذكاء المشروع' } },
-  { id: 'system', name: { en: 'System Care', ar: 'عناية النظام' }, code: 'SYS-CORE', section: 'maintenance', category: '01-System-Maintenance', state: 'active', accent: '#5d8dff', icon: '✦', lastActivity: { en: '12 min ago', ar: 'منذ 12 دقيقة' }, owner: { en: 'System health', ar: 'صحة النظام' } },
-  { id: 'network', name: { en: 'Network Pulse', ar: 'نبض الشبكة' }, code: 'NET-24', section: 'network', category: '03-Network-Internet', state: 'active', accent: '#32c4d7', icon: '⌁', lastActivity: { en: '38 min ago', ar: 'منذ 38 دقيقة' }, owner: { en: 'Connectivity', ar: 'الاتصال' } },
-  { id: 'security', name: { en: 'Security Sentinel', ar: 'حارس الأمان' }, code: 'SEC-09', section: 'security', category: '09-Security', state: 'active', accent: '#31c88b', icon: '◆', lastActivity: { en: 'Today', ar: 'اليوم' }, owner: { en: 'Protection posture', ar: 'حالة الحماية' } },
-  { id: 'diagnostics', name: { en: 'Diagnostics Hub', ar: 'مركز التشخيص' }, code: 'DIA-10', section: 'diagnostics', category: '10-Diagnostics-Reports', state: 'active', accent: '#8d7aff', icon: '⌘', lastActivity: { en: 'Yesterday', ar: 'أمس' }, owner: { en: 'System evidence', ar: 'أدلة النظام' } },
-  { id: 'performance', name: { en: 'Performance Lab', ar: 'مختبر الأداء' }, code: 'PERF-08', section: 'performance', category: '08-Performance', state: 'active', accent: '#f0954f', icon: '↗', lastActivity: { en: '2 days ago', ar: 'منذ يومين' }, owner: { en: 'Performance', ar: 'الأداء' } },
-  { id: 'recovery', name: { en: 'Recovery Vault', ar: 'خزنة الاستعادة' }, code: 'REC-11', section: 'backupRecovery', category: '11-Backup-Recovery', state: 'active', accent: '#4cc6b2', icon: '◌', lastActivity: { en: '3 days ago', ar: 'منذ 3 أيام' }, owner: { en: 'Recovery points', ar: 'نقاط الاستعادة' } },
-  { id: 'developer', name: { en: 'Developer Station', ar: 'محطة المطوّر' }, code: 'DEV-12', section: 'developerTools', category: '12-Developer-Tools', state: 'active', accent: '#d36adb', icon: '⌘', lastActivity: { en: '4 days ago', ar: 'منذ 4 أيام' }, owner: { en: 'Local environments', ar: 'البيئات المحلية' } },
-  { id: 'disk', name: { en: 'Disk Pulse', ar: 'نبض القرص' }, code: 'DISK-06', section: 'disk', category: '06-Disk-Space', state: 'pinned', accent: '#a66cff', icon: '◒', lastActivity: { en: 'Last week', ar: 'الأسبوع الماضي' }, owner: { en: 'Storage capacity', ar: 'سعة التخزين' } },
-  { id: 'privacy', name: { en: 'Privacy Guard', ar: 'حارس الخصوصية' }, code: 'PRIV-13', section: 'privacy', category: '13-Privacy', state: 'pinned', accent: '#e46e9d', icon: '◐', lastActivity: { en: 'Last week', ar: 'الأسبوع الماضي' }, owner: { en: 'Privacy controls', ar: 'ضوابط الخصوصية' } },
-  { id: 'software', name: { en: 'Software Inventory', ar: 'جرد البرامج' }, code: 'SOFT-16', section: 'softwareEnvironment', category: '16-Software-Environment', state: 'archived', accent: '#7d91a8', icon: '□', lastActivity: { en: '14 days ago', ar: 'منذ 14 يومًا' }, owner: { en: 'Software estate', ar: 'بيئة البرامج' } },
+  { id: 'sonar', name: { en: 'Project Sonar', ar: 'مشروع سونار' }, code: 'SONAR-01', section: 'projectSonar', category: '18-Project-Sonar', state: 'active', accent: '#25c8dd', icon: '◉', lastActivity: null, status: { en: 'Live inventory', ar: 'جرد حي' }, owner: { en: 'Project intelligence', ar: 'ذكاء المشروع' } },
+  { id: 'system', name: { en: 'System Care', ar: 'عناية النظام' }, code: 'SYS-CORE', section: 'maintenance', category: '01-System-Maintenance', state: 'active', accent: '#5d8dff', icon: '✦', lastActivity: null, status: { en: 'Ready for diagnosis', ar: 'جاهز للتشخيص' }, owner: { en: 'System health', ar: 'صحة النظام' } },
+  { id: 'network', name: { en: 'Network Pulse', ar: 'نبض الشبكة' }, code: 'NET-24', section: 'network', category: '03-Network-Internet', state: 'active', accent: '#32c4d7', icon: '⌁', lastActivity: null, status: { en: 'Connection preview', ar: 'معاينة الاتصال' }, owner: { en: 'Connectivity', ar: 'الاتصال' } },
+  { id: 'security', name: { en: 'Security Sentinel', ar: 'حارس الأمان' }, code: 'SEC-09', section: 'security', category: '09-Security', state: 'active', accent: '#31c88b', icon: '◆', lastActivity: null, status: { en: 'Protection preview', ar: 'معاينة الحماية' }, owner: { en: 'Protection posture', ar: 'حالة الحماية' } },
+  { id: 'diagnostics', name: { en: 'Diagnostics Hub', ar: 'مركز التشخيص' }, code: 'DIA-10', section: 'diagnostics', category: '10-Diagnostics-Reports', state: 'active', accent: '#8d7aff', icon: '⌘', lastActivity: null, status: { en: 'Evidence preview', ar: 'معاينة الأدلة' }, owner: { en: 'System evidence', ar: 'أدلة النظام' } },
+  { id: 'performance', name: { en: 'Performance Lab', ar: 'مختبر الأداء' }, code: 'PERF-08', section: 'performance', category: '08-Performance', state: 'active', accent: '#f0954f', icon: '↗', lastActivity: null, status: { en: 'Performance preview', ar: 'معاينة الأداء' }, owner: { en: 'Performance', ar: 'الأداء' } },
+  { id: 'recovery', name: { en: 'Recovery Vault', ar: 'خزنة الاستعادة' }, code: 'REC-11', section: 'backupRecovery', category: '11-Backup-Recovery', state: 'active', accent: '#4cc6b2', icon: '◌', lastActivity: null, status: { en: 'Recovery preview', ar: 'معاينة الاستعادة' }, owner: { en: 'Recovery points', ar: 'نقاط الاستعادة' } },
+  { id: 'developer', name: { en: 'Developer Station', ar: 'محطة المطوّر' }, code: 'DEV-12', section: 'developerTools', category: '12-Developer-Tools', state: 'active', accent: '#d36adb', icon: '⌘', lastActivity: null, status: { en: 'Toolchain preview', ar: 'معاينة الأدوات' }, owner: { en: 'Local environments', ar: 'البيئات المحلية' } },
+  { id: 'disk', name: { en: 'Disk Pulse', ar: 'نبض القرص' }, code: 'DISK-06', section: 'disk', category: '06-Disk-Space', state: 'pinned', accent: '#a66cff', icon: '◒', lastActivity: null, status: { en: 'Storage preview', ar: 'معاينة التخزين' }, owner: { en: 'Storage capacity', ar: 'سعة التخزين' } },
+  { id: 'privacy', name: { en: 'Privacy Guard', ar: 'حارس الخصوصية' }, code: 'PRIV-13', section: 'privacy', category: '13-Privacy', state: 'pinned', accent: '#e46e9d', icon: '◐', lastActivity: null, status: { en: 'Privacy preview', ar: 'معاينة الخصوصية' }, owner: { en: 'Privacy controls', ar: 'ضوابط الخصوصية' } },
+  { id: 'software', name: { en: 'Software Inventory', ar: 'جرد البرامج' }, code: 'SOFT-16', section: 'softwareEnvironment', category: '16-Software-Environment', state: 'archived', accent: '#7d91a8', icon: '□', lastActivity: null, status: { en: 'Software preview', ar: 'معاينة البرامج' }, owner: { en: 'Software estate', ar: 'بيئة البرامج' } },
 ];
 
 const COPY = {
@@ -68,6 +69,7 @@ const COPY = {
     tools: 'AVAILABLE TOOLS',
     code: 'WORKSPACE CODE',
     activity: 'LAST ACTIVITY',
+    status: 'STATUS',
     actions: 'OPTIONS',
     open: 'Open workstation',
     sort: 'Sort',
@@ -88,6 +90,7 @@ const COPY = {
     tools: 'الأدوات المتاحة',
     code: 'رمز المساحة',
     activity: 'آخر نشاط',
+    status: 'الحالة',
     actions: 'خيارات',
     open: 'فتح المحطة',
     sort: 'ترتيب',
@@ -124,7 +127,7 @@ export default function WorkspaceDashboard({ lang, toolsByCategory, onOpenSectio
       .some((value) => value.toLocaleLowerCase().includes(normalized));
     const compare = (a: Workspace, b: Workspace) => {
       if (sort === 'tools') return operationCount(b, toolsByCategory) - operationCount(a, toolsByCategory);
-      if (sort === 'activity') return a.id === 'sonar' ? -1 : b.id === 'sonar' ? 1 : a.name[lang].localeCompare(b.name[lang]);
+      if (sort === 'activity') return (b.lastActivity?.en || '').localeCompare(a.lastActivity?.en || '') || a.name[lang].localeCompare(b.name[lang]);
       return a.name[lang].localeCompare(b.name[lang]);
     };
     return workspaces.filter(matches).sort(compare);
@@ -146,7 +149,8 @@ export default function WorkspaceDashboard({ lang, toolsByCategory, onOpenSectio
         state: 'active',
         accent: '#25c8dd',
         icon: '+',
-        lastActivity: { en: 'Just created', ar: 'أُنشئت الآن' },
+        lastActivity: { en: new Date().toLocaleString('en'), ar: new Date().toLocaleString('ar') },
+        status: { en: 'Draft workspace', ar: 'مساحة مسودة' },
         owner: { en: 'Local workspace', ar: 'مساحة محلية' },
       },
     ]);
@@ -172,7 +176,8 @@ export default function WorkspaceDashboard({ lang, toolsByCategory, onOpenSectio
           </button>
           <span className="workspace-cell workspace-tools" data-label={copy.tools}><b>{tools}</b><small>{lang === 'ar' ? 'عملية' : 'tools'}</small></span>
           <span className="workspace-cell workspace-code" data-label={copy.code}>{workspace.code}</span>
-          <span className="workspace-cell workspace-activity" data-label={copy.activity}>{workspace.lastActivity[lang]}</span>
+          <span className="workspace-cell workspace-activity" data-label={copy.activity}>{workspace.lastActivity?.[lang] || '—'}</span>
+          <span className="workspace-cell workspace-status" data-label={copy.status}>{workspace.status[lang]}</span>
           <div className="workspace-row-actions">
             <button type="button" className="workspace-open-button" onClick={() => { setSelectedId(workspace.id); onOpenSection(workspace.section); }}><Wrench size={14} />{copy.open}</button>
             <button type="button" className="workspace-more-button" aria-label={`${copy.actions}: ${workspace.name[lang]}`}><MoreHorizontal size={17} /></button>
@@ -201,6 +206,7 @@ export default function WorkspaceDashboard({ lang, toolsByCategory, onOpenSectio
                 <span>{copy.tools}</span>
                 <span>{copy.code}</span>
                 <span>{copy.activity}</span>
+                <span>{copy.status}</span>
                 <span>{copy.actions}</span>
               </div>
             )}
