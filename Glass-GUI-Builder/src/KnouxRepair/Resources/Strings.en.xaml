@@ -135,7 +135,6 @@
     <sys:String x:Key="ActionClose">Close</sys:String>
     <sys:String x:Key="ActionMinimize">Minimize</sys:String>
     <sys:String x:Key="ActionMaximize">Maximize</sys:String>
-    <sys:String x:Key="ActionRestore">Restore</sys:String>
     <sys:String x:Key="ActionNotifications">Notifications</sys:String>
     <sys:String x:Key="ActionViewReport">View Report</sys:String>
     <sys:String x:Key="ActionReturnWorkspace">Return to Workspace</sys:String>
@@ -204,6 +203,11 @@
     <sys:String x:Key="SettingsTitle">Settings</sys:String>
     <sys:String x:Key="SettingsLanguage">Language</sys:String>
     <sys:String x:Key="SettingsTheme">Theme</sys:String>
+    <sys:String x:Key="SettingsLanguageEnglish">English</sys:String>
+    <sys:String x:Key="SettingsLanguageArabic">Arabic</sys:String>
+    <sys:String x:Key="SettingsDiagnostics">Diagnostics</sys:String>
+    <sys:String x:Key="ThemeDark">Dark</sys:String>
+    <sys:String x:Key="ThemeLight">Light</sys:String>
     <sys:String x:Key="SettingsReducedMotion">Reduced Motion</sys:String>
     <sys:String x:Key="SettingsCompactNav">Compact Navigation</sys:String>
     <sys:String x:Key="SettingsAnalyzeDefault">Default Analyze-only Mode</sys:String>
@@ -211,16 +215,27 @@
     <sys:String x:Key="SettingsConsoleFontSize">Console Font Size</sys:String>
     <sys:String x:Key="SettingsMaxReportHistory">Max Report History</sys:String>
     <sys:String x:Key="SettingsOpenProjectFolder">Open Project Folder</sys:String>
+    <sys:String x:Key="SettingsAppearance">Appearance</sys:String>
+    <sys:String x:Key="SettingsReducedMotionDescription">Disable splash animations and transitions for faster startup.</sys:String>
+    <sys:String x:Key="SettingsApplication">Application</sys:String>
+    <sys:String x:Key="SettingsAnalyzeDefaultDescription">When ON, tools run in analyze-only mode by default.</sys:String>
+    <sys:String x:Key="SettingsMaxReportHistoryDescription">Maximum number of report folders to retain in the UI.</sys:String>
+    <sys:String x:Key="SettingsConsoleFontSizeDescription">Adjusts the live execution console font size.</sys:String>
 
     <!-- Splash -->
     <sys:String x:Key="SplashValidating">Validating project structure</sys:String>
     <sys:String x:Key="SplashManifest">Loading manifest</sys:String>
-    <sys:String x:Key="SplashTools">Loading 100 tools</sys:String>
+    <sys:String x:Key="SplashTools">Loading 158 tools</sys:String>
     <sys:String x:Key="SplashCore">Verifying Core modules</sys:String>
     <sys:String x:Key="SplashReports">Preparing report engine</sys:String>
     <sys:String x:Key="SplashAdmin">Checking Administrator status</sys:String>
     <sys:String x:Key="SplashReady">Ready to launch</sys:String>
     <sys:String x:Key="SplashFinish">Enter Application</sys:String>
+    <sys:String x:Key="SplashInitializing">Initializing KNOUX Repair...</sys:String>
+    <sys:String x:Key="SplashLoadingManifest">Loading manifest...</sys:String>
+    <sys:String x:Key="SplashLoadingTools">Loading tools...</sys:String>
+    <sys:String x:Key="SplashPreparingWorkspace">Preparing workspace...</sys:String>
+    <sys:String x:Key="SplashAttention">Startup completed with attention required</sys:String>
 
     <!-- About -->
     <sys:String x:Key="AboutTitle">About KNOUX Repair</sys:String>

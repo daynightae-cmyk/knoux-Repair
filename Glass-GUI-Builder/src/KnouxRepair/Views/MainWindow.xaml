@@ -58,12 +58,11 @@
                     <!-- Logo + Title -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="16,0,0,0"
                                 VerticalAlignment="Center">
-                        <!-- Logo glow dot -->
-                        <Grid Width="22" Height="22" Margin="0,0,10,0" VerticalAlignment="Center">
-                            <Ellipse Width="22" Height="22" Opacity="0.2" Fill="{DynamicResource BrushCyan}"/>
-                            <Ellipse Width="12" Height="12" Fill="{DynamicResource BrushCyan}"
-                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Grid>
+                        <!-- Official KNOUX Repair application mark. -->
+                        <Border Width="30" Height="30" Margin="0,0,10,0" VerticalAlignment="Center"
+                                Background="#080F1D" BorderBrush="#507DD8FF" BorderThickness="1" CornerRadius="15" ClipToBounds="True">
+                            <Image Source="/Assets/KnouxOfficialLogo.png" Stretch="Uniform" Margin="-3" RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Border>
                         <TextBlock Text="KNOUX" Foreground="{DynamicResource BrushCyan}"
                                    FontFamily="{DynamicResource FontDisplay}" FontSize="14"
                                    FontWeight="Bold" VerticalAlignment="Center"

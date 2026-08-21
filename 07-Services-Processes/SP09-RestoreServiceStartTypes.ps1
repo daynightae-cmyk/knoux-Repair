@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-#  knoux Repair v2.0.2 | 07-Services-Processes | SP09 - Restore Service Start Types
+#  knoux Repair v2.0 | 07-Services-Processes | SP09 - Restore Service Start Types
 #  Risk: SYSTEM_REPAIR | Requires admin
 #  Restores service start types previously backed up by SP08 (Service
 #  Recommendations). It scans the Reports tree for service-start-backup.json
@@ -7,11 +7,7 @@
 #  offers to restore each service to its original start type. Restored
 #  start types are verified after the change.
 [CmdletBinding()]
-param(
-    [switch]$AnalyzeOnly,
-    [switch]$WhatIf,
-    [string]$Selection = ""   # Backup number to use (1-N) or "all"
-)
+param([switch]$AnalyzeOnly, [switch]$WhatIf, [string]$Selection)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -57,27 +53,11 @@ try {
         Write-Host ('  {0,2}. {1}  (run {2})' -f $i, $b.LastWriteTime, $runName) -ForegroundColor Yellow
     }
 
-    if ($WhatIf) {
-        Write-Host "WhatIf: Would restore start types for selection: $Selection" -ForegroundColor Cyan
-        Write-KnouxLog -Session $Session "WhatIf: Would restore service start types"
-        exit 0
-    }
-    
-    if ($AnalyzeOnly) {
-        Write-Host '[ANALYZE] Displaying current start types without restoration.' -ForegroundColor Green
+    if ($AnalyzeOnly -or $WhatIf) {
+        Write-Host '[ANALYZE] No changes made. Run without -AnalyzeOnly to restore.' -ForegroundColor Green
         Write-KnouxLog -Session $Session ("Analyze: {0} backup(s) available, no changes" -f $backups.Count)
-        exit 0
-    }
-    
-    # Non-interactive execution: use Selection parameter
-    if ([string]::IsNullOrWhiteSpace($Selection)) {
-        Write-Error "Selection parameter is required for non-interactive execution. Provide backup number (1-N) or 'all'."
-        $Session.Status = 'Failed'
-        $Session.ErrorMessage = 'Missing Selection parameter'
-        exit 1
-    }
-    
-    if (-not (Test-KnouxAdministrator)) {
+        $Session.Status = 'Success'
+    } elseif (-not (Test-KnouxAdministrator)) {
         $Session.Status = 'Failed'
         $Session.ErrorMessage = 'Administrator privileges are required.'
         Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red

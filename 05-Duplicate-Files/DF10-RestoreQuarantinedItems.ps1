@@ -5,11 +5,7 @@
 #  selective restoration with verification. Read-only until user
 #  confirms a restore action.
 [CmdletBinding()]
-param(
-    [switch]$AnalyzeOnly,
-    [switch]$WhatIf,
-    [string]$Selection = ""   # Comma-separated numbers or "all"
-)
+param([switch]$AnalyzeOnly, [switch]$WhatIf, [string]$Selection, [string]$QuarantineIds)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -44,11 +40,13 @@ try {
             $metaFile = Join-Path $id.FullName 'quarantine-meta.json'
             if (Test-Path -LiteralPath $metaFile) {
                 $meta = Get-Content -LiteralPath $metaFile -Raw -Encoding UTF8 | ConvertFrom-Json
-                $meta.QDir = $id.FullName
+                $meta | Add-Member -NotePropertyName QDir -NotePropertyValue $id.FullName -Force
                 $entries += $meta
             }
         }
     }
+
+    $entries = @($entries | Sort-Object @{ Expression = { [datetime]$_.QuarantinedAt }; Descending = $true }, OriginalPath)
 
     if ($entries.Count -eq 0) {
         Write-Host '[OK] No restorable quarantine entries found.' -ForegroundColor Green
@@ -70,55 +68,49 @@ try {
 
     $Session.ItemsFound = $entries.Count
 
-    if ($WhatIf) {
-        Write-Host "WhatIf: Would restore quarantined items based on selection: $Selection" -ForegroundColor Cyan
-        Write-KnouxLog -Session $Session "WhatIf: Would restore quarantined items"
-        exit 0
-    }
-    
-    if ($AnalyzeOnly) {
-        Write-Host '[ANALYZE] Displaying quarantine entries only, no changes.' -ForegroundColor Green
-        Write-KnouxLog -Session $Session ("Analyze: {0} quarantine entries listed" -f $entries.Count)
-        exit 0
-    }
-    
-    # Non-interactive execution: use Selection parameter
-    if ([string]::IsNullOrWhiteSpace($Selection)) {
-        Write-Error "Selection parameter is required for non-interactive execution. Provide comma-separated numbers or 'all'."
-        $Session.Status = 'Failed'
-        $Session.ErrorMessage = 'Missing Selection parameter'
-        exit 1
-    }
-    
-    $input = $Selection
-    $chosen = @($input -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^\d+$' } | ForEach-Object { [int]$_ })
-    if ($chosen -contains 0 -or $chosen.Count -eq 0) {
-        Write-Host '[CANCELLED] No changes made.' -ForegroundColor Yellow
-        $Session.Status = 'Cancelled'
-        return (Stop-KnouxSession -Session $Session)
-    }
-
-    $restored = 0
-    foreach ($idx in $chosen) {
-        if ($idx -lt 1 -or $idx -gt $entries.Count) { continue }
-        $e = $entries[$idx - 1]
-        Write-Host ('Restoring [{0}] {1}...' -f $idx, $e.OriginalPath) -ForegroundColor Cyan
-        $result = Restore-KnouxQuarantinedItem -QuarantinePath $e.QDir -Session $Session
-        if ($result) {
-            $restored++
-            Write-Host ('  [OK] Restored {0}' -f $e.OriginalPath) -ForegroundColor Green
-        } else {
-            Write-Host ('  [FAILED] Could not restore {0}' -f $e.OriginalPath) -ForegroundColor Red
-        }
-    }
-    if ($restored -gt 0) {
+    if ($AnalyzeOnly -or $WhatIf) {
+        Write-Host '[ANALYZE] No changes made. Run without -AnalyzeOnly to restore selected items.' -ForegroundColor Green
         $Session.Status = 'Success'
-        $Session.ChangedSystem = $true
-        $Session.ItemsProcessed = $restored
-        Write-Host ('[OK] Restored {0} item(s).' -f $restored) -ForegroundColor Green
+        Write-KnouxLog -Session $Session ("Analyze: {0} quarantine entries listed" -f $entries.Count)
     } else {
-        $Session.Status = 'Failed'
-        Write-Host '[ERROR] No items restored.' -ForegroundColor Red
+        Write-Host ''
+                $selectedEntries = @()
+        if (-not [string]::IsNullOrWhiteSpace($QuarantineIds)) {
+            $wanted = @($QuarantineIds -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^[a-fA-F0-9]{32}$' } | Select-Object -Unique)
+            foreach ($id in $wanted) { $selectedEntries += @($entries | Where-Object { $_.QuarantineId -eq $id }) }
+        } else {
+            Write-Host 'Selection supplied by host (comma separated) or 0 to cancel:' -ForegroundColor Yellow
+            $chosen = @($Selection -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^\d+$' } | ForEach-Object { [int]$_ })
+            foreach ($idx in $chosen) { if ($idx -ge 1 -and $idx -le $entries.Count) { $selectedEntries += $entries[$idx - 1] } }
+        }
+        $selectedEntries = @($selectedEntries | Select-Object -Unique)
+        if ($selectedEntries.Count -eq 0) {
+            Write-Host '[CANCELLED] No valid quarantine items were selected.' -ForegroundColor Yellow
+            $Session.Status = 'Cancelled'
+            return (Stop-KnouxSession -Session $Session)
+        }
+
+        $restored = 0
+        foreach ($e in $selectedEntries) {
+            Write-Host ('Restoring [{0}] {1}...' -f $e.QuarantineId, $e.OriginalPath) -ForegroundColor Cyan
+            $result = Restore-KnouxQuarantinedItem -QuarantinePath $e.QDir -Session $Session
+
+            if ($result) {
+                $restored++
+                Write-Host ('  [OK] Restored {0}' -f $e.OriginalPath) -ForegroundColor Green
+            } else {
+                Write-Host ('  [FAILED] Could not restore {0}' -f $e.OriginalPath) -ForegroundColor Red
+            }
+        }
+        if ($restored -gt 0) {
+            $Session.Status = 'Success'
+            $Session.ChangedSystem = $true
+            $Session.ItemsProcessed = $restored
+            Write-Host ('[OK] Restored {0} item(s).' -f $restored) -ForegroundColor Green
+        } else {
+            $Session.Status = 'Failed'
+            Write-Host '[ERROR] No items restored.' -ForegroundColor Red
+        }
     }
 } catch {
     $Session.Status = 'Failed'

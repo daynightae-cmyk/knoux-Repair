@@ -1,184 +1,127 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Automation;
 using KnouxRepair.Models;
-using KnouxRepair.Mappers;
 
 namespace KnouxRepair.Views
 {
     public partial class ToolDetailPanel : UserControl
     {
-        public event Action<string, bool> ToolExecutionRequested;
-
-        private static readonly Brush GreenBrush = new SolidColorBrush(Color.FromRgb(0x4C, 0xE3, 0x8A));
-        private static readonly Brush RedBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x5B, 0x69));
-        private static readonly Brush AmberBrush = new SolidColorBrush(Color.FromRgb(0xF4, 0xB9, 0x42));
-        private static readonly Brush BlueBrush = new SolidColorBrush(Color.FromRgb(0x34, 0x78, 0xF6));
-        private static readonly Brush TealBrush = new SolidColorBrush(Color.FromRgb(0x20, 0xC2, 0xA8));
-        private static readonly Brush MutedBrush = new SolidColorBrush(Color.FromRgb(0x9F, 0xB2, 0xC8));
-        private static readonly Brush DangerBgBrush = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0x5B, 0x69));
-        private static readonly Brush SuccessBgBrush = new SolidColorBrush(Color.FromArgb(0x33, 0x4C, 0xE3, 0x8A));
-        private static readonly Brush AmberDimBrush = new SolidColorBrush(Color.FromArgb(0x55, 0xF4, 0xB9, 0x42));
-        private static readonly Brush TealBgBrush = new SolidColorBrush(Color.FromArgb(0x33, 0x20, 0xC2, 0xA8));
+        public event Action<ToolExecutionRequest> ToolActionRequested;
+        private ToolInfo _currentTool;
+        private ToolCapabilityProfile _profile;
 
         public ToolDetailPanel()
         {
             InitializeComponent();
-            DataContextChanged += ToolDetailPanel_DataContextChanged;
+            DataContextChanged += (_, e) => { if (e.NewValue is ToolInfo t) ShowTool(t); else ShowPlaceholder(); };
             Services.PowerShellService.RunningStateChanged += OnRunningStateChanged;
-            Loaded += (s, e) => Services.ThemeService.LanguageChanged += OnLanguageChanged;
-            Unloaded += (s, e) => Services.ThemeService.LanguageChanged -= OnLanguageChanged;
+            Services.ThemeService.LanguageChanged += () => { if (_currentTool != null) ShowTool(_currentTool); };
+            ToolExecutionEvidence.Changed += OnEvidenceChanged;
         }
 
-        private ToolInfo _currentTool;
-
-        private void OnLanguageChanged()
-        {
-            if (_currentTool != null)
-                ShowTool(_currentTool);
-        }
-
-        private void OnRunningStateChanged(bool isRunning)
-        {
-            Dispatcher.Invoke(() =>
-            {
-                BtnAnalyze.IsEnabled = !isRunning;
-                BtnRun.IsEnabled = !isRunning;
-            });
-        }
-
-        private void ToolDetailPanel_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
-        {
-            if (e.NewValue is ToolInfo tool)
-                ShowTool(tool);
-            else
-                ShowPlaceholder();
-        }
-
+        private void OnRunningStateChanged(bool running) => Dispatcher.Invoke(() => { foreach (Button b in ActionBar.Children) b.IsEnabled = !running; });
+        private void OnEvidenceChanged(string id) { if (_currentTool?.ToolId == id) Dispatcher.BeginInvoke(new Action(RefreshEvidence)); }
         private void ShowPlaceholder()
         {
             _currentTool = null;
             PlaceholderPanel.Visibility = Visibility.Visible;
             DetailContent.Visibility = Visibility.Collapsed;
-            BtnAnalyze.Visibility = Visibility.Collapsed;
-            BtnRun.Visibility = Visibility.Collapsed;
+            ActionBar.Children.Clear();
+            SelectionBox.Visibility = Visibility.Collapsed;
+            SelectionLabel.Visibility = Visibility.Collapsed;
         }
 
         private void ShowTool(ToolInfo tool)
         {
             _currentTool = tool;
+            _profile = tool.Capability;
             PlaceholderPanel.Visibility = Visibility.Collapsed;
             DetailContent.Visibility = Visibility.Visible;
-            
-            // Use the mapper for semantic action labels
-            var primaryActionLabel = ActionLabelMapper.GetPrimaryAction(tool);
-            var secondaryAction1 = ActionLabelMapper.GetSecondaryAction1(tool);
-            var secondaryAction2 = ActionLabelMapper.GetSecondaryAction2(tool);
-            
-            // Determine available actions based on capabilities
-            var hasAnalyze = tool.AnalyzeOnlySupported;
-            var hasWhatIf = tool.WhatIfSupported;
-            var isDestructive = tool.RiskLevel == "DESTRUCTIVE";
-            var isReadOnly = tool.RiskLevel == "READ_ONLY";
-            var isRepair = tool.RiskLevel == "SYSTEM_REPAIR";
-            var isSafeCleanup = tool.RiskLevel == "SAFE_CLEANUP";
-            
-            // Configure Analyze button visibility and label
-            BtnAnalyze.Visibility = hasAnalyze ? Visibility.Visible : Visibility.Collapsed;
-            if (hasAnalyze)
-            {
-                if (isReadOnly)
-                    BtnAnalyze.Content = FindResource("ActionAnalyze");
-                else if (isDestructive || isSafeCleanup)
-                    BtnAnalyze.Content = FindResource("ActionPreviewChanges");
-                else
-                    BtnAnalyze.Content = FindResource("ActionAnalyzeSafely");
-            }
-            
-            // Configure Run button with semantic label from mapper
-            BtnRun.Visibility = Visibility.Visible;
-            BtnRun.Content = GetLocalizedActionLabel(primaryActionLabel);
-
+            CategoryText.Text = tool.CategoryDisplayName;
+            CategoryText.Foreground = tool.CategoryAccentBrush ?? (Brush)FindResource("BrushCyan");
+            ToolNameText.Text = tool.DisplayName;
             ToolIdText.Text = tool.ToolId;
-            ToolNameText.Text = Services.ThemeService.IsArabic(Services.SettingsService.Settings.Language) 
-                ? tool.ArabicName : tool.EnglishName;
-            PurposeText.Text = tool.Purpose;
-            OfflineText.Text = tool.OfflineCapability ?? (string)FindResource("ValueNone");
-            BackupText.Text = tool.BackupMethod ?? (string)FindResource("ValueNone");
-            RollbackText.Text = tool.RollbackMethod ?? (string)FindResource("ValueNone");
-            WhatIfText.Text = tool.WhatIfSupported
-                ? (string)FindResource("ValueSupported")
-                : (string)FindResource("ValueNotSupported");
-            PathText.Text = tool.ScriptPath ?? "";
-
-            // Risk badge using mapper
-            var risk = tool.RiskLevel?.ToUpper() ?? "";
-            RiskText.Text = RiskPresentationMapper.GetLabel(risk);
-            RiskBadge.Background = RiskPresentationMapper.GetBackgroundBrush(risk);
-            RiskBadge.BorderBrush = RiskPresentationMapper.GetBorderBrush(risk);
-            RiskBadge.BorderThickness = new Thickness(0.5);
-            RiskText.Foreground = RiskPresentationMapper.GetForegroundBrush(risk);
-
+            RiskText.Text = tool.RiskDisplayName;
+            RiskBadge.Background = new SolidColorBrush(Color.FromArgb(0x25, 0x34, 0x78, 0xF6));
+            RiskText.Foreground = tool.CategoryAccentBrush ?? (Brush)FindResource("BrushCyan");
             AdminBadge.Visibility = tool.RequiresAdmin ? Visibility.Visible : Visibility.Collapsed;
             RestartBadge.Visibility = tool.RequiresRestart ? Visibility.Visible : Visibility.Collapsed;
+            PurposeText.Text = tool.Purpose ?? "Not specified";
+            CapabilitiesList.ItemsSource = _profile.CapabilityChips;
+            PreviewText.Text = _profile.PreviewSummary + Environment.NewLine +
+                "Offline: " + (tool.OfflineCapability ?? "Not specified") + Environment.NewLine +
+                "Analyze: " + (_profile.CanAnalyze ? "Supported" : "Not specified") + Environment.NewLine +
+                "What-If: " + (_profile.CanWhatIf ? "Supported" : "Not specified");
+            ParametersText.Text = _profile.InputParameters;
+            BackupText.Text = _profile.PreservationSummary;
+            RollbackText.Text = _profile.RecoverySummary;
+            ExpectedText.Text = _profile.ExpectedOutputSummary;
+            PathText.Text = tool.ScriptPath ?? "Not specified";
+            RefreshEvidence();
+            BuildActions();
         }
 
-        /// <summary>
-        /// Gets localized action label from resource dictionary or falls back to English.
-        /// </summary>
-        private string GetLocalizedActionLabel(string actionKey)
+        private void BuildActions()
         {
-            try
+            ActionBar.Children.Clear();
+            var needsSelection = _profile.RequiresSelection;
+            SelectionBox.Visibility = needsSelection ? Visibility.Visible : Visibility.Collapsed;
+            SelectionLabel.Visibility = needsSelection ? Visibility.Visible : Visibility.Collapsed;
+            if (needsSelection)
             {
-                var resourceKey = "Action" + actionKey.Replace(" ", "").Replace("-", "");
-                var resource = TryFindResource(resourceKey);
-                if (resource != null)
-                    return resource.ToString();
+                SelectionLabel.Text = "Required script input: " + _profile.InputParameters;
+                SelectionBox.Text = string.Empty;
             }
-            catch { }
-            
-            // Fallback mappings for common labels
-            return actionKey;
-        }
 
-        private ToolInfo GetCurrentTool() => DataContext as ToolInfo;
-
-        private void BtnAnalyze_Click(object sender, RoutedEventArgs e)
-        {
-            var tool = GetCurrentTool();
-            if (tool != null)
-                ToolExecutionRequested?.Invoke(tool.ScriptPath, true);
-        }
-
-        private void BtnRun_Click(object sender, RoutedEventArgs e)
-        {
-            var tool = GetCurrentTool();
-            if (tool != null)
+            foreach (var action in _profile.Actions)
             {
-                // Show confirmation for destructive or admin operations
-                var requiresConfirmation = tool.RiskLevel == "DESTRUCTIVE" || 
-                                          tool.RiskLevel == "SYSTEM_REPAIR" ||
-                                          tool.RequiresAdmin ||
-                                          tool.RequiresRestart;
-
-                if (requiresConfirmation)
+                var button = new Button
                 {
-                    var opts = MessageBoxOptions.DefaultDesktopOnly;
-                    if (Services.ThemeService.IsArabic(Services.SettingsService.Settings.Language))
-                        opts |= MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign;
-
-                    var result = MessageBox.Show(
-                        (string)FindResource("ConfirmRunMessage"),
-                        (string)FindResource("ConfirmRunTitle"),
-                        MessageBoxButton.YesNo, MessageBoxImage.Warning,
-                        MessageBoxResult.No, opts);
-                    if (result != MessageBoxResult.Yes)
-                        return;
-                }
-
-                ToolExecutionRequested?.Invoke(tool.ScriptPath, false);
+                    Content = action.Label,
+                    Tag = action,
+                    ToolTip = action.Description,
+                    Padding = new Thickness(9, 5, 9, 5),
+                    Margin = new Thickness(0, 0, 7, 0),
+                    Style = FindResource(action.Kind == ToolActionKind.Preview ? "SecondaryButton" : "AccentButton") as Style
+                };
+                AutomationProperties.SetName(button, action.Label + " " + (_currentTool?.DisplayName ?? "tool"));
+                button.Click += Action_Click;
+                ActionBar.Children.Add(button);
             }
+        }
+
+        private void Action_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentTool == null || sender is not Button b || b.Tag is not ToolActionDescriptor action) return;
+            if (action.RequiresSelection && string.IsNullOrWhiteSpace(SelectionBox.Text))
+            {
+                MessageBox.Show("The script declares a required input. Enter its value before executing.", "Selection required", MessageBoxButton.OK, MessageBoxImage.Information);
+                SelectionBox.Focus();
+                return;
+            }
+            if (action.RequiresConfirmation && MessageBox.Show("This action can change system state. Continue?", "Confirm action", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+            if (action.Kind == ToolActionKind.Preview) { RefreshEvidence(); return; }
+            ToolActionRequested?.Invoke(new ToolExecutionRequest { Tool = _currentTool, Action = action, Selection = SelectionBox.Text });
+        }
+
+        public void ShowPreview() { if (_currentTool != null) { DetailContent.Visibility = Visibility.Visible; RefreshEvidence(); } }
+        public void PrepareAction(ToolActionDescriptor action) { SelectionBox.Visibility = Visibility.Visible; SelectionLabel.Visibility = Visibility.Visible; SelectionBox.Focus(); }
+        public void RefreshEvidence()
+        {
+            if (_currentTool == null) return;
+            var evidence = ToolExecutionEvidence.Get(_currentTool.ToolId);
+            var text = evidence.State;
+            if (evidence.Elapsed.HasValue) text += " · elapsed " + evidence.Elapsed.Value.TotalSeconds.ToString("0.0") + "s";
+            if (evidence.ExitCode.HasValue) text += " · exit " + evidence.ExitCode.Value;
+            if (!string.IsNullOrWhiteSpace(evidence.ReportPath)) text += Environment.NewLine + "Report: " + evidence.ReportPath;
+            if (!string.IsNullOrWhiteSpace(evidence.BackupPath)) text += Environment.NewLine + "Backup: " + evidence.BackupPath;
+            if (!string.IsNullOrWhiteSpace(evidence.QuarantinePath)) text += Environment.NewLine + "Quarantine: " + evidence.QuarantinePath;
+            if (!string.IsNullOrWhiteSpace(evidence.RecoveryInformation)) text += Environment.NewLine + "Recovery: " + evidence.RecoveryInformation;
+            if (evidence.Stderr.Count > 0) text += Environment.NewLine + "stderr: " + evidence.Stderr[evidence.Stderr.Count - 1];
+            EvidenceText.Text = text;
         }
     }
 }

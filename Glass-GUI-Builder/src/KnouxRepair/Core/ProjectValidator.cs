@@ -17,13 +17,13 @@ namespace KnouxRepair.Core
     // Splash-screen project validation (tech plan §4)
     public static class ProjectValidator
     {
-        public static List<ValidationStep> Validate(string projectRoot)
+        public static List<ValidationStep> Validate(string projectRoot, IProgress<ValidationStep> progress = null)
         {
             var steps = new List<ValidationStep>();
 
             // 1. Project root exists
             var rootOk = Directory.Exists(projectRoot);
-            steps.Add(new ValidationStep
+            AddStep(steps, progress, new ValidationStep
             {
                 Name = "ProjectRoot",
                 Passed = rootOk,
@@ -33,7 +33,7 @@ namespace KnouxRepair.Core
             // 2. VERSION file
             var versionPath = Path.Combine(projectRoot, "VERSION");
             var versionOk = File.Exists(versionPath);
-            steps.Add(new ValidationStep
+            AddStep(steps, progress, new ValidationStep
             {
                 Name = "Version",
                 Passed = versionOk,
@@ -59,7 +59,7 @@ namespace KnouxRepair.Core
                     manifestDetail = "Invalid JSON: " + ex.Message;
                 }
             }
-            steps.Add(new ValidationStep
+            AddStep(steps, progress, new ValidationStep
             {
                 Name = "Manifest",
                 Passed = manifestOk,
@@ -84,7 +84,7 @@ namespace KnouxRepair.Core
                     menusDetail = "Invalid JSON: " + ex.Message;
                 }
             }
-            steps.Add(new ValidationStep
+            AddStep(steps, progress, new ValidationStep
             {
                 Name = "Menus",
                 Passed = menusOk,
@@ -96,7 +96,7 @@ namespace KnouxRepair.Core
             var coreModules = Directory.Exists(coreDir)
                 ? Directory.GetFiles(coreDir, "*.psm1")
                 : Array.Empty<string>();
-            steps.Add(new ValidationStep
+            AddStep(steps, progress, new ValidationStep
             {
                 Name = "Core",
                 Passed = coreModules.Length >= 4,
@@ -118,7 +118,7 @@ namespace KnouxRepair.Core
                     }
                 }
             }
-            steps.Add(new ValidationStep
+            AddStep(steps, progress, new ValidationStep
             {
                 Name = "Scripts",
                 Passed = missingScripts == 0,
@@ -142,7 +142,7 @@ namespace KnouxRepair.Core
             {
                 reportsDetail = "Not writable";
             }
-            steps.Add(new ValidationStep
+            AddStep(steps, progress, new ValidationStep
             {
                 Name = "Reports",
                 Passed = reportsOk,
@@ -151,7 +151,7 @@ namespace KnouxRepair.Core
 
             // 8. PowerShell executable
             var ps = Services.PowerShellService.FindPowerShell();
-            steps.Add(new ValidationStep
+            AddStep(steps, progress, new ValidationStep
             {
                 Name = "PowerShell",
                 Passed = File.Exists(ps),
@@ -163,7 +163,7 @@ namespace KnouxRepair.Core
                 .Select(t => t.TryGetProperty("ToolId", out var id) ? id.GetString() : "")
                 .Distinct(StringComparer.OrdinalIgnoreCase).Count();
             var dupesOk = dupes == 0;
-            steps.Add(new ValidationStep
+            AddStep(steps, progress, new ValidationStep
             {
                 Name = "UniqueIds",
                 Passed = dupesOk,
@@ -174,7 +174,7 @@ namespace KnouxRepair.Core
             var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
             var principal = new System.Security.Principal.WindowsPrincipal(identity);
             var isAdmin = principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
-            steps.Add(new ValidationStep
+            AddStep(steps, progress, new ValidationStep
             {
                 Name = "Admin",
                 Passed = isAdmin,
@@ -184,7 +184,13 @@ namespace KnouxRepair.Core
             return steps;
         }
 
-        public static async Task<List<ValidationStep>> ValidateAsync(string projectRoot)
-            => await Task.Run(() => Validate(projectRoot));
+        private static void AddStep(List<ValidationStep> steps, IProgress<ValidationStep> progress, ValidationStep step)
+        {
+            steps.Add(step);
+            progress?.Report(step);
+        }
+
+        public static async Task<List<ValidationStep>> ValidateAsync(string projectRoot, IProgress<ValidationStep> progress = null)
+            => await Task.Run(() => Validate(projectRoot, progress));
     }
 }

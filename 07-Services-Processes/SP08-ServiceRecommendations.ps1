@@ -5,11 +5,7 @@
 #  Changes are permitted ONLY from an explicit Config allowlist supplied by
 #  the administrator. No generic disable recommendations.
 [CmdletBinding()]
-param(
-    [switch]$AnalyzeOnly,
-    [switch]$WhatIf,
-    [string]$Selection = ""   # Comma-separated numbers or "all"
-)
+param([switch]$AnalyzeOnly, [switch]$WhatIf, [string]$Selection)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -97,111 +93,97 @@ try {
     $Session.ItemsFound = $rows.Count
     $Session.ItemsProcessed = 1
 
-    if ($WhatIf) {
-        Write-Host "WhatIf: Would apply recommendations for selection: $Selection" -ForegroundColor Cyan
-        Write-KnouxLog -Session $Session "WhatIf: Would apply service recommendations"
-        exit 0
-    }
-    
-    if ($AnalyzeOnly) {
-        Write-Host '[ANALYZE] Displaying service recommendations only, no changes.' -ForegroundColor Green
+    if ($AnalyzeOnly -or $WhatIf) {
+        Write-Host '[ANALYZE] No changes made. Use Config\service-allowlist.json to permit specific changes.' -ForegroundColor Green
         Write-KnouxLog -Session $Session ("Analyze: {0} services audited, {1} allowed for change" -f $rows.Count, $allowed.Count)
-        exit 0
-    }
-    
-    # Check for allowed changes
-    $changeable = @($allowed | Where-Object { $_.StartupType -ne 'Disabled' })
-    if ($changeable.Count -eq 0) {
-        Write-Host '[OK] No allowed services are eligible for startup type change.' -ForegroundColor Green
         $Session.Status = 'Success'
-    } elseif (-not (Test-KnouxAdministrator)) {
-        $Session.Status = 'Failed'
-        $Session.ErrorMessage = 'Administrator privileges are required.'
-        Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
     } else {
-        # Non-interactive execution: use Selection parameter
-        if ([string]::IsNullOrWhiteSpace($Selection)) {
-            Write-Error "Selection parameter is required for non-interactive execution. Provide comma-separated numbers or 'all'."
+        # Check for allowed changes
+        $changeable = @($allowed | Where-Object { $_.StartupType -ne 'Disabled' })
+        if ($changeable.Count -eq 0) {
+            Write-Host '[OK] No allowed services are eligible for startup type change.' -ForegroundColor Green
+            $Session.Status = 'Success'
+        } elseif (-not (Test-KnouxAdministrator)) {
             $Session.Status = 'Failed'
-            $Session.ErrorMessage = 'Missing Selection parameter'
-            exit 1
-        }
-        
-        Write-Host ''
-        Write-Host 'Allowed services eligible for startup type change:' -ForegroundColor Cyan
-        $i = 0
-        foreach ($s in $changeable) {
-            $i++
-            Write-Host ('  {0,2}. {1,-30} [{2}] -> Allowed Action: {3}' -f $i, $s.ServiceName, $s.StartupType, $s.AllowlistAction)
-        }
-
-        Write-Host ''
-        Write-Host 'Enter numbers to change (comma separated) or 0 to cancel:' -ForegroundColor Yellow
-        $input = $Selection
-        $chosen = @($input -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^\d+$' } | ForEach-Object { [int]$_ })
-        if ($chosen -contains 0 -or $chosen.Count -eq 0) {
-            Write-Host '[CANCELLED] No changes made.' -ForegroundColor Yellow
-            $Session.Status = 'Cancelled'
+            $Session.ErrorMessage = 'Administrator privileges are required.'
+            Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
         } else {
-            $toChange = @()
-            foreach ($idx in $chosen) {
-                if ($idx -ge 1 -and $idx -le $changeable.Count) { $toChange += $changeable[$idx - 1] }
+            Write-Host ''
+            Write-Host 'Allowed services eligible for startup type change:' -ForegroundColor Cyan
+            $i = 0
+            foreach ($s in $changeable) {
+                $i++
+                Write-Host ('  {0,2}. {1,-30} [{2}] -> Allowed Action: {3}' -f $i, $s.ServiceName, $s.StartupType, $s.AllowlistAction)
             }
-            if ($toChange.Count -eq 0) {
-                $Session.Status = 'Cancelled'
+
+            Write-Host ''
+            Write-Host 'Enter numbers to change (comma separated) or 0 to cancel:' -ForegroundColor Yellow
+            $input = $Selection
+            $chosen = @($input -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^\d+$' } | ForEach-Object { [int]$_ })
+            if ($chosen -contains 0 -or $chosen.Count -eq 0) {
                 Write-Host '[CANCELLED] No changes made.' -ForegroundColor Yellow
+                $Session.Status = 'Cancelled'
             } else {
-                # Backup current state
-                $backup = @($toChange | ForEach-Object {
-                    [pscustomobject]@{
-                        ServiceName = $_.ServiceName
-                        DisplayName = $_.DisplayName
-                        OriginalStartupType = $_.StartupType
-                        OriginalRunningState = $_.Status
-                        BinaryPath = $_.BinaryPath
-                        BackedUpAt = (Get-Date).ToString('s')
-                    }
-                })
-                $backupPath = Join-Path $Session.RawDir 'service-config-backup.json'
-                try {
-                    $backup | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $backupPath -Encoding UTF8
-                    Write-KnouxLog -Session $Session ("Backed up {0} service configurations to {1}" -f $backup.Count, $backupPath)
-                } catch {
-                    throw "Could not write service config backup: $($_.Exception.Message)"
+                $toChange = @()
+                foreach ($idx in $chosen) {
+                    if ($idx -ge 1 -and $idx -le $changeable.Count) { $toChange += $changeable[$idx - 1] }
                 }
-
-                $changed = 0
-                foreach ($s in $toChange) {
-                    $target = $allowlist[$s.ServiceName]
-                    $newType = if ($target.DesiredStartupType) { $target.DesiredStartupType } else { 'Disabled' }
-                    try {
-                        # Backup original state
-                        Write-KnouxLog -Session $Session ("Changing {0}: {1} -> {2}" -f $s.ServiceName, $s.StartupType, $newType)
-                        Set-Service -Name $s.ServiceName -StartupType $newType -ErrorAction Stop
-                        # Verify
-                        $verified = Get-Service -Name $s.ServiceName -ErrorAction SilentlyContinue
-                        if ($verified -and $verified.StartType -eq $newType) {
-                            $changed++
-                            Write-Host ('  [OK] {0}: {1} -> {2}' -f $s.ServiceName, $s.StartupType, $newType) -ForegroundColor Green
-                            Write-KnouxLog -Session $Session ("Changed {0}: {1} -> {2}" -f $s.ServiceName, $s.StartupType, $newType)
-                        } else {
-                            Write-KnouxLog -Session $Session ("Verification failed for {0}: expected {1}, got {2}" -f $s.ServiceName, $newType, $($verified.StartType)) 'ERROR'
-                            Write-Host ('  [ERROR] Verification failed for {0}' -f $s.ServiceName) -ForegroundColor Red
-                        }
-                    } catch {
-                        Write-KnouxLog -Session $Session ("FAIL change {0}: {1}" -f $s.ServiceName, $_.Exception.Message)
-                        Write-Host ('  [ERROR] could not change {0}: {1}' -f $s.ServiceName, $_.Exception.Message) -ForegroundColor Red
-                    }
-                }
-
-                if ($changed -gt 0) {
-                    $Session.Status = 'Success'
-                    $Session.ChangedSystem = $true
-                    $Session.ItemsProcessed = $changed
-                    Write-Host ('[OK] Changed {0} service(s). Restore with SP09.' -f $changed) -ForegroundColor Green
+                if ($toChange.Count -eq 0) {
+                    $Session.Status = 'Cancelled'
+                    Write-Host '[CANCELLED] No changes made.' -ForegroundColor Yellow
                 } else {
-                    $Session.Status = 'Warning'
-                    $Session.ErrorMessage = 'No service could be changed.'
+                    # Backup current state
+                    $backup = @($toChange | ForEach-Object {
+                        [pscustomobject]@{
+                            ServiceName = $_.ServiceName
+                            DisplayName = $_.DisplayName
+                            OriginalStartupType = $_.StartupType
+                            OriginalRunningState = $_.Status
+                            BinaryPath = $_.BinaryPath
+                            BackedUpAt = (Get-Date).ToString('s')
+                        }
+                    })
+                    $backupPath = Join-Path $Session.RawDir 'service-config-backup.json'
+                    try {
+                        $backup | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $backupPath -Encoding UTF8
+                        Write-KnouxLog -Session $Session ("Backed up {0} service configurations to {1}" -f $backup.Count, $backupPath)
+                    } catch {
+                        throw "Could not write service config backup: $($_.Exception.Message)"
+                    }
+
+                    $changed = 0
+                    foreach ($s in $toChange) {
+                        $target = $allowlist[$s.ServiceName]
+                        $newType = if ($target.DesiredStartupType) { $target.DesiredStartupType } else { 'Disabled' }
+                        try {
+                            # Backup original state
+                            Write-KnouxLog -Session $Session ("Changing {0}: {1} -> {2}" -f $s.ServiceName, $s.StartupType, $newType)
+                            Set-Service -Name $s.ServiceName -StartupType $newType -ErrorAction Stop
+                            # Verify
+                            $verified = Get-Service -Name $s.ServiceName -ErrorAction SilentlyContinue
+                            if ($verified -and $verified.StartType -eq $newType) {
+                                $changed++
+                                Write-Host ('  [OK] {0}: {1} -> {2}' -f $s.ServiceName, $s.StartupType, $newType) -ForegroundColor Green
+                                Write-KnouxLog -Session $Session ("Changed {0}: {1} -> {2}" -f $s.ServiceName, $s.StartupType, $newType)
+                            } else {
+                                Write-KnouxLog -Session $Session ("Verification failed for {0}: expected {1}, got {2}" -f $s.ServiceName, $newType, $($verified.StartType)) 'ERROR'
+                                Write-Host ('  [ERROR] Verification failed for {0}' -f $s.ServiceName) -ForegroundColor Red
+                            }
+                        } catch {
+                            Write-KnouxLog -Session $Session ("FAIL change {0}: {1}" -f $s.ServiceName, $_.Exception.Message)
+                            Write-Host ('  [ERROR] could not change {0}: {1}' -f $s.ServiceName, $_.Exception.Message) -ForegroundColor Red
+                        }
+                    }
+
+                    if ($changed -gt 0) {
+                        $Session.Status = 'Success'
+                        $Session.ChangedSystem = $true
+                        $Session.ItemsProcessed = $changed
+                        Write-Host ('[OK] Changed {0} service(s). Restore with SP09.' -f $changed) -ForegroundColor Green
+                    } else {
+                        $Session.Status = 'Warning'
+                        $Session.ErrorMessage = 'No service could be changed.'
+                    }
                 }
             }
         }

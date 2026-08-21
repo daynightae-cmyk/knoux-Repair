@@ -1,19 +1,21 @@
 import { motion } from 'framer-motion';
 import {
-  Shield, Wrench, Trash2, Wifi, AppWindow, Copy,
-  HardDrive, Cpu, Gauge, Lock, Activity, FileText,
-  Archive, Database, Settings, Info, Search, LayoutDashboard,
-  Languages, CircleDot, Sun, Moon,
+  Activity, AppWindow, Boxes, CircleDot, Copy, Cpu, FolderKanban, Gauge, HardDrive, Languages,
+  Lock, Moon, Network, Radar, Rocket, Settings, Shield, Sun, Trash2, Wrench,
 } from 'lucide-react';
+import type { CSSProperties, ElementType } from 'react';
 import type { ActiveSection } from '../types';
+import type { BridgeTool } from '../lib/api';
 import type { Lang } from '../lib/i18n';
 import { STRINGS } from '../lib/i18n';
+import { CATEGORIES, type CategoryIconKey } from '../data/categories';
 
 interface SidebarProps {
   active: ActiveSection;
   onSelect: (section: ActiveSection) => void;
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
+  viewMode: 'workspaces' | 'tools';
+  onOpenWorkspaces: () => void;
+  toolsByCategory: Record<string, BridgeTool[]>;
   open: boolean;
   onClose: () => void;
   lang: Lang;
@@ -22,157 +24,151 @@ interface SidebarProps {
   setTheme: (theme: 'dark' | 'light') => void;
   bridgeOnline: boolean | null;
   bridgeElevated: boolean;
+  onOpenSettings: () => void;
 }
 
-interface NavItem {
-  id: ActiveSection;
-  labelKey: string;
-  icon: React.ReactNode;
-  group: string;
-}
+type AccentStyle = CSSProperties & Record<'--accent', string>;
 
-const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', labelKey: 'navDashboard', icon: <LayoutDashboard size={16} />, group: 'groupOverview' },
-  { id: 'maintenance', labelKey: 'navMaintenance', icon: <Wrench size={16} />, group: 'groupRepair' },
-  { id: 'cleanup', labelKey: 'navCleanup', icon: <Trash2 size={16} />, group: 'groupRepair' },
-  { id: 'network', labelKey: 'navNetwork', icon: <Wifi size={16} />, group: 'groupRepair' },
-  { id: 'programs', labelKey: 'navPrograms', icon: <AppWindow size={16} />, group: 'groupRepair' },
-  { id: 'duplicates', labelKey: 'navDuplicates', icon: <Copy size={16} />, group: 'groupRepair' },
-  { id: 'disk', labelKey: 'navDisk', icon: <HardDrive size={16} />, group: 'groupRepair' },
-  { id: 'services', labelKey: 'navServices', icon: <Cpu size={16} />, group: 'groupManage' },
-  { id: 'performance', labelKey: 'navPerformance', icon: <Gauge size={16} />, group: 'groupManage' },
-  { id: 'security', labelKey: 'navSecurity', icon: <Shield size={16} />, group: 'groupManage' },
-  { id: 'diagnostics', labelKey: 'navDiagnostics', icon: <Activity size={16} />, group: 'groupManage' },
-  { id: 'reports', labelKey: 'navReports', icon: <FileText size={16} />, group: 'groupSystem' },
-  { id: 'quarantine', labelKey: 'navQuarantine', icon: <Archive size={16} />, group: 'groupSystem' },
-  { id: 'backups', labelKey: 'navBackups', icon: <Database size={16} />, group: 'groupSystem' },
-  { id: 'settings', labelKey: 'navSettings', icon: <Settings size={16} />, group: 'groupSystem' },
-  { id: 'about', labelKey: 'navAbout', icon: <Info size={16} />, group: 'groupSystem' },
-];
+const ICONS: Record<CategoryIconKey, ElementType> = {
+  maintenance: Wrench,
+  cleanup: Trash2,
+  network: Network,
+  programs: AppWindow,
+  duplicates: Copy,
+  disk: HardDrive,
+  services: Cpu,
+  performance: Gauge,
+  security: Shield,
+  diagnostics: Activity,
+  backup: HardDrive,
+  developer: AppWindow,
+  privacy: Shield,
+  drivers: Cpu,
+  monitoring: Activity,
+  software: Boxes,
+  setup: Rocket,
+  sonar: Radar,
+};
 
 export default function Sidebar({
-  active, onSelect, searchQuery, onSearchChange, open, onClose, lang, setLang, theme, setTheme, bridgeOnline, bridgeElevated,
+  active, onSelect, viewMode, onOpenWorkspaces, toolsByCategory, open, onClose, lang, setLang, theme, setTheme, bridgeOnline, bridgeElevated, onOpenSettings,
 }: SidebarProps) {
   const t = STRINGS[lang];
-  const groups = [...new Set(NAV_ITEMS.map(i => i.group))];
 
   return (
     <>
       {open && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden"
+        <button
+          type="button"
+          aria-label="Close navigation"
+          className="fixed inset-0 z-30 bg-slate-950/60 backdrop-blur-sm md:hidden"
           onClick={onClose}
         />
       )}
 
-      <div className={`
-        w-64 h-full glass-panel rounded-[2rem] flex flex-col overflow-hidden
-        fixed md:relative z-40 transition-transform duration-300 ease-out
-        ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
+      <aside
+        aria-label={lang === 'ar' ? 'فئات أدوات الإصلاح' : 'Repair tool categories'}
+        className={`
+          w-[17rem] shrink-0 h-full nx-sidebar rounded-[1.75rem] flex flex-col overflow-hidden
+          fixed md:relative z-40 transition-transform duration-200 ease-out
+          ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          rtl:translate-x-full rtl:md:translate-x-0
+        `}
+      >
         <div className="px-5 pt-6 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg glass-panel-light neon-glow flex items-center justify-center shrink-0">
-              <span className="font-display text-sm font-black text-cyan-400">K</span>
+            <div className="w-10 h-10 rounded-xl nx-brand-mark flex items-center justify-center shrink-0 overflow-hidden">
+              <img src="/brand/knoux-repair-logo.png" alt="" className="w-full h-full object-contain scale-[1.22]" />
             </div>
-            <div>
-              <h1 className="font-display text-xs font-bold tracking-wider text-glow">
-                <span className="text-white">KNOUX</span>{' '}
-                <span className="text-cyan-400 font-light">REPAIR</span>
+            <div className="min-w-0">
+              <h1 className="font-display text-[13px] font-bold tracking-[0.12em] text-white">
+                KNOUX <span className="text-slate-400 font-medium">REPAIR</span>
               </h1>
-              <p className="font-mono text-[8px] text-cyan-400/40 tracking-widest">{t.tagline}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="px-4 pb-3">
-          <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400/40 rtl:left-auto rtl:right-3" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => onSearchChange(e.target.value)}
-              placeholder={t.search}
-              className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg py-2 pl-9 pr-3 text-xs font-mono text-slate-300 placeholder:text-white/20 focus-glow transition-all rtl:pl-3 rtl:pr-9"
-            />
-          </div>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto px-3 pb-3">
-          {groups.map(group => (
-            <div key={group} className="mb-3">
-              <p className="px-3 py-1.5 font-mono text-[9px] font-semibold tracking-[0.2em] text-cyan-400/30">
-                {t[group]}
+              <p className="mt-0.5 font-mono text-[9px] tracking-[0.16em] text-slate-500">
+                {lang === 'ar' ? 'محطات صيانة ويندوز' : 'WINDOWS REPAIR WORKSTATIONS'}
               </p>
-              {NAV_ITEMS.filter(i => i.group === group).map(item => {
-                const isActive = active === item.id;
-                return (
-                  <motion.button
-                    key={item.id}
-                    onClick={() => { onSelect(item.id); onClose(); }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-body transition-all relative ${
-                      isActive
-                        ? 'bg-cyan-500/10 text-cyan-400'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]'
-                    }`}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    {isActive && (
-                      <motion.div
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-cyan-400 rounded-r neon-glow rtl:left-auto rtl:right-0 rtl:rounded-l rtl:rounded-r-none"
-                        layoutId="sidebar-indicator"
-                        transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-                      />
-                    )}
-                    <span className={isActive ? 'text-cyan-400' : 'text-slate-500'}>{item.icon}</span>
-                    <span className="truncate">{t[item.labelKey]}</span>
-                  </motion.button>
-                );
-              })}
             </div>
-          ))}
+          </div>
+        </div>
+
+        <div className="px-3 pb-4">
+          <button
+            type="button"
+            onClick={onOpenWorkspaces}
+            className={`workspace-nav-entry w-full ${viewMode === 'workspaces' ? 'is-active' : ''}`}
+            aria-current={viewMode === 'workspaces' ? 'page' : undefined}
+          >
+            <span className="workspace-nav-entry-icon"><FolderKanban size={16} /></span>
+            <span className="flex-1 min-w-0 text-start">{lang === 'ar' ? 'مساحات العمل' : 'Workspaces'}</span>
+            <span className="workspace-nav-entry-badge">LIVE</span>
+          </button>
+        </div>
+
+        <div className="px-5 pb-2">
+          <p className="font-mono text-[9px] font-semibold tracking-[0.18em] text-slate-500">
+            {lang === 'ar' ? 'محطات الإصلاح' : 'REPAIR WORKSTATIONS'}
+          </p>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-3 pb-4" aria-label={lang === 'ar' ? 'الفئات' : 'Categories'}>
+          <div className="space-y-1">
+            {CATEGORIES.map((category) => {
+              const isActive = viewMode === 'tools' && active === category.section;
+              const Icon = ICONS[category.icon];
+              const count = toolsByCategory[category.id]?.length ?? 0;
+              const style: AccentStyle = { '--accent': category.accent };
+
+              return (
+                <motion.button
+                  key={category.id}
+                  type="button"
+                  onClick={() => { onSelect(category.section); onClose(); }}
+                  className={`category-nav-item w-full ${isActive ? 'is-active' : ''}`}
+                  style={style}
+                  aria-current={isActive ? 'page' : undefined}
+                  whileTap={{ scale: 0.985 }}
+                >
+                  <span className="category-nav-icon"><Icon size={16} strokeWidth={isActive ? 2.5 : 1.8} /></span>
+                  <span className="flex-1 min-w-0 text-start truncate">{category.name[lang]}</span>
+                  <span className="category-count" aria-label={`${count} tools`}>{count}</span>
+                </motion.button>
+              );
+            })}
+          </div>
         </nav>
 
-        <div className="px-5 py-4 border-t border-white/[0.04] space-y-2">
+        <div className="px-5 py-4 border-t border-white/[0.07] space-y-3">
           <div className="flex items-center gap-2">
-            <CircleDot size={10} className={bridgeOnline ? 'text-green-400' : 'text-red-400'} />
-            <span className={`font-mono text-[9px] ${bridgeOnline ? 'text-green-400' : 'text-red-400'}`}>
-              {bridgeOnline === null ? '...' : bridgeOnline ? t.bridgeOnline : t.bridgeOfflineTitle}
+            <CircleDot size={11} className={bridgeOnline ? 'text-emerald-400' : bridgeOnline === false ? 'text-rose-400' : 'text-slate-500'} />
+            <span className={`font-mono text-[9px] tracking-wide ${bridgeOnline ? 'text-emerald-300' : bridgeOnline === false ? 'text-rose-300' : 'text-slate-500'}`}>
+              {bridgeOnline === null ? (lang === 'ar' ? 'جارٍ التحقق من الجسر' : 'CHECKING EXECUTION BRIDGE') : bridgeOnline ? t.bridgeOnline : t.bridgeOfflineTitle}
             </span>
           </div>
           {bridgeOnline && (
-            <p className="font-mono text-[9px] text-cyan-400/50 tracking-wider">
+            <p className="font-mono text-[9px] text-slate-500 leading-relaxed">
               <Lock size={9} className="inline me-1" />
               {bridgeElevated ? t.bridgeElevated : t.bridgeNotElevated}
             </p>
           )}
-          <div className="flex items-center gap-1 pt-1">
-            <Languages size={10} className="text-slate-500" />
+          <button type="button" className="sidebar-settings-link" onClick={onOpenSettings}><Settings size={12}/>{lang === 'ar' ? 'إعدادات المطور' : 'Developer settings'}</button>
+          <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center gap-1">
+              <Languages size={11} className="text-slate-500" />
+              <button onClick={() => setLang('en')} className={`locale-toggle ${lang === 'en' ? 'is-active' : ''}`}>EN</button>
+              <button onClick={() => setLang('ar')} className={`locale-toggle ${lang === 'ar' ? 'is-active' : ''}`}>AR</button>
+            </div>
             <button
-              onClick={() => setLang('en')}
-              className={`px-2 py-1 rounded font-mono text-[9px] transition-all ${lang === 'en' ? 'bg-cyan-500/15 text-cyan-400' : 'text-slate-500 hover:text-slate-300'}`}
+              type="button"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              aria-label={theme === 'dark' ? t.themeLight : t.themeDark}
+              title={theme === 'dark' ? t.themeLight : t.themeDark}
+              className="theme-toggle"
             >
-              EN
-            </button>
-            <button
-              onClick={() => setLang('ar')}
-              className={`px-2 py-1 rounded font-mono text-[9px] transition-all ${lang === 'ar' ? 'bg-cyan-500/15 text-cyan-400' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              AR
+              {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
             </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            aria-label={theme === 'dark' ? t.themeLight : t.themeDark}
-            title={theme === 'dark' ? t.themeLight : t.themeDark}
-            className="mt-1 inline-flex items-center gap-1 rounded px-2 py-1 font-mono text-[9px] text-slate-500 transition-all hover:bg-white/[0.06] hover:text-cyan-400"
-          >
-            {theme === 'dark' ? <Sun size={11} /> : <Moon size={11} />}
-            {theme === 'dark' ? t.themeLight : t.themeDark}
-          </button>
         </div>
-      </div>
+      </aside>
     </>
   );
 }

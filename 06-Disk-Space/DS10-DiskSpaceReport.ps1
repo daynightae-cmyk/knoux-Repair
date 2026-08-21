@@ -23,9 +23,11 @@ try {
         $freeGB += [math]::Round($d.FreeSpace / 1GB, 1)
     }
 
-    $profile = [Environment]::GetFolderPath('UserProfile')
+    $profile = if ($AnalyzeOnly -or $WhatIf) { $null } else { [Environment]::GetFolderPath('UserProfile') }
     $largeFiles = @()
-    if ($profile -and (Test-Path -LiteralPath $profile)) {
+    if ($AnalyzeOnly -or $WhatIf) {
+        Write-Host '[ANALYZE] User-profile recursive scan is skipped in analyze mode; full execution adds the top files larger than 50 MB.' -ForegroundColor DarkGray
+    } elseif ($profile -and (Test-Path -LiteralPath $profile)) {
         $files = Get-KnouxScanFiles -Roots @($profile) -MinBytes 50MB
         $largeFiles = @($files | Sort-Object Length -Descending | Select-Object -First 10)
     }

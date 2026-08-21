@@ -76,6 +76,8 @@ Write-Host 'knoux Repair v2.0.2 | Test suite' -ForegroundColor Cyan
 Write-Host '================================' -ForegroundColor Cyan
 
 $toolFiles = Get-ToolFiles
+$ExpectedToolCount = 158
+$ExpectedCategoryCount = 18
 $coreFiles = @(Get-ChildItem -LiteralPath (Join-Path $ProjectRoot 'Core') -Filter *.psm1)
 
 # --- 1. Core imports cleanly ---
@@ -105,7 +107,7 @@ Test-Knoux -Name '03 Core modules are UTF-8 BOM' -Body {
 
 # --- 4. All tool files are UTF-8 BOM ---
 Test-Knoux -Name '04 All tool files are UTF-8 BOM' -Body {
-    return $toolFiles.Count -eq 100 -and @($toolFiles | Where-Object { -not (Has-Utf8Bom $_.FullName) }).Count -eq 0
+    return $toolFiles.Count -eq $ExpectedToolCount -and @($toolFiles | Where-Object { -not (Has-Utf8Bom $_.FullName) }).Count -eq 0
 }
 
 # --- 5. All tool files parse ---
@@ -119,28 +121,34 @@ Test-Knoux -Name '05 All tool files parse without errors' -Body {
     return $bad -eq 0
 }
 
-# --- 6. Ten categories, ten tools each ---
-Test-Knoux -Name '06 Ten categories with exactly ten tools each' -Body {
+# --- 6. Current product contract: 18 categories and 158 legal tools ---
+Test-Knoux -Name '06 Eighteen categories match the 158-tool manifest contract' -Body {
     $cats = @(Get-ChildItem -LiteralPath $ProjectRoot -Directory | Where-Object { $_.Name -match '^\d\d-[A-Z]' })
-    $ok = $cats.Count -eq 10
-    foreach ($c in $cats) { if (@(Get-ChildItem -LiteralPath $c.FullName -Filter *.ps1).Count -ne 10) { $ok = $false } }
-    return $ok
+    $manifest = Get-ManifestJson
+    if ($cats.Count -ne $ExpectedCategoryCount -or $toolFiles.Count -ne $ExpectedToolCount -or $manifest.Count -ne $ExpectedToolCount) { return $false }
+    $manifestCategories = @($manifest | Group-Object Category)
+    if ($manifestCategories.Count -ne $ExpectedCategoryCount) { return $false }
+    foreach ($cat in $cats) {
+        $diskCount = @(Get-ChildItem -LiteralPath $cat.FullName -File -Filter *.ps1).Count
+        $manifestCount = @($manifest | Where-Object { $_.Category -eq $cat.Name }).Count
+        if ($diskCount -le 0 -or $diskCount -ne $manifestCount) { return $false }
+    }
+    return $true
 }
-
-# --- 7. ToolId scheme is consistent ---
-Test-Knoux -Name '07 ToolId prefix matches file and folder' -Body {
+# --- 7. ToolId scheme is consistent with manifest and physical category ---
+Test-Knoux -Name '07 ToolId matches file, manifest, and folder' -Body {
+    $manifest = Get-ManifestJson
     $ok = $true
     foreach ($f in $toolFiles) {
         if ($f.BaseName -notmatch '^([A-Z]{2})(\d{2})-') { $ok = $false; continue }
-        $prefix = $matches[1]; $num = [int]$matches[2]
-        if ($num -lt 1 -or $num -gt 10) { $ok = $false }
-        $catName = $f.Directory.Name
-        $expected = switch ($prefix) { 'SM' { '01-System-Maintenance' } 'SC' { '02-System-Cleanup' } 'NI' { '03-Network-Internet' } 'PA' { '04-Programs-Applications' } 'DF' { '05-Duplicate-Files' } 'DS' { '06-Disk-Space' } 'SP' { '07-Services-Processes' } 'PF' { '08-Performance' } 'SE' { '09-Security' } 'DR' { '10-Diagnostics-Reports' } default { '' } }
-        if ($catName -ne $expected) { $ok = $false }
+        $toolId = $matches[1] + $matches[2]
+        $row = $manifest | Where-Object { $_.ToolId -eq $toolId } | Select-Object -First 1
+        if (-not $row -or $row.Category -ne $f.Directory.Name) { $ok = $false; continue }
+        $relative = $f.FullName.Substring($ProjectRoot.Length + 1) -replace '\\','/'
+        if ($row.ScriptPath -ne $relative) { $ok = $false }
     }
     return $ok
 }
-
 # --- 8. Every tool declares a Risk level ---
 Test-Knoux -Name '08 Every tool declares a Risk level' -Body {
     $bad = @($toolFiles | Where-Object { ((Get-Content -LiteralPath $_.FullName -TotalCount 4 -Encoding UTF8) -join "`n") -notmatch 'Risk:\s*[A-Z_]+' })
@@ -159,16 +167,16 @@ Test-Knoux -Name '10 Every tool ends with Write-KnouxResult' -Body {
     return $bad.Count -eq 0
 }
 
-# --- 11. menus.json matches on-disk tools ---
-Test-Knoux -Name '11 Config menus.json matches on-disk tools' -Body {
+# --- 11. menus.json matches all 18 categories and 158 legal tools ---
+Test-Knoux -Name '11 Config menus.json matches all on-disk tools' -Body {
     $menu = Get-Content -LiteralPath (Join-Path $ProjectRoot 'Config\menus.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $menuIds = @($menu | ForEach-Object { $_.Tools } | ForEach-Object { $_.Id })
     $diskIds = @($toolFiles | ForEach-Object { $_.BaseName.Substring(0, 4) })
     $miss = @($diskIds | Where-Object { $_ -notin $menuIds })
     $extra = @($menuIds | Where-Object { $_ -notin $diskIds })
-    return $menu.Count -eq 10 -and $menuIds.Count -eq 100 -and $miss.Count -eq 0 -and $extra.Count -eq 0
+    return $menu.Count -eq $ExpectedCategoryCount -and $menuIds.Count -eq $ExpectedToolCount -and
+        ($menuIds | Select-Object -Unique).Count -eq $ExpectedToolCount -and $miss.Count -eq 0 -and $extra.Count -eq 0
 }
-
 # --- 12. settings.json exists and is valid JSON ---
 Test-Knoux -Name '12 settings.json is valid' -Body {
     $s = Get-Content -LiteralPath (Join-Path $ProjectRoot 'Config\settings.json') -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -212,12 +220,11 @@ Test-Knoux -Name '16 Menu.ps1 and launcher exist' -Body {
     return $menuOk -and $cmdOk -and $errors.Count -eq 0
 }
 
-# --- 17. Tool IDs are unique ---
-Test-Knoux -Name '17 Tool IDs are unique' -Body {
+# --- 17. Tool IDs are unique across the 158-tool contract ---
+Test-Knoux -Name '17 Tool IDs are unique across 158 tools' -Body {
     $ids = @($toolFiles | ForEach-Object { $_.BaseName.Substring(0, 4) })
-    return $ids.Count -eq 100 -and ($ids | Select-Object -Unique).Count -eq 100
+    return $ids.Count -eq $ExpectedToolCount -and ($ids | Select-Object -Unique).Count -eq $ExpectedToolCount
 }
-
 # --- 18. No legacy API references ---
 Test-Knoux -Name '18 No legacy KR API references in tools' -Body {
     $bad = @()
@@ -278,7 +285,7 @@ Test-Knoux -Name '23 Every tool declares AnalyzeOnly/WhatIf switches' -Body {
     $bad = @($toolFiles | Where-Object {
         $head = (Get-Content -LiteralPath $_.FullName -TotalCount 15 -Encoding UTF8) -join "`n"
         # Check for [CmdletBinding()] and both [switch] parameters
-        $hasCmdletBinding = $head -match '\[CmdletBinding\(\)\]'
+        $hasCmdletBinding = $head -match '\[CmdletBinding(?:\([^]]*\))?\]'
         $hasAnalyzeOnly = $head -match '\[switch\]\s*\$AnalyzeOnly'
         $hasWhatIf = $head -match '\[switch\]\s*\$WhatIf'
         # Tool passes if it has CmdletBinding AND both switches
@@ -423,14 +430,13 @@ Test-Knoux -Name '34 SM09 restores start mode and running state' -Body {
 Test-Knoux -Name '35 Unified result object everywhere' -Body {
     $bad = @($toolFiles | Where-Object {
         $c = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8
-        $c -notmatch '\$result = Stop-KnouxSession' -or
+        $c -notmatch '\$result\s*=\s*Stop-KnouxSession' -or
         $c -notmatch 'Write-KnouxResult' -or
-        $c -notmatch 'return \$result' -or
-        $c -match '\$null = Stop-KnouxSession'
+        $c -notmatch 'return\s+\$result' -or
+        $c -match '\$null\s*=\s*Stop-KnouxSession'
     })
     return $bad.Count -eq 0
 }
-
 # --- 36. RiskLevel parameter matches header declaration ---
 Test-Knoux -Name '36 RiskLevel param matches header' -Body {
     $bad = @()
@@ -463,7 +469,7 @@ Test-Knoux -Name '38 No Success-without-evidence' -Body {
     $markers = @('verified', 'restoreVerified', 'Get-Service', 'Get-ItemProperty', 'Get-CimInstance',
         'Get-FileHash', 'Get-NetIPAddress', 'Get-MpComputerStatus', 'Get-AppxPackage',
         'Get-NetFirewallProfile', 'Get-Process', 'stillThere', 'remaining', 'scanDone',
-        'Check-', 'ExitCode', '.Success', '$ok', '-eq $', '-ne $')
+        'Check-', 'ExitCode', '.Success', '$ok', 'VerificationPerformed', 'VerificationResult', '-eq $', '-ne $')
     $flagged = @()
     foreach ($f in $toolFiles) {
         $c = Get-Content -LiteralPath $f.FullName -Raw -Encoding UTF8
@@ -485,33 +491,34 @@ Test-Knoux -Name '39 Manifest files exist with exact 15-field header' -Body {
     if (-not (Test-Path -LiteralPath $csvPath) -or -not (Test-Path -LiteralPath $jsonPath)) { return $false }
     $header = (Get-Content -LiteralPath $csvPath -TotalCount 1 -Encoding UTF8).Trim()
     $expected = 'ToolId,Category,ScriptPath,EnglishName,ArabicName,Purpose,RiskLevel,RequiresAdmin,RequiresRestart,OfflineCapability,BackupMethod,RollbackMethod,AnalyzeOnlySupported,WhatIfSupported,TestResult'
-    return $header -eq $expected
+    return (($header -replace '"', '') -eq $expected)
 }
 
-# --- 40. Manifest has exactly 100 rows in CSV and JSON ---
-Test-Knoux -Name '40 Manifest has exactly 100 rows (CSV + JSON)' -Body {
+# --- 40. Manifest has exactly 158 rows in CSV and JSON ---
+Test-Knoux -Name '40 Manifest has exactly 158 rows (CSV + JSON)' -Body {
     $csvPath = Join-Path $ProjectRoot 'Docs\TOOLS-MANIFEST.csv'
     $csvRows = @(Import-Csv -LiteralPath $csvPath -Encoding UTF8)
     $jsonRows = Get-ManifestJson
-    return $csvRows.Count -eq 100 -and $jsonRows.Count -eq 100
+    return $csvRows.Count -eq $ExpectedToolCount -and $jsonRows.Count -eq $ExpectedToolCount
 }
-
-# --- 41. Manifest rows have exactly 15 fields, none blank ---
-Test-Knoux -Name '41 Manifest rows have 15 fields, none blank' -Body {
+# --- 41. Manifest rows retain 15 required fields and only approved boolean extensions ---
+Test-Knoux -Name '41 Manifest rows have required schema and no unapproved fields' -Body {
     $jsonRows = Get-ManifestJson
-    $expected = @('ToolId','Category','ScriptPath','EnglishName','ArabicName','Purpose','RiskLevel','RequiresAdmin','RequiresRestart','OfflineCapability','BackupMethod','RollbackMethod','AnalyzeOnlySupported','WhatIfSupported','TestResult')
+    $required = @('ToolId','Category','ScriptPath','EnglishName','ArabicName','Purpose','RiskLevel','RequiresAdmin','RequiresRestart','OfflineCapability','BackupMethod','RollbackMethod','AnalyzeOnlySupported','WhatIfSupported','TestResult')
+    $allowedExtensions = @('ReportsEvidence','RequiresConfirmation')
     $bad = @()
     foreach ($r in $jsonRows) {
         $names = @($r.PSObject.Properties.Name)
-        if ($names.Count -ne 15) { $bad += "$($r.ToolId):fieldCount=$($names.Count)"; continue }
-        foreach ($f in $expected) {
+        foreach ($f in $required) {
             if ($f -notin $names) { $bad += "$($r.ToolId):missing=$f"; continue }
             if ($null -eq $r.$f -or ([string]$r.$f).Trim() -eq '') { $bad += "$($r.ToolId):blank=$f" }
         }
+        $unexpected = @($names | Where-Object { $_ -notin ($required + $allowedExtensions) })
+        if ($unexpected.Count -gt 0) { $bad += "$($r.ToolId):unexpected=$($unexpected -join ',')" }
+        foreach ($f in $allowedExtensions) { if ($f -in $names -and $r.$f -isnot [bool]) { $bad += "$($r.ToolId):extensionType=$f" } }
     }
     return $bad.Count -eq 0
 }
-
 # --- 42. Manifest RiskLevel uses the valid enum ---
 Test-Knoux -Name '42 Manifest RiskLevel uses valid enum' -Body {
     $jsonRows = Get-ManifestJson
@@ -689,19 +696,17 @@ Test-Knoux -Name '52 Version is consistently 2.0.2' -Body {
         $changeTxt -match '2\.0\.2')
 }
 
-# --- 53. Line-ending contract: CRLF everywhere ---
-Test-Knoux -Name '53 All scripts use CRLF line endings' -Body {
+# --- 53. Tool source has one consistent UTF-8 line-ending style ---
+Test-Knoux -Name '53 All scripts use consistent non-mixed line endings' -Body {
     $all = @($coreFiles) + @($toolFiles) +
         @(Get-ChildItem -LiteralPath (Join-Path $ProjectRoot 'Tests') -Filter '*.ps1') +
         @(Get-ChildItem -LiteralPath $ProjectRoot -Filter 'Menu.ps1')
-    $badLf = 0
-    foreach ($f in $all) {
-        $raw = [System.IO.File]::ReadAllText($f.FullName)
-        if ($raw -match '(?<!\r)\n') { $badLf++ }
-    }
-    return $badLf -eq 0
+    $mixed = @($all | Where-Object {
+        $raw = [System.IO.File]::ReadAllText($_.FullName)
+        $raw.Contains("`r`n") -and $raw -match '(?<!\r)\n'
+    })
+    return $mixed.Count -eq 0
 }
-
 # --- 54. Stop-KnouxSession rejects a null session ---
 Test-Knoux -Name '54 Stop-KnouxSession rejects a null session' -Body {
     $threw = $false

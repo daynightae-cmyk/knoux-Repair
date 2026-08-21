@@ -11,19 +11,25 @@
             <!-- ===== APPEARANCE ===== -->
             <Border Style="{DynamicResource FluentCard}" Margin="0,0,0,16">
                 <StackPanel>
-                    <TextBlock Text="Appearance"
+                    <TextBlock Text="{DynamicResource SettingsAppearance}"
                                Style="{DynamicResource SubtitleTextBlockStyle}" Margin="0,0,0,16"/>
 
                     <!-- Language -->
                     <TextBlock Text="{DynamicResource SettingsLanguage}"
                                Style="{DynamicResource BodyStrongTextBlockStyle}" Margin="0,0,0,8"/>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <RadioButton Content="English" GroupName="Lang" IsChecked="True"
+                        <RadioButton x:Name="EnglishLanguageRadio" Content="{DynamicResource SettingsLanguageEnglish}" GroupName="Lang"
                                      Style="{DynamicResource NavRadioButton}" Margin="0,0,8,0"
                                      Click="LangEnglish_Click"/>
-                        <RadioButton Content="العربية" GroupName="Lang"
+                        <RadioButton x:Name="ArabicLanguageRadio" Content="{DynamicResource SettingsLanguageArabic}" GroupName="Lang"
                                      Style="{DynamicResource NavRadioButton}"
                                      Click="LangArabic_Click"/>
+                    </StackPanel>
+
+                    <TextBlock Text="{DynamicResource SettingsTheme}" Style="{DynamicResource BodyStrongTextBlockStyle}" Margin="0,14,0,8"/>
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton x:Name="DarkThemeRadio" Content="{DynamicResource ThemeDark}" GroupName="Theme" IsChecked="True" Style="{DynamicResource NavRadioButton}" Margin="0,0,8,0" Click="ThemeDark_Click"/>
+                        <RadioButton x:Name="LightThemeRadio" Content="{DynamicResource ThemeLight}" GroupName="Theme" Style="{DynamicResource NavRadioButton}" Click="ThemeLight_Click"/>
                     </StackPanel>
 
                     <Border Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,14"/>
@@ -37,7 +43,7 @@
                         <StackPanel>
                             <TextBlock Text="{DynamicResource SettingsReducedMotion}"
                                        Style="{DynamicResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text="Disable splash animations and transitions for faster startup."
+                            <TextBlock Text="{DynamicResource SettingsReducedMotionDescription}"
                                        Style="{DynamicResource CaptionTextBlockStyle}" Margin="0,2,0,0"/>
                         </StackPanel>
                         <ToggleButton x:Name="ReducedMotionToggle" Grid.Column="1"
@@ -50,7 +56,7 @@
             <!-- ===== APPLICATION ===== -->
             <Border Style="{DynamicResource FluentCard}" Margin="0,0,0,16">
                 <StackPanel>
-                    <TextBlock Text="Application"
+                    <TextBlock Text="{DynamicResource SettingsApplication}"
                                Style="{DynamicResource SubtitleTextBlockStyle}" Margin="0,0,0,16"/>
 
                     <!-- Analyze Only Default -->
@@ -62,16 +68,14 @@
                         <StackPanel>
                             <TextBlock Text="{DynamicResource SettingsAnalyzeDefault}"
                                        Style="{DynamicResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text="When ON, tools run in analyze-only mode by default."
+                            <TextBlock Text="{DynamicResource SettingsAnalyzeDefaultDescription}"
                                        Style="{DynamicResource CaptionTextBlockStyle}" Margin="0,2,0,0"/>
                         </StackPanel>
                         <ToggleButton x:Name="AnalyzeToggle" Grid.Column="1"
                                       IsChecked="True"
                                       Style="{DynamicResource GlassToggle}"
                                       Click="AnalyzeToggle_Click"/>
-                    </Grid>
-
-                    <Border Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,14"/>
+                    </Grid><Border Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,14"/>
 
                     <!-- Max Report History -->
                     <Grid>
@@ -82,7 +86,7 @@
                         <StackPanel>
                             <TextBlock Text="{DynamicResource SettingsMaxReportHistory}"
                                        Style="{DynamicResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text="Maximum number of report folders to retain in the UI."
+                            <TextBlock Text="{DynamicResource SettingsMaxReportHistoryDescription}"
                                        Style="{DynamicResource CaptionTextBlockStyle}" Margin="0,2,0,0"/>
                         </StackPanel>
                         <TextBlock x:Name="MaxReportsLabel" Grid.Column="1"
@@ -90,9 +94,7 @@
                                    Foreground="{DynamicResource BrushCyan}"
                                    FontSize="14" FontWeight="Bold"
                                    VerticalAlignment="Center"/>
-                    </Grid>
-
-                    <Border Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,14"/>
+                    </Grid><Border Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,14"/>
 
                     <!-- Open Project Folder -->
                     <Button Content="{DynamicResource SettingsOpenProjectFolder}"
@@ -105,7 +107,7 @@
             <!-- ===== DIAGNOSTICS ===== -->
             <Border Style="{DynamicResource FluentCard}" Margin="0,0,0,16">
                 <StackPanel>
-                    <TextBlock Text="Diagnostics"
+                    <TextBlock Text="{DynamicResource SettingsDiagnostics}"
                                Style="{DynamicResource SubtitleTextBlockStyle}" Margin="0,0,0,16"/>
 
                     <!-- Console Font Size -->
@@ -117,7 +119,7 @@
                         <StackPanel>
                             <TextBlock Text="{DynamicResource SettingsConsoleFontSize}"
                                        Style="{DynamicResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text="Adjusts the live execution console font size."
+                            <TextBlock Text="{DynamicResource SettingsConsoleFontSizeDescription}"
                                        Style="{DynamicResource CaptionTextBlockStyle}" Margin="0,2,0,0"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal">

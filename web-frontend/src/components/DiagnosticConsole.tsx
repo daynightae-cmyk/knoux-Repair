@@ -1,10 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, RefreshCw, Terminal, Square } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { CheckCircle2, CircleAlert, Download, LoaderCircle, RefreshCw, ShieldCheck, Square, X } from 'lucide-react';
 import type { ConsoleEntry } from '../types';
 import type { BridgeTool } from '../lib/api';
 import type { Lang } from '../lib/i18n';
-import { STRINGS, pickName } from '../lib/i18n';
+import { pickName } from '../lib/i18n';
 
 interface DiagnosticConsoleProps {
   visible: boolean;
@@ -17,163 +16,69 @@ interface DiagnosticConsoleProps {
   lang: Lang;
 }
 
-function colorLine(text: string): { className: string } {
-  const lower = text.toLowerCase();
-  if (lower.includes('error') || lower.includes('failed') || lower.includes('exception'))
-    return { className: 'text-red-400' };
-  if (lower.includes('success') || lower.includes('completed') || lower.includes('[ok]'))
-    return { className: 'text-green-400' };
-  if (lower.includes('warning') || lower.includes('warn') || lower.includes('[!]'))
-    return { className: 'text-amber-400' };
-  return { className: 'text-cyan-500/70' };
+const COPY = {
+  en: {
+    working: 'Working on your request', success: 'Your request is complete', error: 'This request needs attention', cancelled: 'This request was stopped', idle: 'Ready when you are',
+    workingBody: 'KNOUX is safely completing the selected step. You can keep this window open to follow progress.', successBody: 'The selected step has finished. You can continue using your device or return to the service for the next step.',
+    errorBody: 'KNOUX could not complete this request. Review your device connection and permissions, then try again.', cancelledBody: 'No further steps will be taken unless you start the request again.', idleBody: 'Choose a service action to get started.',
+    cancel: 'Stop', retry: 'Try again', close: 'Done', support: 'Download support report', privacy: 'Technical details are kept private unless you choose to share this report.',
+    stagePreparing: 'Preparing a safe workspace', stageWorking: 'Completing the selected step', stageFinishing: 'Checking the result',
+  },
+  ar: {
+    working: 'جارٍ تنفيذ طلبك', success: 'اكتمل طلبك', error: 'يحتاج هذا الطلب إلى انتباه', cancelled: 'تم إيقاف الطلب', idle: 'جاهز عند اختيارك',
+    workingBody: 'ينفذ KNOUX الخطوة التي اخترتها بأمان. يمكنك إبقاء هذه النافذة مفتوحة لمتابعة التقدم.', successBody: 'انتهت الخطوة المختارة. يمكنك متابعة استخدام جهازك أو العودة للخدمة لاختيار الخطوة التالية.',
+    errorBody: 'تعذر على KNOUX إكمال هذا الطلب. راجع اتصال الجهاز والأذونات ثم حاول مرة أخرى.', cancelledBody: 'لن يتم تنفيذ خطوات إضافية إلا إذا بدأت الطلب مرة أخرى.', idleBody: 'اختر إجراءً من الخدمة للبدء.',
+    cancel: 'إيقاف', retry: 'حاول مرة أخرى', close: 'تم', support: 'تنزيل تقرير الدعم', privacy: 'تبقى التفاصيل التقنية خاصة ما لم تختر مشاركة هذا التقرير.',
+    stagePreparing: 'تحضير مساحة عمل آمنة', stageWorking: 'تنفيذ الخطوة المختارة', stageFinishing: 'التحقق من النتيجة',
+  },
+};
+
+function exportSupportReport(entries: ConsoleEntry[], activeTool: BridgeTool | null) {
+  const text = entries.map((entry) => `[${entry.timestamp}] [${entry.type.toUpperCase()}] ${entry.text}`).join('\n');
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `knoux-support-${activeTool?.ToolId || 'report'}.txt`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
-export default function DiagnosticConsole({
-  visible, onClose, activeTool, entries, status, onRetry, onCancel, lang,
-}: DiagnosticConsoleProps) {
-  const t = STRINGS[lang];
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
-
-  useEffect(() => {
-    if (autoScroll && scrollerRef.current) {
-      scrollerRef.current.scrollTop = scrollerRef.current.scrollHeight;
-    }
-  }, [entries, autoScroll]);
-
-  const handleScroll = useCallback(() => {
-    if (!scrollerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = scrollerRef.current;
-    setAutoScroll(scrollHeight - scrollTop - clientHeight < 40);
-  }, []);
-
-  const exportLog = useCallback(() => {
-    const text = entries.map(e => `[${e.timestamp}] [${e.type.toUpperCase()}] ${e.text}`).join('\n');
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `knoux-${activeTool?.ToolId || 'console'}-log.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [entries, activeTool]);
-
-  const statusLabel =
-    status === 'running' ? t.statusRunning
-      : status === 'success' ? t.statusSuccess
-        : status === 'error' ? t.statusError
-          : status === 'cancelled' ? t.statusCancelled
-            : 'STANDBY';
-
-  const statusColor =
-    status === 'running' ? 'text-cyan-400 animate-pulse'
-      : status === 'success' ? 'text-green-400'
-        : status === 'error' ? 'text-red-400'
-          : status === 'cancelled' ? 'text-amber-400'
-            : 'text-white/20';
+export default function DiagnosticConsole({ visible, onClose, activeTool, entries, status, onRetry, onCancel, lang }: DiagnosticConsoleProps) {
+  const text = COPY[lang];
+  const isRunning = status === 'running';
+  const content = status === 'running'
+    ? { title: text.working, body: text.workingBody, icon: LoaderCircle, className: 'is-working' }
+    : status === 'success'
+      ? { title: text.success, body: text.successBody, icon: CheckCircle2, className: 'is-success' }
+      : status === 'error'
+        ? { title: text.error, body: text.errorBody, icon: CircleAlert, className: 'is-error' }
+        : status === 'cancelled'
+          ? { title: text.cancelled, body: text.cancelledBody, icon: CircleAlert, className: 'is-cancelled' }
+          : { title: text.idle, body: text.idleBody, icon: ShieldCheck, className: 'is-idle' };
+  const StatusIcon = content.icon;
+  const progress = status === 'success' ? 100 : status === 'running' ? Math.min(82, 18 + entries.length * 9) : status === 'error' || status === 'cancelled' ? 100 : 0;
 
   return (
     <AnimatePresence>
       {visible && (
-        <motion.div
-          initial={{ y: 300, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 300, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="fixed bottom-6 right-6 w-[480px] max-w-[calc(100vw-3rem)] h-[360px] glass-panel rounded-2xl flex flex-col overflow-hidden z-50 rtl:right-auto rtl:left-6"
-          style={{
-            boxShadow: '0 0 60px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 229, 255, 0.05)',
-            border: '1px solid rgba(0, 229, 255, 0.12)',
-          }}
+        <motion.aside
+          initial={{ y: 260, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 260, opacity: 0 }} transition={{ type: 'spring', stiffness: 310, damping: 29 }}
+          className={`service-progress-sheet ${content.className}`} role="status" aria-live="polite"
         >
-          <div className="absolute inset-0 scanlines opacity-20 pointer-events-none z-10" />
-
-          <div className="relative z-20 flex items-center justify-between px-4 py-3 border-b border-cyan-500/10">
-            <div className="flex items-center gap-2 min-w-0">
-              <Terminal size={13} className="text-cyan-400 shrink-0" />
-              <span className="font-mono text-[10px] text-cyan-400 tracking-widest truncate">
-                {t.consoleTitle} // {activeTool ? pickName(activeTool, lang) : 'IDLE'}
-              </span>
-              {status === 'running' && (
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shrink-0" />
-              )}
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              {status === 'running' && (
-                <button
-                  onClick={onCancel}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-all"
-                >
-                  <Square size={10} />
-                  {t.cancel}
-                </button>
-              )}
-              {(status === 'error' || status === 'cancelled') && (
-                <button
-                  onClick={onRetry}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono font-semibold text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all neon-glow-red"
-                >
-                  <RefreshCw size={10} />
-                  {t.retry}
-                </button>
-              )}
-              <button
-                onClick={exportLog}
-                className="p-1.5 rounded-md text-slate-500 hover:text-cyan-400 hover:bg-white/[0.03] transition-all"
-                title={t.exporting}
-              >
-                <Download size={12} />
-              </button>
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-md text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                title={t.closing}
-              >
-                <X size={12} />
-              </button>
-            </div>
+          <button type="button" onClick={onClose} className="service-progress-close" aria-label={text.close}><X size={18} /></button>
+          <div className="service-progress-icon"><StatusIcon size={24} className={isRunning ? 'animate-spin' : ''} /></div>
+          <div className="service-progress-copy"><p>{activeTool ? pickName(activeTool, lang) : ''}</p><h2>{content.title}</h2><span>{content.body}</span></div>
+          {isRunning && <div className="service-progress-steps"><span className="is-done"><CheckCircle2 size={13} />{text.stagePreparing}</span><span className="is-active"><LoaderCircle size={13} className="animate-spin" />{text.stageWorking}</span><span><span className="service-progress-dot" />{text.stageFinishing}</span></div>}
+          <div className="service-progress-track" aria-label={`${progress}%`}><span style={{ width: `${progress}%` }} /></div>
+          <div className="service-progress-actions">
+            {isRunning && <button type="button" className="service-progress-stop" onClick={onCancel}><Square size={14} />{text.cancel}</button>}
+            {(status === 'error' || status === 'cancelled') && <button type="button" className="service-progress-retry" onClick={onRetry}><RefreshCw size={14} />{text.retry}</button>}
+            {!isRunning && <button type="button" className="service-progress-done" onClick={onClose}>{text.close}</button>}
+            {entries.length > 0 && <button type="button" className="service-progress-support" onClick={() => exportSupportReport(entries, activeTool)} title={text.support}><Download size={15} /></button>}
           </div>
-
-          <div
-            ref={scrollerRef}
-            onScroll={handleScroll}
-            className="relative z-20 flex-1 overflow-y-auto bg-black/80 p-4 font-mono text-[11px] leading-relaxed"
-            dir="ltr"
-          >
-            {entries.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <Terminal size={24} className="text-cyan-400/20 mb-3" />
-                <p className="text-cyan-400/30 text-[10px] tracking-widest font-mono">
-                  {t.awaiting}
-                </p>
-                <p className="text-white/10 text-[9px] tracking-wider font-mono mt-1">
-                  {t.awaitingHint}
-                </p>
-              </div>
-            ) : (
-              entries.map(entry => (
-                <div key={entry.id} className={`mb-0.5 ${colorLine(entry.text).className}`}>
-                  <span className="text-white/15 mr-2">[{entry.timestamp}]</span>
-                  {entry.text}
-                </div>
-              ))
-            )}
-            {status === 'running' && (
-              <div className="text-cyan-400/50">
-                <span className="animate-blink">_</span>
-              </div>
-            )}
-          </div>
-
-          <div className="relative z-20 px-4 py-2 border-t border-white/[0.04] flex justify-between">
-            <span className="font-mono text-[9px] text-white/15 tracking-wider">
-              {entries.length} ENTRY{entries.length !== 1 ? 'S' : ''}
-            </span>
-            <span className={`font-mono text-[9px] tracking-wider ${statusColor}`}>
-              {statusLabel}
-            </span>
-          </div>
-        </motion.div>
+          {entries.length > 0 && <p className="service-progress-privacy">{text.privacy}</p>}
+        </motion.aside>
       )}
     </AnimatePresence>
   );

@@ -1,24 +1,24 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import SplashScreen from './components/SplashScreen';
+
 import Sidebar from './components/Sidebar';
-import ToolGrid from './components/ToolGrid';
+import ServiceApps from './components/ServiceApps';
 import DiagnosticConsole from './components/DiagnosticConsole';
-import PlaceholderPage from './components/PlaceholderPage';
+
 import PageTransition from './components/PageTransition';
-import BridgeOffline from './components/BridgeOffline';
-import Dashboard from './components/Dashboard';
+import SettingsCenter from './components/SettingsCenter';
+import NexusSplash from './components/NexusSplash';
+import AuthGate from './components/AuthGate';
+import WorkspaceDashboard from './components/WorkspaceDashboard';
+
 import type { ActiveSection, ToolStatus, ConsoleEntry, ConsoleEntryType } from './types';
 import { SECTION_MAP } from './types';
-import type { BridgeTool, BridgeRun } from './lib/api';
+import type { BridgeAuthStatus, BridgeTool, BridgeRun, ExecutionMode, ToolRunOptions } from './lib/api';
 import { api, BridgeError } from './lib/api';
 import type { Lang } from './lib/i18n';
 
-const TOOL_SECTIONS = new Set([
-  'maintenance', 'cleanup', 'network', 'programs', 'duplicates',
-  'disk', 'services', 'performance', 'security', 'diagnostics',
-]);
+
 
 let entryCounter = 0;
 
@@ -38,19 +38,24 @@ function NexusApp() {
     return saved === 'ar' ? 'ar' : 'en';
   });
   const [theme, setTheme] = useState<'dark' | 'light'>(() => localStorage.getItem('knoux-theme') === 'light' ? 'light' : 'dark');
-  const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeSection, setActiveSection] = useState<ActiveSection>('maintenance');
+  const [activeView, setActiveView] = useState<'workspaces' | 'tools'>('workspaces');
   const [toolStatuses, setToolStatuses] = useState<Record<string, ToolStatus>>({});
   const [consoleVisible, setConsoleVisible] = useState(false);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
-  const [activeTool, setActiveTool] = useState<BridgeTool | null>(null);
+    const [activeTool, setActiveTool] = useState<BridgeTool | null>(null);
+  const [activeRequest, setActiveRequest] = useState<{ tool: BridgeTool; mode: ExecutionMode; options: ToolRunOptions } | null>(null);
   const [consoleStatus, setConsoleStatus] = useState<'idle' | 'running' | 'success' | 'error' | 'cancelled'>('idle');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [splashVisible, setSplashVisible] = useState(true);
 
   const [bridgeOnline, setBridgeOnline] = useState<boolean | null>(null);
   const [bridgeElevated, setBridgeElevated] = useState(false);
   const [toolsByCategory, setToolsByCategory] = useState<Record<string, BridgeTool[]>>({});
-  const [bridgeError, setBridgeError] = useState('');
+  const [authStatus, setAuthStatus] = useState<BridgeAuthStatus | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState('');
 
   const currentRunId = useRef<string | null>(null);
   const pollTimer = useRef<number | null>(null);
@@ -72,19 +77,20 @@ function NexusApp() {
 
   const connectBridge = useCallback(async () => {
     setBridgeOnline(null);
-    setBridgeError('');
     try {
-      const health = await api.health();
-      const { tools } = await api.tools();
+      const [health, toolResponse] = await Promise.all([api.health(), api.tools()]);
+      const auth = await api.authStatus().catch(() => null);
+      const { tools } = toolResponse;
       const byCategory: Record<string, BridgeTool[]> = {};
       for (const t of tools) {
         (byCategory[t.Category] ||= []).push(t);
       }
       setToolsByCategory(byCategory);
       setBridgeElevated(health.elevated);
+      setAuthStatus(auth);
+      setAuthError(auth ? '' : 'Local OAuth routes are not available until the bridge is restarted with this release.');
       setBridgeOnline(true);
     } catch (e) {
-      setBridgeError(e instanceof BridgeError ? e.message : String(e));
       setBridgeOnline(false);
     }
   }, []);
@@ -92,6 +98,10 @@ function NexusApp() {
   useEffect(() => {
     connectBridge();
   }, [connectBridge]);
+
+  useEffect(() => { setAuthLoading(bridgeOnline === null); }, [bridgeOnline]);
+  const refreshAuth = useCallback(async () => { setAuthLoading(true); setAuthError(''); try { setAuthStatus(await api.authStatus()); } catch (e) { setAuthError(e instanceof Error ? e.message : String(e)); } finally { setAuthLoading(false); } }, []);
+  const startSignIn = useCallback((provider: 'github' | 'entra') => { window.location.assign(api.authStartUrl(provider)); }, []);
 
   const finishRun = useCallback((run: BridgeRun) => {
     const status: ToolStatus = run.status === 'success' ? 'success' : run.status === 'error' ? 'error' : 'cancelled';
@@ -127,15 +137,16 @@ function NexusApp() {
     tick();
   }, [finishRun]);
 
-  const runTool = useCallback(async (tool: BridgeTool) => {
+  const runTool = useCallback(async (tool: BridgeTool, mode: ExecutionMode = 'run', options: ToolRunOptions = {}) => {
     if (pollTimer.current) window.clearTimeout(pollTimer.current);
     setActiveTool(tool);
+    setActiveRequest({ tool, mode, options });
     setConsoleVisible(true);
     setConsoleEntries([]);
     setConsoleStatus('running');
     setToolStatuses(prev => ({ ...prev, [tool.ToolId]: 'running' }));
     try {
-      const { runId } = await api.startRun(tool.ToolId);
+      const { runId } = await api.startRun(tool.ToolId, mode, options);
       currentRunId.current = runId;
       pollRun(runId, tool);
     } catch (e) {
@@ -158,24 +169,18 @@ function NexusApp() {
   }, []);
 
   const handleRetry = useCallback(() => {
-    if (activeTool) runTool(activeTool);
-  }, [activeTool, runTool]);
-
-  const showTools = TOOL_SECTIONS.has(activeSection);
+    if (activeRequest) runTool(activeRequest.tool, activeRequest.mode, activeRequest.options);
+  }, [activeRequest, runTool]);
 
   return (
     <div className="h-screen w-screen nexus-shell overflow-hidden relative" dir={lang === 'ar' ? 'rtl' : 'ltr'} data-theme={theme}>
-      <div className="absolute inset-0 bg-grid-pattern-sm opacity-100" />
-      <div className="absolute inset-0 bg-gradient-to-tr from-cyan-900/10 via-black to-purple-900/10" />
-      <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-cyan-500/[0.06] blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-purple-500/[0.06] blur-[120px] pointer-events-none" />
-
-      <div className="relative z-10 h-full p-4 flex gap-4">
+      <div className="relative z-10 h-full p-3 md:p-4 flex gap-3 md:gap-4">
         <Sidebar
           active={activeSection}
-          onSelect={setActiveSection}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          onSelect={(section) => { setActiveSection(section); setActiveView('tools'); }}
+          viewMode={activeView}
+          onOpenWorkspaces={() => { setActiveView('workspaces'); setSidebarOpen(false); }}
+          toolsByCategory={toolsByCategory}
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           lang={lang}
@@ -184,41 +189,53 @@ function NexusApp() {
           setTheme={setTheme}
           bridgeOnline={bridgeOnline}
           bridgeElevated={bridgeElevated}
+          onOpenSettings={() => { setSettingsOpen(true); setSidebarOpen(false); }}
         />
 
-        <div className="flex-1 glass-panel rounded-[2rem] p-6 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden">
-          <div className="absolute top-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
+        <main className="flex-1 nx-workspace rounded-[1.75rem] p-4 md:p-6 flex flex-col overflow-hidden">
 
-          {bridgeOnline === false && (
-            <BridgeOffline error={bridgeError} lang={lang} onRetry={connectBridge} />
-          )}
-
-          {bridgeOnline === true && (
-            <AnimatePresence mode="wait">
-              {activeSection === 'dashboard' ? (
-                <PageTransition key="page-dashboard">
-                  <Dashboard lang={lang} onNavigate={setActiveSection} toolStatuses={toolStatuses} />                </PageTransition>
-              ) : showTools ? (
+          <AnimatePresence mode="wait">
+              {activeView === 'workspaces' ? (
+                <PageTransition key="workspaces">
+                  <WorkspaceDashboard
+                    lang={lang}
+                    toolsByCategory={toolsByCategory}
+                    onOpenNavigation={() => setSidebarOpen(true)}
+                    onOpenSection={(section) => { setActiveSection(section); setActiveView('tools'); }}
+                  />
+                </PageTransition>
+              ) : (
                 <PageTransition key={`tools-${activeSection}`}>
-                  <ToolGrid
+                  <ServiceApps
                     activeSection={activeSection}
-                    searchQuery={searchQuery}
                     toolStatuses={toolStatuses}
                     tools={toolsByCategory[SECTION_MAP[activeSection]] || []}
                     lang={lang}
+                    bridgeElevated={bridgeElevated}
                     onRunTool={runTool}
                     onCancelTool={cancelRun}
                   />
                 </PageTransition>
-              ) : (
-                <PageTransition key={`page-${activeSection}`}>
-                  <PlaceholderPage section={activeSection} lang={lang} />
-                </PageTransition>
               )}
-            </AnimatePresence>
-          )}
-        </div>
+          </AnimatePresence>
+        </main>
       </div>
+
+      <SettingsCenter
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        lang={lang}
+        setLang={setLang}
+        theme={theme}
+        setTheme={setTheme}
+        bridgeOnline={bridgeOnline}
+        bridgeElevated={bridgeElevated}
+        toolCount={Object.values(toolsByCategory).reduce((total, items) => total + items.length, 0)}
+        onReplaySplash={() => { setSettingsOpen(false); setSplashVisible(true); }}
+        auth={authStatus}
+        onSignIn={startSignIn}
+        onLogout={() => { void api.logout().finally(() => { void refreshAuth(); }); }}
+      />
 
       <DiagnosticConsole
         visible={consoleVisible}
@@ -230,23 +247,26 @@ function NexusApp() {
         onCancel={cancelRun}
         lang={lang}
       />
+      {authStatus?.required && !authStatus.authenticated && (
+        <AuthGate lang={lang} status={authStatus} loading={authLoading} error={authError} onRetry={refreshAuth} onSignIn={startSignIn} />
+      )}
+      <NexusSplash
+        visible={splashVisible}
+        onDone={() => setSplashVisible(false)}
+        lang={lang}
+        bridgeOnline={bridgeOnline}
+        toolCount={Object.values(toolsByCategory).reduce((total, items) => total + items.length, 0)}
+      />
     </div>
   );
 }
 
 export default function App() {
-  const [splashDone, setSplashDone] = useState(false);
-
   return (
     <BrowserRouter>
-      <AnimatePresence>
-        {!splashDone && <SplashScreen onComplete={() => setSplashDone(true)} />}
-      </AnimatePresence>
-      {splashDone && (
-        <Routes>
-          <Route path="/*" element={<NexusApp />} />
-        </Routes>
-      )}
+      <Routes>
+        <Route path="/*" element={<NexusApp />} />
+      </Routes>
     </BrowserRouter>
   );
 }

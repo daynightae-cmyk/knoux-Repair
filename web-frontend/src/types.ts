@@ -39,6 +39,14 @@ export type ActiveSection =
   | 'performance'
   | 'security'
   | 'diagnostics'
+  | 'backupRecovery'
+  | 'developerTools'
+  | 'privacy'
+  | 'drivers'
+  | 'monitoring'
+  | 'softwareEnvironment'
+  | 'postInstall'
+  | 'projectSonar'
   | 'reports'
   | 'quarantine'
   | 'backups'
@@ -57,6 +65,14 @@ export const SECTION_MAP: Record<ActiveSection, string> = {
   performance: '08-Performance',
   security: '09-Security',
   diagnostics: '10-Diagnostics-Reports',
+  backupRecovery: '11-Backup-Recovery',
+  developerTools: '12-Developer-Tools',
+  privacy: '13-Privacy',
+  drivers: '14-Driver-Management',
+  monitoring: '15-System-Monitoring',
+  softwareEnvironment: '16-Software-Environment',
+  postInstall: '17-PostInstall-Setup',
+  projectSonar: '18-Project-Sonar',
   reports: '',
   quarantine: '',
   backups: '',
@@ -197,4 +213,12 @@ export const CATEGORY_LABELS: Record<string, string> = {
   '08-Performance': 'PERFORMANCE',
   '09-Security': 'SECURITY',
   '10-Diagnostics-Reports': 'DIAGNOSTICS',
+  '11-Backup-Recovery': 'BACKUP & RECOVERY',
+  '12-Developer-Tools': 'DEVELOPER TOOLS',
+  '13-Privacy': 'PRIVACY',
+  '14-Driver-Management': 'DRIVER MANAGEMENT',
+  '15-System-Monitoring': 'SYSTEM MONITORING',
+  '16-Software-Environment': 'SOFTWARE & ENVIRONMENTS',
+  '17-PostInstall-Setup': 'POST-INSTALL SETUP',
+  '18-Project-Sonar': 'PROJECT SONAR',
 };

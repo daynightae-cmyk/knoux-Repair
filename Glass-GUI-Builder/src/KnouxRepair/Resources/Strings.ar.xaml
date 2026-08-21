@@ -132,7 +132,6 @@
     <sys:String x:Key="ActionClose">إغلاق</sys:String>
     <sys:String x:Key="ActionMinimize">تصغير</sys:String>
     <sys:String x:Key="ActionMaximize">تكبير</sys:String>
-    <sys:String x:Key="ActionRestore">استعادة</sys:String>
     <sys:String x:Key="ActionNotifications">الإشعارات</sys:String>
 
     <!-- Tool -->
@@ -180,6 +179,11 @@
     <sys:String x:Key="SettingsTitle">الإعدادات</sys:String>
     <sys:String x:Key="SettingsLanguage">اللغة</sys:String>
     <sys:String x:Key="SettingsTheme">المظهر</sys:String>
+    <sys:String x:Key="SettingsLanguageEnglish">الإنجليزية</sys:String>
+    <sys:String x:Key="SettingsLanguageArabic">العربية</sys:String>
+    <sys:String x:Key="SettingsDiagnostics">التشخيص</sys:String>
+    <sys:String x:Key="ThemeDark">داكن</sys:String>
+    <sys:String x:Key="ThemeLight">فاتح</sys:String>
     <sys:String x:Key="SettingsReducedMotion">تقليل الحركة</sys:String>
     <sys:String x:Key="SettingsCompactNav">تنقل مضغوط</sys:String>
     <sys:String x:Key="SettingsAnalyzeDefault">التحليل الافتراضي</sys:String>
@@ -187,16 +191,27 @@
     <sys:String x:Key="SettingsConsoleFontSize">حجم خط الوحدة</sys:String>
     <sys:String x:Key="SettingsMaxReportHistory">الحد الأقصى للتقارير</sys:String>
     <sys:String x:Key="SettingsOpenProjectFolder">فتح مجلد المشروع</sys:String>
+    <sys:String x:Key="SettingsAppearance">المظهر</sys:String>
+    <sys:String x:Key="SettingsReducedMotionDescription">تعطيل حركات شاشة البداية والانتقالات لبدء أسرع.</sys:String>
+    <sys:String x:Key="SettingsApplication">التطبيق</sys:String>
+    <sys:String x:Key="SettingsAnalyzeDefaultDescription">عند التفعيل، تعمل الأدوات بوضع التحليل فقط افتراضيًا.</sys:String>
+    <sys:String x:Key="SettingsMaxReportHistoryDescription">الحد الأقصى لعدد مجلدات التقارير التي يحتفظ بها التطبيق في الواجهة.</sys:String>
+    <sys:String x:Key="SettingsConsoleFontSizeDescription">يضبط حجم خط وحدة التنفيذ المباشر.</sys:String>
 
     <!-- Splash -->
     <sys:String x:Key="SplashValidating">جارٍ التحقق من بنية المشروع</sys:String>
     <sys:String x:Key="SplashManifest">تحميل مذكرة الأدوات</sys:String>
-    <sys:String x:Key="SplashTools">تحميل 100 أداة</sys:String>
+    <sys:String x:Key="SplashTools">تحميل 158 أداة</sys:String>
     <sys:String x:Key="SplashCore">التحقق من الوحدات الأساسية</sys:String>
     <sys:String x:Key="SplashReports">تجهيز محرك التقارير</sys:String>
     <sys:String x:Key="SplashAdmin">التحقق من صلاحيات المدير</sys:String>
     <sys:String x:Key="SplashReady">جاهز للإطلاق</sys:String>
     <sys:String x:Key="SplashFinish">دخول التطبيق</sys:String>
+    <sys:String x:Key="SplashInitializing">جارٍ تهيئة KNOUX Repair...</sys:String>
+    <sys:String x:Key="SplashLoadingManifest">جارٍ تحميل بيان الأدوات...</sys:String>
+    <sys:String x:Key="SplashLoadingTools">جارٍ تحميل الأدوات...</sys:String>
+    <sys:String x:Key="SplashPreparingWorkspace">جارٍ تجهيز مساحة العمل...</sys:String>
+    <sys:String x:Key="SplashAttention">اكتملت التهيئة مع عناصر تحتاج الانتباه</sys:String>
 
     <!-- About -->
     <sys:String x:Key="AboutTitle">حول KNOUX Repair</sys:String>

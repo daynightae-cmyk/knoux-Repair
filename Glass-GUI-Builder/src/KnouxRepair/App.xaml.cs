@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 
 namespace KnouxRepair
 {
@@ -7,9 +7,8 @@ namespace KnouxRepair
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
-
-            // Apply saved settings
             var settings = Services.SettingsService.Settings;
+            Services.ThemeService.ApplyTheme(settings.Theme);
             Services.ThemeService.SetLanguage(settings.Language);
         }
     }

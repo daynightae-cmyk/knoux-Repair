@@ -25,7 +25,11 @@
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="10"
                                 Padding="{TemplateBinding Padding}"
-                                SnapsToDevicePixels="True"/>
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -632,6 +636,119 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
         <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid x:Name="templateRoot" SnapsToDevicePixels="True">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="28"/>
+                        </Grid.ColumnDefinitions>
+                        <Border x:Name="selectionBorder"
+                                Grid.ColumnSpan="2"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7"/>
+                        <ContentPresenter x:Name="contentPresenter"
+                                          Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center"
+                                          HorizontalAlignment="Left"
+                                          Content="{TemplateBinding SelectionBoxItem}"
+                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                          ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                          IsHitTestVisible="False"/>
+                        <TextBox x:Name="PART_EditableTextBox"
+                                 Margin="{TemplateBinding Padding}"
+                                 VerticalContentAlignment="Center"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 Foreground="{TemplateBinding Foreground}"
+                                 Visibility="Hidden"/>
+                        <ToggleButton x:Name="dropDownToggle"
+                                      Grid.Column="1"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Focusable="False"
+                                      IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border x:Name="toggleBorder" Background="Transparent" CornerRadius="0,7,7,0">
+                                        <TextBlock Text="⌄"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource MutedBrush}"
+                                                   FontSize="14"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="toggleBorder" Property="Background" Value="#14FFFFFF"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+                        <Popup x:Name="PART_Popup"
+                               Placement="Bottom"
+                               AllowsTransparency="True"
+                               PopupAnimation="Slide"
+                               IsOpen="{TemplateBinding IsDropDownOpen}">
+                            <Border Margin="0,4,0,0"
+                                    MinWidth="{Binding ActualWidth, ElementName=templateRoot}"
+                                    MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                    Background="{DynamicResource InputBgBrush}"
+                                    BorderBrush="{DynamicResource InputBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="7">
+                                <ScrollViewer CanContentScroll="True" Padding="3">
+                                    <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEditable" Value="True">
+                            <Setter TargetName="contentPresenter" Property="Visibility" Value="Hidden"/>
+                            <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="selectionBorder" Property="BorderBrush" Value="#6000E5FF"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="selectionBorder" Property="BorderBrush" Value="{DynamicResource CyanBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.35"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Foreground" Value="{DynamicResource TextMainBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="10,7"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="itemBorder" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="itemBorder" Property="Background" Value="#1A00E5FF"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="itemBorder" Property="Background" Value="#2800BCD4"/>
+                            <Setter Property="Foreground" Value="{DynamicResource CyanBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- ── Default RadioButton ── -->

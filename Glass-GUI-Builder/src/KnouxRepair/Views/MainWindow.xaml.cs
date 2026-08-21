@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -24,6 +24,7 @@ namespace KnouxRepair.Views
         private const int MaxConsoleLines = 10000;
         private int _consoleLineCount;
         private string _currentToolName;
+        private string _activeEvidenceToolId;
         private readonly DispatcherTimer _toastTimer;
         private bool _toastVisible;
 
@@ -293,7 +294,7 @@ namespace KnouxRepair.Views
 
             if (content is AllToolsPage toolsPage)
             {
-                toolsPage.ToolExecutionRequested += RunTool;
+                toolsPage.ToolActionRequested += RunToolAction;
                 _currentToolsPage = toolsPage;
             }
             else
@@ -374,7 +375,17 @@ namespace KnouxRepair.Views
 
         // === Tool Execution (T5) ===
 
-        public void RunTool(string scriptPath, bool analyzeOnlyRequested)
+        private void RunToolAction(ToolExecutionRequest request)
+        {
+            if (request?.Tool == null || request.Action == null || request.Action.Kind == ToolActionKind.Preview) return;
+            ToolExecutionEvidence.Begin(request.Tool.ToolId);
+            _activeEvidenceToolId = request.Tool.ToolId;
+            RunTool(request.Tool.ScriptPath, request.AnalyzeOnly, request.Arguments, request.Tool.ToolId);
+        }
+
+        public void RunTool(string scriptPath, bool analyzeOnlyRequested) => RunTool(scriptPath, analyzeOnlyRequested, string.Empty, null);
+
+        private void RunTool(string scriptPath, bool analyzeOnlyRequested, string arguments, string toolId)
         {
             if (PowerShellService.IsRunning)
             {
@@ -403,14 +414,16 @@ namespace KnouxRepair.Views
                 : (string)FindResource("ConsoleModeRun");
             SetStatusText((string)FindResource("StatusRunning"));
 
-            _ = ExecuteToolAsync(scriptPath, effectiveAnalyze);
+            _ = ExecuteToolAsync(scriptPath, effectiveAnalyze, arguments, toolId);
         }
 
-        private async Task ExecuteToolAsync(string scriptPath, bool analyzeOnly)
+        private async Task ExecuteToolAsync(string scriptPath, bool analyzeOnly, string arguments = "", string toolId = null)
         {
             try
             {
-                var exitCode = await PowerShellService.RunAsync(scriptPath, analyzeOnly: analyzeOnly);
+                var exitCode = await PowerShellService.RunAsync(scriptPath, arguments: arguments, analyzeOnly: analyzeOnly);
+                if (!string.IsNullOrWhiteSpace(toolId))
+                    ToolExecutionEvidence.Complete(toolId, exitCode, exitCode == -1);
                 var statusKey = exitCode == 0 ? "StatusCompleted" : "StatusFailed";
                 SetStatusText((string)FindResource(statusKey));
             }
@@ -464,13 +477,21 @@ namespace KnouxRepair.Views
         private void OnToolOutput(string line)
         {
             if (!string.IsNullOrWhiteSpace(line))
+            {
+                if (!string.IsNullOrWhiteSpace(_activeEvidenceToolId))
+                    ToolExecutionEvidence.AppendOutput(_activeEvidenceToolId, line, false);
                 AppendConsoleLine(line);
+            }
         }
 
         private void OnToolError(string line)
         {
             if (!string.IsNullOrWhiteSpace(line))
+            {
+                if (!string.IsNullOrWhiteSpace(_activeEvidenceToolId))
+                    ToolExecutionEvidence.AppendOutput(_activeEvidenceToolId, line, true);
                 AppendConsoleLine(line, isError: true);
+            }
         }
 
         private void OnToolExited(int exitCode)
@@ -574,7 +595,7 @@ namespace KnouxRepair.Views
         {
             var title = (string)FindResource(titleKey);
             var message = (string)FindResource(messageKey);
-            var opts = MessageBoxOptions.DefaultDesktopOnly;
+            var opts = MessageBoxOptions.None;
             if (ThemeService.IsArabic(SettingsService.Settings.Language))
                 opts |= MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign;
             return MessageBox.Show(this, message, title,
