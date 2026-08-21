@@ -35,6 +35,14 @@ export interface BridgeTool {
   TestResult: string;
 }
 
+export type AuthProviderId = 'github' | 'entra';
+export interface BridgeAuthStatus {
+  required: boolean;
+  authenticated: boolean;
+  providers: Record<AuthProviderId, { label: string; configured: boolean }>;
+  user: { provider: AuthProviderId; id: string; name: string; handle: string; avatarUrl: string } | null;
+}
+
 export interface BridgeHealth {
   ok: boolean;
   bridge: string;
@@ -462,6 +470,7 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 30000): 
     res = await fetch(`${BRIDGE_URL}${path}`, {
       ...init,
       signal: controller.signal,
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
     });
   } catch (e) {
@@ -485,6 +494,9 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 30000): 
 
 export const api = {
   health: () => request<BridgeHealth>('/api/health', undefined, 10000),
+  authStatus: () => request<BridgeAuthStatus>('/api/auth/status', undefined, 10000),
+  authStartUrl: (provider: AuthProviderId) => `${BRIDGE_URL}/api/auth/start/${provider}`,
+  logout: () => request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }, 10000),
   tools: () => request<{ tools: BridgeTool[] }>('/api/tools', undefined, 15000),
   system: () => request<{ system: SystemSnapshot }>('/api/system', undefined, 60000),
   folderRoots: () => request<{ roots: LocalFolderRoot[] }>('/api/folders/roots', undefined, 15000),

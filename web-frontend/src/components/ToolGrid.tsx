@@ -15,10 +15,12 @@ import DiskPulsePanel from './DiskPulsePanel';
 import SoftwareInventoryPanel from './SoftwareInventoryPanel';
 import NetworkPulsePanel from './NetworkPulsePanel';
 import SystemPulsePanel from './SystemPulsePanel';
+import SystemSentinelPanel from './SystemSentinelPanel';
 import OperationsPulsePanel from './OperationsPulsePanel';
 import PerformancePulsePanel from './PerformancePulsePanel';
 import PerformanceOptimizationPanel from './PerformanceOptimizationPanel';
 import DiagnosticsReportPanel from './DiagnosticsReportPanel';
+import AdvancedTroubleshooterPanel from './AdvancedTroubleshooterPanel';
 import SmartCleanupPanel from './SmartCleanupPanel';
 import BackupRecoveryPanel from './BackupRecoveryPanel';
 import DriverManagementPanel from './DriverManagementPanel';
@@ -462,14 +464,15 @@ export default function ToolGrid({
             {category.id === '05-Duplicate-Files' && <DuplicateExplorerPanel lang={lang} tools={tools} onRequestExecution={(tool, options) => setPendingExecution({ tool, mode: 'run', options })} />}
 
             {category.id === '01-System-Maintenance' && <SystemPulsePanel lang={lang} mode="maintenance" />}
-      {category.id === '09-Security' && <SystemPulsePanel lang={lang} mode="security" />}
-      {category.id === '15-System-Monitoring' && <SystemPulsePanel lang={lang} mode="monitoring" />}
+      {category.id === '09-Security' && <SystemSentinelPanel lang={lang} mode="security" tools={tools} onRequestExecution={(tool, mode) => setPendingExecution({ tool, mode })} />}
+      {category.id === '15-System-Monitoring' && <SystemSentinelPanel lang={lang} mode="monitoring" tools={tools} onRequestExecution={(tool, mode) => setPendingExecution({ tool, mode })} />}
       {category.id === '03-Network-Internet' && <NetworkPulsePanel lang={lang} />}
       {category.id === '06-Disk-Space' && <DiskPulsePanel lang={lang} />}
       {category.id === '07-Services-Processes' && <OperationsPulsePanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
       {category.id === '08-Performance' && <PerformanceOptimizationPanel lang={lang} tools={tools} onRequestExecution={(tool, mode = 'analyze') => setPendingExecution({ tool, mode })} />}
       {category.id === '08-Performance' && <PerformancePulsePanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
       {category.id === '02-System-Cleanup' && <SmartCleanupPanel lang={lang} tools={tools} onRequestExecution={(tool, mode = 'run') => setPendingExecution({ tool, mode })} />}
+      {category.id === '10-Diagnostics-Reports' && <AdvancedTroubleshooterPanel lang={lang} tools={tools} onRequestExecution={(tool, mode) => setPendingExecution({ tool, mode })} />}
       {category.id === '10-Diagnostics-Reports' && <DiagnosticsReportPanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}
       {category.id === '11-Backup-Recovery' && <BackupRecoveryPanel lang={lang} tools={tools} onRequestExecution={(tool, mode = 'run', options) => setPendingExecution({ tool, mode, options })} />}
       {category.id === '13-Privacy' && <PrivacyPanel lang={lang} tools={tools} onRequestExecution={(tool) => setPendingExecution({ tool, mode: 'run' })} />}

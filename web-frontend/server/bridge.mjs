@@ -51,6 +51,138 @@ const SONAR_EXPORT_DIR = path.join(REPO_ROOT, 'Reports', 'Project-Sonar-Exports'
 const SONAR_EXPORT_TTL_MS = 60 * 60 * 1000;
 const sonarExports = new Map();
 
+/* ---------------- local OAuth access control ----------------
+ * OAuth tokens never leave this process. The browser receives only an HttpOnly
+ * loopback session cookie after the provider callback has completed.
+ */
+const AUTH_REQUIRED = process.env.KNOUX_AUTH_REQUIRED === 'true';
+const AUTH_FRONTEND_ORIGIN = process.env.KNOUX_AUTH_FRONTEND_ORIGIN || 'http://127.0.0.1:5173';
+const AUTH_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+const AUTH_TRANSACTION_TTL_MS = 10 * 60 * 1000;
+const AUTH_COOKIE = 'knoux_auth_session';
+const authTransactions = new Map();
+const authSessions = new Map();
+
+function authProviders() {
+  return {
+    github: {
+      id: 'github', label: 'GitHub OAuth',
+      configured: Boolean(process.env.KNOUX_GITHUB_CLIENT_ID && process.env.KNOUX_GITHUB_CLIENT_SECRET),
+      clientId: process.env.KNOUX_GITHUB_CLIENT_ID || '',
+      clientSecret: process.env.KNOUX_GITHUB_CLIENT_SECRET || '',
+      callback: `http://127.0.0.1:${PORT}/api/auth/callback/github`,
+    },
+    entra: {
+      id: 'entra', label: 'Microsoft Entra ID',
+      configured: Boolean(process.env.KNOUX_ENTRA_CLIENT_ID),
+      clientId: process.env.KNOUX_ENTRA_CLIENT_ID || '',
+      clientSecret: process.env.KNOUX_ENTRA_CLIENT_SECRET || '',
+      tenant: process.env.KNOUX_ENTRA_TENANT_ID || 'organizations',
+      callback: `http://127.0.0.1:${PORT}/api/auth/callback/entra`,
+    },
+  };
+}
+
+function base64url(bytes) { return Buffer.from(bytes).toString('base64url'); }
+function randomAuthValue() { return base64url(crypto.randomBytes(32)); }
+function pkceChallenge(verifier) { return crypto.createHash('sha256').update(verifier).digest('base64url'); }
+function parseCookies(header = '') {
+  return Object.fromEntries(String(header).split(';').map((part) => {
+    const index = part.indexOf('=');
+    return index < 0 ? ['', ''] : [part.slice(0, index).trim(), decodeURIComponent(part.slice(index + 1).trim())];
+  }).filter(([key]) => key));
+}
+function authSession(req) {
+  const id = parseCookies(req.headers.cookie)[AUTH_COOKIE];
+  const session = id ? authSessions.get(id) : null;
+  if (!session || session.expiresAt < Date.now()) { if (id) authSessions.delete(id); return null; }
+  return { id, ...session };
+}
+function clearExpiredAuth() {
+  const now = Date.now();
+  for (const [id, transaction] of authTransactions) if (transaction.expiresAt < now) authTransactions.delete(id);
+  for (const [id, session] of authSessions) if (session.expiresAt < now) authSessions.delete(id);
+}
+function authStatus(req) {
+  clearExpiredAuth();
+  const session = authSession(req);
+  const providers = authProviders();
+  return {
+    required: AUTH_REQUIRED,
+    authenticated: Boolean(session),
+    providers: Object.fromEntries(Object.entries(providers).map(([id, provider]) => [id, { label: provider.label, configured: provider.configured }])),
+    user: session ? { provider: session.provider, id: session.user.id, name: session.user.name, handle: session.user.handle, avatarUrl: session.user.avatarUrl || '' } : null,
+  };
+}
+function authRedirect(res, location, headers = {}) {
+  res.writeHead(302, { Location: location, 'Cache-Control': 'no-store', ...headers });
+  res.end();
+}
+function createAuthTransaction(providerId) {
+  const providers = authProviders();
+  const provider = providers[providerId];
+  if (!provider || !provider.configured) throw Object.assign(new Error('The requested authentication provider is not configured in the local bridge.'), { status: 503, code: 'AUTH_PROVIDER_UNAVAILABLE' });
+  const state = randomAuthValue();
+  const verifier = randomAuthValue();
+  authTransactions.set(state, { providerId, verifier, expiresAt: Date.now() + AUTH_TRANSACTION_TTL_MS });
+  return { provider, state, verifier };
+}
+function authStartUrl(providerId) {
+  const { provider, state, verifier } = createAuthTransaction(providerId);
+  if (providerId === 'github') {
+    const url = new URL('https://github.com/login/oauth/authorize');
+    url.search = new URLSearchParams({ client_id: provider.clientId, redirect_uri: provider.callback, scope: 'read:user', state, code_challenge: pkceChallenge(verifier), code_challenge_method: 'S256', allow_signup: 'false', prompt: 'select_account' }).toString();
+    return url.toString();
+  }
+  const url = new URL(`https://login.microsoftonline.com/${encodeURIComponent(provider.tenant)}/oauth2/v2.0/authorize`);
+  url.search = new URLSearchParams({ client_id: provider.clientId, response_type: 'code', redirect_uri: provider.callback, response_mode: 'query', scope: 'openid profile email User.Read', state, code_challenge: pkceChallenge(verifier), code_challenge_method: 'S256', prompt: 'select_account' }).toString();
+  return url.toString();
+}
+async function readJson(response, providerId) {
+  let payload = null;
+  try { payload = await response.json(); } catch { /* handled below */ }
+  if (!response.ok || !payload || typeof payload !== 'object') {
+    throw Object.assign(new Error(`${providerId} could not complete the authentication exchange.`), { status: 502, code: 'AUTH_EXCHANGE_FAILED' });
+  }
+  return payload;
+}
+async function completeAuthCallback(providerId, code, state) {
+  clearExpiredAuth();
+  const transaction = authTransactions.get(state);
+  const providers = authProviders();
+  const provider = providers[providerId];
+  authTransactions.delete(state);
+  if (!transaction || transaction.providerId !== providerId || !provider || !provider.configured) throw Object.assign(new Error('The authentication state is invalid or expired. Start sign-in again.'), { status: 400, code: 'AUTH_STATE_INVALID' });
+  if (!code) throw Object.assign(new Error('The authentication provider did not return a code.'), { status: 400, code: 'AUTH_CODE_MISSING' });
+  if (providerId === 'github') {
+    const token = await readJson(await fetch('https://github.com/login/oauth/access_token', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: provider.clientId, client_secret: provider.clientSecret, code, redirect_uri: provider.callback, code_verifier: transaction.verifier }) }), 'GitHub');
+    if (typeof token.access_token !== 'string') throw Object.assign(new Error('GitHub did not return an access token.'), { status: 502, code: 'AUTH_TOKEN_MISSING' });
+    const profile = await readJson(await fetch('https://api.github.com/user', { headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token.access_token}`, 'User-Agent': 'Knoux-Repair-Local' } }), 'GitHub');
+    return { provider: providerId, user: { id: String(profile.id), name: String(profile.name || profile.login || 'GitHub user'), handle: String(profile.login || ''), avatarUrl: typeof profile.avatar_url === 'string' ? profile.avatar_url : '' }, token: token.access_token };
+  }
+  const tokenBody = new URLSearchParams({ client_id: provider.clientId, grant_type: 'authorization_code', code, redirect_uri: provider.callback, code_verifier: transaction.verifier, scope: 'openid profile email User.Read' });
+  if (provider.clientSecret) tokenBody.set('client_secret', provider.clientSecret);
+  const token = await readJson(await fetch(`https://login.microsoftonline.com/${encodeURIComponent(provider.tenant)}/oauth2/v2.0/token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: tokenBody }), 'Microsoft Entra ID');
+  if (typeof token.access_token !== 'string') throw Object.assign(new Error('Microsoft Entra ID did not return an access token.'), { status: 502, code: 'AUTH_TOKEN_MISSING' });
+  const profile = await readJson(await fetch('https://graph.microsoft.com/v1.0/me?$select=id,displayName,userPrincipalName', { headers: { Authorization: `Bearer ${token.access_token}` } }), 'Microsoft Entra ID');
+  return { provider: providerId, user: { id: String(profile.id), name: String(profile.displayName || profile.userPrincipalName || 'Microsoft user'), handle: String(profile.userPrincipalName || ''), avatarUrl: '' }, token: token.access_token };
+}
+function createAuthSession(res, identity) {
+  const id = randomAuthValue();
+  authSessions.set(id, { provider: identity.provider, user: identity.user, token: identity.token, expiresAt: Date.now() + AUTH_SESSION_TTL_MS });
+  const cookie = `${AUTH_COOKIE}=${encodeURIComponent(id)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(AUTH_SESSION_TTL_MS / 1000)}`;
+  return { 'Set-Cookie': cookie };
+}
+function clearAuthSession(req) {
+  const id = parseCookies(req.headers.cookie)[AUTH_COOKIE];
+  if (id) authSessions.delete(id);
+  return { 'Set-Cookie': `${AUTH_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0` };
+}
+function requireAuth(req) {
+  if (!AUTH_REQUIRED) return;
+  if (!authSession(req)) throw Object.assign(new Error('Sign in with an approved local provider before running a repair service.'), { status: 401, code: 'AUTH_REQUIRED' });
+}
+
 function log(...args) {
   const line = `[${new Date().toISOString()}] ${args.join(' ')}`;
   try { fs.appendFileSync(LOG_PATH, line + '\n'); } catch { /* ignore */ }
@@ -707,6 +839,10 @@ const ALLOWED_ORIGINS = new Set([
   'http://localhost:5173', 'http://localhost:4173',
   'http://127.0.0.1:5173', 'http://127.0.0.1:4173',
 ]);
+if (!/^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/.test(AUTH_FRONTEND_ORIGIN)) {
+  throw new Error('KNOUX_AUTH_FRONTEND_ORIGIN must be a loopback Vite origin such as http://127.0.0.1:5173.');
+}
+ALLOWED_ORIGINS.add(AUTH_FRONTEND_ORIGIN);
 
 function sendJson(res, status, body, extraHeaders = {}) {
   const data = JSON.stringify(body);
@@ -742,6 +878,7 @@ const server = http.createServer(async (req, res) => {
     'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'http://localhost:4173',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Credentials': 'true',
   };
 
   if (req.method === 'OPTIONS') {
@@ -753,6 +890,25 @@ const server = http.createServer(async (req, res) => {
   const pathParts = url.pathname.split('/').filter(Boolean);
 
   try {
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'auth' && pathParts[2] === 'status') {
+      return sendJson(res, 200, { ok: true, ...authStatus(req) }, corsHeaders);
+    }
+
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'auth' && pathParts[2] === 'start' && (pathParts[3] === 'github' || pathParts[3] === 'entra')) {
+      return authRedirect(res, authStartUrl(pathParts[3]));
+    }
+
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'auth' && pathParts[2] === 'callback' && (pathParts[3] === 'github' || pathParts[3] === 'entra')) {
+      const providerId = pathParts[3];
+      if (url.searchParams.get('error')) return authRedirect(res, `${AUTH_FRONTEND_ORIGIN}/?auth=error`);
+      const identity = await completeAuthCallback(providerId, url.searchParams.get('code') || '', url.searchParams.get('state') || '');
+      return authRedirect(res, `${AUTH_FRONTEND_ORIGIN}/?auth=success`, createAuthSession(res, identity));
+    }
+
+    if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'auth' && pathParts[2] === 'logout') {
+      return sendJson(res, 200, { ok: true }, { ...corsHeaders, ...clearAuthSession(req) });
+    }
+
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'health') {
       return sendJson(res, 200, {
         ok: true, bridge: 'knoux-bridge', version: '2.0.2', elevated: isElevated(),
@@ -897,6 +1053,7 @@ const server = http.createServer(async (req, res) => {
 
 
     if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'runs' && pathParts.length === 2) {
+      requireAuth(req);
       let body = {};
       try {
         const raw = await new Promise((resolve, reject) => {

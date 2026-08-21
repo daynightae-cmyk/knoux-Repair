@@ -8,10 +8,13 @@ import DiagnosticConsole from './components/DiagnosticConsole';
 
 import PageTransition from './components/PageTransition';
 import BridgeOffline from './components/BridgeOffline';
+import SettingsCenter from './components/SettingsCenter';
+import NexusSplash from './components/NexusSplash';
+import AuthGate from './components/AuthGate';
 
 import type { ActiveSection, ToolStatus, ConsoleEntry, ConsoleEntryType } from './types';
 import { SECTION_MAP } from './types';
-import type { BridgeTool, BridgeRun, ExecutionMode, ToolRunOptions } from './lib/api';
+import type { BridgeAuthStatus, BridgeTool, BridgeRun, ExecutionMode, ToolRunOptions } from './lib/api';
 import { api, BridgeError } from './lib/api';
 import type { Lang } from './lib/i18n';
 
@@ -43,11 +46,16 @@ function NexusApp() {
   const [activeRequest, setActiveRequest] = useState<{ tool: BridgeTool; mode: ExecutionMode; options: ToolRunOptions } | null>(null);
   const [consoleStatus, setConsoleStatus] = useState<'idle' | 'running' | 'success' | 'error' | 'cancelled'>('idle');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [splashVisible, setSplashVisible] = useState(true);
 
   const [bridgeOnline, setBridgeOnline] = useState<boolean | null>(null);
   const [bridgeElevated, setBridgeElevated] = useState(false);
   const [toolsByCategory, setToolsByCategory] = useState<Record<string, BridgeTool[]>>({});
   const [bridgeError, setBridgeError] = useState('');
+  const [authStatus, setAuthStatus] = useState<BridgeAuthStatus | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState('');
 
   const currentRunId = useRef<string | null>(null);
   const pollTimer = useRef<number | null>(null);
@@ -71,14 +79,17 @@ function NexusApp() {
     setBridgeOnline(null);
     setBridgeError('');
     try {
-      const health = await api.health();
-      const { tools } = await api.tools();
+      const [health, toolResponse] = await Promise.all([api.health(), api.tools()]);
+      const auth = await api.authStatus().catch(() => null);
+      const { tools } = toolResponse;
       const byCategory: Record<string, BridgeTool[]> = {};
       for (const t of tools) {
         (byCategory[t.Category] ||= []).push(t);
       }
       setToolsByCategory(byCategory);
       setBridgeElevated(health.elevated);
+      setAuthStatus(auth);
+      setAuthError(auth ? '' : 'Local OAuth routes are not available until the bridge is restarted with this release.');
       setBridgeOnline(true);
     } catch (e) {
       setBridgeError(e instanceof BridgeError ? e.message : String(e));
@@ -89,6 +100,10 @@ function NexusApp() {
   useEffect(() => {
     connectBridge();
   }, [connectBridge]);
+
+  useEffect(() => { setAuthLoading(bridgeOnline === null); }, [bridgeOnline]);
+  const refreshAuth = useCallback(async () => { setAuthLoading(true); setAuthError(''); try { setAuthStatus(await api.authStatus()); } catch (e) { setAuthError(e instanceof Error ? e.message : String(e)); } finally { setAuthLoading(false); } }, []);
+  const startSignIn = useCallback((provider: 'github' | 'entra') => { window.location.assign(api.authStartUrl(provider)); }, []);
 
   const finishRun = useCallback((run: BridgeRun) => {
     const status: ToolStatus = run.status === 'success' ? 'success' : run.status === 'error' ? 'error' : 'cancelled';
@@ -174,6 +189,7 @@ function NexusApp() {
           setTheme={setTheme}
           bridgeOnline={bridgeOnline}
           bridgeElevated={bridgeElevated}
+          onOpenSettings={() => { setSettingsOpen(true); setSidebarOpen(false); }}
         />
 
         <main className="flex-1 nx-workspace rounded-[1.75rem] p-4 md:p-6 flex flex-col overflow-hidden">
@@ -204,6 +220,22 @@ function NexusApp() {
         </main>
       </div>
 
+      <SettingsCenter
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        lang={lang}
+        setLang={setLang}
+        theme={theme}
+        setTheme={setTheme}
+        bridgeOnline={bridgeOnline}
+        bridgeElevated={bridgeElevated}
+        toolCount={Object.values(toolsByCategory).reduce((total, items) => total + items.length, 0)}
+        onReplaySplash={() => { setSettingsOpen(false); setSplashVisible(true); }}
+        auth={authStatus}
+        onSignIn={startSignIn}
+        onLogout={() => { void api.logout().finally(() => { void refreshAuth(); }); }}
+      />
+
       <DiagnosticConsole
         visible={consoleVisible}
         onClose={() => setConsoleVisible(false)}
@@ -213,6 +245,16 @@ function NexusApp() {
         onRetry={handleRetry}
         onCancel={cancelRun}
         lang={lang}
+      />
+      {authStatus?.required && !authStatus.authenticated && (
+        <AuthGate lang={lang} status={authStatus} loading={authLoading} error={authError} onRetry={refreshAuth} onSignIn={startSignIn} />
+      )}
+      <NexusSplash
+        visible={splashVisible}
+        onDone={() => setSplashVisible(false)}
+        lang={lang}
+        bridgeOnline={bridgeOnline}
+        toolCount={Object.values(toolsByCategory).reduce((total, items) => total + items.length, 0)}
       />
     </div>
   );

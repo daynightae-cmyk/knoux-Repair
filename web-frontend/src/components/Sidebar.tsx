@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import {
   Activity, AppWindow, Boxes, CircleDot, Copy, Cpu, Gauge, HardDrive, Languages,
-  Lock, Moon, Network, Radar, Rocket, Shield, Sun, Trash2, Wrench,
+  Lock, Moon, Network, Radar, Rocket, Settings, Shield, Sun, Trash2, Wrench,
 } from 'lucide-react';
 import type { CSSProperties, ElementType } from 'react';
 import type { ActiveSection } from '../types';
@@ -22,6 +22,7 @@ interface SidebarProps {
   setTheme: (theme: 'dark' | 'light') => void;
   bridgeOnline: boolean | null;
   bridgeElevated: boolean;
+  onOpenSettings: () => void;
 }
 
 type AccentStyle = CSSProperties & Record<'--accent', string>;
@@ -48,7 +49,7 @@ const ICONS: Record<CategoryIconKey, ElementType> = {
 };
 
 export default function Sidebar({
-  active, onSelect, toolsByCategory, open, onClose, lang, setLang, theme, setTheme, bridgeOnline, bridgeElevated,
+  active, onSelect, toolsByCategory, open, onClose, lang, setLang, theme, setTheme, bridgeOnline, bridgeElevated, onOpenSettings,
 }: SidebarProps) {
   const t = STRINGS[lang];
 
@@ -134,6 +135,7 @@ export default function Sidebar({
               {bridgeElevated ? t.bridgeElevated : t.bridgeNotElevated}
             </p>
           )}
+          <button type="button" className="sidebar-settings-link" onClick={onOpenSettings}><Settings size={12}/>{lang === 'ar' ? 'إعدادات المطور' : 'Developer settings'}</button>
           <div className="flex items-center justify-between pt-1">
             <div className="flex items-center gap-1">
               <Languages size={11} className="text-slate-500" />
