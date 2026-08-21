@@ -31,7 +31,8 @@ function loadLocalEnv() {
 }
 loadLocalEnv();
 
-const REPO_ROOT = path.resolve(SERVER_DIR, '..', '..');
+const REPO_ROOT = process.env.KNOUX_PROJECT_ROOT ? path.resolve(process.env.KNOUX_PROJECT_ROOT) : path.resolve(SERVER_DIR, '..', '..');
+const DATA_ROOT = process.env.KNOUX_DATA_ROOT ? path.resolve(process.env.KNOUX_DATA_ROOT) : REPO_ROOT;
 const MANIFEST_PATH = path.join(REPO_ROOT, 'Docs', 'TOOLS-MANIFEST.json');
 const MENUS_PATH = path.join(REPO_ROOT, 'Config', 'menus.json');
 const LOG_PATH = path.join(os.tmpdir(), 'knoux-bridge.log');
@@ -47,7 +48,7 @@ const SYSTEM_CACHE_MS = 30 * 1000;
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'openrouter/free';
 const OPENROUTER_CONFIGURED = Boolean(process.env.OPENROUTER_API_KEY && /^sk-or-v1-[A-Za-z0-9]+$/.test(process.env.OPENROUTER_API_KEY));
-const SONAR_EXPORT_DIR = path.join(REPO_ROOT, 'Reports', 'Project-Sonar-Exports');
+const SONAR_EXPORT_DIR = path.join(DATA_ROOT, 'Reports', 'Project-Sonar-Exports');
 const SONAR_EXPORT_TTL_MS = 60 * 60 * 1000;
 const sonarExports = new Map();
 const DUPLICATE_PREVIEW_TTL_MS = 20 * 60 * 1000;

@@ -2,13 +2,19 @@
   "name": "knoux-repair-nexus",
   "private": true,
   "version": "2.0.2",
+  "description": "KNOUX Repair Glass Nexus local Windows repair workstation",
+  "author": "KNOUX",
+  "repository": "https://github.com/daynightae-cmyk/knoux-Repair.git",
   "type": "module",
+  "main": "desktop/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "bridge": "node server/bridge.mjs"
+    "bridge": "node server/bridge.mjs",
+    "desktop:dev": "npm run build && electron .",
+    "desktop:package": "npm run build && electron-builder --win nsis"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -24,9 +30,45 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "electron": "^37.10.3",
+    "electron-builder": "^26.15.3",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
     "vite": "^6.0.5"
+  },
+  "build": {
+    "appId": "com.knoux.repair.glassnexus",
+    "productName": "KNOUX Repair Glass Nexus",
+    "artifactName": "KNOUX-Repair-Glass-Nexus-Setup-${version}.${ext}",
+    "directories": { "output": "../Release/Glass-Nexus" },
+    "files": ["dist/**/*", "desktop/**/*", "package.json"],
+    "extraResources": [
+      { "from": "server", "to": "knoux-runtime/web-frontend/server", "filter": ["**/*"] },
+      { "from": "../Config", "to": "knoux-runtime/Config", "filter": ["**/*"] },
+      { "from": "../Core", "to": "knoux-runtime/Core", "filter": ["**/*"] },
+      { "from": "../Docs", "to": "knoux-runtime/Docs", "filter": ["**/*"] },
+      { "from": "../01-System-Maintenance", "to": "knoux-runtime/01-System-Maintenance", "filter": ["**/*"] },
+      { "from": "../02-System-Cleanup", "to": "knoux-runtime/02-System-Cleanup", "filter": ["**/*"] },
+      { "from": "../03-Network-Internet", "to": "knoux-runtime/03-Network-Internet", "filter": ["**/*"] },
+      { "from": "../04-Programs-Applications", "to": "knoux-runtime/04-Programs-Applications", "filter": ["**/*"] },
+      { "from": "../05-Duplicate-Files", "to": "knoux-runtime/05-Duplicate-Files", "filter": ["**/*"] },
+      { "from": "../06-Disk-Space", "to": "knoux-runtime/06-Disk-Space", "filter": ["**/*"] },
+      { "from": "../07-Services-Processes", "to": "knoux-runtime/07-Services-Processes", "filter": ["**/*"] },
+      { "from": "../08-Performance", "to": "knoux-runtime/08-Performance", "filter": ["**/*"] },
+      { "from": "../09-Security", "to": "knoux-runtime/09-Security", "filter": ["**/*"] },
+      { "from": "../10-Diagnostics-Reports", "to": "knoux-runtime/10-Diagnostics-Reports", "filter": ["**/*"] },
+      { "from": "../11-Backup-Recovery", "to": "knoux-runtime/11-Backup-Recovery", "filter": ["**/*"] },
+      { "from": "../12-Developer-Tools", "to": "knoux-runtime/12-Developer-Tools", "filter": ["**/*"] },
+      { "from": "../13-Privacy", "to": "knoux-runtime/13-Privacy", "filter": ["**/*"] },
+      { "from": "../14-Driver-Management", "to": "knoux-runtime/14-Driver-Management", "filter": ["**/*"] },
+      { "from": "../15-System-Monitoring", "to": "knoux-runtime/15-System-Monitoring", "filter": ["**/*"] },
+      { "from": "../16-Software-Environment", "to": "knoux-runtime/16-Software-Environment", "filter": ["**/*"] },
+      { "from": "../17-PostInstall-Setup", "to": "knoux-runtime/17-PostInstall-Setup", "filter": ["**/*"] },
+      { "from": "../18-Project-Sonar", "to": "knoux-runtime/18-Project-Sonar", "filter": ["**/*"] },
+      { "from": "../Glass-GUI-Builder/src/KnouxRepair/Assets/KnouxOfficialLogo.ico", "to": "knoux-runtime/Assets/KnouxOfficialLogo.ico" }
+    ],
+    "win": { "target": ["nsis"], "icon": "../Glass-GUI-Builder/src/KnouxRepair/Assets/KnouxOfficialLogo.ico" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "KNOUX Repair Glass Nexus" }
   }
 }
