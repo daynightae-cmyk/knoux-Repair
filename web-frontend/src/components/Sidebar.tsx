@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import {
-  Activity, AppWindow, Boxes, CircleDot, Copy, Cpu, Gauge, HardDrive, Languages,
+  Activity, AppWindow, Boxes, CircleDot, Copy, Cpu, FolderKanban, Gauge, HardDrive, Languages,
   Lock, Moon, Network, Radar, Rocket, Settings, Shield, Sun, Trash2, Wrench,
 } from 'lucide-react';
 import type { CSSProperties, ElementType } from 'react';
@@ -13,6 +13,8 @@ import { CATEGORIES, type CategoryIconKey } from '../data/categories';
 interface SidebarProps {
   active: ActiveSection;
   onSelect: (section: ActiveSection) => void;
+  viewMode: 'workspaces' | 'tools';
+  onOpenWorkspaces: () => void;
   toolsByCategory: Record<string, BridgeTool[]>;
   open: boolean;
   onClose: () => void;
@@ -49,7 +51,7 @@ const ICONS: Record<CategoryIconKey, ElementType> = {
 };
 
 export default function Sidebar({
-  active, onSelect, toolsByCategory, open, onClose, lang, setLang, theme, setTheme, bridgeOnline, bridgeElevated, onOpenSettings,
+  active, onSelect, viewMode, onOpenWorkspaces, toolsByCategory, open, onClose, lang, setLang, theme, setTheme, bridgeOnline, bridgeElevated, onOpenSettings,
 }: SidebarProps) {
   const t = STRINGS[lang];
 
@@ -89,16 +91,29 @@ export default function Sidebar({
           </div>
         </div>
 
+        <div className="px-3 pb-4">
+          <button
+            type="button"
+            onClick={onOpenWorkspaces}
+            className={`workspace-nav-entry w-full ${viewMode === 'workspaces' ? 'is-active' : ''}`}
+            aria-current={viewMode === 'workspaces' ? 'page' : undefined}
+          >
+            <span className="workspace-nav-entry-icon"><FolderKanban size={16} /></span>
+            <span className="flex-1 min-w-0 text-start">{lang === 'ar' ? 'مساحات العمل' : 'Workspaces'}</span>
+            <span className="workspace-nav-entry-badge">LIVE</span>
+          </button>
+        </div>
+
         <div className="px-5 pb-2">
           <p className="font-mono text-[9px] font-semibold tracking-[0.18em] text-slate-500">
-            {lang === 'ar' ? 'المجالات' : 'WORKSTATIONS'}
+            {lang === 'ar' ? 'محطات الإصلاح' : 'REPAIR WORKSTATIONS'}
           </p>
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 pb-4" aria-label={lang === 'ar' ? 'الفئات' : 'Categories'}>
           <div className="space-y-1">
             {CATEGORIES.map((category) => {
-              const isActive = active === category.section;
+              const isActive = viewMode === 'tools' && active === category.section;
               const Icon = ICONS[category.icon];
               const count = toolsByCategory[category.id]?.length ?? 0;
               const style: AccentStyle = { '--accent': category.accent };

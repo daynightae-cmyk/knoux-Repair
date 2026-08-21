@@ -11,6 +11,7 @@ import BridgeOffline from './components/BridgeOffline';
 import SettingsCenter from './components/SettingsCenter';
 import NexusSplash from './components/NexusSplash';
 import AuthGate from './components/AuthGate';
+import WorkspaceDashboard from './components/WorkspaceDashboard';
 
 import type { ActiveSection, ToolStatus, ConsoleEntry, ConsoleEntryType } from './types';
 import { SECTION_MAP } from './types';
@@ -39,6 +40,7 @@ function NexusApp() {
   });
   const [theme, setTheme] = useState<'dark' | 'light'>(() => localStorage.getItem('knoux-theme') === 'light' ? 'light' : 'dark');
   const [activeSection, setActiveSection] = useState<ActiveSection>('maintenance');
+  const [activeView, setActiveView] = useState<'workspaces' | 'tools'>('workspaces');
   const [toolStatuses, setToolStatuses] = useState<Record<string, ToolStatus>>({});
   const [consoleVisible, setConsoleVisible] = useState(false);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
@@ -179,7 +181,9 @@ function NexusApp() {
       <div className="relative z-10 h-full p-3 md:p-4 flex gap-3 md:gap-4">
         <Sidebar
           active={activeSection}
-          onSelect={setActiveSection}
+          onSelect={(section) => { setActiveSection(section); setActiveView('tools'); }}
+          viewMode={activeView}
+          onOpenWorkspaces={() => { setActiveView('workspaces'); setSidebarOpen(false); }}
           toolsByCategory={toolsByCategory}
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
@@ -194,27 +198,37 @@ function NexusApp() {
 
         <main className="flex-1 nx-workspace rounded-[1.75rem] p-4 md:p-6 flex flex-col overflow-hidden">
 
-          {bridgeOnline === false && (
+          {bridgeOnline === false && activeView === 'tools' && (
             <BridgeOffline error={bridgeError} lang={lang} onRetry={connectBridge} />
           )}
 
-          {bridgeOnline === true && (
+          {(activeView === 'workspaces' || bridgeOnline !== false) && (
             <AnimatePresence mode="wait">
-              <PageTransition key={`tools-${activeSection}`}>
-                <ToolGrid
-                  activeSection={activeSection}
-                  toolStatuses={toolStatuses}
-                  tools={toolsByCategory[SECTION_MAP[activeSection]] || []}
-                  lang={lang}
-                                    bridgeElevated={bridgeElevated}
-                  activeTool={activeTool}
-                  activityEntries={consoleEntries}
-                  activityStatus={consoleStatus}
-                  onRunTool={runTool}
-
-                  onCancelTool={cancelRun}
-                />
-              </PageTransition>
+              {activeView === 'workspaces' ? (
+                <PageTransition key="workspaces">
+                  <WorkspaceDashboard
+                    lang={lang}
+                    toolsByCategory={toolsByCategory}
+                    onOpenNavigation={() => setSidebarOpen(true)}
+                    onOpenSection={(section) => { setActiveSection(section); setActiveView('tools'); }}
+                  />
+                </PageTransition>
+              ) : (
+                <PageTransition key={`tools-${activeSection}`}>
+                  <ToolGrid
+                    activeSection={activeSection}
+                    toolStatuses={toolStatuses}
+                    tools={toolsByCategory[SECTION_MAP[activeSection]] || []}
+                    lang={lang}
+                    bridgeElevated={bridgeElevated}
+                    activeTool={activeTool}
+                    activityEntries={consoleEntries}
+                    activityStatus={consoleStatus}
+                    onRunTool={runTool}
+                    onCancelTool={cancelRun}
+                  />
+                </PageTransition>
+              )}
             </AnimatePresence>
           )}
         </main>
