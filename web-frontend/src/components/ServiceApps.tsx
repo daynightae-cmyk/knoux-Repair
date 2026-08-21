@@ -17,6 +17,8 @@ import { api } from '../lib/api';
 import type { Lang } from '../lib/i18n';
 import { pickName } from '../lib/i18n';
 import ExecutionConfirmDialog from './ExecutionConfirmDialog';
+import DuplicateOrganizerApp from './DuplicateOrganizerApp';
+import ProjectSonarApp from './ProjectSonarApp';
 
 interface ServiceAppsProps {
   activeSection: ActiveSection;
@@ -218,9 +220,7 @@ function SetupCheck({ label, value, lang }: { label: string; value: number; lang
 
 function OperationsApp({ data, lang }: { data: OperationsPreview; lang: Lang }) { return <div className="operations-app-view"><section className="operations-radar"><div className="radar-grid"><i /><i /><i /><b /></div><div><p>{lang === 'ar' ? 'نشاط الجهاز' : 'Device activity'}</p><h2>{number(data.Processes.Total, lang)} {lang === 'ar' ? 'تطبيقاً نشطاً' : 'active processes'}</h2><span>{lang === 'ar' ? 'صورة مباشرة لاستخدام جهازك الآن.' : 'A live picture of how your device is being used.'}</span></div></section><section className="operations-columns"><article><header><Cpu size={18} /><span>{lang === 'ar' ? 'استخدام الذاكرة' : 'Memory use'}</span></header>{data.Processes.TopMemory.slice(0, 4).map((process) => <div key={process.ProcessId}><strong>{process.Name}</strong><span>{number(process.MemoryMB, lang)} MB</span></div>)}</article><article><header><Activity size={18} /><span>{lang === 'ar' ? 'الخدمات' : 'Services'}</span></header><div className="operations-service-stat"><strong>{number(data.Services.Running, lang)}</strong><span>{lang === 'ar' ? 'خدمة تعمل' : 'services running'}</span></div><div className="operations-service-stat"><strong>{number(data.Services.AutomaticStoppedForReview.length, lang)}</strong><span>{lang === 'ar' ? 'تحتاج مراجعة' : 'need review'}</span></div></article></section></div>; }
 
-function DuplicateApp({ lang }: { lang: Lang }) { return <div className="duplicate-app-view"><section className="duplicate-desk"><Copy size={48} /><div><p>{lang === 'ar' ? 'مكتب مراجعة الملفات' : 'File review desk'}</p><h2>{lang === 'ar' ? 'رتّب نسخ ملفاتك بأمان' : 'Organise extra file copies safely'}</h2><span>{lang === 'ar' ? 'اختر مجلداً، راجع النسخ المتشابهة، واحتفظ بالأصل الذي تريده.' : 'Choose a folder, review similar copies, and keep the original you want.'}</span></div></section><section className="duplicate-steps"><article><span>01</span><strong>{lang === 'ar' ? 'اختر مجلداً' : 'Choose a folder'}</strong></article><article><span>02</span><strong>{lang === 'ar' ? 'راجع المجموعات' : 'Review groups'}</strong></article><article><span>03</span><strong>{lang === 'ar' ? 'استعد أي ملف' : 'Recover any file'}</strong></article></section></div>; }
 
-function WorkbenchApp({ lang, mode }: { lang: Lang; mode: 'developer' | 'sonar' }) { const project = mode === 'sonar'; return <div className={`workbench-app-view ${project ? 'is-project' : ''}`}><section className="workbench-hero"><FolderKanban size={43} /><div><p>{project ? (lang === 'ar' ? 'مركز المشاريع' : 'Project center') : (lang === 'ar' ? 'منضدة العمل' : 'Workspace bench')}</p><h2>{project ? (lang === 'ar' ? 'افهم مشروعك قبل الخطوة التالية' : 'Understand your project before the next step') : (lang === 'ar' ? 'جهّز بيئة عملك المحلية' : 'Prepare your local work environment')}</h2><span>{project ? (lang === 'ar' ? 'اختر مشروعاً للحصول على خريطة أولويات قابلة للمشاركة.' : 'Choose a project to get a shareable priority map.') : (lang === 'ar' ? 'راجع جاهزية الأدوات والمشاريع وخطوات الصيانة الآمنة.' : 'Review tool and workspace readiness with safe maintenance steps.')}</span></div></section><section className="workbench-board"><article><Radar size={20} /><strong>{project ? (lang === 'ar' ? 'اختيار مشروع' : 'Select project') : (lang === 'ar' ? 'فحص الجاهزية' : 'Check readiness')}</strong><span>{lang === 'ar' ? 'ابدأ بإجراء موجه من القائمة.' : 'Start with a guided action from the list.'}</span></article><article><BarChart3 size={20} /><strong>{project ? (lang === 'ar' ? 'خريطة أولويات' : 'Priority map') : (lang === 'ar' ? 'ملخص بيئة العمل' : 'Workspace summary')}</strong><span>{lang === 'ar' ? 'ستظهر البيانات هنا عند جاهزية الخدمة.' : 'Live details appear here when the service is ready.'}</span></article><article><Download size={20} /><strong>{project ? (lang === 'ar' ? 'تسليم واضح' : 'Clear handoff') : (lang === 'ar' ? 'نتيجة قابلة للمشاركة' : 'Shareable outcome')}</strong><span>{lang === 'ar' ? 'احفظ ما تحتاجه عند إكمال المراجعة.' : 'Save what you need when the review is complete.'}</span></article></section></div>; }
 
 function GenericApp({ section, lang }: { section: ActiveSection; lang: Lang }) { const labels: Partial<Record<ActiveSection, Localized>> = { services: { en: 'Device activity room', ar: 'غرفة نشاط الجهاز' }, monitoring: { en: 'Live device monitor', ar: 'مراقب الجهاز الحي' } }; return <div className="generic-app-view"><MonitorCog size={45} /><h2>{labels[section]?.[lang] || (lang === 'ar' ? 'خدمة KNOUX' : 'KNOUX service')}</h2><span>{lang === 'ar' ? 'ستظهر المعلومات الفعلية والخطوات المناسبة هنا عندما تصبح الخدمة جاهزة.' : 'Live information and the right next steps will appear here when the service is ready.'}</span></div>; }
 function OfflineScene({ section, lang, icon: Icon }: { section: ActiveSection; lang: Lang; icon: ElementType }) { const labels: Partial<Record<ActiveSection, Localized>> = { maintenance: { en: 'Ready to measure your device health', ar: 'جاهز لقياس صحة جهازك' }, cleanup: { en: 'Ready to map cleanable space', ar: 'جاهز لرسم المساحة القابلة للتنظيف' }, performance: { en: 'Ready to build a speed picture', ar: 'جاهز لبناء صورة عن أداء الجهاز' }, disk: { en: 'Ready to explore your storage', ar: 'جاهز لاستكشاف مساحة التخزين' }, network: { en: 'Ready to trace your connection', ar: 'جاهز لتتبّع اتصالك' }, security: { en: 'Ready to check your protection', ar: 'جاهز لفحص حمايتك' }, diagnostics: { en: 'Ready to prepare a device checkup', ar: 'جاهز لإعداد فحص للجهاز' }, backupRecovery: { en: 'Ready to open your recovery vault', ar: 'جاهز لفتح خزنة الاستعادة' }, privacy: { en: 'Ready to review your privacy choices', ar: 'جاهز لمراجعة خيارات الخصوصية' }, softwareEnvironment: { en: 'Ready to organise your software library', ar: 'جاهز لتنظيم مكتبة برامجك' }, postInstall: { en: 'Ready to prepare a new device', ar: 'جاهز لتجهيز جهاز جديد' } }; const title = labels[section]?.[lang] || (lang === 'ar' ? 'جاهز لعرض بيانات هذه الخدمة' : 'Ready to show this service'); return <section className={`offline-scene offline-${section}`}><div className="offline-scene-motif"><i /><i /><i /><Icon size={34} /></div><div><p>{lang === 'ar' ? 'تجربة الخدمة' : 'Service experience'}</p><h2>{title}</h2><span>{lang === 'ar' ? 'سيظهر مخطط الخدمة وبيانات جهازك الحقيقية فور جاهزية الاتصال المحلي.' : 'The service canvas and real device details appear as soon as the local connection is ready.'}</span></div></section>; }
@@ -228,9 +228,10 @@ function OfflineScene({ section, lang, icon: Icon }: { section: ActiveSection; l
 function Metric({ icon: Icon, label, value }: { icon: ElementType; label: string; value: string }) { return <article><Icon size={16} /><div><span>{label}</span><strong>{value}</strong></div></article>; }
 
 export default function ServiceApps({ activeSection, tools, toolStatuses, lang, bridgeElevated, onRunTool, onCancelTool }: ServiceAppsProps) {
-  const [pending, setPending] = useState<{ tool: BridgeTool; mode: ExecutionMode } | null>(null);
+  const [pending, setPending] = useState<{ tool: BridgeTool; mode: ExecutionMode; options?: ToolRunOptions } | null>(null);
   const { data, loading, available, reload } = useServiceData(activeSection);
   const launch = (tool: BridgeTool) => setPending({ tool, mode: preferredMode(tool) });
+  const prepareToolRun = useCallback((tool: BridgeTool, mode: ExecutionMode, options: ToolRunOptions = {}) => setPending({ tool, mode, options }), []);
   const reviewableToolIds = useMemo(() => new Set(tools.map((tool) => tool.ToolId)), [tools]);
   const launchToolById = useCallback((toolId: string) => {
     const tool = tools.find((candidate) => candidate.ToolId === toolId);
@@ -279,13 +280,17 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       default: return <GenericApp section={activeSection} lang={lang} />;
     }
   }, [activeSection, available, data, lang, healthReviewTool, launchToolById, reviewableToolIds]);
-  const specialContent = activeSection === 'duplicates' ? <DuplicateApp lang={lang} /> : activeSection === 'projectSonar' ? <WorkbenchApp lang={lang} mode="sonar" /> : null;
+  const specialContent = activeSection === 'duplicates'
+    ? <DuplicateOrganizerApp lang={lang} tools={tools} onPrepareRun={prepareToolRun} />
+    : activeSection === 'projectSonar'
+      ? <ProjectSonarApp lang={lang} tools={tools} onPrepareRun={prepareToolRun} />
+      : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
     <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>
-    {pending && <ExecutionConfirmDialog tool={pending.tool} mode={pending.mode} lang={lang} onCancel={() => setPending(null)} onConfirm={(options) => { onRunTool(pending.tool, pending.mode, options); setPending(null); }} />}
+    {pending && <ExecutionConfirmDialog tool={pending.tool} mode={pending.mode} lang={lang} initialOptions={pending.options} onCancel={() => setPending(null)} onConfirm={(options) => { onRunTool(pending.tool, pending.mode, options); setPending(null); }} />}
   </>;
 }
