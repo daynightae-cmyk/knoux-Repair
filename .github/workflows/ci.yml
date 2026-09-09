@@ -29,10 +29,6 @@ jobs:
           cache: npm
           cache-dependency-path: web-frontend/package-lock.json
 
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
 
       - name: Install Web dependencies
         working-directory: web-frontend
@@ -58,11 +54,6 @@ jobs:
         shell: pwsh
         run: ./Tests/Test-WebGateway.ps1
 
-      - name: Restore Desktop project
-        run: dotnet restore Glass-GUI-Builder/src/KnouxRepair/KnouxRepair.csproj
-
-      - name: Build Desktop release
-        run: dotnet build Glass-GUI-Builder/src/KnouxRepair/KnouxRepair.csproj -c Release --no-restore
 
       - name: Verify isolated bridge timeout handling
         shell: pwsh

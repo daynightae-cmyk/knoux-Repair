@@ -156,7 +156,7 @@ const HOP_BY_HOP_HEADERS = new Set([
   'upgrade',
 ]);
 
-function proxyApi(req: Request, res: Response): void {
+function proxyBridgeRequest(targetPath: string, req: Request, res: Response): void {
   const requestHeaders: http.OutgoingHttpHeaders = {};
   for (const [name, value] of Object.entries(req.headers)) {
     const key = name.toLowerCase();
@@ -170,7 +170,7 @@ function proxyApi(req: Request, res: Response): void {
       hostname: HOST,
       port: BRIDGE_PORT,
       method: req.method,
-      path: req.originalUrl,
+      path: targetPath,
       headers: requestHeaders,
     },
     (proxyResponse) => {
@@ -197,6 +197,10 @@ function proxyApi(req: Request, res: Response): void {
   });
 
   req.pipe(proxyRequest);
+}
+
+function proxyApi(req: Request, res: Response): void {
+  proxyBridgeRequest(req.originalUrl, req, res);
 }
 
 // Load tools from Docs/TOOLS-MANIFEST.json if available
@@ -232,30 +236,14 @@ async function startServer(): Promise<void> {
   const customRouter = express.Router();
   customRouter.use(express.json());
 
-  // Folder listing & picker
-  customRouter.get('/workspace/roots', (_req: Request, res: Response) => {
-    res.json({
-      roots: [
-        { name: 'Root System', path: '/', kind: 'root' },
-        { name: 'System Drive (C:)', path: 'C:\\', kind: 'drive' },
-        { name: 'Data Drive (D:)', path: 'D:\\', kind: 'drive' },
-      ],
-    });
+  // Folder listing & picker delegate to the authoritative local execution bridge
+  customRouter.get('/workspace/roots', (req: Request, res: Response) => {
+    proxyBridgeRequest('/api/folders/roots', req, res);
   });
 
   customRouter.get('/workspace/folders', (req: Request, res: Response) => {
-    const targetPath = (req.query.path as string) || '/';
-    res.json({
-      path: targetPath,
-      parentPath: targetPath === '/' ? null : '/',
-      folders: [
-        { name: 'System32', path: `${targetPath}/System32` },
-        { name: 'Program Files', path: `${targetPath}/Program Files` },
-        { name: 'Users', path: `${targetPath}/Users` },
-        { name: 'AppData', path: `${targetPath}/AppData` },
-      ],
-      truncated: false,
-    });
+    const query = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+    proxyBridgeRequest(`/api/folders${query}`, req, res);
   });
 
   // --- CLOUD SQL & PERSISTENCE API ---
@@ -413,6 +401,15 @@ async function startServer(): Promise<void> {
 
   // All other /api requests are proxied to the real localhost bridge
   app.use('/api', proxyApi);
+
+  // Top-level workspace folder browsing endpoints
+  app.get('/workspace/roots', (req: Request, res: Response) => {
+    proxyBridgeRequest('/api/folders/roots', req, res);
+  });
+  app.get('/workspace/folders', (req: Request, res: Response) => {
+    const query = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+    proxyBridgeRequest(`/api/folders${query}`, req, res);
+  });
 
   if (!isProduction) {
     const vite = await createViteServer({

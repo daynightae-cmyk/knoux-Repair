@@ -8,7 +8,7 @@ The current repository is an expanded product, not only the original console pac
 
 - **Glass Nexus Web UI** — React 18 + TypeScript + Vite.
 - **Electron Desktop** — sandboxed desktop shell for the Glass Nexus UI.
-- **WPF/.NET Desktop** — native Windows project under `Glass-GUI-Builder`.
+- **Windows Desktop (Glass Nexus)** — native Windows desktop workstation powered by Electron and a hardened local PowerShell execution bridge.
 - **PowerShell Console** — `Menu.ps1` + `START-KNOUX-REPAIR.cmd`.
 - **Local Execution Bridge** — `web-frontend/server/bridge.mjs`, bound to `127.0.0.1`, executes only registered KNOUX tools.
 

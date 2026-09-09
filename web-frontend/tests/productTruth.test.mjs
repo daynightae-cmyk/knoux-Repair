@@ -19,6 +19,9 @@ test('local web gateway contains no fabricated runtime evidence', () => {
     'Project Sonar mock',
     "model: 'gemini-1.5-flash'",
     'All signatures conform to policy',
+    "name: 'System32'",
+    "name: 'Program Files'",
+    "name: 'AppData'",
   ];
 
   for (const marker of forbiddenRuntimeMarkers) {

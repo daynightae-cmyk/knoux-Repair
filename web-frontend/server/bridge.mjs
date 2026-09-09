@@ -587,13 +587,75 @@ const MAX_FOLDER_BROWSER_ITEMS = 320;
 function resolveBrowsePath(value) {
   const requested = String(value || '').trim();
   if (!requested) return os.homedir();
-  if (requested.length > 520 || !path.isAbsolute(requested)) {
-    throw Object.assign(new Error('A valid absolute folder path is required.'), { status: 400, code: 'INVALID_FOLDER_PATH' });
+
+  // 1. Rejection of null bytes
+  if (requested.includes('\0') || requested.includes('%00') || /\0/.test(requested)) {
+    throw Object.assign(new Error('Folder path contains invalid characters (null bytes).'), { status: 400, code: 'INVALID_FOLDER_PATH' });
   }
+
+  // 2. Rejection of URL-encoded traversal patterns
+  if (/%2e|%2f|%5c/i.test(requested)) {
+    throw Object.assign(new Error('Folder path contains prohibited encoded traversal sequences.'), { status: 400, code: 'INVALID_FOLDER_PATH' });
+  }
+
+  // 3. Rejection of directory traversal segments (..)
+  if (/(?:^|[\\/])\.\.(?:[\\/]|$)/.test(requested)) {
+    throw Object.assign(new Error('Directory traversal sequences (..) are not permitted.'), { status: 400, code: 'INVALID_FOLDER_PATH' });
+  }
+
+  // 4. Length check
+  if (requested.length > 520) {
+    throw Object.assign(new Error('Folder path exceeds maximum length of 520 characters.'), { status: 400, code: 'INVALID_FOLDER_PATH' });
+  }
+
+  // 5. Windows Drive Letter and UNC validation
+  if (process.platform === 'win32') {
+    const isDrive = /^[a-zA-Z]:[\\/]/.test(requested);
+    const isUnc = /^\\\\[^\\\/:\*\?"<>\|]+(?:\:[0-9]+)?\\[^\\\/:\*\?"<>\|]+(?:[\\/].*)?$/.test(requested);
+    const hasBadDrive = /^[a-zA-Z]:[^\\/]/.test(requested) || /^[^a-zA-Z\\/]:/.test(requested);
+
+    if (hasBadDrive) {
+      throw Object.assign(new Error('Invalid or relative drive path specified.'), { status: 400, code: 'INVALID_FOLDER_PATH' });
+    }
+
+    if (requested.startsWith('\\\\') || requested.startsWith('//')) {
+      if (!isUnc) {
+        throw Object.assign(new Error('Malformed or unsupported UNC path.'), { status: 400, code: 'INVALID_FOLDER_PATH' });
+      }
+    } else if (!isDrive) {
+      throw Object.assign(new Error('A valid absolute Windows drive path is required.'), { status: 400, code: 'INVALID_FOLDER_PATH' });
+    }
+  } else {
+    if (!path.isAbsolute(requested)) {
+      throw Object.assign(new Error('A valid absolute folder path is required.'), { status: 400, code: 'INVALID_FOLDER_PATH' });
+    }
+  }
+
+  // Normalize path
   const resolved = path.resolve(requested);
-  if (!fs.existsSync(resolved) || !fs.statSync(resolved).isDirectory()) {
-    throw Object.assign(new Error('The requested folder is unavailable or is not a directory.'), { status: 404, code: 'FOLDER_NOT_FOUND' });
+
+  // Check filesystem existence and stats
+  let stat;
+  try {
+    if (!fs.existsSync(resolved)) {
+      throw Object.assign(new Error('The requested folder does not exist.'), { status: 404, code: 'FOLDER_NOT_FOUND' });
+    }
+    stat = fs.statSync(resolved);
+  } catch (err) {
+    if (err.code === 'FOLDER_NOT_FOUND' || err.status === 404) throw err;
+    if (err.code === 'EACCES' || err.code === 'EPERM') {
+      throw Object.assign(new Error(`Access to the requested folder is denied: ${err.message}`), { status: 403, code: 'FOLDER_ACCESS_DENIED' });
+    }
+    if (err.code === 'ENOENT') {
+      throw Object.assign(new Error('The requested folder does not exist.'), { status: 404, code: 'FOLDER_NOT_FOUND' });
+    }
+    throw Object.assign(new Error(`Cannot access folder: ${err.message}`), { status: 400, code: 'INVALID_FOLDER_PATH' });
   }
+
+  if (!stat.isDirectory()) {
+    throw Object.assign(new Error('The requested path is not a directory.'), { status: 404, code: 'FOLDER_NOT_FOUND' });
+  }
+
   return resolved;
 }
 
@@ -619,15 +681,38 @@ function browseFolders(value) {
   const root = path.parse(currentPath).root;
   const parentPath = currentPath.toLowerCase() === root.toLowerCase() ? null : path.dirname(currentPath);
   let entries = [];
-  try { entries = fs.readdirSync(currentPath, { withFileTypes: true }); } catch (error) {
+  try {
+    entries = fs.readdirSync(currentPath, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === 'EACCES' || error.code === 'EPERM') {
+      throw Object.assign(new Error(`This folder cannot be read: Access is denied.`), { status: 403, code: 'FOLDER_ACCESS_DENIED' });
+    }
+    if (error.code === 'ENOENT') {
+      throw Object.assign(new Error('The requested folder was not found.'), { status: 404, code: 'FOLDER_NOT_FOUND' });
+    }
     throw Object.assign(new Error(`This folder cannot be read: ${error.message}`), { status: 403, code: 'FOLDER_ACCESS_DENIED' });
   }
   const folders = entries
-    .filter((entry) => entry.isDirectory() && !entry.isSymbolicLink())
+    .filter((entry) => {
+      try {
+        return entry.isDirectory() && !entry.isSymbolicLink();
+      } catch {
+        return false;
+      }
+    })
     .map((entry) => ({ name: entry.name, path: path.join(currentPath, entry.name) }))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
     .slice(0, MAX_FOLDER_BROWSER_ITEMS);
-  return { path: currentPath, parentPath, folders, truncated: entries.filter((entry) => entry.isDirectory() && !entry.isSymbolicLink()).length > folders.length };
+
+  return {
+    status: folders.length === 0 ? 'EMPTY' : 'OK',
+    path: currentPath,
+    parentPath,
+    folders,
+    truncated: entries.filter((entry) => {
+      try { return entry.isDirectory() && !entry.isSymbolicLink(); } catch { return false; }
+    }).length > folders.length,
+  };
 }
 
 function getProjectSonarPreview(value) {
@@ -1229,9 +1314,11 @@ const server = http.createServer(async (req, res) => {
 
 });
 
-server.listen(PORT, '127.0.0.1', () => {
-  log(`Bridge listening on http://127.0.0.1:${PORT} (elevated=${isElevated()})`);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  server.listen(PORT, '127.0.0.1', () => {
+    log(`Bridge listening on http://127.0.0.1:${PORT} (elevated=${isElevated()})`);
+  });
+}
 
 process.on('SIGINT', () => {
   for (const run of runs.values()) {
@@ -1242,3 +1329,15 @@ process.on('SIGINT', () => {
 });
 
 process.on('exit', () => { if (TEST_MODE) { try { fs.unlinkSync(TEST_TIMEOUT_SCRIPT_PATH); } catch { /* ignore */ } } });
+
+export {
+  resolveBrowsePath,
+  browseRoots,
+  browseFolders,
+  createRun,
+  manifest,
+  menuIndex,
+  EXECUTION_MODES,
+  server,
+  PORT,
+};

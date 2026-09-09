@@ -8,7 +8,7 @@
 
 - **Glass Nexus Web UI** — React 18 + TypeScript + Vite.
 - **Electron Desktop** — غلاف سطح مكتب محمي لواجهة Glass Nexus.
-- **WPF/.NET Desktop** — مشروع ويندوز أصلي داخل `Glass-GUI-Builder`.
+- **تطبيق ويندوز المكتبي (Glass Nexus)** — واجهة سطح مكتب حديثة مبنية بتقنية Electron مع جسر تنفيذ محلي آمن.
 - **PowerShell Console** — `Menu.ps1` مع `START-KNOUX-REPAIR.cmd`.
 - **Local Execution Bridge** — الملف `web-frontend/server/bridge.mjs`، يعمل على `127.0.0.1` فقط وينفذ أدوات KNOUX المسجلة فقط.
 
