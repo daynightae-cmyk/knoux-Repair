@@ -38,9 +38,17 @@ jobs:
         working-directory: web-frontend
         run: npm ci
 
+      - name: Audit production dependencies
+        working-directory: web-frontend
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Type-check Web frontend
         working-directory: web-frontend
-        run: npx tsc --noEmit
+        run: npm run typecheck
+
+      - name: Test Web frontend
+        working-directory: web-frontend
+        run: npm test
 
       - name: Build Web frontend
         working-directory: web-frontend
