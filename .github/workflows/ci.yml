@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: knoux-ci-${{ github.workflow }}-${{ github.ref }}
@@ -19,11 +19,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - name: Check out feature source for lock recovery
+      - name: Check out source
         uses: actions/checkout@v4
-        with:
-          ref: feat/premium-glass-splash
-          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -36,23 +33,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-
-      - name: Regenerate stale Web lockfile
-        working-directory: web-frontend
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-
-      - name: Persist synchronized Web lockfile
-        shell: pwsh
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add web-frontend/package-lock.json
-          if (-not (git diff --cached --quiet)) {
-            git commit -m "fix(web): synchronize package lockfile"
-            git push origin HEAD:feat/premium-glass-splash
-          } else {
-            Write-Host "Lockfile already synchronized."
-          }
 
       - name: Install Web dependencies
         working-directory: web-frontend
