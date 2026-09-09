@@ -1,7 +1,7 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 # ============================================================
 #  knoux Repair v2.0.2 | Menu.ps1
-#  Interactive menu for all 100 tools with full navigation contract.
+#  Interactive menu for all registered tools with full navigation contract.
 # ============================================================
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -10,12 +10,29 @@ $Host.UI.RawUI.WindowTitle = 'knoux Repair v2.0.2'
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigDir = Join-Path $ProjectRoot 'Config'
 $menuPath = Join-Path $ConfigDir 'menus.json'
+$manifestPath = Join-Path (Join-Path $ProjectRoot 'Docs') 'TOOLS-MANIFEST.json'
 
 if (-not (Test-Path -LiteralPath $menuPath)) {
     Write-Host '[FATAL] Config\menus.json not found.' -ForegroundColor Red
     exit 1
 }
 $menu = Get-Content -LiteralPath $menuPath -Raw -Encoding UTF8 | ConvertFrom-Json
+
+# Accessibility / operator context: descriptions are sourced from the canonical manifest
+# instead of being duplicated in Config/menus.json. Missing metadata never blocks the menu.
+$manifestById = @{}
+if (Test-Path -LiteralPath $manifestPath) {
+    try {
+        $manifest = @(Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json)
+        foreach ($entry in $manifest) {
+            if ($null -ne $entry.ToolId -and -not [string]::IsNullOrWhiteSpace([string]$entry.ToolId)) {
+                $manifestById[[string]$entry.ToolId] = $entry
+            }
+        }
+    } catch {
+        Write-Debug ('Unable to load tool descriptions: {0}' -f $_.Exception.Message)
+    }
+}
 
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 $analyzeOnly = $false
@@ -53,6 +70,12 @@ function Show-Category {
             default { '??' }
         }
         Write-Host ('   {0,2}. [{1}] {2} - {3}{4}' -f $i, $risk, $t.Id, $t.Name, $mark) -ForegroundColor Gray
+        if ($manifestById.ContainsKey([string]$t.Id)) {
+            $purpose = [string]$manifestById[[string]$t.Id].Purpose
+            if (-not [string]::IsNullOrWhiteSpace($purpose)) {
+                Write-Host ('       {0}' -f $purpose.Trim()) -ForegroundColor DarkGray
+            }
+        }
     }
     Write-Host '  ------------------------------------------------' -ForegroundColor DarkGray
     Write-Host '   B. Back to main menu' -ForegroundColor Gray
