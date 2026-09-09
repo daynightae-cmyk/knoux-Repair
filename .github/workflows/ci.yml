@@ -34,6 +34,17 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Regenerate stale Web lockfile
+        working-directory: web-frontend
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Upload regenerated Web lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: knoux-web-package-lock
+          path: web-frontend/package-lock.json
+          if-no-files-found: error
+
       - name: Install Web dependencies
         working-directory: web-frontend
         run: npm ci
