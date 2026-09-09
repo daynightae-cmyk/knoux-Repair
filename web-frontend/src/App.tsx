@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { Menu, Terminal, Shield } from 'lucide-react';
 
 import Sidebar from './components/Sidebar';
 import ServiceApps from './components/ServiceApps';
@@ -10,13 +11,15 @@ import PageTransition from './components/PageTransition';
 import SettingsCenter from './components/SettingsCenter';
 import NexusSplash from './components/NexusSplash';
 import AuthGate from './components/AuthGate';
-import WorkspaceDashboard from './components/WorkspaceDashboard';
+import ActionCenter from './components/ActionCenter';
+import AllToolsCatalog from './components/AllToolsCatalog';
 
 import type { ActiveSection, ToolStatus, ConsoleEntry, ConsoleEntryType } from './types';
 import { SECTION_MAP } from './types';
 import type { BridgeAuthStatus, BridgeTool, BridgeRun, ExecutionMode, ToolRunOptions } from './lib/api';
 import { api, BridgeError } from './lib/api';
 import type { Lang } from './lib/i18n';
+import { CATEGORIES } from './data/categories';
 
 
 
@@ -39,7 +42,7 @@ function NexusApp() {
   });
   const [theme, setTheme] = useState<'dark' | 'light'>(() => localStorage.getItem('knoux-theme') === 'light' ? 'light' : 'dark');
   const [activeSection, setActiveSection] = useState<ActiveSection>('maintenance');
-  const [activeView, setActiveView] = useState<'workspaces' | 'tools'>('workspaces');
+  const [activeView, setActiveView] = useState<'action-center' | 'workspaces' | 'tools' | 'all-tools'>('action-center');
   const [toolStatuses, setToolStatuses] = useState<Record<string, ToolStatus>>({});
   const [consoleVisible, setConsoleVisible] = useState(false);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
@@ -172,6 +175,10 @@ function NexusApp() {
     if (activeRequest) runTool(activeRequest.tool, activeRequest.mode, activeRequest.options);
   }, [activeRequest, runTool]);
 
+  const allToolsList = useMemo(() => {
+    return Object.values(toolsByCategory).flat();
+  }, [toolsByCategory]);
+
   return (
     <div className="h-screen w-screen nexus-shell overflow-hidden relative" dir={lang === 'ar' ? 'rtl' : 'ltr'} data-theme={theme}>
       <div className="relative z-10 h-full p-3 md:p-4 flex gap-3 md:gap-4">
@@ -179,7 +186,8 @@ function NexusApp() {
           active={activeSection}
           onSelect={(section) => { setActiveSection(section); setActiveView('tools'); }}
           viewMode={activeView}
-          onOpenWorkspaces={() => { setActiveView('workspaces'); setSidebarOpen(false); }}
+          onOpenActionCenter={() => { setActiveView('action-center'); setSidebarOpen(false); }}
+          onOpenAllTools={() => { setActiveView('all-tools'); setSidebarOpen(false); }}
           toolsByCategory={toolsByCategory}
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
@@ -193,30 +201,110 @@ function NexusApp() {
         />
 
         <main className="flex-1 nx-workspace rounded-[1.75rem] p-4 md:p-6 flex flex-col overflow-hidden">
+          {/* ── Title Bar & Navigation Controls ── */}
+          <header className="shrink-0 mb-3 flex items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="md:hidden p-2 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300"
+                aria-label="Toggle menu"
+              >
+                <Menu size={18} />
+              </button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold font-display tracking-wide text-white">
+                  KNOUX <span className="text-blue-400 font-normal">Repair</span>
+                </span>
+                <span className="text-slate-600 text-xs">/</span>
+                <span className="text-xs font-medium text-slate-300">
+                  {activeView === 'action-center'
+                    ? (lang === 'ar' ? 'مركز الإجراءات' : 'Action Center')
+                    : activeView === 'all-tools'
+                      ? (lang === 'ar' ? 'فهرس جميع الأدوات (158)' : 'Master Tools Catalog (158)')
+                      : (CATEGORIES.find(c => c.section === activeSection)?.name[lang] ?? activeSection)}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Elevation Badge */}
+              <div
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border ${
+                  bridgeElevated
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    : 'bg-slate-800 text-slate-400 border-white/[0.06]'
+                }`}
+              >
+                <Shield size={12} />
+                <span className="hidden sm:inline">
+                  {bridgeElevated
+                    ? (lang === 'ar' ? 'مسؤول (صلاحيات كاملة)' : 'Administrator (Elevated)')
+                    : (lang === 'ar' ? 'مستخدم قياسي' : 'Standard User')}
+                </span>
+              </div>
+
+              {/* Diagnostic Console Button */}
+              <button
+                type="button"
+                onClick={() => setConsoleVisible(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/[0.06] transition-colors"
+                title={lang === 'ar' ? 'طرفية التشخيص' : 'Diagnostic Terminal Console'}
+              >
+                <Terminal size={12} />
+                <span className="hidden sm:inline">{lang === 'ar' ? 'طرفية التشخيص' : 'Terminal'}</span>
+                {consoleEntries.length > 0 && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                )}
+              </button>
+            </div>
+          </header>
 
           <AnimatePresence mode="wait">
-              {activeView === 'workspaces' ? (
-                <PageTransition key="workspaces">
-                  <WorkspaceDashboard
-                    lang={lang}
-                    toolsByCategory={toolsByCategory}
-                    onOpenNavigation={() => setSidebarOpen(true)}
-                    onOpenSection={(section) => { setActiveSection(section); setActiveView('tools'); }}
-                  />
-                </PageTransition>
-              ) : (
-                <PageTransition key={`tools-${activeSection}`}>
-                  <ServiceApps
-                    activeSection={activeSection}
-                    toolStatuses={toolStatuses}
-                    tools={toolsByCategory[SECTION_MAP[activeSection]] || []}
-                    lang={lang}
-                    bridgeElevated={bridgeElevated}
-                    onRunTool={runTool}
-                    onCancelTool={cancelRun}
-                  />
-                </PageTransition>
-              )}
+            {activeView === 'action-center' ? (
+              <PageTransition key="action-center">
+                <ActionCenter
+                  lang={lang}
+                  toolsByCategory={toolsByCategory}
+                  onOpenSection={(section) => {
+                    setActiveSection(section);
+                    setActiveView('tools');
+                  }}
+                  onOpenAllTools={() => setActiveView('all-tools')}
+                  bridgeElevated={bridgeElevated}
+                  bridgeOnline={bridgeOnline}
+                  onOpenNavigation={() => setSidebarOpen(true)}
+                />
+              </PageTransition>
+            ) : activeView === 'all-tools' ? (
+              <PageTransition key="all-tools">
+                <AllToolsCatalog
+                  tools={allToolsList}
+                  toolStatuses={toolStatuses}
+                  lang={lang}
+                  bridgeElevated={bridgeElevated}
+                  onRunTool={runTool}
+                  onCancelTool={cancelRun}
+                  onOpenSection={(section) => {
+                    setActiveSection(section);
+                    setActiveView('tools');
+                  }}
+                />
+              </PageTransition>
+            ) : (
+              <PageTransition key={`tools-${activeSection}`}>
+                <ServiceApps
+                  activeSection={activeSection}
+                  toolStatuses={toolStatuses}
+                  tools={toolsByCategory[SECTION_MAP[activeSection]] || []}
+                  lang={lang}
+                  bridgeElevated={bridgeElevated}
+                  onRunTool={runTool}
+                  onCancelTool={cancelRun}
+                />
+              </PageTransition>
+            )}
           </AnimatePresence>
         </main>
       </div>

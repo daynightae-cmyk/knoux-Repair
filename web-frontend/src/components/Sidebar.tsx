@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import {
-  Activity, AppWindow, Boxes, CircleDot, Copy, Cpu, FolderKanban, Gauge, HardDrive, Languages,
-  Lock, Moon, Network, Radar, Rocket, Settings, Shield, Sun, Trash2, Wrench,
+  Activity, AppWindow, Boxes, CircleDot, Copy, Cpu, Gauge, HardDrive, Languages,
+  Lock, Moon, Network, Radar, Rocket, Settings, Shield, Sparkles, Sun, Terminal, Trash2, Wrench,
 } from 'lucide-react';
 import type { CSSProperties, ElementType } from 'react';
 import type { ActiveSection } from '../types';
@@ -13,8 +13,9 @@ import { CATEGORIES, type CategoryIconKey } from '../data/categories';
 interface SidebarProps {
   active: ActiveSection;
   onSelect: (section: ActiveSection) => void;
-  viewMode: 'workspaces' | 'tools';
-  onOpenWorkspaces: () => void;
+  viewMode: 'action-center' | 'workspaces' | 'tools' | 'all-tools';
+  onOpenActionCenter: () => void;
+  onOpenAllTools: () => void;
   toolsByCategory: Record<string, BridgeTool[]>;
   open: boolean;
   onClose: () => void;
@@ -51,9 +52,10 @@ const ICONS: Record<CategoryIconKey, ElementType> = {
 };
 
 export default function Sidebar({
-  active, onSelect, viewMode, onOpenWorkspaces, toolsByCategory, open, onClose, lang, setLang, theme, setTheme, bridgeOnline, bridgeElevated, onOpenSettings,
+  active, onSelect, viewMode, onOpenActionCenter, onOpenAllTools, toolsByCategory, open, onClose, lang, setLang, theme, setTheme, bridgeOnline, bridgeElevated, onOpenSettings,
 }: SidebarProps) {
   const t = STRINGS[lang];
+  const totalTools = Object.values(toolsByCategory).reduce((sum, list) => sum + list.length, 0);
 
   return (
     <>
@@ -85,28 +87,41 @@ export default function Sidebar({
                 KNOUX <span className="text-slate-400 font-medium">REPAIR</span>
               </h1>
               <p className="mt-0.5 font-mono text-[9px] tracking-[0.16em] text-slate-500">
-                {lang === 'ar' ? 'محطات صيانة ويندوز' : 'WINDOWS REPAIR WORKSTATIONS'}
+                {lang === 'ar' ? 'منصة الصيانة الذكية' : 'WINDOWS REPAIR CONTROL CENTER'}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="px-3 pb-4">
+        <div className="px-3 pb-3 space-y-1.5">
+          {/* Action Center - Primary Home */}
           <button
             type="button"
-            onClick={onOpenWorkspaces}
-            className={`workspace-nav-entry w-full ${viewMode === 'workspaces' ? 'is-active' : ''}`}
-            aria-current={viewMode === 'workspaces' ? 'page' : undefined}
+            onClick={onOpenActionCenter}
+            className={`workspace-nav-entry w-full ${viewMode === 'action-center' ? 'is-active' : ''}`}
+            aria-current={viewMode === 'action-center' ? 'page' : undefined}
           >
-            <span className="workspace-nav-entry-icon"><FolderKanban size={16} /></span>
-            <span className="flex-1 min-w-0 text-start">{lang === 'ar' ? 'مساحات العمل' : 'Workspaces'}</span>
+            <span className="workspace-nav-entry-icon"><Sparkles size={16} /></span>
+            <span className="flex-1 min-w-0 text-start font-semibold">{lang === 'ar' ? 'مركز الإجراءات' : 'Action Center'}</span>
             <span className="workspace-nav-entry-badge">LIVE</span>
+          </button>
+
+          {/* All Tools Catalog */}
+          <button
+            type="button"
+            onClick={onOpenAllTools}
+            className={`workspace-nav-entry w-full ${viewMode === 'all-tools' ? 'is-active' : ''}`}
+            aria-current={viewMode === 'all-tools' ? 'page' : undefined}
+          >
+            <span className="workspace-nav-entry-icon"><Terminal size={16} /></span>
+            <span className="flex-1 min-w-0 text-start">{lang === 'ar' ? 'كتالوج الأدوات' : 'All Tools'}</span>
+            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-white/[0.08]">{totalTools}</span>
           </button>
         </div>
 
-        <div className="px-5 pb-2">
+        <div className="px-5 pb-2 pt-1 border-t border-white/[0.05]">
           <p className="font-mono text-[9px] font-semibold tracking-[0.18em] text-slate-500">
-            {lang === 'ar' ? 'محطات الإصلاح' : 'REPAIR WORKSTATIONS'}
+            {lang === 'ar' ? 'محطات الصيانة المتخصصة' : 'REPAIR SUITES'}
           </p>
         </div>
 

@@ -1,7 +1,10 @@
 import type { RiskLevel } from '../types';
 
 export const BRIDGE_URL =
-  (import.meta.env.VITE_KNOUX_BRIDGE_URL as string | undefined) ?? 'http://127.0.0.1:8787';
+  (import.meta.env.VITE_KNOUX_BRIDGE_URL as string | undefined) ??
+  (typeof window !== 'undefined' && (window.location.port === '3000' || window.location.hostname.includes('run.app') || window.location.hostname === '')
+    ? ''
+    : 'http://127.0.0.1:8787');
 
 export type ExecutionMode = 'run' | 'analyze' | 'preview';
 export type OfflineCapability = 'FULL' | 'PARTIAL' | 'NO' | '';

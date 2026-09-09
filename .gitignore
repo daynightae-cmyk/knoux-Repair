@@ -15,6 +15,9 @@ KNOUX-STARTUP-DIAGNOSTIC-*.json
 Launcher-Diagnostic.log
 
 # Local secrets and transient test output
+node_modules/
+bun.lock
+metadata.json
 .env.local
 web-frontend/.env.local
 Tests/TEST-RESULTS.txt
