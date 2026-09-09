@@ -68,9 +68,9 @@
       { "from": "../16-Software-Environment", "to": "knoux-runtime/16-Software-Environment", "filter": ["**/*"] },
       { "from": "../17-PostInstall-Setup", "to": "knoux-runtime/17-PostInstall-Setup", "filter": ["**/*"] },
       { "from": "../18-Project-Sonar", "to": "knoux-runtime/18-Project-Sonar", "filter": ["**/*"] },
-      { "from": "../Glass-GUI-Builder/src/KnouxRepair/Assets/KnouxOfficialLogo.ico", "to": "knoux-runtime/Assets/KnouxOfficialLogo.ico" }
+      { "from": "public/brand/knoux-repair-logo.png", "to": "knoux-runtime/Assets/knoux-repair-logo.png" }
     ],
-    "win": { "target": ["nsis"], "icon": "../Glass-GUI-Builder/src/KnouxRepair/Assets/KnouxOfficialLogo.ico" },
+    "win": { "target": ["nsis"], "icon": "public/brand/knoux-repair-logo.png" },
     "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "KNOUX Repair Glass Nexus" }
   }
 }

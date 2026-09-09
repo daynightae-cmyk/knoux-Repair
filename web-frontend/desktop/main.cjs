@@ -99,7 +99,9 @@ function createWindow(frontendOrigin) {
     show: false,
     autoHideMenuBar: true,
     title: 'KNOUX Repair — Glass Nexus',
-    icon: path.join(sourceRuntimeRoot(), 'Assets', 'KnouxOfficialLogo.ico'),
+    icon: fs.existsSync(path.join(sourceRuntimeRoot(), 'Assets', 'KnouxOfficialLogo.ico'))
+      ? path.join(sourceRuntimeRoot(), 'Assets', 'KnouxOfficialLogo.ico')
+      : path.join(__dirname, '..', 'public', 'brand', 'knoux-repair-logo.png'),
     backgroundColor: '#061422',
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true },
   });
