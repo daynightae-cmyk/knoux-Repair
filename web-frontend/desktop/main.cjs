@@ -36,13 +36,40 @@ function contentType(filePath) {
   return ({ '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.ico': 'image/x-icon', '.woff2': 'font/woff2' })[extension] || 'application/octet-stream';
 }
 
+function frontendSecurityHeaders(target) {
+  const headers = {
+    'Content-Type': contentType(target),
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
+    'X-Frame-Options': 'DENY',
+    'Cross-Origin-Opener-Policy': 'same-origin',
+    'Cross-Origin-Resource-Policy': 'same-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  };
+  if (path.extname(target).toLowerCase() === '.html') {
+    headers['Content-Security-Policy'] = [
+      "default-src 'self'",
+      "base-uri 'none'",
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
+      "font-src 'self' data:",
+      "img-src 'self' data: https:",
+      "connect-src 'self' http://127.0.0.1:8787",
+    ].join('; ');
+  }
+  return headers;
+}
+
 function startFrontendServer() {
   const root = frontendRoot();
   if (!fs.existsSync(path.join(root, 'index.html'))) throw new Error(`Glass Nexus build is missing: ${root}`);
   frontendServer = http.createServer((request, response) => {
     const candidate = safeAssetPath(root, request.url);
     const target = candidate && fs.existsSync(candidate) && fs.statSync(candidate).isFile() ? candidate : path.join(root, 'index.html');
-    response.writeHead(200, { 'Content-Type': contentType(target), 'Cache-Control': 'no-store' });
+    response.writeHead(200, frontendSecurityHeaders(target));
     fs.createReadStream(target).on('error', () => response.end()).pipe(response);
   });
   return new Promise((resolve, reject) => {
