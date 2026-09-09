@@ -2,7 +2,6 @@
 Reports/
 QA-Screenshots/
 Quarantine/
-"Quarantine/
 publish-tmp/
 
 # Build and staging artifacts
@@ -18,8 +17,12 @@ Launcher-Diagnostic.log
 node_modules/
 bun.lock
 metadata.json
-.env.local
-web-frontend/.env.local
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
 Tests/TEST-RESULTS.txt
 .knoux-*
 *.cache
