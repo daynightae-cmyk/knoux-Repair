@@ -1,82 +1,144 @@
-# knoux Repair v2.0
+# KNOUX Repair v2.0.2
 
-Offline Windows maintenance suite — 10 categories x 10 tools = **100 tools**, a shared
-PowerShell Core, a risk-gated safety model, and machine-readable reports.
+Local-first Windows diagnostics, repair, cleanup, recovery, security, performance, developer, and project-analysis workstation.
 
-| | |
-|---|---|
-| Version | 2.0.2 |
-| Platform | Windows 10 / 11, PowerShell 5.1+ (Windows PowerShell) |
-| Language | English (interface) with dual-language reports (EN + AR) |
-| License | Private / internal use |
+The current repository is an expanded product, not only the original console package. It contains **18 service categories / 158 registered tools and scripts** with shared safety, reporting, and execution infrastructure.
 
-## What's inside
+## Product surfaces
 
-- **100 tools** in 10 categories: System Maintenance, System Cleanup, Network & Internet,
-  Programs & Applications, Duplicate Files, Disk Space, Services & Processes, Performance,
-  Security, Diagnostics & Reports.
-- **Core modules** (`Core\`): logging, reporting, safety gates, native-command invocation,
-  quarantine, restore points, backups, duplicate scanning.
-- **Config** (`Config\`): menu manifest, settings, protected paths, protected processes.
-- **Menu** (`Menu.ps1`) + launcher (`START-KNOUX-REPAIR.cmd`).
-- **Tests** (`Tests\`): 51 automated checks (see `Docs\TEST-RESULTS.md`).
-- **Docs** (`Docs\`): tool manifest (CSV/JSON), safety model, restore guides, audit reports, known limitations.
+- **Glass Nexus Web UI** — React 18 + TypeScript + Vite.
+- **Electron Desktop** — sandboxed desktop shell for the Glass Nexus UI.
+- **WPF/.NET Desktop** — native Windows project under `Glass-GUI-Builder`.
+- **PowerShell Console** — `Menu.ps1` + `START-KNOUX-REPAIR.cmd`.
+- **Local Execution Bridge** — `web-frontend/server/bridge.mjs`, bound to `127.0.0.1`, executes only registered KNOUX tools.
 
-## Quick start
+The historical 100-tool v2.0.2 release evidence remains in `Docs/`, but the authoritative current service map is `Docs/SERVICE-INVENTORY.md`.
 
-1. Right-click `START-KNOUX-REPAIR.cmd` and choose **Run as administrator**.
-2. Pick a category, then a tool. Each tool can run in:
-   - **Normal** mode — performs the action.
-   - **Analyze-only** mode — inspects and reports, changes nothing (toggle `A` in the menu).
-3. Reports are written to `Reports\<timestamp>-<ToolId>\`:
-   `summary-en.txt`, `summary-ar.txt`, `results.json`, `results.csv`, `operation.log`, `errors.log`.
+## Current service map
 
-Every tool also accepts `-AnalyzeOnly` and `-WhatIf` directly:
+1. System Maintenance
+2. System Cleanup
+3. Network & Internet
+4. Programs & Applications
+5. Duplicate Files
+6. Disk Space
+7. Services & Processes
+8. Performance
+9. Security
+10. Diagnostics & Reports
+11. Backup & Recovery
+12. Developer Tools
+13. Privacy
+14. Driver Management
+15. System Monitoring
+16. Software Environment
+17. Post-Install Setup
+18. Project Sonar
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File ".\09-Security\SE01-SecurityAudit.ps1" -AnalyzeOnly
-```
+## Safety model
 
-## Safety model (summary)
+Every registered tool carries risk and capability metadata. The product uses:
 
-Each tool carries one risk level, shown in the menu:
+- `READ_ONLY`, `SAFE_CLEANUP`, `SYSTEM_REPAIR`, `DESTRUCTIVE`, `REBOOT_REQUIRED`, and recovery-specific risk classes,
+- explicit confirmation before destructive execution,
+- quarantine / backup / restore evidence where supported,
+- protected path and protected process policies,
+- registered-tool allowlisting in the bridge,
+- bounded scan/input validation,
+- an explicit Windows UAC boundary.
 
-| Tag | Risk | Meaning |
-|-----|------|---------|
-| RO | READ_ONLY | Inspects only; never changes anything |
-| SC | SAFE_CLEANUP | Removes/disables junk; items go through quarantine first |
-| SR | SYSTEM_REPAIR | Repairs system state; may need admin |
-| DX | DESTRUCTIVE | Deletes/replaces system data; requires a typed confirmation phrase |
-| RB | REBOOT_REQUIRED | Effect takes place on reboot (e.g. Check Disk) |
-| WR | WINRE_ONLY | Must run from Windows Recovery Environment |
+Admin-required tools are rejected by a non-elevated bridge with `403 / ELEVATION_REQUIRED`; KNOUX Repair does not bypass UAC.
 
-Destructive operations:
-- require typing an exact confirmation phrase,
-- back up items to `Quarantine\` before removal (restore metadata preserved),
-- optionally create a restore point first,
-- never touch protected system paths or processes.
+See `Docs/SAFETY-MODEL.md`.
 
-See `Docs\SAFETY-MODEL.md` for details.
+## Local web development
 
-## Running the tests
+From the repository root:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File ".\Tests\Run-Tests.ps1"
+npm --prefix web-frontend ci
+npm run dev
 ```
 
-Exit code 0 = all 83 tests pass (Windows PowerShell 5.1 and pwsh). Results are written to `Tests\TEST-RESULTS.txt`.
+Open:
 
-## Tool manifest
+```text
+http://127.0.0.1:3000
+```
 
-`Docs\TOOLS-MANIFEST.csv` / `Docs\TOOLS-MANIFEST.json` describe all 100 tools with a
-15-field schema (ToolId, Category, ScriptPath, EnglishName, ArabicName, Purpose, RiskLevel,
-RequiresAdmin, RequiresRestart, OfflineCapability, BackupMethod, RollbackMethod,
-AnalyzeOnlySupported, WhatIfSupported, TestResult). The JSON is the canonical machine-readable
-form; `Docs\FILE-INVENTORY.json` lists the exact package contents.
+The local web gateway starts/reuses the **real** localhost execution bridge and proxies `/api` to it. It does not provide fabricated Windows state or simulated tool success.
 
-## Packaging notes
+For admin-required repair tools, launch the terminal/process through the normal Windows **Run as administrator** / UAC flow.
 
-The shipped ZIP excludes runtime data (`Reports\`, `Logs\`, `Quarantine\`, `Backups\`),
-the superseded 1.x `Scripts\` tree, and the legacy 1.x launcher/manifest
-(`KnouxRepair-Launcher.ps1`, `KnouxRepair.Manifest.json`). Arabic restore guide:
-`Docs\RESTORE-GUIDE-AR.md`.
+## Web verification
+
+```powershell
+npm --prefix web-frontend run typecheck
+npm --prefix web-frontend test
+npm --prefix web-frontend run build
+```
+
+Production dependency audit:
+
+```powershell
+npm --prefix web-frontend audit --omit=dev --audit-level=high
+```
+
+## Electron desktop
+
+```powershell
+npm --prefix web-frontend run desktop:dev
+```
+
+Package the desktop application:
+
+```powershell
+npm --prefix web-frontend run desktop:package
+```
+
+Electron uses `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, `webSecurity: true`, loopback-only local serving, navigation restrictions, and response security headers.
+
+## PowerShell console
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\Menu.ps1"
+```
+
+Or use `START-KNOUX-REPAIR.cmd`.
+
+Tools that support analysis can also be invoked directly with `-AnalyzeOnly` / `-WhatIf`.
+
+Reports are written under runtime report directories and typically include structured `results.json` plus human-readable/log evidence.
+
+## Tests and CI
+
+GitHub Actions runs the Windows quality gate on pushes and pull requests to `main`:
+
+- `npm ci`
+- production dependency audit
+- TypeScript validation
+- frontend tests
+- web build
+- .NET restore/build
+- isolated bridge timeout verification
+- PowerShell desktop functional suite
+
+Manual/real-machine validation is still required for destructive E2E workflows, reboot flows, rollback, hardware-specific telemetry, and broad accessibility testing. See `Docs/KNOWN-LIMITATIONS.md`.
+
+## Authentication
+
+Authentication is optional for a local installation. When `KNOUX_AUTH_REQUIRED=true`, the local bridge supports configured GitHub OAuth and/or Microsoft Entra ID providers using state + PKCE. Provider access tokens remain in the bridge process; the browser receives an `HttpOnly`, `SameSite=Lax` loopback session cookie.
+
+Configuration examples are in `.env.example`, `web-frontend/.env.example`, and `Docs/LOCAL-OAUTH-SETUP.md`.
+
+## Source of truth
+
+Use these files for current decisions:
+
+- `Docs/SERVICE-INVENTORY.md` — current service/tool/UI maturity matrix.
+- `Docs/SAFETY-MODEL.md` — execution, UAC, authentication, quarantine, and protection boundaries.
+- `Docs/KNOWN-LIMITATIONS.md` — current product limitations and manual acceptance boundaries.
+- `Docs/TOOLS-MANIFEST.json` + `Config/menus.json` — registered execution inventory.
+- `.github/workflows/ci.yml` — automated release/quality gate.
+
+Historical acceptance documents that refer to 100 tools describe the earlier console baseline and are retained as release evidence, not as the complete current product inventory.
