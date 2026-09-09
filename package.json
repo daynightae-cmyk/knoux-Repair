@@ -10,10 +10,19 @@
     "lint": "npm run typecheck --workspace=web-frontend"
   },
   "dependencies": {
-    "express": "^5.2.1"
+    "@google/genai": "^2.21.0",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "express": "^5.2.1",
+    "firebase": "^12.18.0",
+    "firebase-admin": "^14.3.0",
+    "pg": "^8.23.0",
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.10",
     "esbuild": "^0.28.2",
     "tsx": "^4.23.13"
   }

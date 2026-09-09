@@ -1102,6 +1102,24 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, preview: getDuplicatePreview(requestedPath, url.searchParams.get('types') || '', url.searchParams.get('keeper') || 'OldestThenAlphabetical') }, corsHeaders);
     }
 
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'thumbnail') {
+      const requestedPath = url.searchParams.get('path') || '';
+      const requestedName = url.searchParams.get('name') || path.basename(requestedPath);
+      if (requestedPath && fs.existsSync(requestedPath)) {
+        const ext = path.extname(requestedPath).toLowerCase();
+        const mime = ({ '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.bmp': 'image/bmp' })[ext] || 'application/octet-stream';
+        res.writeHead(200, { 'Content-Type': mime, ...corsHeaders });
+        return fs.createReadStream(requestedPath).pipe(res);
+      }
+      const ext = (path.extname(requestedName || requestedPath).toLowerCase().replace('.', '') || 'IMG').toUpperCase();
+      const isPng = ext === 'PNG';
+      const accent = isPng ? '#06b6d4' : '#10b981';
+      const bgStop = isPng ? '#082f49' : '#064e3b';
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" fill="none"><defs><linearGradient id="bg" x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse"><stop stop-color="${bgStop}"/><stop offset="1" stop-color="#04131d"/></linearGradient></defs><rect width="96" height="96" rx="10" fill="url(#bg)" stroke="${accent}" stroke-opacity="0.35"/><circle cx="34" cy="34" r="8" fill="${accent}" fill-opacity="0.85"/><path d="M18 70L38 48L52 62L64 48L80 70H18Z" fill="${accent}" fill-opacity="0.4"/><rect x="52" y="16" width="34" height="16" rx="4" fill="#000" fill-opacity="0.45" stroke="${accent}" stroke-opacity="0.4"/><text x="69" y="28" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" font-weight="800" fill="#e0f2fe">${ext}</text></svg>`;
+      res.writeHead(200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=86400', ...corsHeaders });
+      return res.end(svg);
+    }
+
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'quarantine') {
       return sendJson(res, 200, { ok: true, quarantine: getDuplicateQuarantine() }, corsHeaders);
     }

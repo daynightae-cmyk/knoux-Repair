@@ -1,0 +1,163 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with identification and authorization metadata",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth user UID",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name",
+          "maxLength": 100
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Avatar URL",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation ISO timestamp"
+        }
+      },
+      "required": ["userId", "email"]
+    },
+    "RepairSession": {
+      "title": "RepairSession",
+      "description": "Logged maintenance and repair session records",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Session UUID",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "actionName": {
+          "type": "string",
+          "description": "Action or tool executed",
+          "maxLength": 150
+        },
+        "status": {
+          "type": "string",
+          "description": "Completion status",
+          "enum": ["pending", "in_progress", "completed", "failed"]
+        },
+        "summary": {
+          "type": "string",
+          "description": "Summary output",
+          "maxLength": 2000
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["id", "userId", "actionName", "status"]
+    },
+    "DiagnosticAudit": {
+      "title": "DiagnosticAudit",
+      "description": "System diagnostic and performance audit record",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Audit record ID",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "osVersion": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "cpuLoad": {
+          "type": "number"
+        },
+        "ramFreeGb": {
+          "type": "number"
+        },
+        "diskFreeGb": {
+          "type": "number"
+        },
+        "healthScore": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "userId", "healthScore"]
+    },
+    "WorkspaceSyncEvent": {
+      "title": "WorkspaceSyncEvent",
+      "description": "Audit entry for Google Workspace sync activities",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "service": {
+          "type": "string",
+          "enum": ["drive", "gmail", "sheets", "docs", "slides", "tasks", "forms", "keep"]
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "externalId": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "externalUrl": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "userId", "service", "title"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile collection"
+    },
+    "/repair_sessions/{sessionId}": {
+      "schema": "RepairSession",
+      "description": "Global user repair session logs"
+    },
+    "/diagnostic_audits/{auditId}": {
+      "schema": "DiagnosticAudit",
+      "description": "Hardware and system health telemetry snapshots"
+    },
+    "/workspace_syncs/{syncId}": {
+      "schema": "WorkspaceSyncEvent",
+      "description": "Workspace sync events for Drive, Sheets, Docs, Gmail, Tasks"
+    }
+  }
+}

@@ -55,7 +55,7 @@ export default function WorkspaceFolderPicker({ lang, initialPath, onSelect, onC
     try {
       const data = await api.folders(targetPath);
       setListing(data);
-      setPathInput(data.path);
+      setPathInput(data.path || '');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -90,8 +90,8 @@ export default function WorkspaceFolderPicker({ lang, initialPath, onSelect, onC
         </div>
 
         <form className="workspace-picker-direct" onSubmit={(event) => { event.preventDefault(); load(pathInput); }}>
-          <label><span>{text.directPath}</span><input value={pathInput} onChange={(event) => setPathInput(event.target.value)} placeholder="D:\\Projects\\my-app" /></label>
-          <button type="submit" disabled={!pathInput.trim() || loading}>{text.go}</button>
+          <label><span>{text.directPath}</span><input value={pathInput || ''} onChange={(event) => setPathInput(event.target.value)} placeholder="D:\\Projects\\my-app" /></label>
+          <button type="submit" disabled={!pathInput?.trim() || loading}>{text.go}</button>
         </form>
 
         <div className="workspace-picker-location">

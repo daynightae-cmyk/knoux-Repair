@@ -391,12 +391,12 @@ export type DuplicateFileType = 'all' | 'images' | 'video' | 'documents' | 'audi
 export type DuplicateKeeperPolicy = 'OldestThenAlphabetical' | 'Newest';
 
 export interface DuplicatePreviewFile {
-
   Path: string;
   Name: string;
   Extension: string;
   SizeBytes: number;
   LastWriteUtc: string;
+  ModifiedTime?: string;
 }
 
 export interface DuplicatePreviewGroup {
@@ -547,6 +547,25 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 30000): 
   return body as T;
 }
 
+export interface AiGenerateRequest {
+  modelId: string;
+  prompt: string;
+  systemPrompt?: string;
+  customApiKey?: string;
+  templateId?: string;
+  parameters?: Record<string, string>;
+  uid?: string;
+}
+
+export interface AiGenerateResponse {
+  ok: boolean;
+  model: string;
+  provider: string;
+  text: string;
+  codeSnippets: string[];
+  executionTimeMs: number;
+}
+
 export const api = {
   health: () => request<BridgeHealth>('/api/health', undefined, 10000),
   authStatus: () => request<BridgeAuthStatus>('/api/auth/status', undefined, 10000),
@@ -556,11 +575,12 @@ export const api = {
   system: () => request<{ system: SystemSnapshot }>('/api/system', undefined, 60000),
   folderRoots: () => request<{ roots: LocalFolderRoot[] }>('/api/folders/roots', undefined, 15000),
   folders: (folderPath?: string) => request<LocalFolderListing>(`/api/folders${folderPath ? `?path=${encodeURIComponent(folderPath)}` : ''}`, undefined, 15000),
-    sonarPreview: (folderPath: string) => request<{ preview: ProjectSonarPreview }>(`/api/sonar/preview?path=${encodeURIComponent(folderPath)}`, undefined, 125000),
-    duplicatePreview: (folderPath: string, options: { types?: DuplicateFileType[]; keeperPolicy?: DuplicateKeeperPolicy } = {}) => {
+  sonarPreview: (folderPath: string) => request<{ preview: ProjectSonarPreview }>(`/api/sonar/preview?path=${encodeURIComponent(folderPath)}`, undefined, 125000),
+  duplicatePreview: (folderPath: string, options: { types?: DuplicateFileType[]; keeperPolicy?: DuplicateKeeperPolicy; excludeSubfolders?: string[] } = {}) => {
     const query = new URLSearchParams({ path: folderPath });
     if (options.types?.length) query.set('types', options.types.join(','));
     if (options.keeperPolicy) query.set('keeper', options.keeperPolicy);
+    if (options.excludeSubfolders?.length) query.set('exclude', options.excludeSubfolders.join(','));
     return request<{ preview: DuplicatePreview }>(`/api/duplicates/preview?${query.toString()}`, undefined, 125000);
   },
   duplicateQuarantine: () => request<{ quarantine: DuplicateQuarantinePreview }>('/api/duplicates/quarantine', undefined, 30000),
@@ -586,4 +606,9 @@ export const api = {
   getRun: (runId: string) => request<{ run: BridgeRun }>(`/api/runs/${runId}`, undefined, 15000),
   cancelRun: (runId: string) =>
     request<{ ok: boolean }>(`/api/runs/${runId}/cancel`, { method: 'POST' }, 15000),
+
+  // Open Code Zen & AI Models API
+  aiModels: () => request<{ models: any[]; hasGeminiKey: boolean; hasOpenRouterKey: boolean }>('/api/ai/models'),
+  aiTemplates: () => request<{ templates: any[] }>('/api/ai/templates'),
+  aiGenerate: (data: AiGenerateRequest) => request<AiGenerateResponse>('/api/ai/generate', { method: 'POST', body: JSON.stringify(data) }, 120000),
 };

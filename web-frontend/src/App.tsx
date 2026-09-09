@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Menu, Terminal, Shield } from 'lucide-react';
+import { Menu, Terminal, Shield, ArrowRight } from 'lucide-react';
 
 import Sidebar from './components/Sidebar';
 import ServiceApps from './components/ServiceApps';
@@ -13,6 +13,14 @@ import NexusSplash from './components/NexusSplash';
 import AuthGate from './components/AuthGate';
 import ActionCenter from './components/ActionCenter';
 import AllToolsCatalog from './components/AllToolsCatalog';
+
+import CareDashboard from './components/CareDashboard';
+import SpeedUpSuite from './components/SpeedUpSuite';
+import ProtectSuite from './components/ProtectSuite';
+import ToolboxSuite from './components/ToolboxSuite';
+import GoogleWorkspaceHub from './components/GoogleWorkspaceHub';
+import OpenCodeZenHub from './components/OpenCodeZenHub';
+import type { ViewMode } from './components/Sidebar';
 
 import type { ActiveSection, ToolStatus, ConsoleEntry, ConsoleEntryType } from './types';
 import { SECTION_MAP } from './types';
@@ -42,7 +50,7 @@ function NexusApp() {
   });
   const [theme, setTheme] = useState<'dark' | 'light'>(() => localStorage.getItem('knoux-theme') === 'light' ? 'light' : 'dark');
   const [activeSection, setActiveSection] = useState<ActiveSection>('maintenance');
-  const [activeView, setActiveView] = useState<'action-center' | 'workspaces' | 'tools' | 'all-tools'>('action-center');
+  const [activeView, setActiveView] = useState<ViewMode>('care');
   const [toolStatuses, setToolStatuses] = useState<Record<string, ToolStatus>>({});
   const [consoleVisible, setConsoleVisible] = useState(false);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
@@ -186,7 +194,13 @@ function NexusApp() {
           active={activeSection}
           onSelect={(section) => { setActiveSection(section); setActiveView('tools'); }}
           viewMode={activeView}
+          onOpenCare={() => { setActiveView('care'); setSidebarOpen(false); }}
+          onOpenSpeedUp={() => { setActiveView('speedup'); setSidebarOpen(false); }}
+          onOpenProtect={() => { setActiveView('protect'); setSidebarOpen(false); }}
+          onOpenToolbox={() => { setActiveView('toolbox'); setSidebarOpen(false); }}
           onOpenActionCenter={() => { setActiveView('action-center'); setSidebarOpen(false); }}
+          onOpenWorkspaceHub={() => { setActiveView('workspace-hub'); setSidebarOpen(false); }}
+          onOpenCodeZen={() => { setActiveView('code-zen'); setSidebarOpen(false); }}
           onOpenAllTools={() => { setActiveView('all-tools'); setSidebarOpen(false); }}
           toolsByCategory={toolsByCategory}
           open={sidebarOpen}
@@ -200,9 +214,9 @@ function NexusApp() {
           onOpenSettings={() => { setSettingsOpen(true); setSidebarOpen(false); }}
         />
 
-        <main className="flex-1 nx-workspace rounded-[1.75rem] p-4 md:p-6 flex flex-col overflow-hidden">
+        <main className="flex-1 nx-workspace rounded-[1.75rem] p-3 md:p-5 flex flex-col overflow-hidden">
           {/* ── Title Bar & Navigation Controls ── */}
-          <header className="shrink-0 mb-3 flex items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
+          <header className="shrink-0 mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -215,17 +229,110 @@ function NexusApp() {
 
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold font-display tracking-wide text-white">
-                  KNOUX <span className="text-blue-400 font-normal">Repair</span>
+                  KNOUX <span className="text-cyan-400 font-black">Repair</span>
                 </span>
                 <span className="text-slate-600 text-xs">/</span>
                 <span className="text-xs font-medium text-slate-300">
-                  {activeView === 'action-center'
+                  {activeView === 'care'
+                    ? (lang === 'ar' ? 'الرعاية الذكية' : 'Care Dashboard')
+                    : activeView === 'speedup'
+                    ? (lang === 'ar' ? 'تسريع الأداء' : 'Speed Up')
+                    : activeView === 'protect'
+                    ? (lang === 'ar' ? 'الحماية والأمان' : 'Protect Suite')
+                    : activeView === 'toolbox'
+                    ? (lang === 'ar' ? 'صندوق الأدوات' : 'Toolbox')
+                    : activeView === 'action-center'
                     ? (lang === 'ar' ? 'مركز الإجراءات' : 'Action Center')
+                    : activeView === 'workspace-hub'
+                    ? (lang === 'ar' ? 'سحابة Google و Cloud SQL' : 'Google Workspace & Cloud Hub')
+                    : activeView === 'code-zen'
+                    ? (lang === 'ar' ? 'محرك كود زن (النماذج المجانية)' : 'Open Code Zen (Free AI)')
                     : activeView === 'all-tools'
-                      ? (lang === 'ar' ? 'فهرس جميع الأدوات (158)' : 'Master Tools Catalog (158)')
-                      : (CATEGORIES.find(c => c.section === activeSection)?.name[lang] ?? activeSection)}
+                    ? (lang === 'ar' ? 'فهرس جميع الأدوات' : 'Master Tools Catalog')
+                    : (CATEGORIES.find(c => c.section === activeSection)?.name[lang] ?? activeSection)}
                 </span>
               </div>
+            </div>
+
+            {/* Top Glass Navigation Tabs */}
+            <div className="hidden lg:flex items-center gap-1 p-1 rounded-2xl bg-slate-950/70 border border-white/[0.08] shadow-inner">
+              <button
+                type="button"
+                onClick={() => setActiveView('care')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeView === 'care'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {lang === 'ar' ? 'الرعاية الذكية' : 'Care'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView('speedup')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeView === 'speedup'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {lang === 'ar' ? 'تسريع الأداء' : 'Speed Up'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView('protect')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeView === 'protect'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {lang === 'ar' ? 'الحماية' : 'Protect'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView('toolbox')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeView === 'toolbox'
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {lang === 'ar' ? 'صندوق الأدوات' : 'Toolbox'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView('action-center')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeView === 'action-center'
+                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-[0_0_12px_rgba(59,130,246,0.3)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {lang === 'ar' ? 'مركز التقارير' : 'Action Center'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView('workspace-hub')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeView === 'workspace-hub'
+                    ? 'bg-indigo-500/25 text-indigo-300 border border-indigo-500/40 shadow-[0_0_12px_rgba(99,102,241,0.35)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {lang === 'ar' ? 'سحابة Google' : 'Google Cloud'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView('code-zen')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeView === 'code-zen'
+                    ? 'bg-gradient-to-r from-indigo-600/40 to-cyan-600/40 text-indigo-200 border border-indigo-500/50 shadow-[0_0_12px_rgba(99,102,241,0.4)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {lang === 'ar' ? 'كود زن (AI)' : 'Code Zen (AI)'}
+              </button>
             </div>
 
             <div className="flex items-center gap-2">
@@ -255,14 +362,65 @@ function NexusApp() {
                 <Terminal size={12} />
                 <span className="hidden sm:inline">{lang === 'ar' ? 'طرفية التشخيص' : 'Terminal'}</span>
                 {consoleEntries.length > 0 && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
                 )}
               </button>
             </div>
           </header>
 
           <AnimatePresence mode="wait">
-            {activeView === 'action-center' ? (
+            {activeView === 'care' ? (
+              <PageTransition key="care">
+                <CareDashboard
+                  lang={lang}
+                  toolsByCategory={toolsByCategory}
+                  onOpenSection={(section) => {
+                    setActiveSection(section);
+                    setActiveView('tools');
+                  }}
+                  onOpenView={(view) => setActiveView(view)}
+                  bridgeElevated={bridgeElevated}
+                />
+              </PageTransition>
+            ) : activeView === 'speedup' ? (
+              <PageTransition key="speedup">
+                <SpeedUpSuite
+                  lang={lang}
+                  toolsByCategory={toolsByCategory}
+                  onOpenSection={(section) => {
+                    setActiveSection(section);
+                    setActiveView('tools');
+                  }}
+                  onOpenView={(view) => setActiveView(view)}
+                  bridgeElevated={bridgeElevated}
+                />
+              </PageTransition>
+            ) : activeView === 'protect' ? (
+              <PageTransition key="protect">
+                <ProtectSuite
+                  lang={lang}
+                  toolsByCategory={toolsByCategory}
+                  onOpenSection={(section) => {
+                    setActiveSection(section);
+                    setActiveView('tools');
+                  }}
+                  onOpenView={(view) => setActiveView(view)}
+                  bridgeElevated={bridgeElevated}
+                />
+              </PageTransition>
+            ) : activeView === 'toolbox' ? (
+              <PageTransition key="toolbox">
+                <ToolboxSuite
+                  lang={lang}
+                  toolsByCategory={toolsByCategory}
+                  onOpenSection={(section) => {
+                    setActiveSection(section);
+                    setActiveView('tools');
+                  }}
+                  bridgeElevated={bridgeElevated}
+                />
+              </PageTransition>
+            ) : activeView === 'action-center' ? (
               <PageTransition key="action-center">
                 <ActionCenter
                   lang={lang}
@@ -275,6 +433,32 @@ function NexusApp() {
                   bridgeElevated={bridgeElevated}
                   bridgeOnline={bridgeOnline}
                   onOpenNavigation={() => setSidebarOpen(true)}
+                />
+              </PageTransition>
+            ) : activeView === 'workspace-hub' ? (
+              <PageTransition key="workspace-hub">
+                <GoogleWorkspaceHub
+                  lang={lang}
+                  bridgeElevated={bridgeElevated}
+                />
+              </PageTransition>
+            ) : activeView === 'code-zen' ? (
+              <PageTransition key="code-zen">
+                <OpenCodeZenHub
+                  lang={lang}
+                  bridgeElevated={bridgeElevated}
+                  onSendToTerminal={(code) => {
+                    setConsoleEntries(prev => [
+                      ...prev,
+                      {
+                        id: Date.now() + (entryCounter += 1),
+                        text: `[Open Code Zen Injection]\n${code}`,
+                        type: 'info',
+                        timestamp: new Date().toLocaleTimeString(),
+                      },
+                    ]);
+                    setConsoleVisible(true);
+                  }}
                 />
               </PageTransition>
             ) : activeView === 'all-tools' ? (
@@ -294,15 +478,44 @@ function NexusApp() {
               </PageTransition>
             ) : (
               <PageTransition key={`tools-${activeSection}`}>
-                <ServiceApps
-                  activeSection={activeSection}
-                  toolStatuses={toolStatuses}
-                  tools={toolsByCategory[SECTION_MAP[activeSection]] || []}
-                  lang={lang}
-                  bridgeElevated={bridgeElevated}
-                  onRunTool={runTool}
-                  onCancelTool={cancelRun}
-                />
+                <div className="flex flex-col h-full space-y-3">
+                  {/* Fluid Return Header Ribbon */}
+                  <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-slate-900/60 border border-white/[0.07] backdrop-blur-xl shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setActiveView('care')}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] text-xs font-bold text-cyan-400 hover:text-cyan-300 border border-cyan-500/20 hover:border-cyan-500/40 transition-all cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.15)]"
+                    >
+                      <ArrowRight size={14} className="rotate-180 rtl:rotate-0" />
+                      <span>{lang === 'ar' ? 'العودة إلى لوحة القيادة الذكية' : 'Back to Master Care Dashboard'}</span>
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-mono text-slate-400">
+                        {toolsByCategory[SECTION_MAP[activeSection]]?.length || 0} {lang === 'ar' ? 'أداة متاحة' : 'tools ready'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveView('toolbox')}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white/[0.03] hover:bg-white/[0.07] text-slate-300 hover:text-white border border-white/[0.06] transition-colors"
+                      >
+                        {lang === 'ar' ? 'صندوق الأدوات' : 'Toolbox'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-h-0 overflow-y-auto">
+                    <ServiceApps
+                      activeSection={activeSection}
+                      toolStatuses={toolStatuses}
+                      tools={toolsByCategory[SECTION_MAP[activeSection]] || []}
+                      lang={lang}
+                      bridgeElevated={bridgeElevated}
+                      onRunTool={runTool}
+                      onCancelTool={cancelRun}
+                    />
+                  </div>
+                </div>
               </PageTransition>
             )}
           </AnimatePresence>
