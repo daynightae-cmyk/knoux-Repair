@@ -1,0 +1,422 @@
+.kr-splash {
+  --kr-ice: #7ee8ff;
+  --kr-azure: #63a8ff;
+  --kr-white: #f6fbff;
+  --kr-muted: rgba(207, 223, 239, 0.62);
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  color: var(--kr-white);
+  background:
+    radial-gradient(90% 76% at 50% 42%, rgba(28, 67, 104, 0.22) 0%, rgba(11, 17, 25, 0.08) 44%, rgba(5, 7, 11, 0) 72%),
+    linear-gradient(142deg, #101722 0%, #0b1017 34%, #080b10 67%, #05070b 100%);
+  cursor: default;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.kr-splash::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -4;
+  background:
+    radial-gradient(70% 58% at 18% 10%, rgba(86, 168, 224, 0.11) 0%, rgba(86, 168, 224, 0.025) 38%, transparent 70%),
+    radial-gradient(54% 46% at 84% 84%, rgba(59, 126, 194, 0.07) 0%, transparent 68%);
+}
+
+.kr-splash::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  box-shadow: inset 0 0 180px rgba(0, 0, 0, 0.58);
+}
+
+.kr-splash__ambient {
+  position: absolute;
+  z-index: -3;
+  width: min(64vw, 980px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  filter: blur(110px);
+  will-change: transform;
+  pointer-events: none;
+}
+
+.kr-splash__ambient--one {
+  top: -34%;
+  left: 8%;
+  opacity: 0.2;
+  background: radial-gradient(circle, rgba(98, 210, 255, 0.32) 0%, rgba(54, 125, 187, 0.08) 42%, transparent 72%);
+  animation: kr-splash-drift-one 14s ease-in-out infinite alternate;
+}
+
+.kr-splash__ambient--two {
+  right: -16%;
+  bottom: -46%;
+  opacity: 0.16;
+  background: radial-gradient(circle, rgba(75, 132, 222, 0.24) 0%, rgba(65, 106, 168, 0.05) 46%, transparent 72%);
+  animation: kr-splash-drift-two 17s ease-in-out infinite alternate;
+}
+
+.kr-splash__grain {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.024;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.72'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+.kr-splash__scene {
+  position: relative;
+  z-index: 2;
+  width: min(92vw, 720px);
+  min-height: min(72vh, 660px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1.5rem, 3.6vw, 3.25rem) clamp(1rem, 3vw, 2.25rem);
+  text-align: center;
+  transform-origin: center 46%;
+  will-change: transform, opacity, filter;
+}
+
+.kr-splash__emblem {
+  position: relative;
+  width: clamp(84px, 6.4vw, 108px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: clamp(21px, 1.75vw, 28px);
+  border: 1px solid rgba(213, 238, 255, 0.18);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.028) 34%, rgba(43, 92, 128, 0.06) 72%, rgba(255, 255, 255, 0.022) 100%),
+    rgba(10, 17, 25, 0.52);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -18px 32px rgba(0, 0, 0, 0.2),
+    0 22px 48px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(76, 188, 235, 0.035),
+    0 0 34px rgba(72, 199, 246, 0.07);
+  backdrop-filter: blur(22px) saturate(126%);
+  -webkit-backdrop-filter: blur(22px) saturate(126%);
+}
+
+.kr-splash__emblem::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 28%),
+    radial-gradient(80% 70% at 18% 8%, rgba(111, 225, 255, 0.1), transparent 64%);
+}
+
+.kr-splash__emblem::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 24px rgba(91, 189, 225, 0.035);
+}
+
+.kr-splash__logo {
+  position: relative;
+  z-index: 2;
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+  filter: drop-shadow(0 9px 18px rgba(0, 0, 0, 0.26));
+}
+
+.kr-splash__reflection {
+  position: absolute;
+  z-index: 3;
+  top: -26%;
+  bottom: -26%;
+  width: 28%;
+  left: -42%;
+  transform: skewX(-17deg);
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(235, 250, 255, 0.18), rgba(255, 255, 255, 0.06), transparent);
+  filter: blur(2px);
+}
+
+.kr-splash__brand {
+  direction: ltr;
+  unicode-bidi: isolate;
+  margin-top: clamp(1.45rem, 2.8vh, 2rem);
+  font-family: "Segoe UI Variable Display", "Segoe UI", Inter, system-ui, sans-serif;
+  font-size: clamp(1.78rem, 2.6vw, 2.55rem);
+  font-weight: 620;
+  line-height: 1;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
+}
+
+.kr-splash__brand-main {
+  color: rgba(248, 252, 255, 0.96);
+}
+
+.kr-splash__brand-accent {
+  margin-left: 0.18em;
+  color: #9beaff;
+  font-weight: 530;
+}
+
+.kr-splash__subtitle {
+  margin: 0.78rem 0 0;
+  color: rgba(199, 220, 238, 0.58);
+  font-family: "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, sans-serif;
+  font-size: clamp(0.64rem, 0.72vw, 0.76rem);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.kr-splash[data-lang='ar'] .kr-splash__subtitle {
+  letter-spacing: 0.035em;
+  font-size: clamp(0.72rem, 0.85vw, 0.86rem);
+  font-weight: 520;
+  text-transform: none;
+}
+
+.kr-splash__boot {
+  width: clamp(280px, 31vw, 360px);
+  margin-top: clamp(2.35rem, 5vh, 3.4rem);
+}
+
+.kr-splash__status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.72rem;
+}
+
+.kr-splash__status {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: rgba(221, 235, 247, 0.72);
+  font-family: "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, sans-serif;
+  font-size: clamp(0.7rem, 0.78vw, 0.8rem);
+  font-weight: 520;
+  line-height: 1.35;
+  text-align: start;
+}
+
+.kr-splash__status-dot {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 5px;
+  border-radius: 999px;
+  background: #6588aa;
+  box-shadow: 0 0 10px rgba(101, 136, 170, 0.18);
+  transition: background-color 280ms ease, box-shadow 280ms ease;
+}
+
+.kr-splash__status-dot.is-ready {
+  background: var(--kr-ice);
+  box-shadow: 0 0 12px rgba(126, 232, 255, 0.32);
+}
+
+.kr-splash__percentage {
+  direction: ltr;
+  flex: 0 0 auto;
+  color: rgba(166, 197, 220, 0.48);
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.63rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+
+.kr-splash__progress {
+  position: relative;
+  width: 100%;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.kr-splash__progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(116, 224, 255, 0.92), rgba(91, 160, 255, 0.94));
+  box-shadow: 0 0 12px rgba(91, 193, 255, 0.14);
+  transition: width 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.kr-splash__progress-fill::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -14px;
+  width: 30px;
+  height: 7px;
+  opacity: 0.52;
+  background: radial-gradient(circle, rgba(233, 251, 255, 0.8) 0%, rgba(142, 226, 255, 0.2) 42%, transparent 72%);
+  filter: blur(1px);
+}
+
+.kr-splash__meta {
+  margin-top: 1.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.56rem;
+  color: rgba(176, 201, 221, 0.42);
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: clamp(0.56rem, 0.62vw, 0.66rem);
+  line-height: 1.6;
+  letter-spacing: 0.105em;
+  text-transform: uppercase;
+}
+
+.kr-splash[data-lang='ar'] .kr-splash__meta {
+  font-family: "Segoe UI Variable Text", "Segoe UI", Tahoma, sans-serif;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.kr-splash__meta-bridge {
+  color: rgba(191, 222, 241, 0.56);
+}
+
+.kr-splash__meta-bridge.is-connected {
+  color: rgba(143, 228, 249, 0.72);
+}
+
+.kr-splash__meta-divider {
+  width: 2px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(179, 213, 234, 0.28);
+}
+
+.kr-splash__footer {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: clamp(1.2rem, 3.2vh, 2.1rem);
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  color: rgba(161, 186, 207, 0.24);
+  font-family: "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, sans-serif;
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.19em;
+  line-height: 1.4;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.kr-splash[data-lang='ar'] .kr-splash__footer {
+  letter-spacing: 0.025em;
+  text-transform: none;
+}
+
+@keyframes kr-splash-drift-one {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(18px, 14px, 0) scale(1.015); }
+}
+
+@keyframes kr-splash-drift-two {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(-15px, -11px, 0) scale(1.012); }
+}
+
+@media (max-height: 780px) {
+  .kr-splash__scene {
+    min-height: auto;
+    padding-block: 1.25rem 2.75rem;
+  }
+
+  .kr-splash__emblem {
+    width: clamp(76px, 10vh, 92px);
+  }
+
+  .kr-splash__brand {
+    margin-top: 1.15rem;
+    font-size: clamp(1.55rem, 4vh, 2rem);
+  }
+
+  .kr-splash__subtitle {
+    margin-top: 0.58rem;
+  }
+
+  .kr-splash__boot {
+    margin-top: 1.8rem;
+  }
+
+  .kr-splash__footer {
+    bottom: 0.85rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .kr-splash__scene {
+    width: 100%;
+    padding-inline: 1.15rem;
+  }
+
+  .kr-splash__brand {
+    font-size: clamp(1.45rem, 7vw, 1.9rem);
+    letter-spacing: 0.13em;
+  }
+
+  .kr-splash__boot {
+    width: min(82vw, 330px);
+  }
+
+  .kr-splash__status-row {
+    gap: 0.6rem;
+  }
+}
+
+@media (min-width: 2200px) {
+  .kr-splash__scene {
+    width: min(72vw, 820px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kr-splash__ambient--one,
+  .kr-splash__ambient--two {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .kr-splash__reflection {
+    display: none !important;
+  }
+
+  .kr-splash__progress-fill,
+  .kr-splash__status-dot {
+    transition-duration: 1ms !important;
+  }
+}
