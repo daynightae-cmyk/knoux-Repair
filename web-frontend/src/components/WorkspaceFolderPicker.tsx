@@ -91,7 +91,7 @@ export default function WorkspaceFolderPicker({ lang, initialPath, onSelect, onC
 
         <form className="workspace-picker-direct" onSubmit={(event) => { event.preventDefault(); load(pathInput); }}>
           <label><span>{text.directPath}</span><input value={pathInput || ''} onChange={(event) => setPathInput(event.target.value)} placeholder="D:\\Projects\\my-app" /></label>
-          <button type="submit" disabled={!pathInput?.trim() || loading}>{text.go}</button>
+          <button type="submit" disabled={!pathInput || !pathInput.trim() || loading}>{text.go}</button>
         </form>
 
         <div className="workspace-picker-location">
