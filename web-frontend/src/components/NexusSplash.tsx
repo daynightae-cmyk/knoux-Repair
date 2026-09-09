@@ -30,6 +30,7 @@ export default function NexusSplash({
 
   const startedAtRef = useRef(0);
   const doneRef = useRef(false);
+  const finishingRef = useRef(false);
   const leavingRef = useRef(false);
   const onDoneRef = useRef(onDone);
   const progressTimersRef = useRef<number[]>([]);
@@ -73,7 +74,8 @@ export default function NexusSplash({
   }, [completeOnce, reducedMotion]);
 
   const finishBoot = useCallback(() => {
-    if (doneRef.current || leavingRef.current) return;
+    if (doneRef.current || finishingRef.current || leavingRef.current) return;
+    finishingRef.current = true;
     setProgress(100);
     readinessTimerRef.current = window.setTimeout(
       beginExit,
@@ -86,6 +88,7 @@ export default function NexusSplash({
 
     if (!visible) {
       doneRef.current = false;
+      finishingRef.current = false;
       leavingRef.current = false;
       setLeaving(false);
       setTimedOut(false);
@@ -94,6 +97,7 @@ export default function NexusSplash({
     }
 
     doneRef.current = false;
+    finishingRef.current = false;
     leavingRef.current = false;
     startedAtRef.current = performance.now();
     setLeaving(false);
@@ -102,22 +106,28 @@ export default function NexusSplash({
 
     for (const step of SPLASH_PROGRESS_STEPS) {
       const timer = window.setTimeout(() => {
-        if (!leavingRef.current && !doneRef.current) setProgress(step.value);
+        if (!finishingRef.current && !leavingRef.current && !doneRef.current) setProgress(step.value);
       }, reducedMotion ? Math.min(step.at, 260) : step.at);
       progressTimersRef.current.push(timer);
     }
 
     unresolvedTimerRef.current = window.setTimeout(() => {
-      if (doneRef.current || leavingRef.current) return;
+      if (doneRef.current || finishingRef.current || leavingRef.current) return;
       setTimedOut(true);
       finishBoot();
-    }, reducedMotion ? 900 : SPLASH_TIMING.unresolvedBridgeTimeoutMs);
+    }, reducedMotion ? SPLASH_TIMING.minimumVisualMs : SPLASH_TIMING.unresolvedBridgeTimeoutMs);
 
     return clearAllTimers;
   }, [clearAllTimers, finishBoot, reducedMotion, visible]);
 
   useEffect(() => {
-    if (!visible || bridgeOnline === null || doneRef.current || leavingRef.current) return;
+    if (
+      !visible ||
+      bridgeOnline === null ||
+      doneRef.current ||
+      finishingRef.current ||
+      leavingRef.current
+    ) return;
 
     clearTimer(unresolvedTimerRef.current);
     unresolvedTimerRef.current = null;
@@ -125,10 +135,10 @@ export default function NexusSplash({
 
     const elapsed = performance.now() - startedAtRef.current;
     const remainingMinimum = Math.max(0, SPLASH_TIMING.minimumVisualMs - elapsed);
-    readinessTimerRef.current = window.setTimeout(finishBoot, reducedMotion ? 0 : remainingMinimum);
+    readinessTimerRef.current = window.setTimeout(finishBoot, remainingMinimum);
 
     return () => clearTimer(readinessTimerRef.current);
-  }, [bridgeOnline, clearTimer, finishBoot, reducedMotion, visible]);
+  }, [bridgeOnline, clearTimer, finishBoot, visible]);
 
   useEffect(() => () => clearAllTimers(), [clearAllTimers]);
 
@@ -138,7 +148,7 @@ export default function NexusSplash({
   );
 
   const requestSkip = useCallback(() => {
-    if (!visible || leavingRef.current || doneRef.current) return;
+    if (!visible || finishingRef.current || leavingRef.current || doneRef.current) return;
     const elapsed = performance.now() - startedAtRef.current;
     const safeToContinue = bridgeOnline !== null || timedOut;
     if (elapsed < SPLASH_TIMING.minimumVisualMs || !safeToContinue) return;
@@ -161,7 +171,7 @@ export default function NexusSplash({
   const readyVisual = presentation.stage === 'ready';
 
   return (
-    <AnimatePresence initial={false}>
+    <AnimatePresence>
       {visible && (
         <motion.div
           className="kr-splash"
