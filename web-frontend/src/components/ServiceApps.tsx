@@ -11,11 +11,12 @@ import type { ActiveSection, ToolStatus } from '../types';
 import type {
   BackupRecoveryPreview, BridgeTool, CleanupPreview, DiagnosticsPreview, DriversPreview, ExecutionMode,
   NetworkPreview, OperationsPreview, OptimizationPreview, PostInstallPreview, PrivacyPreview, SoftwarePreview,
-  SystemSnapshot, ToolRunOptions,
+  SystemSnapshot, ToolRunOptions, BridgeRun,
 } from '../lib/api';
 import { api } from '../lib/api';
 import type { Lang } from '../lib/i18n';
 import { pickName } from '../lib/i18n';
+import { classifyDiagnosticRun, computeReadiness } from '../lib/systemRepair';
 import ExecutionConfirmDialog from './ExecutionConfirmDialog';
 import DuplicateOrganizerApp from './DuplicateOrganizerApp';
 import ProjectSonarApp from './ProjectSonarApp';
@@ -118,34 +119,59 @@ function ActionRail({ tools, lang, toolStatuses, bridgeElevated, onLaunch, onCan
 
 function SafetyNote({ lang }: { lang: Lang }) { const text = COPY[lang]; return <aside className="app-safety-note"><ShieldCheck size={18} /><div><strong>{text.safe}</strong><span>{text.safeBody}</span></div></aside>; }
 
-function SystemRepairApp({ data, lang, onRunHealthCheck }: { data: SystemSnapshot; lang: Lang; onRunHealthCheck?: () => void }) {
-  const firewallOn = Boolean(data.Firewall?.length && data.Firewall.every((item) => item.Enabled));
-  const lowStorage = data.Drives.some((drive) => drive.FreeGB / Math.max(1, drive.TotalGB) < .1);
-  const highCpu = data.CpuLoad >= 85;
-  const lowMemory = data.FreeRamGB / Math.max(1, data.TotalRamGB) < .15;
-  const checks = [
-    { label: lang === 'ar' ? 'سلامة ملفات Windows' : 'Windows file integrity', state: 'ready', detail: lang === 'ar' ? 'جاهز للتحقق عبر محرك SFC عند بدء التشخيص.' : 'Ready to verify through the SFC engine when diagnosis starts.' },
-    { label: lang === 'ar' ? 'مخزن مكونات Windows' : 'Windows component store', state: 'ready', detail: lang === 'ar' ? 'جاهز للفحص والإصلاح عبر DISM عند التأكيد.' : 'Ready for DISM analysis and repair after confirmation.' },
-    { label: lang === 'ar' ? 'مساحة النظام' : 'System drive capacity', state: lowStorage ? 'review' : 'passed', detail: lowStorage ? (lang === 'ar' ? 'أحد الأقراص منخفض المساحة وقد يؤثر على الإصلاح.' : 'One drive is low on free space and may affect repair.') : (lang === 'ar' ? 'المساحة المتاحة كافية للفحص.' : 'Available drive capacity is sufficient for repair checks.') },
-    { label: lang === 'ar' ? 'موارد التشغيل' : 'Runtime resources', state: highCpu || lowMemory ? 'review' : 'passed', detail: highCpu || lowMemory ? (lang === 'ar' ? 'يفضل إغلاق التطبيقات الثقيلة قبل الإصلاح.' : 'Consider closing heavy apps before repair.') : (lang === 'ar' ? 'المعالج والذاكرة مناسبان للتشخيص.' : 'CPU and memory are suitable for diagnostics.') },
-    { label: lang === 'ar' ? 'حماية النظام' : 'System protection', state: data.DefenderRealtime && firewallOn ? 'passed' : 'review', detail: data.DefenderRealtime && firewallOn ? (lang === 'ar' ? 'الحماية الأساسية مفعّلة أثناء الإصلاح.' : 'Baseline protection is active during repair.') : (lang === 'ar' ? 'راجع Defender أو الجدار الناري بعد التشخيص.' : 'Review Defender or firewall after diagnosis.') },
-  ];
-  const reviewCount = checks.filter((check) => check.state === 'review').length;
-  const plan = [
-    lang === 'ar' ? 'تشخيص سلامة الملفات بدون تغيير الجهاز' : 'Diagnose file integrity without changing the device',
-    lang === 'ar' ? 'تحليل مخزن المكونات وتحديد الحاجة للإصلاح' : 'Analyze the component store and determine repair need',
-    lang === 'ar' ? 'تنفيذ الإصلاح فقط بعد نافذة التأكيد الآمنة' : 'Execute repair only after the safety confirmation dialog',
-    lang === 'ar' ? 'إعادة التحقق وإنشاء تقرير فني داخل التطبيق' : 'Re-verify and keep the technical report inside the app',
-  ];
+function SystemRepairApp({ data, lang, onRunRepair }: { data: SystemSnapshot; lang: Lang; onRunRepair?: () => void }) {
+  const readiness = computeReadiness(data);
+  const [diagnosticRun, setDiagnosticRun] = useState<BridgeRun | null>(null);
+  const [diagnosticError, setDiagnosticError] = useState('');
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const runState = diagnosticError ? 'failed' : classifyDiagnosticRun(diagnosticRun);
+  const labels = {
+    fileIntegrity: lang === 'ar' ? 'سلامة ملفات Windows' : 'Windows file integrity',
+    componentStore: lang === 'ar' ? 'مخزن مكونات Windows' : 'Windows component store',
+    systemCapacity: lang === 'ar' ? 'مساحة قرص النظام' : 'System volume capacity',
+    runtimeResources: lang === 'ar' ? 'موارد التشغيل' : 'Runtime resources',
+    systemProtection: lang === 'ar' ? 'حماية النظام' : 'System protection',
+  } as const;
+  const details = {
+    fileIntegrity: lang === 'ar' ? 'ينفذ التشخيص الحقيقي SM01 عبر sfc /verifyonly عند الطلب.' : 'Runs the real SM01 diagnosis through sfc /verifyonly on demand.',
+    componentStore: lang === 'ar' ? 'يتم اقتراح DISM فقط من نتيجة التشخيص وليس كحالة مزيفة.' : 'DISM is proposed from diagnostic evidence, not decorative state.',
+    systemCapacity: readiness.systemDrive ? `${readiness.systemDrive.Name} · ${number(readiness.systemDrive.FreeGB, lang)} GB ${lang === 'ar' ? 'متاحة' : 'free'}` : (lang === 'ar' ? 'تعذر تحديد قرص النظام.' : 'System volume could not be identified.'),
+    runtimeResources: `${data.CpuLoad}% CPU · ${number(data.FreeRamGB, lang)} GB ${lang === 'ar' ? 'ذاكرة متاحة' : 'free memory'}`,
+    systemProtection: data.DefenderRealtime ? (lang === 'ar' ? 'الحماية الأساسية مقروءة من Windows.' : 'Baseline protection is read from Windows.') : (lang === 'ar' ? 'الحماية تحتاج مراجعة.' : 'Protection needs review.'),
+  } as const;
+  const startDiagnosis = async () => {
+    setDiagnosticError('');
+    setDiagnosticRun(null);
+    try {
+      const { runId } = await api.startRun('SM01', 'run');
+      setActiveRunId(runId);
+      const poll = async () => {
+        const { run } = await api.getRun(runId);
+        setDiagnosticRun(run);
+        if (run.status === 'running') window.setTimeout(poll, 900);
+        else setActiveRunId(null);
+      };
+      await poll();
+    } catch (error) {
+      setActiveRunId(null);
+      setDiagnosticError(error instanceof Error ? error.message : String(error));
+    }
+  };
+  const cancelDiagnosis = async () => {
+    if (!activeRunId) return;
+    try { await api.cancelRun(activeRunId); } catch (error) { setDiagnosticError(error instanceof Error ? error.message : String(error)); }
+  };
+  const canRepair = runState === 'completed_issues' && Boolean(onRunRepair);
+  const outcome = diagnosticRun?.result;
   return <div className="health-app-view health-product-view system-repair-product-view">
     <section className="product-command-hero health-command-hero">
-      <div className="health-copy"><p>{lang === 'ar' ? 'تطبيق إصلاح النظام' : 'System repair application'}</p><h2>{reviewCount ? (lang === 'ar' ? `${reviewCount} إشارات تحتاج مراجعة` : `${reviewCount} signals need review`) : (lang === 'ar' ? 'جاهز للتشخيص الكامل' : 'Ready for full diagnosis')}</h2><span>{lang === 'ar' ? 'يعرض هذا الاستوديو خطة إصلاح مفهومة فوق محركات Windows الحقيقية دون كشف أوامر PowerShell كواجهة أساسية.' : 'This studio presents a clear repair plan over real Windows engines without exposing PowerShell as the primary experience.'}</span>{onRunHealthCheck && <button type="button" className="product-primary-action" onClick={onRunHealthCheck}><HeartPulse size={16} />{lang === 'ar' ? 'بدء مراجعة التشخيص' : 'Start diagnosis review'}</button>}</div>
-      <div className="health-score" style={{ '--score': `${(100 - reviewCount * 16) * 3.6}deg` } as React.CSSProperties}><div><b>{Math.max(52, 100 - reviewCount * 16)}</b><span>/ 100</span><small>{lang === 'ar' ? 'جاهزية الإصلاح' : 'repair readiness'}</small></div></div>
-      <aside className="health-live-summary"><span><DatabaseZap size={14} />{lang === 'ar' ? 'بيانات حية' : 'Live evidence'}</span><strong>{data.Machine || '—'}</strong><small>{data.Os || '—'} · build {data.Build || '—'}</small></aside>
+      <div className="health-copy"><p>{lang === 'ar' ? 'تطبيق إصلاح النظام' : 'System repair application'}</p><h2>{runState === 'running' ? (lang === 'ar' ? 'التشخيص يعمل الآن' : 'Diagnosis is running') : runState === 'completed_healthy' ? (lang === 'ar' ? 'لم تُكتشف مشاكل في السلامة' : 'No integrity issues detected') : runState === 'completed_issues' ? (lang === 'ar' ? 'ظهرت أدلة تحتاج خطة إصلاح' : 'Evidence requires a repair plan') : runState === 'failed' ? (lang === 'ar' ? 'تعذر إكمال التشخيص' : 'Diagnosis could not complete') : runState === 'cancelled' ? (lang === 'ar' ? 'تم إلغاء التشخيص' : 'Diagnosis cancelled') : readiness.reviewCount ? (lang === 'ar' ? `${readiness.reviewCount} إشارات استعداد تحتاج مراجعة` : `${readiness.reviewCount} readiness signals need review`) : (lang === 'ar' ? 'جاهز للتشخيص الحقيقي' : 'Ready for real diagnosis')}</h2><span>{lang === 'ar' ? 'زر التشخيص يشغّل SM01 الفعلي ويحوّل تقرير الجلسة إلى حالة مفهومة داخل التطبيق.' : 'The diagnosis button runs the real SM01 engine and turns its session report into product state.'}</span><div className="product-hero-actions">{runState === 'running' ? <button type="button" className="product-primary-action" onClick={cancelDiagnosis}><RefreshCw size={16} className="animate-spin" />{lang === 'ar' ? 'إلغاء التشخيص' : 'Cancel diagnosis'}</button> : <button type="button" className="product-primary-action" onClick={() => void startDiagnosis()}><HeartPulse size={16} />{lang === 'ar' ? 'تشغيل تشخيص SM01' : 'Run SM01 diagnosis'}</button>}{canRepair && <button type="button" className="product-primary-action" onClick={onRunRepair}><Wrench size={16} />{lang === 'ar' ? 'تأكيد خطة الإصلاح' : 'Confirm repair plan'}</button>}</div></div>
+      <div className="health-score" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={readiness.score} style={{ '--score': `${readiness.gaugeDegrees}deg` } as React.CSSProperties}><div><b>{readiness.score}</b><span>/ 100</span><small>{lang === 'ar' ? 'جاهزية الإصلاح' : 'repair readiness'}</small></div></div>
+      <aside className="health-live-summary"><span><DatabaseZap size={14} />{lang === 'ar' ? 'بيانات حية' : 'Live evidence'}</span><strong>{data.Machine || '—'}</strong><small>{data.Os || '—'} · {lang === 'ar' ? 'قرص النظام' : 'system'} {readiness.systemDrive?.Name || data.SystemDrive || '—'}</small></aside>
     </section>
-    <section className="network-pipeline"><div className="app-section-title"><div><p>{lang === 'ar' ? 'دورة الإصلاح' : 'Repair lifecycle'}</p><h2>{lang === 'ar' ? 'اكتشاف ← تحليل ← خطة ← تأكيد ← تنفيذ ← تحقق ← تقرير' : 'Discover → Analyze → Plan → Confirm → Execute → Verify → Report'}</h2></div><span className="product-evidence-badge"><ShieldCheck size={13} />{lang === 'ar' ? 'آمن افتراضياً' : 'Safe by default'}</span></div><div>{checks.map((check, index) => <article className={check.state === 'passed' ? 'is-passed' : check.state === 'review' ? 'is-review' : ''} key={check.label}><span>{check.state === 'passed' ? <CheckCircle2 size={16} /> : check.state === 'review' ? <CircleAlert size={16} /> : <ScanSearch size={16} />}</span><div><strong>{index + 1}. {check.label}</strong><small>{check.detail}</small></div></article>)}</div></section>
-    <section className="product-findings">{plan.map((item, index) => <article key={item}><span className="signal-level low" /><div><strong>{lang === 'ar' ? `الخطوة ${index + 1}` : `Step ${index + 1}`}</strong><small>{item}</small></div><ChevronRight size={16} className="rtl:rotate-180" /></article>)}</section>
-    <section className="cleaner-review-summary"><div><span>{lang === 'ar' ? 'التفاصيل الفنية' : 'Technical details'}</span><strong>{lang === 'ar' ? 'SFC / DISM / Windows services خلف طبقة التنفيذ' : 'SFC / DISM / Windows services behind the execution layer'}</strong><small>{lang === 'ar' ? 'ستظهر المخرجات الخام فقط من لوحة التفاصيل المتقدمة بعد التشغيل.' : 'Raw output is reserved for advanced details after execution.'}</small></div><ShieldCheck size={22} /></section>
+    <section className="network-pipeline"><div className="app-section-title"><div><p>{lang === 'ar' ? 'دورة الإصلاح' : 'Repair lifecycle'}</p><h2>{lang === 'ar' ? 'اكتشاف ← تحليل ← خطة ← تأكيد ← تنفيذ ← تحقق ← تقرير' : 'Discover → Analyze → Plan → Confirm → Execute → Verify → Report'}</h2></div><span className="product-evidence-badge"><ShieldCheck size={13} />{lang === 'ar' ? 'آمن افتراضياً' : 'Safe by default'}</span></div><div>{readiness.checks.map((check, index) => <article className={check.state === 'passed' ? 'is-passed' : check.state === 'review' ? 'is-review' : ''} key={check.id}><span>{check.state === 'passed' ? <CheckCircle2 size={16} /> : check.state === 'review' ? <CircleAlert size={16} /> : <ScanSearch size={16} />}</span><div><strong>{index + 1}. {labels[check.id]}</strong><small>{details[check.id]}</small></div></article>)}</div></section>
+    <section className="product-findings"><article><span className={`signal-level ${runState === 'failed' ? 'high' : runState === 'completed_healthy' ? 'low' : 'medium'}`} /><div><strong>{lang === 'ar' ? 'حالة التشخيص' : 'Diagnosis state'}</strong><small>{diagnosticError || outcome?.ErrorMessage || outcome?.VerificationResult || runState}</small></div><ChevronRight size={16} className="rtl:rotate-180" /></article><article><span className="signal-level low" /><div><strong>{lang === 'ar' ? 'التقرير' : 'Report'}</strong><small>{outcome?.ReportPath || (lang === 'ar' ? 'سيظهر بعد انتهاء المحرك.' : 'Appears after the engine finishes.')}</small></div><ChevronRight size={16} className="rtl:rotate-180" /></article></section>
+    <section className="cleaner-review-summary"><div><span>{lang === 'ar' ? 'التفاصيل الفنية' : 'Technical details'}</span><strong>{outcome ? `${outcome.ToolId} · ${outcome.Status} · exit ${outcome.ExitCode}` : (lang === 'ar' ? 'SM01 / SM02 خلف طبقة التنفيذ' : 'SM01 / SM02 behind the execution layer')}</strong><small>{lang === 'ar' ? 'المخرجات الخام تبقى في تقرير الجلسة ولا تصبح واجهة المستخدم الأساسية.' : 'Raw output stays in the session report and is not the primary user experience.'}</small></div><ShieldCheck size={22} /></section>
   </div>;
 }
 
@@ -246,7 +272,6 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
     const tool = tools.find((candidate) => candidate.ToolId === toolId);
     if (tool) launch(tool);
   }, [tools]);
-  const healthReviewTool = tools.find((tool) => tool.AnalyzeOnlySupported || tool.WhatIfSupported) || null;
   const specs: Partial<Record<ActiveSection, { title: Localized; eyebrow: Localized; icon: ElementType; accent: string }>> = {
     maintenance: { title: { en: 'Device Health', ar: 'صحة الجهاز' }, eyebrow: { en: 'HEALTH STUDIO', ar: 'استوديو الصحة' }, icon: HeartPulse, accent: '#58a6ff' },
     cleanup: { title: { en: 'Space Cleaner', ar: 'تنظيف المساحة' }, eyebrow: { en: 'CLEANUP PLAN', ar: 'خطة التنظيف' }, icon: Trash2, accent: '#43c98d' },
@@ -271,7 +296,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
   const content = useMemo(() => {
     if (!available || !data) return null;
     switch (activeSection) {
-      case 'maintenance': return <SystemRepairApp data={data as SystemSnapshot} lang={lang} onRunHealthCheck={healthReviewTool ? () => launch(healthReviewTool) : undefined} />;
+      case 'maintenance': return <SystemRepairApp data={data as SystemSnapshot} lang={lang} onRunRepair={tools.find((tool) => tool.ToolId === 'SM02') ? () => launchToolById('SM02') : undefined} />;
       case 'cleanup': return <CleanerApp data={data as CleanupPreview} lang={lang} reviewableToolIds={reviewableToolIds} onReviewTarget={launchToolById} />;
       case 'performance': return <PerformanceApp data={data as OptimizationPreview} lang={lang} reviewableToolIds={reviewableToolIds} onReviewSignal={launchToolById} />;
       case 'disk': return <StorageApp data={data as SystemSnapshot} lang={lang} />;
@@ -288,7 +313,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       case 'monitoring': case 'services': return <OperationsApp data={data as OperationsPreview} lang={lang} />;
       default: return <GenericApp section={activeSection} lang={lang} />;
     }
-  }, [activeSection, available, data, lang, healthReviewTool, launchToolById, reviewableToolIds]);
+  }, [activeSection, available, data, lang, launchToolById, reviewableToolIds]);
   const specialContent = activeSection === 'duplicates'
     ? <DuplicateOrganizerApp lang={lang} tools={tools} onPrepareRun={prepareToolRun} />
     : activeSection === 'projectSonar'

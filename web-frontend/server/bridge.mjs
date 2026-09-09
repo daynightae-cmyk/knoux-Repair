@@ -423,6 +423,7 @@ function createRun(toolId, mode = 'run', options = {}) {
     finishedAt: null,
     lines: [],
     error: null,
+    result: null,
     cancelled: false,
     child: null,
         timer: null,
@@ -473,6 +474,20 @@ function createRun(toolId, mode = 'run', options = {}) {
   return run;
 }
 
+function parseKnouxRunResult(run) {
+  const reportLine = [...run.lines].reverse().find((line) => /Report:\s+/.test(line.text));
+  const reportPath = reportLine ? String(reportLine.text).replace(/^.*Report:\s+/, '').trim() : '';
+  if (!reportPath || !path.isAbsolute(reportPath)) return null;
+  const resultPath = path.join(reportPath, 'results.json');
+  if (!resultPath.startsWith(REPO_ROOT + path.sep) || !fs.existsSync(resultPath)) return null;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(resultPath, 'utf8').replace(/^\uFEFF/, ''));
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return { Status: 'Malformed', ReportPath: reportPath, ErrorMessage: 'The tool completed but returned malformed structured results.' };
+  }
+}
+
 function finishRun(runId, exitCode, reason) {
   const run = runs.get(runId);
   if (!run || run.status !== 'running') return;
@@ -491,6 +506,11 @@ function finishRun(runId, exitCode, reason) {
     run.status = exitCode === 0 ? 'success' : 'error';
     if (exitCode !== 0) run.error = `Tool exited with code ${exitCode}.`;
   }
+  run.result = parseKnouxRunResult(run);
+  if (run.result && typeof run.result.ExitCode === 'number') run.exitCode = run.result.ExitCode;
+  if (run.result?.Status === 'Warning' || run.result?.Status === 'Inconclusive') run.status = 'success';
+  if (run.result?.Status === 'Cancelled') run.status = 'cancelled';
+  if (run.result?.Status === 'Failed') { run.status = 'error'; run.error = run.result.ErrorMessage || run.error; }
   for (const tempPath of run.tempFiles || []) { try { fs.unlinkSync(tempPath); } catch { /* non-critical temporary plan cleanup */ } }
   if (activeRunId === runId) activeRunId = null;
 }
@@ -509,7 +529,7 @@ function publicRun(run) {
   return {
     id: run.id, toolId: run.toolId, toolName: run.toolName, mode: run.mode, status: run.status,
     exitCode: run.exitCode, startedAt: run.startedAt, finishedAt: run.finishedAt,
-    lines: run.lines, error: run.error,
+    lines: run.lines, error: run.error, result: run.result,
   };
 }
 
@@ -522,8 +542,9 @@ $ErrorActionPreference = 'SilentlyContinue'
 $o = Get-CimInstance Win32_OperatingSystem
 $cs = Get-CimInstance Win32_ComputerSystem
 $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+$systemDrive = $env:SystemDrive
 $drives = @(Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Object {
-  [pscustomobject]@{ Name = $_.DeviceID; TotalGB = [math]::Round($_.Size/1GB,1); FreeGB = [math]::Round($_.FreeSpace/1GB,1) }
+  [pscustomobject]@{ Name = $_.DeviceID; TotalGB = [math]::Round($_.Size/1GB,1); FreeGB = [math]::Round($_.FreeSpace/1GB,1); IsSystem = ([string]$_.DeviceID -ieq [string]$systemDrive) }
 })
 $fw = $null
 try { $fw = @(Get-NetFirewallProfile | ForEach-Object { [pscustomobject]@{ Profile = $_.Name; Enabled = $_.Enabled } }) } catch { $fw = $null }
@@ -537,7 +558,7 @@ $p = Get-Process | Where-Object { $_.ProcessName } | Measure-Object | Select-Obj
   TotalRamGB = [math]::Round($cs.TotalPhysicalMemory/1GB,1);
   FreeRamGB = [math]::Round($o.FreePhysicalMemory/1MB,1);
   CpuName = $cpu.Name; CpuLoad = $cpu.LoadPercentage;
-  Processes = $p; Drives = $drives;
+  Processes = $p; SystemDrive = $systemDrive; Drives = $drives;
   Firewall = $fw;
   DefenderRunning = [bool]$sec; DefenderRealtime = [bool]($def.RealTimeProtectionEnabled -eq $true);
   DefenderSignatures = [string]$def.AntivirusSignatureVersion

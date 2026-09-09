@@ -33,3 +33,19 @@ Generated from `Config/menus.json`, script files, and the current web bridge/UI 
 
 - System Maintenance has been elevated from a generic health view into a System Repair mini-application with diagnosis, repair-plan, verification, safety, technical-details, and localized Arabic/English copy.
 - The dashboard workspace metadata no longer uses fabricated relative activity times; it now describes availability/readiness states derived from the bridge/tool inventory.
+
+## Forensic verification update
+
+The PR #6 follow-up audit distinguishes product-ready behavior from visible UI presence. A specialized card alone is not considered complete.
+
+| Service | Route / App Surface | Real Input | Structured Output | Progress / Cancel | Error Recovery | Verified Status |
+|---|---|---|---|---|---|---|
+| System Maintenance | `ServiceApps` → `SystemRepairApp` | `/api/system`, `SM01`, `SM02` | Bridge `BridgeRun.result` parsed from session `results.json` | SM01 polling + bridge cancel; SM02 through confirmation dialog | Bridge errors and session failures mapped to failed state | Functional first slice; DISM chain still remains a future expansion |
+| System Cleanup | `CleanerApp` | `SC11` preview + cleanup scripts | JSON preview + run reports | Shared bridge run/cancel | Shared confirmation and bridge errors | Existing mini-app, still needs richer post-clean report UX |
+| Network | `NetworkApp` | `NI11` preview + NI repair tools | JSON preview + run reports | Shared bridge run/cancel | Shared confirmation and bridge errors | Existing diagnostic preview, repair plan UX still incomplete |
+| Programs / Software | `LibraryApp` | `SW07`, `SW08`, app scripts | JSON inventory + run reports | Shared bridge run/cancel | Shared confirmation and bridge errors | Inventory is real; uninstall verification flow remains incomplete |
+| Duplicates | `DuplicateOrganizerApp` | Folder picker + `DF11` preview | Duplicate groups and quarantine plan | Preview plus shared bridge run/cancel | Expired preview and validation errors handled | Dedicated workflow exists |
+| Storage | `StorageApp` | `/api/system` drive evidence | Drive capacity snapshot | Refresh only | Bridge unavailable state | Capacity-only; SMART diagnostic app remains incomplete |
+| Security | `SecurityApp` | `/api/system`, SE scripts | Defender/firewall snapshot + reports | Shared bridge run/cancel | Shared confirmation and bridge errors | Protection center exists; scan result workspace remains incomplete |
+| Backup & Recovery | `RecoveryApp` | `BR04` preview + BR scripts | Restore-point/backup evidence | Shared bridge run/cancel | Shared confirmation and bridge errors | Recovery vault exists; file recovery UX remains incomplete |
+
