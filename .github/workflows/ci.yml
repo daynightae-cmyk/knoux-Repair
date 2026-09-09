@@ -54,6 +54,10 @@ jobs:
         working-directory: web-frontend
         run: npm run build
 
+      - name: Smoke-test Web gateway and real bridge
+        shell: pwsh
+        run: ./Tests/Test-WebGateway.ps1
+
       - name: Restore Desktop project
         run: dotnet restore Glass-GUI-Builder/src/KnouxRepair/KnouxRepair.csproj
 
