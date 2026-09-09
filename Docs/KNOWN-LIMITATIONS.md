@@ -1,76 +1,81 @@
-# Known Limitations — knoux Repair v2.0
+# Known Limitations — KNOUX Repair v2.0.2
 
-## Environment-specific behavior (validated on Windows 10 Pro 19045)
+This file describes the **current repository**, not only the original 100-tool console release baseline.
 
-- **Power plans** are enumerated through `powercfg /list` + `/getactivescheme` (GUID/name regex).
-  The CIM class `Win32_PowerPlan` returns nothing on some Windows 10 machines.
-- **Firewall state** is read with `netsh advfirewall show allprofiles state`. Firewall tools
-  are **enable-only**: `Set-KnouxFirewallState` only ever runs `netsh advfirewall set
-  allprofiles state on` and verifies the result. The `state off` variant and the
-  `Get/Set-NetFirewallProfile` cmdlets (which throw "Invalid class" on some machines) are
-  never used; there is no firewall-disable tool.
-- **Driver status** (`DR05`/`DR08`) reads `Win32_PnPSignedDriver.DeviceName` (the `Name` property
-  is empty on this machine) and `Win32_PnPEntity.ConfigManagerErrorCode`. On systems where
-  `Win32_PnPEntity` is empty, the problem-driver count reports 0.
-- **Duplicate scanning** is bounded on purpose (`defaultMaxFiles` = 20,000 files, skip reparse
-  points/offline files, `HashByteBudget` = 500 MB default) so scans terminate quickly on
-  pathological profiles (e.g. 443k files / 38 GB with OneDrive reparse). Deep scans of such
-  profiles will not find every duplicate — increase the budget if you need a fuller scan.
+## Current product scope
 
-## Tool execution status (validated 2026-08-04)
+The repository now contains 18 service categories and 158 registered tools/scripts, plus multiple product surfaces:
 
-All 100 tools were behaviorally executed in this environment (Windows 10 Pro 19045,
-non-elevated) and are marked `TestResult = PASS` in the manifest:
+- PowerShell console (`Menu.ps1` / `START-KNOUX-REPAIR.cmd`),
+- React + TypeScript Glass Nexus UI,
+- Electron desktop packaging,
+- WPF/.NET desktop project,
+- localhost execution bridge (`web-frontend/server/bridge.mjs`).
 
-- 77 tools were executed by the v2.0.1 suite + analyze-only smoke validation.
-- The 23 tools NOT_TESTED in v2.0.1 (SM01-SM09, DS06, DS09, NI01-NI05, NI08-NI10, PA02,
-  SC04, SC06, SC07) were executed via a dedicated v2.0.2 harness using the exact menu
-  invocation path (child `pwsh`, `$ErrorActionPreference='Stop'`, Core imported, `&`
-  invocation); each report's `ExitCode` was asserted to match its `Status`.
-- NI01/NI10 use CIM classes (`Get-NetAdapter`, `Get-NetIPConfiguration`) that throw
-  `Invalid class` on some machines. Both were fixed to degrade gracefully — NI01 reads the
-  gateway via `ipconfig.exe` (with `Get-NetRoute` fallback) and DNS via `nslookup.exe`
-  fallback; NI10 reports `Warning` + "incomplete" when CIM data is unavailable. Both have
-  permanent regression tests (82/83).
+The historical v2.0.2 console acceptance documents remain useful evidence for the original 100-tool baseline, but they must not be read as a complete inventory of the expanded repository.
 
-Environment-only items that remain NOT TESTED (not release blockers) and must be validated on
-the target environment:
+## Environment-specific behavior
 
-- **Windows 11** — all tools are `#Requires -Version 5.1` PowerShell; Windows 11 behavior is
-  untested beyond this build machine.
-- **PowerShell 7 (pwsh)** — validated on pwsh 7.6.3 (83/83); newer 7.x releases are untested
-  beyond that.
-- **Standard (non-admin) user** — admin-requiring tools show an explicit failure path, but a
-  full standard-user session has not been exercised.
-- **Fully offline machine** — online-dependent paths (signature update SE10, program updates
-  PA09, network tests NI01/NI06, update download cache SC06) are untested offline.
-- **Real rollback** — creating a restore point (`New-KnouxRestorePoint`) is best-effort;
-  an actual system restore after a real repair run was not performed.
-- **Live quarantine restore through the menu** — `Restore-KnouxQuarantinedItem` is covered by
-  automated SHA-256 round-trip tests, but no manual menu-driven restore was performed.
-- **SM09 Windows Update service restore on a real system** — start-mode and running-state
-  restore logic is statically verified and unit-tested via the suite, but a real reset run was
-  not executed (it requires admin and stops WU services).
+- Windows behavior depends on the host's available CIM/WMI providers, Defender components, filesystem layout, installed services, and PowerShell version.
+- Power plans may require `powercfg` fallbacks when `Win32_PowerPlan` is unavailable.
+- Network and PnP inventory paths degrade gracefully where Windows CIM classes are unavailable, but evidence may be incomplete.
+- Duplicate scanning is deliberately bounded to prevent pathological scans from consuming unbounded time or memory. A bounded scan may not discover every duplicate in extremely large profiles.
+- SMART/drive telemetry is hardware- and vendor-dependent. Capacity evidence is more portable than low-level SMART details.
 
-## Behavioral limits
+## Execution / privilege limits
 
-- **Analyze-only mode** is the default recommendation; some data (e.g. SMART attributes) is
-  vendor-specific and may be missing on certain SSDs.
-- **Schedule Disk Check (SM07)** schedules `chkdsk` for the next reboot; it does not reboot for
-  you, and it is the only `REBOOT_REQUIRED` tool in the suite.
-- **System Image Repair (SM05)** repairs with a local `DISM` source first (`/LimitAccess`)
-  and falls back to Windows Update only when no local source is available; it cannot run
-  inside the Windows Recovery Environment in this build.
-- **Defender/AV scan (SE08)** duration depends on the profile; the `-Quick` switch performs a
-  quick scan. Full scans may take a long time.
-- **Reports** accumulate in `Reports\`; `reportsKeepDays` (30) is a setting — automatic pruning
-  is not implemented, remove old folders manually if disk matters.
+- Admin-required tools cannot run through a non-elevated execution bridge. The bridge returns `ELEVATION_REQUIRED` before spawning PowerShell.
+- The application does not bypass Windows UAC. Elevation must be granted through the normal Windows security boundary.
+- `AnalyzeOnly` / `WhatIf` remain the preferred first pass where the selected tool supports them.
+- Some repair operations depend on Windows services, DISM/SFC state, Windows Update availability, or a future reboot and therefore cannot be made deterministic by the application.
 
-## Non-goals (by design)
+## UI / service maturity
 
-- No online/cloud functionality — everything runs offline.
-- No GUI beyond the console menu (`Menu.ps1`).
-- The product does not modify partition tables or format drives.
-- The superseded 1.x `Scripts\` tree is not part of the product and is not validated by the
-  test suite.
+The presence of a service card is not considered proof that the full workflow is complete. The current service inventory identifies these remaining product-depth gaps:
 
+- **System Maintenance:** the first full diagnosis/repair workflow is implemented; deeper DISM-chain streaming remains an expansion area.
+- **System Cleanup:** real preview/execution exists; post-clean reporting can be richer.
+- **Network:** real diagnostics/execution exist; a dedicated repair-plan workspace remains incomplete.
+- **Programs / Software:** real inventory exists; uninstall verification UX needs additional depth.
+- **Storage:** capacity evidence exists; a SMART-first diagnostic workspace remains incomplete.
+- **Security:** protection evidence and repair tools exist; a richer scan-results workspace remains incomplete.
+- **Backup & Recovery:** restore-point/backup evidence exists; a complete end-user file-recovery workflow is still incomplete.
+- **Driver Management:** inventory exists; update/rollback workflow depth remains incomplete.
+
+See `Docs/SERVICE-INVENTORY.md` for the current per-service evidence matrix.
+
+## Web / Electron runtime
+
+- The supported web runtime is local-first. The application gateway and execution bridge bind to loopback (`127.0.0.1`) and are not intended to be exposed as public network services.
+- `npm run dev` / `npm start` must use the real bridge. Fabricated Windows state or simulated tool success is not an accepted production path.
+- Optional OAuth requires locally configured provider credentials. If no provider is configured, authentication can remain disabled for a purely local deployment.
+- Electron's web surface is sandboxed and uses security headers, but it still executes powerful local repair operations through the separately validated bridge. Treat the installed application as privileged maintenance software, not a generic browser app.
+
+## Testing limits
+
+The GitHub Windows quality gate verifies dependency installation, production dependency audit, TypeScript, frontend tests, web build, .NET restore/build, bridge timeout handling, and the PowerShell functional suite.
+
+Items that still require environment/manual validation include:
+
+- visual/manual E2E interaction on representative Windows 10 and Windows 11 machines,
+- full standard-user session behavior across every UI surface,
+- fully offline behavior for tools that intentionally depend on network services,
+- a real system rollback after a destructive repair,
+- a real reboot-required workflow through completion,
+- broad screen-reader/keyboard testing beyond static ARIA/semantic coverage,
+- hardware-specific SMART/driver scenarios.
+
+`Tests/Capture-VisualQa.ps1` can assist visual evidence capture, but automated CI is not a substitute for real-machine E2E acceptance of destructive maintenance flows.
+
+## Data / reports
+
+- Runtime evidence and reports can accumulate locally. Operators should apply an appropriate retention policy for `Reports`, logs, backups, and quarantine data.
+- Reports may contain local machine paths, installed software names, device information, or diagnostic details. They should be treated as local operational data even when the application does not require cloud storage.
+
+## Non-goals
+
+- No arbitrary remote shell/API exposure.
+- No silent UAC bypass or privilege escalation.
+- No disk formatting / partition-management product scope.
+- No claim that every hardware-vendor diagnostic signal is available on every Windows machine.
+- No claim that historical 100-tool release evidence proves the newer 158-tool UI expansion by itself.
