@@ -23,6 +23,7 @@ import NetworkStation from '../features/stations/station03/NetworkStation';
 import ProgramsStation from '../features/stations/station04/ProgramsStation';
 import DuplicateStation from '../features/stations/station05/DuplicateStation';
 import DiskSpaceStation from '../features/stations/station06/DiskSpaceStation';
+import ServicesStation from '../features/stations/station07/ServicesStation';
 import ProjectSonarApp from './ProjectSonarApp';
 
 interface ServiceAppsProps {
@@ -289,6 +290,19 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
         />
       );
     }
+    if (activeSection === 'services') {
+      return (
+        <ServicesStation
+          lang={lang}
+          tools={tools}
+          toolStatuses={toolStatuses}
+          bridgeElevated={bridgeElevated}
+          bridgeOnline={bridgeOnline}
+          onRetryBridge={onRetryBridge || reload}
+          onToolStatus={onToolStatus || (() => {})}
+        />
+      );
+    }
     if (!available || !data) return null;
     switch (activeSection) {
       case 'performance': return <PerformanceApp data={data as OptimizationPreview} lang={lang} reviewableToolIds={reviewableToolIds} onReviewSignal={launchToolById} />;
@@ -300,7 +314,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       case 'privacy': return <PrivacyApp data={data as PrivacyPreview} lang={lang} />;
       case 'drivers': return <DriverApp data={data as DriversPreview} lang={lang} />;
       case 'postInstall': return <SetupApp data={data as PostInstallPreview} lang={lang} />;
-      case 'monitoring': case 'services': return <OperationsApp data={data as OperationsPreview} lang={lang} />;
+      case 'monitoring': return <OperationsApp data={data as OperationsPreview} lang={lang} />;
       default: return <GenericApp section={activeSection} lang={lang} />;
     }
   }, [activeSection, available, data, lang, launchToolById, reviewableToolIds, tools, toolStatuses, bridgeElevated, bridgeOnline, onRetryBridge, onToolStatus, reload]);
@@ -311,7 +325,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>
