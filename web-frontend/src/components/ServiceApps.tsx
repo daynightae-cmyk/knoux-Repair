@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Activity, AppWindow, ArchiveRestore, ArrowRight, BadgeCheck, Boxes,
+  Activity, AppWindow, ArchiveRestore, ArrowRight, Boxes,
   CheckCircle2, ChevronRight, CircleAlert, CloudCog, Copy, Cpu, DatabaseZap, FolderKanban, Gauge, HardDrive,
   HeartPulse, Layers3, LoaderCircle, LockKeyhole, MonitorCog, Network, PackageCheck, Radar, RefreshCw,
   Rocket, ScanSearch, ShieldCheck, Sparkles, Trash2, TriangleAlert, UserRoundCheck,
@@ -9,7 +9,7 @@ import {
 import type { ElementType } from 'react';
 import type { ActiveSection, ToolStatus } from '../types';
 import type {
-  BackupRecoveryPreview, BridgeTool, DriversPreview, ExecutionMode,
+  BridgeTool, DriversPreview, ExecutionMode,
   OperationsPreview, PostInstallPreview, PrivacyPreview, SoftwarePreview,
   ToolRunConfirmation, ToolRunOptions,
 } from '../lib/api';
@@ -27,6 +27,7 @@ import ServicesStation from '../features/stations/station07/ServicesStation';
 import PerformanceStation from '../features/stations/station08/PerformanceStation';
 import SecurityStation from '../features/stations/station09/SecurityStation';
 import DiagnosticsStation from '../features/stations/station10/DiagnosticsStation';
+import RecoveryStation from '../features/stations/station11/RecoveryStation';
 import ProjectSonarApp from './ProjectSonarApp';
 
 interface ServiceAppsProps {
@@ -95,12 +96,6 @@ function useServiceData(section: ActiveSection) {
   return { data, loading, available, reload: load };
 }
 
-function bytes(value: number | null | undefined, lang: Lang) {
-  if (value === null || value === undefined) return '—';
-  if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toLocaleString(lang, { maximumFractionDigits: 1 })} GB`;
-  if (value >= 1024 ** 2) return `${(value / 1024 ** 2).toLocaleString(lang, { maximumFractionDigits: 1 })} MB`;
-  return `${value.toLocaleString(lang)} B`;
-}
 function number(value: number | null | undefined, lang: Lang) { return value === null || value === undefined ? '—' : value.toLocaleString(lang); }
 function preferredMode(tool: BridgeTool): ExecutionMode { return tool.AnalyzeOnlySupported ? 'analyze' : tool.WhatIfSupported ? 'preview' : 'run'; }
 function tone(status: ToolStatus | undefined) { return status === 'success' ? 'is-success' : status === 'error' ? 'is-error' : status === 'running' ? 'is-running' : ''; }
@@ -137,14 +132,7 @@ function SafetyNote({ lang }: { lang: Lang }) { const text = COPY[lang]; return 
 
 
 
-function RecoveryApp({ data, lang }: { data: BackupRecoveryPreview; lang: Lang }) {
-  const readiness = [
-    { label: lang === 'ar' ? 'نقطة استعادة' : 'Restore point', ready: data.RestorePoints.Count > 0, detail: data.RestorePoints.Count ? `${number(data.RestorePoints.Count, lang)} ${lang === 'ar' ? 'متاحة' : 'available'}` : (lang === 'ar' ? 'لم تُكتشف نقطة حالياً' : 'No point detected') },
-    { label: lang === 'ar' ? 'نسخة محلية' : 'Local backup', ready: Boolean(data.LocalBackups.Latest), detail: data.LocalBackups.Latest ? data.LocalBackups.Latest.Name : (lang === 'ar' ? 'لا توجد نسخة مكتشفة' : 'No backup discovered') },
-    { label: lang === 'ar' ? 'نسخة ظل' : 'Shadow copy', ready: data.ShadowCopies.Count > 0, detail: data.ShadowCopies.Count ? `${number(data.ShadowCopies.Count, lang)} ${lang === 'ar' ? 'متاحة' : 'available'}` : (lang === 'ar' ? 'لا توجد نسخة ظل' : 'No shadow copy') },
-  ];
-  return <div className="recovery-app-view recovery-product-view"><section className="recovery-vault"><ArchiveRestore size={39} /><div><p>{lang === 'ar' ? 'مركز الحماية والاستعادة' : 'Protection & recovery center'}</p><h2>{number(readiness.filter((item) => item.ready).length, lang)} / {number(readiness.length, lang)} {lang === 'ar' ? 'خيارات جاهزة' : 'options ready'}</h2><span>{lang === 'ar' ? 'نظرة مبنية على نقاط الاستعادة والنسخ المحلية التي وجدها الجهاز.' : 'A view based on restore points and local backups found by the device.'}</span></div><BadgeCheck size={25} /></section><section className="recovery-readiness-grid">{readiness.map((item) => <article className={item.ready ? 'is-ready' : 'is-review'} key={item.label}><span>{item.ready ? <CheckCircle2 size={17} /> : <CircleAlert size={17} />}</span><div><strong>{item.label}</strong><small>{item.detail}</small></div></article>)}</section><section className="recovery-timeline">{data.RestorePoints.Items.slice(0, 4).map((point, index) => <article key={`${point.SequenceNumber}-${point.Description}`}><span>{index + 1}</span><div><strong>{point.Description}</strong><small>{point.CreatedAt || '—'}</small></div><CheckCircle2 size={16} /></article>)}</section><section className="recovery-backup-card"><HardDrive size={23} /><div><p>{lang === 'ar' ? 'أحدث نسخة محلية' : 'Latest local backup'}</p><strong>{data.LocalBackups.Latest?.Name || (lang === 'ar' ? 'لا توجد نسخة مكتشفة' : 'No backup discovered')}</strong><span>{data.LocalBackups.Latest ? `${bytes(data.LocalBackups.Latest.SizeBytes, lang)} · ${data.LocalBackups.Latest.FileCount.toLocaleString(lang)} ${lang === 'ar' ? 'ملف' : 'files'}` : (lang === 'ar' ? 'لا تعرض هذه الشاشة استعادة لا يمكن تأكيد مصدرها.' : 'This screen does not offer recovery without a confirmed source.')}</span></div></section></div>;
-}
+
 
 function LibraryApp({ data, lang, variant }: { data: SoftwarePreview; lang: Lang; variant: 'software' | 'apps' | 'developer' }) {
   const [filter, setFilter] = useState<'all' | 'desktop' | 'store'>('all'); const [selectedName, setSelectedName] = useState<string | null>(data.Items[0]?.Name || null);
@@ -320,9 +308,21 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
         />
       );
     }
+    if (activeSection === 'backupRecovery') {
+      return (
+        <RecoveryStation
+          lang={lang}
+          tools={tools}
+          toolStatuses={toolStatuses}
+          bridgeElevated={bridgeElevated}
+          bridgeOnline={bridgeOnline}
+          onRetryBridge={onRetryBridge || reload}
+          onToolStatus={onToolStatus || (() => {})}
+        />
+      );
+    }
     if (!available || !data) return null;
     switch (activeSection) {
-      case 'backupRecovery': return <RecoveryApp data={data as BackupRecoveryPreview} lang={lang} />;
       case 'softwareEnvironment': return <LibraryApp data={data as SoftwarePreview} lang={lang} variant="software" />;
       case 'developerTools': return <LibraryApp data={data as SoftwarePreview} lang={lang} variant="developer" />;
       case 'privacy': return <PrivacyApp data={data as PrivacyPreview} lang={lang} />;
@@ -339,7 +339,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>
