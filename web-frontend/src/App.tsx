@@ -569,6 +569,9 @@ function NexusApp() {
                       tools={toolsByCategory[SECTION_MAP[activeSection]] || []}
                       lang={lang}
                       bridgeElevated={bridgeElevated}
+                      bridgeOnline={bridgeOnline}
+                      onRetryBridge={() => { void connectBridge(); }}
+                      onToolStatus={(toolId, status) => setToolStatuses((previous) => ({ ...previous, [toolId]: status }))}
                       onRunTool={runTool}
                       onCancelTool={cancelRun}
                     />

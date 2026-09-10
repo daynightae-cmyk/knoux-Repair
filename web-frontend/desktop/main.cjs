@@ -97,10 +97,15 @@ async function prepareWritableRuntime() {
   const source = sourceRuntimeRoot();
   const target = writableRuntimeRoot();
   const versionFile = path.join(target, '.glass-nexus-runtime-version');
+  const fingerprintFile = path.join(target, '.glass-nexus-runtime-fingerprint');
   const version = app.getVersion();
-  let currentVersion = '';
-  try { currentVersion = (await fsp.readFile(versionFile, 'utf8')).trim(); } catch { }
-  if (currentVersion === version && fs.existsSync(path.join(target, 'Docs', 'TOOLS-MANIFEST.json'))) return target;
+  // Fingerprint the executable runtime surface so same-version code updates
+  // still refresh the writable copy. Version alone is not enough: without
+  // this, a stale bridge/scripts copy would run forever under one version.
+  const fingerprint = `${version}:${runtimeFingerprint(source)}`;
+  let currentFingerprint = '';
+  try { currentFingerprint = (await fsp.readFile(fingerprintFile, 'utf8')).trim(); } catch { }
+  if (currentFingerprint === fingerprint && fs.existsSync(path.join(target, 'Docs', 'TOOLS-MANIFEST.json'))) return target;
 
   await fsp.mkdir(target, { recursive: true });
   await fsp.cp(source, target, {
@@ -109,7 +114,36 @@ async function prepareWritableRuntime() {
     filter: (from) => !/[\\/](Reports|Quarantine|node_modules)([\\/]|$)/i.test(from) && !/\.env\.local$/i.test(from),
   });
   await fsp.writeFile(versionFile, version, 'utf8');
+  await fsp.writeFile(fingerprintFile, fingerprint, 'utf8');
   return target;
+}
+
+/**
+ * Station 01 packaged-freshness: SHA-256 over the files that define the
+ * executable runtime (bridge, manifest, menus, Core). Any change refreshes
+ * the writable copy on next launch, even when the app version is unchanged.
+ */
+function runtimeFingerprint(source) {
+  const watched = [
+    'web-frontend/server/bridge.mjs',
+    'Docs/TOOLS-MANIFEST.json',
+    'Config/menus.json',
+    'Core/KnouxRepair.Core.psm1',
+    'Core/KnouxRepair.Safety.psm1',
+    'Core/KnouxRepair.NativeCommands.psm1',
+    'Core/KnouxRepair.Reporting.psm1',
+    'Core/KnouxRepair.Config.psm1',
+    'Core/KnouxRepair.Contracts.psm1',
+  ];
+  const hash = crypto.createHash('sha256');
+  for (const relative of watched) {
+    try {
+      hash.update(fs.readFileSync(path.join(source, relative)));
+    } catch {
+      hash.update(`missing:${relative}`);
+    }
+  }
+  return hash.digest('hex');
 }
 
 function startBridge(runtimeRoot, frontendOrigin) {

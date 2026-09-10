@@ -11,7 +11,7 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'SM03' -ToolName 'Check Component Store' -Category '01-System-Maintenance' -RiskLevel 'READ_ONLY'
+$Session = Start-KnouxSession -ToolId 'SM03' -ToolName 'Check Component Store' -Category '01-System-Maintenance' -RiskLevel 'READ_ONLY' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $Session.RequiresAdmin = $true
 $Session.OfflineCapable = $true
 $rc = 0

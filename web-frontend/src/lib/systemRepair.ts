@@ -39,13 +39,23 @@ export function computeReadiness(system: Pick<SystemSnapshot, 'SystemDrive' | 'D
   return { systemDrive, checks, reviewCount, score, gaugeDegrees: score * 3.6 };
 }
 
+function pickResultField(run: BridgeRun, lower: string, upper: string): unknown {
+  const record = (run.result || {}) as unknown as Record<string, unknown>;
+  const value = record[lower] ?? record[upper];
+  return value === undefined ? '' : value;
+}
+
 export function classifyDiagnosticRun(run: BridgeRun | null): RepairRunState {
   if (!run) return 'idle';
   if (run.status === 'running') return 'running';
   if (run.status === 'cancelled') return 'cancelled';
   if (run.status === 'error') return 'failed';
-  const status = String(run.result?.Status || '').toLowerCase();
-  const verification = String(run.result?.VerificationResult || '').toLowerCase();
+  // INCONCLUSIVE is a first-class terminal state, never success.
+  if (run.status === 'inconclusive') return 'completed_issues';
+  // results.json uses the canonical lowercase envelope with legacy
+  // PascalCase aliases; read both casings.
+  const status = String(pickResultField(run, 'status', 'Status')).toLowerCase();
+  const verification = String(pickResultField(run, 'verificationResult', 'VerificationResult')).toLowerCase();
   if (status === 'success' && (verification === 'ok' || verification === 'repaired_verified')) return 'completed_healthy';
   if (status === 'warning' || status === 'inconclusive' || verification.includes('violation') || verification.includes('evidence')) return 'completed_issues';
   if (status === 'failed' || status === 'malformed') return 'failed';

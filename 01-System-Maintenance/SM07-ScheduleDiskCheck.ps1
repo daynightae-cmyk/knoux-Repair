@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'SM07' -ToolName 'Schedule Disk Check' -Category '01-System-Maintenance' -RiskLevel 'REBOOT_REQUIRED'
+$Session = Start-KnouxSession -ToolId 'SM07' -ToolName 'Schedule Disk Check' -Category '01-System-Maintenance' -RiskLevel 'REBOOT_REQUIRED' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $Session.RequiresAdmin = $true
 $Session.OfflineCapable = $true
 $rc = 0
@@ -31,15 +31,32 @@ if (-not ($AnalyzeOnly -or $WhatIf) -and $Session.RequiresAdmin -and -not (Test-
     Write-Host ('[NOTE] A restart is required for chkdsk to run. Save your work first.') -ForegroundColor Yellow
     if (Confirm-KnouxAction 'Proceed with scheduling the disk check?') {
         $drive = $env:SystemDrive.TrimEnd('\') + '\'
+        # All native calls flow through Invoke-KnouxNativeCommand (captured
+        # exit code, stdout/stderr, timeout). No raw string execution.
         $setExit = -1
         try {
-            & "$env:SystemRoot\System32\fsutil.exe" dirty set $drive 2>&1 | Out-Null
-            $setExit = $LASTEXITCODE
+            $setRun = Invoke-KnouxNativeCommand -FilePath "$env:SystemRoot\System32\fsutil.exe" -ArgumentList @('dirty', 'set', $drive) -TimeoutSeconds 60
+            if ($setRun) {
+                $setExit = $setRun.ExitCode
+                $setRun.Stdout | Out-File -LiteralPath (Join-Path $Session.RawDir 'fsutil-dirty-set-output.txt') -Encoding UTF8
+                Write-KnouxLog -Session $Session ("fsutil dirty set exit {0}" -f $setExit)
+            }
         } catch {
             Write-Warning "fsutil dirty set failed: $($_.Exception.Message)"
+            Write-KnouxLog -Session $Session -Message ("fsutil dirty set failed: " + $_.Exception.Message) 'WARN'
         }
-        & "$env:SystemRoot\System32\fsutil.exe" dirty query $drive 2>$null | Out-Null
-        $queryExit = $LASTEXITCODE
+        $queryExit = -1
+        try {
+            $queryRun = Invoke-KnouxNativeCommand -FilePath "$env:SystemRoot\System32\fsutil.exe" -ArgumentList @('dirty', 'query', $drive) -TimeoutSeconds 60
+            if ($queryRun) {
+                $queryExit = $queryRun.ExitCode
+                $queryRun.Stdout | Out-File -LiteralPath (Join-Path $Session.RawDir 'fsutil-dirty-query-output.txt') -Encoding UTF8
+                Write-KnouxLog -Session $Session ("fsutil dirty query exit {0}" -f $queryExit)
+            }
+        } catch {
+            Write-Warning "fsutil dirty query failed: $($_.Exception.Message)"
+            Write-KnouxLog -Session $Session -Message ("fsutil dirty query failed: " + $_.Exception.Message) 'WARN'
+        }
         $Session.VerificationPerformed = $true
         if ($setExit -eq 0 -and $queryExit -eq 0) {
             $Session.Status = 'Warning'

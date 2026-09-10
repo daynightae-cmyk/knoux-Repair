@@ -10,11 +10,17 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'SM10' -ToolName 'System Maintenance Report' -Category '01-System-Maintenance' -RiskLevel 'READ_ONLY'
+$Session = Start-KnouxSession -ToolId 'SM10' -ToolName 'System Maintenance Report' -Category '01-System-Maintenance' -RiskLevel 'READ_ONLY' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $rc = 0
 
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf
 
+if ($AnalyzeOnly -or $WhatIf) {
+    Write-Host '[ANALYZE] Would collect: OS edition/build, uptime, system-drive free space, last CBS servicing activity, component store size.' -ForegroundColor Green
+    Write-Host '[ANALYZE] Read-only report; no system changes in any mode.' -ForegroundColor Green
+    Write-KnouxLog -Session $Session 'Analyze mode: report collection preview only'
+    $Session.Status = 'Success'
+} else {
 try {
     $os = Get-KnouxOperatingSystemInfo
     $drive = (Get-PSDrive -Name $env:SystemDrive.TrimEnd(':'))
@@ -49,6 +55,7 @@ try {
     Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
     Write-KnouxLog -Session $Session -Message $Session.ErrorMessage 'ERROR'
 }
+} # end else (normal report mode)
 
 $Session.ExitCode = $rc
 $result = Stop-KnouxSession -Session $Session
