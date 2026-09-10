@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, ArrowRight, CheckCircle2, ChevronRight, CircleAlert, Clock, Download,
-  FileText, HeartPulse, History, LoaderCircle, LockKeyhole, Play, RefreshCw, ScanSearch,
-  Square, X,
+  FileText, HeartPulse, History, Layers3, LoaderCircle, LockKeyhole, Play, RefreshCw, ScanSearch,
+  Shield, ShieldCheck, Square, X,
 } from 'lucide-react';
 import type { BridgeRun, BridgeTool, ExecutionMode, SystemSnapshot, ToolRunConfirmation, ToolRunOptions } from '../../../lib/api';
 import { api, BridgeError } from '../../../lib/api';
@@ -21,6 +21,9 @@ import {
   STATION01_TOOL_IDS,
   type EvidenceMap, type HealthState, type HistoryEntry, type PhaseState, type ToolEvidence,
 } from './maintenanceModel';
+import IntegrityHeroVisual from './IntegrityHeroVisual';
+
+export type Station01Tab = 'overview' | 'integrity' | 'image' | 'disk' | 'servicing' | 'report';
 
 interface MaintenanceStationProps {
   lang: Lang;
@@ -42,7 +45,10 @@ interface ActiveRun {
 const COPY = {
   en: {
     eyebrow: 'HEALTH STUDIO', title: 'Device Health', subtitle: 'Windows integrity & repair center — real checks, real evidence.',
+    productTitle: 'System Integrity', productSub: 'Verify critical Windows components and repair only what real evidence proves needs action.',
     checkHealth: 'Check Windows Health', checking: 'Checking…', cancel: 'Cancel',
+    primaryCta: 'RUN INTEGRITY CHECK', secondaryCta: 'View Maintenance History',
+    navOverview: 'Overview', navIntegrity: 'Integrity', navImage: 'System Image', navDisk: 'Disk Check', navServicing: 'Windows Update', navReport: 'Report',
     pipelineTitle: 'Integrity pipeline', pipelineSub: 'Each phase maps to the real registered tool that measures it.',
     findingsTitle: 'Findings', recommendTitle: 'Recommended actions', opsTitle: 'Specialized operations',
     evidenceTitle: 'Evidence center', historyTitle: 'Station history', reportDownload: 'Download maintenance report',
@@ -69,10 +75,23 @@ const COPY = {
     winreBlocked: 'This tool requires WinRE and cannot run as a normal online repair.',
     historyCols: { when: 'When', tool: 'Tool', mode: 'Mode', result: 'Result', changed: 'Changed', restart: 'Restart', verify: 'Verify', report: 'Report' },
     yes: 'Yes', no: 'No',
+    tabIntegrityTitle: 'System File Verification & CBS Analysis',
+    tabIntegritySub: 'Verify protected Windows system files against known-good hashes and repair corrupted files from the component store.',
+    tabImageTitle: 'Component Store & Windows Image Health',
+    tabImageSub: 'Inspect corruption flags in the Windows Component Store (WinSxS), scan image health, and restore servicing payloads.',
+    tabDiskTitle: 'Disk Integrity & Filesystem Verification',
+    tabDiskSub: 'Execute non-disruptive online NTFS filesystem scans or schedule full offline boot repairs when bad sectors are confirmed.',
+    tabServicingTitle: 'Windows Servicing & Update Recovery',
+    tabServicingSub: 'Diagnose Windows Update component states, rebuild SoftwareDistribution cache, and re-register servicing binaries.',
+    tabReportTitle: 'System Maintenance Audit & Evidence Report',
+    tabReportSub: 'Generate audit-ready markdown reports documenting all verified passes, repairs, and pending restart actions.',
   },
   ar: {
     eyebrow: 'استوديو الصحة', title: 'صحة الجهاز', subtitle: 'مركز سلامة ويندوز وإصلاحه — فحوص حقيقية وأدلة حقيقية.',
+    productTitle: 'سلامة النظام', productSub: 'تحقق من مكونات Windows الأساسية وأصلح فقط ما تثبت الأدلة أنه يحتاج إلى إصلاح.',
     checkHealth: 'فحص صحة ويندوز', checking: 'جارٍ الفحص…', cancel: 'إيقاف',
+    primaryCta: 'تشغيل فحص السلامة', secondaryCta: 'سجل الصيانة',
+    navOverview: 'نظرة عامة', navIntegrity: 'سلامة الملفات', navImage: 'صورة النظام', navDisk: 'فحص القرص', navServicing: 'تحديث Windows', navReport: 'التقرير',
     pipelineTitle: 'مسار السلامة', pipelineSub: 'كل مرحلة مرتبطة بالأداة المسجلة التي تقيسها فعلاً.',
     findingsTitle: 'النتائج', recommendTitle: 'إجراءات مقترحة', opsTitle: 'عمليات متخصصة',
     evidenceTitle: 'مركز الأدلة', historyTitle: 'سجل المحطة', reportDownload: 'تنزيل تقرير الصيانة',
@@ -99,6 +118,16 @@ const COPY = {
     winreBlocked: 'تتطلب هذه الأداة بيئة WinRE ولا تعمل كإصلاح عادي.',
     historyCols: { when: 'الوقت', tool: 'الأداة', mode: 'الوضع', result: 'النتيجة', changed: 'غيّر', restart: 'إعادة', verify: 'التحقق', report: 'التقرير' },
     yes: 'نعم', no: 'لا',
+    tabIntegrityTitle: 'فحص ملفات النظام وتحليل سجلات CBS',
+    tabIntegritySub: 'تحقق من سلامة ملفات ويندوز المحمية ومطابقتها للتجزئات الأصلية وإصلاح التالف من مخزن المكونات.',
+    tabImageTitle: 'صحة مخزن المكونات وصورة ويندوز',
+    tabImageSub: 'فحص علامات التلف في مخزن مكونات ويندوز (WinSxS) واستعادة حزم الخدمة التالفة عبر DISM.',
+    tabDiskTitle: 'سلامة القرص ونظام الملفات',
+    tabDiskSub: 'إجراء فحص مباشر وآمن لنظام الملفات NTFS أو جدولة فحص شامل عند الإقلاع عند وجود قطاعات تالفة.',
+    tabServicingTitle: 'خدمة وتحديثات Windows',
+    tabServicingSub: 'تشخيص مكونات Windows Update وإعادة بناء ذاكرة SoftwareDistribution وإعادة تسجيل الخدمات.',
+    tabReportTitle: 'سجل تدقيق الصيانة والأدلة المثبتة',
+    tabReportSub: 'إنشاء تقرير Markdown تفصيلي يوثق جميع الفحوص الناجحة والإصلاحات وإجراءات إعادة التشغيل المطلوبة.',
   },
 } as const;
 
@@ -167,6 +196,7 @@ export default function MaintenanceStation({
   const text = COPY[lang];
   const station = useMemo(() => stationTools(tools), [tools]);
   const byId = useMemo(() => new Map(station.map((tool) => [tool.ToolId, tool])), [station]);
+  const [activeTab, setActiveTab] = useState<Station01Tab>('overview');
   const [evidence, setEvidence] = useState<EvidenceMap>({});
   const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory());
   const [activeRun, setActiveRun] = useState<ActiveRun | null>(null);
@@ -201,6 +231,24 @@ export default function MaintenanceStation({
   const health = useMemo(() => deriveHealthState(evidence, runningIds, bridgeOnline), [evidence, runningIds, bridgeOnline]);
   const recommendations = useMemo(() => buildRecommendations(evidence, station), [evidence, station]);
   const plan = useMemo(() => quickDiagnosePlan(station), [station]);
+  const hasScannedEvidence = useMemo(() => Object.keys(evidence).length > 0, [evidence]);
+  const displayedTools = useMemo(() => {
+    switch (activeTab) {
+      case 'integrity':
+        return station.filter((t) => t.ToolId === 'SM01' || t.ToolId === 'SM02');
+      case 'image':
+        return station.filter((t) => t.ToolId === 'SM03' || t.ToolId === 'SM04' || t.ToolId === 'SM05' || t.ToolId === 'SM08');
+      case 'disk':
+        return station.filter((t) => t.ToolId === 'SM06' || t.ToolId === 'SM07');
+      case 'servicing':
+        return station.filter((t) => t.ToolId === 'SM09');
+      case 'report':
+        return station.filter((t) => t.ToolId === 'SM10');
+      case 'overview':
+      default:
+        return station;
+    }
+  }, [activeTab, station]);
 
   const recordEvidence = useCallback((run: BridgeRun) => {
     const item = evidenceFromRun(run);
@@ -318,7 +366,139 @@ export default function MaintenanceStation({
           </div>
         )}
 
+        {/* ── Mini Navigation Rail ── */}
+        <nav className="maint-mini-nav" aria-label={lang === 'ar' ? 'تنقل مختبر سلامة النظام' : 'System Integrity Lab navigation'}>
+          <button
+            type="button"
+            className={`maint-mini-nav-btn ${activeTab === 'overview' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('overview')}
+          >
+            <ScanSearch size={14} />
+            <span>{text.navOverview}</span>
+          </button>
+          <button
+            type="button"
+            className={`maint-mini-nav-btn ${activeTab === 'integrity' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('integrity')}
+          >
+            <ShieldCheck size={14} />
+            <span>{text.navIntegrity}</span>
+          </button>
+          <button
+            type="button"
+            className={`maint-mini-nav-btn ${activeTab === 'image' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('image')}
+          >
+            <Layers3 size={14} />
+            <span>{text.navImage}</span>
+          </button>
+          <button
+            type="button"
+            className={`maint-mini-nav-btn ${activeTab === 'disk' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('disk')}
+          >
+            <Shield size={14} />
+            <span>{text.navDisk}</span>
+          </button>
+          <button
+            type="button"
+            className={`maint-mini-nav-btn ${activeTab === 'servicing' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('servicing')}
+          >
+            <RefreshCw size={14} />
+            <span>{text.navServicing}</span>
+          </button>
+          <button
+            type="button"
+            className={`maint-mini-nav-btn ${activeTab === 'report' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('report')}
+          >
+            <FileText size={14} />
+            <span>{text.navReport}</span>
+          </button>
+        </nav>
+
+        {/* ── Contextual Tab Header ── */}
+        {activeTab !== 'overview' && (
+          <header className="maint-tab-header">
+            <h3>
+              {activeTab === 'integrity' && <ShieldCheck size={18} />}
+              {activeTab === 'image' && <Layers3 size={18} />}
+              {activeTab === 'disk' && <Shield size={18} />}
+              {activeTab === 'servicing' && <RefreshCw size={18} />}
+              {activeTab === 'report' && <FileText size={18} />}
+              <span>
+                {activeTab === 'integrity' ? text.tabIntegrityTitle :
+                 activeTab === 'image' ? text.tabImageTitle :
+                 activeTab === 'disk' ? text.tabDiskTitle :
+                 activeTab === 'servicing' ? text.tabServicingTitle :
+                 text.tabReportTitle}
+              </span>
+            </h3>
+            <p>
+              {activeTab === 'integrity' ? text.tabIntegritySub :
+               activeTab === 'image' ? text.tabImageSub :
+               activeTab === 'disk' ? text.tabDiskSub :
+               activeTab === 'servicing' ? text.tabServicingSub :
+               text.tabReportSub}
+            </p>
+          </header>
+        )}
+
+        {/* ── LANDING CANVAS (Shown in Overview before scan) ── */}
+        {activeTab === 'overview' && !hasScannedEvidence && activeRun === null && (
+          <section className="maint-landing-canvas">
+            <IntegrityHeroVisual
+              lang={lang}
+              stage="idle"
+              className="maint-landing-hero-visual"
+            />
+            <div className="maint-landing-copy">
+              <h2>{text.productTitle}</h2>
+              <p>{text.productSub}</p>
+              <div className="maint-landing-actions">
+                <button
+                  type="button"
+                  className="maint-landing-primary-cta"
+                  onClick={() => { setPlanPhrase(''); setPlanOpen(true); }}
+                  aria-label={text.primaryCta}
+                >
+                  <ScanSearch size={16} />
+                  <span>{text.primaryCta}</span>
+                </button>
+                <button
+                  type="button"
+                  className="maint-landing-secondary-cta"
+                  onClick={() => setActiveTab('report')}
+                >
+                  <History size={14} />
+                  <span>{text.secondaryCta}</span>
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ── Active Scanning Visual State ── */}
+        {activeRun !== null && (
+          <section className="maint-scanning-banner">
+            <IntegrityHeroVisual
+              lang={lang}
+              stage="scanning"
+              activeLayer={
+                activeRun.toolId === 'SM01' || activeRun.toolId === 'SM02' ? 'files' :
+                activeRun.toolId === 'SM03' || activeRun.toolId === 'SM04' || activeRun.toolId === 'SM08' ? 'store' :
+                activeRun.toolId === 'SM05' ? 'image' :
+                activeRun.toolId === 'SM06' || activeRun.toolId === 'SM07' ? 'disk' :
+                'servicing'
+              }
+              className="maint-scanning-hero-visual"
+            />
+          </section>
+        )}
+
         {/* ── Hero: categorical health from evidence ── */}
+        {(hasScannedEvidence || activeTab !== 'overview' || activeRun !== null) && (
         <section className={`maint-hero ${healthTone}`} aria-live="polite">
           <div className="maint-hero-copy">
             <p className="eyebrow"><HeartPulse size={13} />{text.eyebrow}</p>
@@ -353,6 +533,7 @@ export default function MaintenanceStation({
             <div><dt>{lang === 'ar' ? 'إعادة التشغيل' : 'Restart'}</dt><dd>{Object.values(evidence).some((item) => item.restartNeeded) ? (lang === 'ar' ? 'مطلوبة' : 'Required') : (lang === 'ar' ? 'غير مطلوبة' : 'Not required')}</dd></div>
           </dl>
         </section>
+        )}
 
         {/* ── Integrity pipeline ── */}
         <section aria-label={text.pipelineTitle}>
@@ -432,11 +613,11 @@ export default function MaintenanceStation({
           </section>
         )}
 
-        {/* ── Specialized operations (all 10 tools) ── */}
+        {/* ── Specialized operations ── */}
         <section aria-label={text.opsTitle}>
-          <div className="app-section-title"><div><p>{STATION01_TOOL_IDS.length} · 01</p><h2>{text.opsTitle}</h2></div></div>
+          <div className="app-section-title"><div><p>{activeTab === 'overview' ? STATION01_TOOL_IDS.length : displayedTools.length} · 01</p><h2>{text.opsTitle}</h2></div></div>
           <div className="maint-ops">
-            {station.map((tool) => {
+            {displayedTools.map((tool) => {
               const item = evidence[tool.ToolId];
               const status = toolStatuses[tool.ToolId];
               const runBlocked = tool.RequiresAdmin && !elevated;
@@ -499,7 +680,10 @@ export default function MaintenanceStation({
             <p className="maint-empty">{text.notScanned}</p>
           ) : (
             <div className="maint-evidence-grid">
-              {STATION01_TOOL_IDS.filter((id) => evidence[id]).map((id) => (
+              {(activeTab === 'overview'
+                ? STATION01_TOOL_IDS.filter((id) => evidence[id])
+                : displayedTools.map((t) => t.ToolId).filter((id) => evidence[id])
+              ).map((id) => (
                 <article key={id} className="maint-finding">
                   <header><strong>{id}</strong><span className={`is-${evidence[id].status.toLowerCase()}`}>{evidence[id].status}</span></header>
                   <dl>
