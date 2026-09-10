@@ -22,6 +22,7 @@ import CleanupStation from '../features/stations/station02/CleanupStation';
 import NetworkStation from '../features/stations/station03/NetworkStation';
 import ProgramsStation from '../features/stations/station04/ProgramsStation';
 import DuplicateStation from '../features/stations/station05/DuplicateStation';
+import DiskSpaceStation from '../features/stations/station06/DiskSpaceStation';
 import ProjectSonarApp from './ProjectSonarApp';
 
 interface ServiceAppsProps {
@@ -131,10 +132,7 @@ function PerformanceApp({ data, lang, reviewableToolIds, onReviewSignal }: { dat
   return <div className="performance-app-view performance-product-view"><section className="performance-cockpit"><div className="performance-gauge"><Gauge size={27} /><strong>{data.Cpu.LoadPercent}%</strong><span>{lang === 'ar' ? 'تحميل المعالج' : 'CPU load'}</span></div><div className="performance-brief"><p>{lang === 'ar' ? 'مركز الأداء' : 'Performance center'}</p><h2>{data.Signals.length ? text.attention : text.healthy}</h2><span>{lang === 'ar' ? 'يتم توليد فرص التحسين من إشارات الجهاز الحالية فقط.' : 'Opportunities are generated only from current device signals.'}</span></div><div className="performance-memory"><span>{lang === 'ar' ? 'ضغط الذاكرة' : 'Memory pressure'}</span><strong>{data.Memory.LoadPercent}%</strong><i><b style={{ width: `${percent(data.Memory.LoadPercent)}%` }} /></i><small>{number(data.Memory.FreeGB, lang)} GB {lang === 'ar' ? 'متاحة' : 'available'}</small></div></section><section className="performance-metrics-grid"><Metric icon={Cpu} label={lang === 'ar' ? 'المعالج' : 'CPU'} value={`${data.Cpu.LoadPercent}%`} /><Metric icon={MemoryStick} label={lang === 'ar' ? 'الذاكرة المستخدمة' : 'Memory used'} value={`${number(data.Memory.UsedGB, lang)} GB`} /><Metric icon={HardDrive} label={lang === 'ar' ? 'الأقراص' : 'Drives'} value={number(data.Disks.length, lang)} /><Metric icon={Activity} label={lang === 'ar' ? 'العمليات' : 'Processes'} value={number(data.ProcessCount, lang)} /></section><section className="performance-signals product-findings">{data.Signals.length ? data.Signals.slice(0, 6).map((signal) => <article key={signal.Code}><span className={`signal-level ${signal.Level.toLowerCase()}`} /><div><strong>{signal.Message}</strong><small>{severity(signal.Level)} · {lang === 'ar' ? 'مبني على قراءة الجهاز' : 'based on device reading'}</small></div>{signal.SuggestedTool && reviewableToolIds.has(signal.SuggestedTool) ? <button type="button" onClick={() => onReviewSignal(signal.SuggestedTool)}>{lang === 'ar' ? 'راجع' : 'Review'}<ChevronRight size={15} className="rtl:rotate-180" /></button> : <ChevronRight size={16} className="rtl:rotate-180" />}</article>) : <article className="performance-positive"><CheckCircle2 size={19} />{lang === 'ar' ? 'لا توجد إشارات أداء عاجلة حالياً.' : 'No urgent performance signals right now.'}</article>}</section><section className="performance-process-strip"><div><div><p>{lang === 'ar' ? 'أعلى التطبيقات استخداماً' : 'Top active apps'}</p><h3>{lang === 'ar' ? 'لقطة الاستخدام' : 'Usage snapshot'}</h3></div><Activity size={22} /></div>{data.TopProcesses.slice(0, 6).map((process) => <span key={process.Id}><b>{process.Name}</b><small>{number(process.MemoryMB, lang)} MB</small></span>)}</section></div>;
 }
 
-function StorageApp({ data, lang }: { data: SystemSnapshot; lang: Lang }) {
-  const text = COPY[lang]; const [activeDriveName, setActiveDriveName] = useState<string | null>(data.Drives[0]?.Name || null); const largest = data.Drives.reduce((current, drive) => drive.TotalGB > current.TotalGB ? drive : current, data.Drives[0]); const activeDrive = data.Drives.find((drive) => drive.Name === activeDriveName) || data.Drives[0]; const totalFree = data.Drives.reduce((total, drive) => total + drive.FreeGB, 0); const totalCapacity = data.Drives.reduce((total, drive) => total + drive.TotalGB, 0);
-  return <div className="storage-app-view storage-product-view"><section className="product-command-hero storage-hero"><div><p>{lang === 'ar' ? 'مستكشف التخزين' : 'Storage explorer'}</p><h2>{number(totalFree, lang)} GB</h2><span>{lang === 'ar' ? 'مساحة متاحة عبر الأقراص المتصلة التي اكتشفها الجهاز.' : 'Available capacity across drives detected on this device.'}</span></div><HardDrive size={52} /><aside><span>{lang === 'ar' ? 'السعة الكلية' : 'Total capacity'}</span><strong>{number(totalCapacity, lang)} GB</strong><small>{lang === 'ar' ? `أكبر قرص: ${largest?.Name || '—'}` : `Largest drive: ${largest?.Name || '—'}`}</small></aside></section><section className="storage-drive-wall">{data.Drives.map((drive) => { const used = percent(100 - drive.FreeGB / Math.max(1, drive.TotalGB) * 100); const selected = activeDrive?.Name === drive.Name; return <button type="button" className={selected ? 'is-selected' : ''} key={drive.Name} onClick={() => setActiveDriveName(drive.Name)}><header><span>{drive.Name}</span><strong>{used.toFixed(0)}%</strong></header><div className="storage-bar"><i style={{ width: `${used}%` }} /></div><footer><span>{number(drive.FreeGB, lang)} GB {text.free}</span><span>{number(drive.TotalGB, lang)} GB</span></footer></button>; })}</section>{activeDrive && <section className="storage-inspector"><div><p>{lang === 'ar' ? 'تفاصيل القرص المختار' : 'Selected drive details'}</p><h3>{activeDrive.Name}</h3><span>{lang === 'ar' ? 'هذه القراءة تعرض السعة الفعلية فقط. تصفح المجلدات أو حذف الملفات غير متاحين من هذه الشاشة حتى تتوفر بيانات فهرسة حقيقية.' : 'This reading shows actual capacity only. Folder browsing or deletion is not available here until real indexing data is available.'}</span></div><div className="storage-inspector-number"><strong>{number(percent(100 - activeDrive.FreeGB / Math.max(1, activeDrive.TotalGB) * 100), lang)}%</strong><small>{lang === 'ar' ? 'مستخدم' : 'used'}</small></div></section>}</div>;
-}
+
 
 
 function SecurityApp({ data, lang }: { data: SystemSnapshot; lang: Lang }) {
@@ -278,10 +276,22 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
         />
       );
     }
+    if (activeSection === 'disk') {
+      return (
+        <DiskSpaceStation
+          lang={lang}
+          tools={tools}
+          toolStatuses={toolStatuses}
+          bridgeElevated={bridgeElevated}
+          bridgeOnline={bridgeOnline}
+          onRetryBridge={onRetryBridge || reload}
+          onToolStatus={onToolStatus || (() => {})}
+        />
+      );
+    }
     if (!available || !data) return null;
     switch (activeSection) {
       case 'performance': return <PerformanceApp data={data as OptimizationPreview} lang={lang} reviewableToolIds={reviewableToolIds} onReviewSignal={launchToolById} />;
-      case 'disk': return <StorageApp data={data as SystemSnapshot} lang={lang} />;
       case 'security': return <SecurityApp data={data as SystemSnapshot} lang={lang} />;
       case 'diagnostics': return <DiagnosticsApp data={data as DiagnosticsPreview} lang={lang} />;
       case 'backupRecovery': return <RecoveryApp data={data as BackupRecoveryPreview} lang={lang} />;
@@ -301,7 +311,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>
