@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 # ============================================================
 #  knoux Repair v2.0.2 | Tests\Run-Tests.ps1
 #  Self-contained validation suite (51 tests). No external
@@ -1201,7 +1201,7 @@ Import-Module '__COREMODULE__' -Force
     $childPath = Join-Path $env:TEMP ('knoux-ni01-' + [guid]::NewGuid().ToString('N') + '.ps1')
     Set-Content -LiteralPath $childPath -Value $child -Encoding UTF8
     try {
-        $r = Invoke-KnouxTestChild -ScriptPath $childPath
+        $r = Invoke-KnouxTestChild -ScriptPath $childPath -TimeoutSeconds 120
         $reportsDir = Join-Path $ProjectRoot 'Reports'
         $latest = Get-ChildItem -LiteralPath $reportsDir -Directory -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -like '*-NI01' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
@@ -1225,7 +1225,7 @@ Import-Module '__COREMODULE__' -Force
     $childPath = Join-Path $env:TEMP ('knoux-ni10-' + [guid]::NewGuid().ToString('N') + '.ps1')
     Set-Content -LiteralPath $childPath -Value $child -Encoding UTF8
     try {
-        $r = Invoke-KnouxTestChild -ScriptPath $childPath
+        $r = Invoke-KnouxTestChild -ScriptPath $childPath -TimeoutSeconds 120
         $reportsDir = Join-Path $ProjectRoot 'Reports'
         $latest = Get-ChildItem -LiteralPath $reportsDir -Directory -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -like '*-NI10' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
