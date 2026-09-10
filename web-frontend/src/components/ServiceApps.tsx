@@ -9,7 +9,7 @@ import {
 import type { ElementType } from 'react';
 import type { ActiveSection, ToolStatus } from '../types';
 import type {
-  BridgeTool, DriversPreview, ExecutionMode,
+  BridgeTool, ExecutionMode,
   OperationsPreview, PostInstallPreview, SoftwarePreview,
   ToolRunConfirmation, ToolRunOptions,
 } from '../lib/api';
@@ -30,6 +30,7 @@ import DiagnosticsStation from '../features/stations/station10/DiagnosticsStatio
 import RecoveryStation from '../features/stations/station11/RecoveryStation';
 import DeveloperStation from '../features/stations/station12/DeveloperStation';
 import PrivacyStation from '../features/stations/station13/PrivacyStation';
+import DriversStation from '../features/stations/station14/DriversStation';
 import ProjectSonarApp from './ProjectSonarApp';
 
 interface ServiceAppsProps {
@@ -144,7 +145,6 @@ function LibraryApp({ data, lang, variant }: { data: SoftwarePreview; lang: Lang
 }
 
 
-function DriverApp({ data, lang }: { data: DriversPreview; lang: Lang }) { const [selectedInf, setSelectedInf] = useState<string | null>(data.ReviewDrivers[0]?.InfName || null); const selected = data.ReviewDrivers.find((driver) => driver.InfName === selectedInf) || null; return <div className="driver-app-view driver-product-view"><section className="driver-garage-hero"><Wrench size={40} /><div><p>{lang === 'ar' ? 'مركز التعريفات والأجهزة' : 'Driver & device center'}</p><h2>{number(data.Summary.TotalDrivers, lang)} {lang === 'ar' ? 'تعريفاً مكتشفاً' : 'drivers discovered'}</h2><span>{lang === 'ar' ? 'يعرض هذا المركز جرداً فعلياً للتوقيع والحالة والإشارات التي تستحق المراجعة.' : 'This center shows a real inventory of signatures, status, and review signals.'}</span></div></section><section className="driver-stat-lane"><Metric icon={ShieldCheck} label={lang === 'ar' ? 'موثوق' : 'Trusted'} value={number(data.Summary.SignedDrivers, lang)} /><Metric icon={TriangleAlert} label={lang === 'ar' ? 'للمراجعة' : 'Review'} value={number(data.Summary.UnsignedDrivers + data.Summary.DeviceProblems, lang)} /><Metric icon={Layers3} label={lang === 'ar' ? 'من جهات أخرى' : 'Third party'} value={number(data.Summary.ThirdPartyDrivers, lang)} /></section><section className="driver-inventory"><div className="app-section-title"><div><p>{lang === 'ar' ? 'قائمة المراجعة' : 'Review inventory'}</p><h2>{lang === 'ar' ? 'التعريفات التي تحتاج تدقيقاً' : 'Drivers requiring attention'}</h2></div><span className="product-evidence-badge"><DatabaseZap size={13} />{lang === 'ar' ? 'جرد حي' : 'Live inventory'}</span></div>{data.ReviewDrivers.slice(0, 8).map((driver) => <button type="button" className={selected?.InfName === driver.InfName ? 'is-selected' : ''} key={`${driver.DeviceName}-${driver.InfName}`} onClick={() => setSelectedInf(driver.InfName)}><span className={driver.Signed ? 'is-signed' : 'is-review'} /><div><strong>{driver.DeviceName}</strong><small>{driver.Provider} · {driver.Version || '—'}</small></div><b>{driver.ReviewSignals.length ? driver.ReviewSignals.join(' · ') : (lang === 'ar' ? 'راجع الحالة' : 'Review status')}</b></button>)}</section>{selected && <section className="driver-detail-card"><div><p>{lang === 'ar' ? 'تفاصيل العنصر المختار' : 'Selected driver details'}</p><h3>{selected.DeviceName}</h3><span>{selected.Provider} · {selected.DeviceClass} · {selected.Version || '—'}</span></div><div><span>{lang === 'ar' ? 'التوقيع' : 'Signature'}</span><strong>{selected.Signed ? (lang === 'ar' ? 'موثّق' : 'Signed') : (lang === 'ar' ? 'غير موثّق' : 'Unsigned')}</strong></div><div><span>{lang === 'ar' ? 'إشارات المراجعة' : 'Review signals'}</span><strong>{selected.ReviewSignals.length ? selected.ReviewSignals.join(', ') : '—'}</strong></div></section>}</div>; }
 
 function SetupApp({ data, lang }: { data: PostInstallPreview; lang: Lang }) { return <div className="setup-app-view"><section className="setup-hero"><Rocket size={44} /><div><p>{lang === 'ar' ? 'استعداد الجهاز' : 'Device readiness'}</p><h2>{data.System.Caption}</h2><span>{lang === 'ar' ? 'اختر ما تحتاجه فقط لإعداد جهازك.' : 'Choose only what you need to prepare your device.'}</span></div><span className="setup-ready-badge">{data.Winget.Available ? <CheckCircle2 size={16} /> : <CircleAlert size={16} />}{data.Winget.Available ? (lang === 'ar' ? 'جاهز' : 'Ready') : (lang === 'ar' ? 'راجع' : 'Review')}</span></section><section className="setup-checklist"><SetupCheck label={lang === 'ar' ? 'عروض التعريفات' : 'Driver offers'} value={data.DriverOffers.Count || 0} lang={lang} /><SetupCheck label={lang === 'ar' ? 'تطبيقات أساسية' : 'Essential apps'} value={data.Catalog.filter((item) => !item.Detected).length} lang={lang} /><SetupCheck label={lang === 'ar' ? 'إعادة تشغيل معلقة' : 'Pending restart'} value={data.System.PendingRestartSignals.length} lang={lang} /></section><section className="setup-catalog-preview">{data.Catalog.slice(0, 4).map((item) => <article key={item.PackageId}><span className={item.Detected ? 'is-detected' : ''}><PackageCheck size={17} /></span><div><strong>{item.Name}</strong><small>{item.Category}</small></div><b>{item.Detected ? (lang === 'ar' ? 'موجود' : 'Installed') : (lang === 'ar' ? 'متاح' : 'Available')}</b></article>)}</section></div>; }
 function SetupCheck({ label, value, lang }: { label: string; value: number; lang: Lang }) { return <article><span>{value}</span><strong>{label}</strong><small>{value ? (lang === 'ar' ? 'راجع الخيارات' : 'Review choices') : (lang === 'ar' ? 'مكتمل' : 'Complete')}</small></article>; }
@@ -348,10 +348,22 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
         />
       );
     }
+    if (activeSection === 'drivers') {
+      return (
+        <DriversStation
+          lang={lang}
+          tools={tools}
+          toolStatuses={toolStatuses}
+          bridgeElevated={bridgeElevated}
+          bridgeOnline={bridgeOnline}
+          onRetryBridge={onRetryBridge || reload}
+          onToolStatus={onToolStatus || (() => {})}
+        />
+      );
+    }
     if (!available || !data) return null;
     switch (activeSection) {
       case 'softwareEnvironment': return <LibraryApp data={data as SoftwarePreview} lang={lang} variant="software" />;
-      case 'drivers': return <DriverApp data={data as DriversPreview} lang={lang} />;
       case 'postInstall': return <SetupApp data={data as PostInstallPreview} lang={lang} />;
       case 'monitoring': return <OperationsApp data={data as OperationsPreview} lang={lang} />;
       default: return <GenericApp section={activeSection} lang={lang} />;
@@ -364,7 +376,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || activeSection === 'developerTools' || activeSection === 'privacy' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || activeSection === 'developerTools' || activeSection === 'privacy' || activeSection === 'drivers' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>
