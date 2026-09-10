@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 #  knoux Repair v2.0.2 | 04-Programs-Applications | PA08 - Repair Program Uninstaller
 #  Risk: SYSTEM_REPAIR | Offline: Yes
 #  Re-registers the Windows Installer and clears common blockers that
@@ -11,7 +11,7 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'PA08' -ToolName 'Repair Program Uninstaller' -Category '04-Programs-Applications' -RiskLevel 'SYSTEM_REPAIR'
+$Session = Start-KnouxSession -ToolId 'PA08' -ToolName 'Repair Program Uninstaller' -Category '04-Programs-Applications' -RiskLevel 'SYSTEM_REPAIR' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $Session.OfflineCapable = $true
 $rc = 0
 $msiexec = "$env:SystemRoot\System32\msiexec.exe"
@@ -64,3 +64,4 @@ $Session.ExitCode = $rc
 $result = Stop-KnouxSession -Session $Session
 Write-KnouxResult -Session $Session
 return $result
+

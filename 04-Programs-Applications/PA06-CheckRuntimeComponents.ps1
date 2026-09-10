@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 #  knoux Repair v2.0.2 | 04-Programs-Applications | PA06 - Check Runtime Components
 #  Risk: READ_ONLY | Offline: Yes
 #  Reports the presence/version of common runtime components:
@@ -11,12 +11,21 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'PA06' -ToolName 'Check Runtime Components' -Category '04-Programs-Applications' -RiskLevel 'READ_ONLY'
+$Session = Start-KnouxSession -ToolId 'PA06' -ToolName 'Check Runtime Components' -Category '04-Programs-Applications' -RiskLevel 'READ_ONLY' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $Session.OfflineCapable = $true
 $rc = 0
 
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf
 
+if ($AnalyzeOnly -or $WhatIf) {
+    Write-Host '[ANALYZE] Would check .NET Framework, VC++ Redistributables, and WebView2 (read-only).' -ForegroundColor Green
+    Write-KnouxLog -Session $Session 'Analyze mode: runtime component check plan only'
+    $Session.Status = 'Success'
+    $Session.ExitCode = 0
+    $result = Stop-KnouxSession -Session $Session
+    Write-KnouxResult -Session $Session
+    return $result
+} else {
 try {
     $rows = @()
 
@@ -69,8 +78,10 @@ try {
     Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
     Write-KnouxLog -Session $Session -Message $Session.ErrorMessage 'ERROR'
 }
+} # end else (normal measurement mode)
 
 $Session.ExitCode = $rc
 $result = Stop-KnouxSession -Session $Session
 Write-KnouxResult -Session $Session
 return $result
+

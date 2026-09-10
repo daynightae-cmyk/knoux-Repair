@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 #  knoux Repair v2.0 | 04-Programs-Applications | PA07 - Remove Unnecessary Windows Apps
 #  Risk: DESTRUCTIVE | Admin: Required (machine-wide) or user (per-user)
 #  Lists provisioned Windows Store apps. Lets the user remove selected
@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'PA07' -ToolName 'Remove Unnecessary Windows Apps' -Category '04-Programs-Applications' -RiskLevel 'DESTRUCTIVE'
+$Session = Start-KnouxSession -ToolId 'PA07' -ToolName 'Remove Unnecessary Windows Apps' -Category '04-Programs-Applications' -RiskLevel 'DESTRUCTIVE' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $rc = 0
 $isAdmin = Test-KnouxAdministrator
 
@@ -87,3 +87,4 @@ $Session.ExitCode = $rc
 $result = Stop-KnouxSession -Session $Session
 Write-KnouxResult -Session $Session
 return $result
+

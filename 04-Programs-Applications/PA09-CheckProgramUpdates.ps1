@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 #  knoux Repair v2.0.2 | 04-Programs-Applications | PA09 - Check Program Updates
 #  Risk: READ_ONLY | Offline: False | Needs network
 #  Uses winget to list installed programs that have newer versions
@@ -10,12 +10,21 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'PA09' -ToolName 'Check Program Updates' -Category '04-Programs-Applications' -RiskLevel 'READ_ONLY'
+$Session = Start-KnouxSession -ToolId 'PA09' -ToolName 'Check Program Updates' -Category '04-Programs-Applications' -RiskLevel 'READ_ONLY' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $rc = 0
 $winget = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\winget.exe'
 
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf
 
+if ($AnalyzeOnly -or $WhatIf) {
+    Write-Host '[ANALYZE] Would check winget for newer versions of installed packages (read-only, needs network).' -ForegroundColor Green
+    Write-KnouxLog -Session $Session 'Analyze mode: program updates plan only'
+    $Session.Status = 'Success'
+    $Session.ExitCode = 0
+    $result = Stop-KnouxSession -Session $Session
+    Write-KnouxResult -Session $Session
+    return $result
+} else {
 try {
     if (-not (Test-Path -LiteralPath $winget)) {
         Write-Host '[ERROR] winget is not installed. Install the App Installer from the Microsoft Store.' -ForegroundColor Yellow
@@ -65,8 +74,10 @@ try {
     Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
     Write-KnouxLog -Session $Session -Message $Session.ErrorMessage 'ERROR'
 }
+} # end else (normal measurement mode)
 
 $Session.ExitCode = $rc
 $result = Stop-KnouxSession -Session $Session
 Write-KnouxResult -Session $Session
 return $result
+

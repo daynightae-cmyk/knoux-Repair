@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 #  knoux Repair v2.0.2 | 04-Programs-Applications | PA02 - Repair Program Installations
 #  Risk: SYSTEM_REPAIR | Admin: Required
 #  Repairs common obstacles to clean installs of user programs:
@@ -12,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'PA02' -ToolName 'Repair Program Installations' -Category '04-Programs-Applications' -RiskLevel 'SYSTEM_REPAIR'
+$Session = Start-KnouxSession -ToolId 'PA02' -ToolName 'Repair Program Installations' -Category '04-Programs-Applications' -RiskLevel 'SYSTEM_REPAIR' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $Session.RequiresAdmin = $true
 $rc = 0
 $msiexec = "$env:SystemRoot\System32\msiexec.exe"
@@ -84,3 +84,4 @@ $Session.ExitCode = $rc
 $result = Stop-KnouxSession -Session $Session
 Write-KnouxResult -Session $Session
 return $result
+

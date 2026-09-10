@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 #  knoux Repair v2.0.2 | 04-Programs-Applications | PA04 - Repair Start Menu Shortcuts
 #  Risk: SYSTEM_REPAIR
 #  Fixes Start Menu and desktop shortcuts whose target path is broken.
@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'PA04' -ToolName 'Repair Start Menu Shortcuts' -Category '04-Programs-Applications' -RiskLevel 'SYSTEM_REPAIR'
+$Session = Start-KnouxSession -ToolId 'PA04' -ToolName 'Repair Start Menu Shortcuts' -Category '04-Programs-Applications' -RiskLevel 'SYSTEM_REPAIR' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $rc = 0
 
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf
@@ -91,3 +91,4 @@ $Session.ExitCode = $rc
 $result = Stop-KnouxSession -Session $Session
 Write-KnouxResult -Session $Session
 return $result
+

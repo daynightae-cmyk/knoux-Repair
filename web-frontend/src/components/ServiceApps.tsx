@@ -20,6 +20,7 @@ import ExecutionConfirmDialog from './ExecutionConfirmDialog';
 import MaintenanceStation from '../features/stations/station01/MaintenanceStation';
 import CleanupStation from '../features/stations/station02/CleanupStation';
 import NetworkStation from '../features/stations/station03/NetworkStation';
+import ProgramsStation from '../features/stations/station04/ProgramsStation';
 import DuplicateOrganizerApp from './DuplicateOrganizerApp';
 import ProjectSonarApp from './ProjectSonarApp';
 
@@ -248,6 +249,18 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           bridgeOnline={bridgeOnline}
           onRetryBridge={onRetryBridge || reload}
           onToolStatus={onToolStatus || (() => {})}
+        />
+      );
+    }
+    if (activeSection === 'programs') {
+      return (
+        <ProgramsStation
+          lang={lang}
+          tools={tools}
+          toolStatuses={toolStatuses}
+          bridgeElevated={bridgeElevated}
+          bridgeOnline={bridgeOnline}
+          onRetryBridge={onRetryBridge || reload}
         />
       );
     }

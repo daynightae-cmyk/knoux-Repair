@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 #  knoux Repair v2.0 | 04-Programs-Applications | PA05 - Manage Startup Programs
 #  Risk: SYSTEM_REPAIR
 #  Lists startup entries (Run/RunOnce for HKLM + HKCU). Enables the
@@ -11,7 +11,7 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'PA05' -ToolName 'Manage Startup Programs' -Category '04-Programs-Applications' -RiskLevel 'SYSTEM_REPAIR'
+$Session = Start-KnouxSession -ToolId 'PA05' -ToolName 'Manage Startup Programs' -Category '04-Programs-Applications' -RiskLevel 'SYSTEM_REPAIR' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $rc = 0
 
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf
@@ -88,3 +88,4 @@ $Session.ExitCode = $rc
 $result = Stop-KnouxSession -Session $Session
 Write-KnouxResult -Session $Session
 return $result
+
