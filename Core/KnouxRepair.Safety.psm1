@@ -9,6 +9,59 @@
 # ============================================================
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+# KNOUX_HASH_FALLBACK_V2
+Import-Module Microsoft.PowerShell.Utility -ErrorAction SilentlyContinue
+
+if (-not (Get-Command Get-FileHash -ErrorAction SilentlyContinue)) {
+    function Get-FileHash {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [Alias('Path')]
+            [string[]]$LiteralPath,
+
+            [ValidateSet('SHA256','SHA384','SHA512','SHA1','MD5')]
+            [string]$Algorithm = 'SHA256'
+        )
+
+        foreach ($candidate in $LiteralPath) {
+
+            $full = [System.IO.Path]::GetFullPath($candidate)
+
+            if (-not [System.IO.File]::Exists($full)) {
+                throw "File not found: $candidate"
+            }
+
+            $algo = switch ($Algorithm.ToUpperInvariant()) {
+                'SHA256' { [System.Security.Cryptography.SHA256]::Create() }
+                'SHA384' { [System.Security.Cryptography.SHA384]::Create() }
+                'SHA512' { [System.Security.Cryptography.SHA512]::Create() }
+                'SHA1'   { [System.Security.Cryptography.SHA1]::Create() }
+                'MD5'    { [System.Security.Cryptography.MD5]::Create() }
+            }
+
+            $stream = $null
+
+            try {
+                $stream = [System.IO.File]::OpenRead($full)
+                $bytes  = $algo.ComputeHash($stream)
+                $hash   = -join ($bytes | ForEach-Object {
+                    $_.ToString('X2')
+                })
+            }
+            finally {
+                if ($stream) { $stream.Dispose() }
+                if ($algo)   { $algo.Dispose() }
+            }
+
+            [pscustomobject]@{
+                Algorithm = $Algorithm.ToUpperInvariant()
+                Hash      = $hash
+                Path      = $full
+            }
+        }
+    }
+}
 
 # Validated configuration flows through KnouxRepair.Config.psm1 -
 # the single authoritative loader. Safety never invents policy.
@@ -364,7 +417,10 @@ function Restore-KnouxQuarantinedItem {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$QuarantinePath,
-        [pscustomobject]$Session
+        [pscustomobject]$Session,
+        [ValidateSet('Prompt','Replace','Backup','Alternate','Cancel')]
+        [string]$ConflictAction = 'Prompt',
+        [string]$AlternateDestination = ''
     )
     $metaFile = Join-Path $QuarantinePath 'quarantine-meta.json'
     if (-not (Test-Path -LiteralPath $metaFile)) {
@@ -468,7 +524,7 @@ function Restore-KnouxQuarantinedItem {
 
         # Check if destination exists
         if (Test-Path -LiteralPath $origPath) {
-            $answer = $null
+            $answer = if ($ConflictAction -eq 'Prompt') { $null } else { $ConflictAction }
             while ($null -eq $answer) {
                 Write-Host ("Destination '{0}' already exists. Options: (R) Replace, (B) Backup & Replace, (A) Alternate path, (C) Cancel" -f $origPath) -ForegroundColor Yellow
                 $ans = Read-Host "Choice [R/B/A/C]"
@@ -482,7 +538,7 @@ function Restore-KnouxQuarantinedItem {
                 $existingBackup = Join-Path ([System.IO.Path]::GetDirectoryName($origPath)) ("knoux-backup-{0}-{1}" -f (Split-Path -Leaf $origPath), (Get-Date -Format 'yyyyMMdd-HHmmss'))
                 try { Move-Item -LiteralPath $origPath -Destination $existingBackup -Force } catch { Write-Warning "Failed to backup existing: $($_.Exception.Message)"; return $false }
             } elseif ($answer -eq 'Alternate') {
-                $alt = Read-Host "Enter alternate destination path"
+                $alt = if ($ConflictAction -eq 'Prompt') { Read-Host "Enter alternate destination path" } else { $AlternateDestination }
                 if (-not $alt -or -not (Test-Path -LiteralPath ([System.IO.Path]::GetDirectoryName($alt)))) { Write-Warning "Invalid alternate path"; return $false }
                 $altPath = $alt
             } elseif ($answer -eq 'Replace') {
@@ -535,7 +591,7 @@ function Restore-KnouxQuarantinedItem {
 
         $destPath = $origPath
         if (Test-Path -LiteralPath $destPath) {
-            $answer = $null
+            $answer = if ($ConflictAction -eq 'Prompt') { $null } else { $ConflictAction }
             while ($null -eq $answer) {
                 Write-Host ("Destination file '{0}' already exists. Options: (R) Replace, (B) Backup & Replace, (A) Alternate path, (C) Cancel" -f $destPath) -ForegroundColor Yellow
                 $ans = Read-Host "Choice [R/B/A/C]"
@@ -549,7 +605,7 @@ function Restore-KnouxQuarantinedItem {
                 $existingBackup = Join-Path ([System.IO.Path]::GetDirectoryName($destPath)) ("knoux-backup-{0}-{1}" -f (Split-Path -Leaf $destPath), (Get-Date -Format 'yyyyMMdd-HHmmss'))
                 try { Move-Item -LiteralPath $destPath -Destination $existingBackup -Force } catch { Write-Warning "Failed to backup existing: $($_.Exception.Message)"; return $false }
             } elseif ($answer -eq 'Alternate') {
-                $alt = Read-Host "Enter alternate destination path"
+                $alt = if ($ConflictAction -eq 'Prompt') { Read-Host "Enter alternate destination path" } else { $AlternateDestination }
                 if (-not $alt -or -not (Test-Path -LiteralPath ([System.IO.Path]::GetDirectoryName($alt)))) { Write-Warning "Invalid alternate path"; return $false }
                 $destPath = $alt
             } elseif ($answer -eq 'Replace') {

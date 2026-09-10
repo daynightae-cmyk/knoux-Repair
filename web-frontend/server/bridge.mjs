@@ -480,6 +480,9 @@ function buildDuplicatePlanArgs(toolId, options = {}) {
     if (!group || !keepPath || seenGroups.has(groupId) || !group.Files.some((file) => file.Path === keepPath)) {
       throw Object.assign(new Error('The selected retained file does not belong to the current duplicate preview.'), { status: 400, code: 'DUPLICATE_PLAN_INVALID' });
     }
+    if (group.HardLinkInvolved) {
+      throw Object.assign(new Error('Hard-linked duplicate groups require review and cannot be quarantined automatically.'), { status: 409, code: 'DUPLICATE_HARD_LINK_PROTECTED' });
+    }
     seenGroups.add(groupId);
     return { Hash: group.Hash, KeepPath: keepPath, Paths: group.Files.map((file) => file.Path) };
   });
@@ -875,7 +878,7 @@ function getProjectSonarPreview(value) {
   }
 }
 
-function getDuplicatePreview(value, typeQuery = '', keeperPolicy = 'OldestThenAlphabetical') {
+function getDuplicatePreview(value, typeQuery = '', keeperPolicy = 'OldestThenAlphabetical', excludeQuery = '') {
 
   const folder = resolveBrowsePath(value);
   const tool = manifest.get('DF11');
@@ -886,9 +889,14 @@ function getDuplicatePreview(value, typeQuery = '', keeperPolicy = 'OldestThenAl
     const requestedTypes = String(typeQuery || 'all').split(',').map((value) => value.trim().toLowerCase()).filter((value) => ['all','images','video','documents','audio','archives','other'].includes(value));
   const safeTypes = requestedTypes.includes('all') || !requestedTypes.length ? ['all'] : [...new Set(requestedTypes)];
   const safePolicy = keeperPolicy === 'Newest' ? 'Newest' : 'OldestThenAlphabetical';
+  const requestedExclusions = String(excludeQuery || '').split(',').map((value) => value.trim()).filter(Boolean);
+  const safeExclusions = [...new Set(requestedExclusions)]
+    .filter((value) => value.length <= 160 && /^[A-Za-z0-9_ .-]+(?:[\\/][A-Za-z0-9_ .-]+)*$/.test(value))
+    .slice(0, 32);
+  const excludeArgs = safeExclusions.length ? ['-ExcludeSubfolders', ...safeExclusions] : [];
   const result = spawnSync(PS, [
     '-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-    '-File', scriptPath, '-AnalyzeOnly', '-EmitJson', '-LocalSourcePath', folder, '-FileTypes', ...safeTypes, '-KeeperPolicy', safePolicy,
+    '-File', scriptPath, '-AnalyzeOnly', '-EmitJson', '-LocalSourcePath', folder, '-FileTypes', ...safeTypes, '-KeeperPolicy', safePolicy, ...excludeArgs,
   ], { encoding: 'utf8', timeout: 120000, maxBuffer: 3 * 1024 * 1024, windowsHide: true, cwd: REPO_ROOT });
 
   const output = String(result.stdout || '');
@@ -1569,7 +1577,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'preview') {
       const requestedPath = url.searchParams.get('path') || '';
-      return sendJson(res, 200, { ok: true, preview: getDuplicatePreview(requestedPath, url.searchParams.get('types') || '', url.searchParams.get('keeper') || 'OldestThenAlphabetical') }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: getDuplicatePreview(requestedPath, url.searchParams.get('types') || '', url.searchParams.get('keeper') || 'OldestThenAlphabetical', url.searchParams.get('exclude') || '') }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'thumbnail') {

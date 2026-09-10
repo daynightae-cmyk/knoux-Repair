@@ -7,6 +7,59 @@
 # ============================================================
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+# KNOUX_HASH_FALLBACK_V2
+Import-Module Microsoft.PowerShell.Utility -ErrorAction SilentlyContinue
+
+if (-not (Get-Command Get-FileHash -ErrorAction SilentlyContinue)) {
+    function Get-FileHash {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [Alias('Path')]
+            [string[]]$LiteralPath,
+
+            [ValidateSet('SHA256','SHA384','SHA512','SHA1','MD5')]
+            [string]$Algorithm = 'SHA256'
+        )
+
+        foreach ($candidate in $LiteralPath) {
+
+            $full = [System.IO.Path]::GetFullPath($candidate)
+
+            if (-not [System.IO.File]::Exists($full)) {
+                throw "File not found: $candidate"
+            }
+
+            $algo = switch ($Algorithm.ToUpperInvariant()) {
+                'SHA256' { [System.Security.Cryptography.SHA256]::Create() }
+                'SHA384' { [System.Security.Cryptography.SHA384]::Create() }
+                'SHA512' { [System.Security.Cryptography.SHA512]::Create() }
+                'SHA1'   { [System.Security.Cryptography.SHA1]::Create() }
+                'MD5'    { [System.Security.Cryptography.MD5]::Create() }
+            }
+
+            $stream = $null
+
+            try {
+                $stream = [System.IO.File]::OpenRead($full)
+                $bytes  = $algo.ComputeHash($stream)
+                $hash   = -join ($bytes | ForEach-Object {
+                    $_.ToString('X2')
+                })
+            }
+            finally {
+                if ($stream) { $stream.Dispose() }
+                if ($algo)   { $algo.Dispose() }
+            }
+
+            [pscustomobject]@{
+                Algorithm = $Algorithm.ToUpperInvariant()
+                Hash      = $hash
+                Path      = $full
+            }
+        }
+    }
+}
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $results = @()
@@ -623,25 +676,91 @@ Test-Knoux -Name '51 Manifest matches script risk/admin headers' -Body {
 #  interactive R/B/A/C restore prompts, and the audit-blocker fixes.
 # ============================================================================
 
+# KNOUX_BOUNDED_CHILD_V3
 function Invoke-KnouxTestChild {
-    param([string]$ScriptPath, [string]$Stdin = '')
-    $exe = if ($PSVersionTable.PSEdition -eq 'Core') { Join-Path $PSHOME 'pwsh.exe' } else { Join-Path $PSHOME 'powershell.exe' }
+    param(
+        [Parameter(Mandatory)]
+        [string]$ScriptPath,
+
+        [ValidateSet('Cancel','Replace','Backup','Alternate')]
+        [string]$ConflictAction = 'Cancel',
+
+        [string]$AltPath = '',
+
+        [int]$TimeoutSeconds = 30
+    )
+
+    $exe = if (Get-Command pwsh.exe -ErrorAction SilentlyContinue) {
+        (Get-Command pwsh.exe).Source
+    }
+    else {
+        Join-Path $PSHOME 'powershell.exe'
+    }
+
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $exe
-    $psi.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + $ScriptPath + '"'
-    $psi.UseShellExecute = $false
-    $psi.RedirectStandardInput = $true
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $psi.CreateNoWindow = $true
-    $p = [System.Diagnostics.Process]::Start($psi)
-    if ($Stdin) { $p.StandardInput.Write($Stdin) }
-    $p.StandardInput.Close()
-    $out = $p.StandardOutput.ReadToEnd()
-    $p.WaitForExit()
-    return [pscustomobject]@{ ExitCode = $p.ExitCode; Stdout = $out }
-}
+    $psi.Arguments =
+        '-NoProfile -ExecutionPolicy Bypass -File "' +
+        $ScriptPath +
+        '"'
 
+    $psi.UseShellExecute        = $false
+    $psi.RedirectStandardInput  = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError  = $true
+    $psi.CreateNoWindow         = $true
+
+    $psi.EnvironmentVariables['KNOUX_TEST_CONFLICT_ACTION'] =
+        $ConflictAction
+
+    $psi.EnvironmentVariables['KNOUX_TEST_ALT_PATH'] =
+        $AltPath
+
+    $p = [System.Diagnostics.Process]::Start($psi)
+
+    if (-not $p) {
+        throw 'Failed to start KNOUX test child'
+    }
+
+    $p.StandardInput.Close()
+
+    $stdoutTask = $p.StandardOutput.ReadToEndAsync()
+    $stderrTask = $p.StandardError.ReadToEndAsync()
+
+    $finished = $p.WaitForExit(
+        [Math]::Max(1000,$TimeoutSeconds * 1000)
+    )
+
+    if (-not $finished) {
+
+        try {
+            & taskkill.exe /PID $p.Id /T /F 2>&1 |
+                Out-Null
+        }
+        catch {}
+
+        try { $p.WaitForExit() } catch {}
+    }
+    else {
+
+        try { $p.WaitForExit() } catch {}
+    }
+
+    $out = $stdoutTask.GetAwaiter().GetResult()
+    $err = $stderrTask.GetAwaiter().GetResult()
+
+    if ($err) {
+        $out = $out + [Environment]::NewLine + $err
+    }
+
+    return [pscustomobject]@{
+        ExitCode  = if ($finished) { $p.ExitCode } else { -1 }
+        TimedOut  = (-not $finished)
+        Stdout    = $out
+        Stderr    = $err
+        ProcessId = $p.Id
+    }
+}
 $script:RestoreChildTemplate = @'
 param([string]$AltPath = '')
 $ErrorActionPreference = 'Stop'
@@ -654,7 +773,24 @@ $meta = Move-KnouxItemToQuarantine -Path $file -ToolId 'test' -ProjectRoot $tmpR
 if (-not $meta) { Write-Host '[TESTCHILD] RESULT=NO-META'; exit 3 }
 $qDir = Split-Path $meta.QuarantinePath -Parent
 Set-Content -LiteralPath $file -Value 'DIFFERENT-CONTENT' -Encoding UTF8
-$result = Restore-KnouxQuarantinedItem -QuarantinePath $qDir
+$conflictAction = [string]$env:KNOUX_TEST_CONFLICT_ACTION
+$alternatePath  = [string]$env:KNOUX_TEST_ALT_PATH
+
+if ([string]::IsNullOrWhiteSpace($conflictAction)) {
+    $conflictAction = 'Cancel'
+}
+
+if ($conflictAction -eq 'Alternate') {
+    $result = Restore-KnouxQuarantinedItem `
+        -QuarantinePath $qDir `
+        -ConflictAction Alternate `
+        -AlternateDestination $alternatePath
+}
+else {
+    $result = Restore-KnouxQuarantinedItem `
+        -QuarantinePath $qDir `
+        -ConflictAction $conflictAction
+}
 $stillExists = Test-Path -LiteralPath $file
 $qStill = Test-Path -LiteralPath $qDir
 $fileContent = ''
@@ -909,7 +1045,7 @@ Test-Knoux -Name '67 Restore Cancel keeps destination and quarantine' -Body {
     $childPath = Join-Path $env:TEMP ('knoux-child-' + [guid]::NewGuid().ToString('N') + '.ps1')
     Set-Content -LiteralPath $childPath -Value $child -Encoding UTF8
     try {
-        $r = Invoke-KnouxTestChild -ScriptPath $childPath -Stdin "C`n"
+        $r = Invoke-KnouxTestChild -ScriptPath $childPath -ConflictAction Cancel -TimeoutSeconds 30
         $m = Get-KnouxChildMarkers $r.Stdout
         $res = (Get-KnouxChildValue $m 'RESULT')
         $qStill = (Get-KnouxChildValue $m 'Q_STILL')
@@ -924,7 +1060,7 @@ Test-Knoux -Name '68 Restore Replace overwrites the destination' -Body {
     $childPath = Join-Path $env:TEMP ('knoux-child-' + [guid]::NewGuid().ToString('N') + '.ps1')
     Set-Content -LiteralPath $childPath -Value $child -Encoding UTF8
     try {
-        $r = Invoke-KnouxTestChild -ScriptPath $childPath -Stdin "R`n"
+        $r = Invoke-KnouxTestChild -ScriptPath $childPath -ConflictAction Replace -TimeoutSeconds 30
         $m = Get-KnouxChildMarkers $r.Stdout
         $res = (Get-KnouxChildValue $m 'RESULT')
         $qStill = (Get-KnouxChildValue $m 'Q_STILL')
@@ -940,7 +1076,7 @@ Test-Knoux -Name '69 Restore Alternate writes to a user-supplied path' -Body {
     $altFile = Join-Path $env:TEMP ('knoux-alt-' + [guid]::NewGuid().ToString('N') + '.txt')
     Set-Content -LiteralPath $childPath -Value $child -Encoding UTF8
     try {
-        $r = Invoke-KnouxTestChild -ScriptPath $childPath -Stdin ("A`n" + $altFile + "`n")
+        $r = Invoke-KnouxTestChild -ScriptPath $childPath -ConflictAction Alternate -AltPath $altFile -TimeoutSeconds 30
         $m = Get-KnouxChildMarkers $r.Stdout
         $res = (Get-KnouxChildValue $m 'RESULT')
         $dest = (Get-KnouxChildValue $m 'DEST_CONTENT')
@@ -956,7 +1092,7 @@ Test-Knoux -Name '70 Restore Backup keeps a backup of the existing destination' 
     $childPath = Join-Path $env:TEMP ('knoux-child-' + [guid]::NewGuid().ToString('N') + '.ps1')
     Set-Content -LiteralPath $childPath -Value $child -Encoding UTF8
     try {
-        $r = Invoke-KnouxTestChild -ScriptPath $childPath -Stdin "B`n"
+        $r = Invoke-KnouxTestChild -ScriptPath $childPath -ConflictAction Backup -TimeoutSeconds 30
         $m = Get-KnouxChildMarkers $r.Stdout
         $res = (Get-KnouxChildValue $m 'RESULT')
         $qStill = (Get-KnouxChildValue $m 'Q_STILL')
