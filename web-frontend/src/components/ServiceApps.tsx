@@ -21,7 +21,7 @@ import MaintenanceStation from '../features/stations/station01/MaintenanceStatio
 import CleanupStation from '../features/stations/station02/CleanupStation';
 import NetworkStation from '../features/stations/station03/NetworkStation';
 import ProgramsStation from '../features/stations/station04/ProgramsStation';
-import DuplicateOrganizerApp from './DuplicateOrganizerApp';
+import DuplicateStation from '../features/stations/station05/DuplicateStation';
 import ProjectSonarApp from './ProjectSonarApp';
 
 interface ServiceAppsProps {
@@ -295,7 +295,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
     }
   }, [activeSection, available, data, lang, launchToolById, reviewableToolIds, tools, toolStatuses, bridgeElevated, bridgeOnline, onRetryBridge, onToolStatus, reload]);
   const specialContent = activeSection === 'duplicates'
-    ? <DuplicateOrganizerApp lang={lang} tools={tools} onPrepareRun={prepareToolRun} />
+    ? <DuplicateStation lang={lang} tools={tools} onPrepareRun={prepareToolRun} />
     : activeSection === 'projectSonar'
       ? <ProjectSonarApp lang={lang} tools={tools} onPrepareRun={prepareToolRun} />
       : null;
