@@ -10,7 +10,7 @@ import type { ElementType } from 'react';
 import type { ActiveSection, ToolStatus } from '../types';
 import type {
   BridgeTool, DriversPreview, ExecutionMode,
-  OperationsPreview, PostInstallPreview, PrivacyPreview, SoftwarePreview,
+  OperationsPreview, PostInstallPreview, SoftwarePreview,
   ToolRunConfirmation, ToolRunOptions,
 } from '../lib/api';
 import { api } from '../lib/api';
@@ -29,6 +29,7 @@ import SecurityStation from '../features/stations/station09/SecurityStation';
 import DiagnosticsStation from '../features/stations/station10/DiagnosticsStation';
 import RecoveryStation from '../features/stations/station11/RecoveryStation';
 import DeveloperStation from '../features/stations/station12/DeveloperStation';
+import PrivacyStation from '../features/stations/station13/PrivacyStation';
 import ProjectSonarApp from './ProjectSonarApp';
 
 interface ServiceAppsProps {
@@ -142,7 +143,6 @@ function LibraryApp({ data, lang, variant }: { data: SoftwarePreview; lang: Lang
   return <div className="library-app-view library-product-view"><section className="library-overview"><div><p>{labels.subtitle}</p><h2>{number(data.Total, lang)}</h2><span>{labels.title}</span></div><Boxes size={45} /><aside><span>{lang === 'ar' ? 'تطبيقات سطح المكتب' : 'Desktop apps'}</span><strong>{number(data.DesktopCount, lang)}</strong><span>{lang === 'ar' ? 'تطبيقات المتجر' : 'Store apps'}</span><strong>{number(data.AppxCount, lang)}</strong></aside></section><section className="library-toolbar"><div><span>{lang === 'ar' ? 'عرض' : 'Show'}</span>{([['all', lang === 'ar' ? 'الكل' : 'All'], ['desktop', lang === 'ar' ? 'سطح المكتب' : 'Desktop'], ['store', lang === 'ar' ? 'المتجر' : 'Store']] as const).map(([id, label]) => <button type="button" className={filter === id ? 'is-active' : ''} key={id} onClick={() => setFilter(id)}>{label}</button>)}</div><small>{data.Truncated ? (lang === 'ar' ? 'تُعرض عينة من الجرد المتاح.' : 'A sample of the available inventory is displayed.') : (lang === 'ar' ? 'جرد التطبيقات مكتمل.' : 'Application inventory is complete.')}</small></section><section className="library-shelf">{items.slice(0, 12).map((item) => <button type="button" className={selected?.Name === item.Name ? 'is-selected' : ''} key={`${item.Name}-${item.Version}`} onClick={() => setSelectedName(item.Name)}><span>{item.Name.slice(0, 1).toUpperCase()}</span><div><strong>{item.Name}</strong><small>{item.Publisher || (lang === 'ar' ? 'تطبيق محلي' : 'Local application')}</small></div><b>{item.Version || '—'}</b></button>)}</section>{selected && <section className="library-detail-card"><div><p>{lang === 'ar' ? 'التطبيق المختار' : 'Selected application'}</p><h3>{selected.Name}</h3><span>{selected.Publisher || (lang === 'ar' ? 'ناشر غير معروف' : 'Unknown publisher')} · {selected.Version || '—'}</span></div><div><span>{lang === 'ar' ? 'المصدر' : 'Source'}</span><strong>{selected.Kind === 'Appx' ? (lang === 'ar' ? 'متجر ويندوز' : 'Windows Store') : (lang === 'ar' ? 'سطح المكتب' : 'Desktop')}</strong></div><div><span>{lang === 'ar' ? 'إزالة مسجلة' : 'Registered uninstall'}</span><strong>{selected.CanUninstall ? (lang === 'ar' ? 'متاحة عبر إجراء معتمد' : 'Available through an approved action') : (lang === 'ar' ? 'غير متاحة' : 'Unavailable')}</strong></div></section>}</div>;
 }
 
-function PrivacyApp({ data, lang }: { data: PrivacyPreview; lang: Lang }) { const [selectedId, setSelectedId] = useState<string | null>(data.Settings[0]?.Id || null); const selected = data.Settings.find((setting) => setting.Id === selectedId) || null; return <div className="privacy-app-view privacy-product-view"><section className="privacy-hero"><UserRoundCheck size={42} /><div><p>{lang === 'ar' ? 'مركز تدقيق الخصوصية' : 'Privacy audit center'}</p><h2>{number(data.Settings.filter((setting) => setting.Available).length, lang)} {lang === 'ar' ? 'خيارات جاهزة للمراجعة' : 'choices ready to review'}</h2><span>{lang === 'ar' ? 'الحالات أدناه مأخوذة من إعدادات الجهاز المتاحة الآن؛ أي تغيير يمر بالمراجعة والتأكيد.' : 'The states below come from device settings available now; every change goes through review and confirmation.'}</span></div></section><section className="privacy-choice-grid">{data.Settings.slice(0, 8).map((setting) => <button type="button" className={selected?.Id === setting.Id ? 'is-selected' : ''} key={setting.Id} onClick={() => setSelectedId(setting.Id)}><span className={setting.Available ? 'is-enabled' : 'is-muted'} /><div><strong>{setting.Name}</strong><small>{setting.Detail}</small></div><ChevronRight size={16} className="rtl:rotate-180" /></button>)}</section>{selected && <section className="privacy-detail-card"><div><p>{lang === 'ar' ? 'تفاصيل الاختيار' : 'Selection details'}</p><h3>{selected.Name}</h3><span>{selected.Detail}</span></div><div><span>{lang === 'ar' ? 'الحالة الحالية' : 'Current state'}</span><strong>{String(selected.State || '—')}</strong></div><div><span>{lang === 'ar' ? 'قابل للمراجعة' : 'Reviewable'}</span><strong>{selected.Available ? (lang === 'ar' ? 'نعم، بإجراء معتمد' : 'Yes, through an approved action') : (lang === 'ar' ? 'غير متاح حالياً' : 'Not currently available')}</strong></div></section>}<section className="privacy-activity"><Activity size={20} /><span>{lang === 'ar' ? 'النشاط المحلي المسجّل' : 'Local activity record'}</span><strong>{number(data.ActivityEvidence.RunHistoryEntryCount, lang)}</strong></section></div>; }
 
 function DriverApp({ data, lang }: { data: DriversPreview; lang: Lang }) { const [selectedInf, setSelectedInf] = useState<string | null>(data.ReviewDrivers[0]?.InfName || null); const selected = data.ReviewDrivers.find((driver) => driver.InfName === selectedInf) || null; return <div className="driver-app-view driver-product-view"><section className="driver-garage-hero"><Wrench size={40} /><div><p>{lang === 'ar' ? 'مركز التعريفات والأجهزة' : 'Driver & device center'}</p><h2>{number(data.Summary.TotalDrivers, lang)} {lang === 'ar' ? 'تعريفاً مكتشفاً' : 'drivers discovered'}</h2><span>{lang === 'ar' ? 'يعرض هذا المركز جرداً فعلياً للتوقيع والحالة والإشارات التي تستحق المراجعة.' : 'This center shows a real inventory of signatures, status, and review signals.'}</span></div></section><section className="driver-stat-lane"><Metric icon={ShieldCheck} label={lang === 'ar' ? 'موثوق' : 'Trusted'} value={number(data.Summary.SignedDrivers, lang)} /><Metric icon={TriangleAlert} label={lang === 'ar' ? 'للمراجعة' : 'Review'} value={number(data.Summary.UnsignedDrivers + data.Summary.DeviceProblems, lang)} /><Metric icon={Layers3} label={lang === 'ar' ? 'من جهات أخرى' : 'Third party'} value={number(data.Summary.ThirdPartyDrivers, lang)} /></section><section className="driver-inventory"><div className="app-section-title"><div><p>{lang === 'ar' ? 'قائمة المراجعة' : 'Review inventory'}</p><h2>{lang === 'ar' ? 'التعريفات التي تحتاج تدقيقاً' : 'Drivers requiring attention'}</h2></div><span className="product-evidence-badge"><DatabaseZap size={13} />{lang === 'ar' ? 'جرد حي' : 'Live inventory'}</span></div>{data.ReviewDrivers.slice(0, 8).map((driver) => <button type="button" className={selected?.InfName === driver.InfName ? 'is-selected' : ''} key={`${driver.DeviceName}-${driver.InfName}`} onClick={() => setSelectedInf(driver.InfName)}><span className={driver.Signed ? 'is-signed' : 'is-review'} /><div><strong>{driver.DeviceName}</strong><small>{driver.Provider} · {driver.Version || '—'}</small></div><b>{driver.ReviewSignals.length ? driver.ReviewSignals.join(' · ') : (lang === 'ar' ? 'راجع الحالة' : 'Review status')}</b></button>)}</section>{selected && <section className="driver-detail-card"><div><p>{lang === 'ar' ? 'تفاصيل العنصر المختار' : 'Selected driver details'}</p><h3>{selected.DeviceName}</h3><span>{selected.Provider} · {selected.DeviceClass} · {selected.Version || '—'}</span></div><div><span>{lang === 'ar' ? 'التوقيع' : 'Signature'}</span><strong>{selected.Signed ? (lang === 'ar' ? 'موثّق' : 'Signed') : (lang === 'ar' ? 'غير موثّق' : 'Unsigned')}</strong></div><div><span>{lang === 'ar' ? 'إشارات المراجعة' : 'Review signals'}</span><strong>{selected.ReviewSignals.length ? selected.ReviewSignals.join(', ') : '—'}</strong></div></section>}</div>; }
 
@@ -335,10 +335,22 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
         />
       );
     }
+    if (activeSection === 'privacy') {
+      return (
+        <PrivacyStation
+          lang={lang}
+          tools={tools}
+          toolStatuses={toolStatuses}
+          bridgeElevated={bridgeElevated}
+          bridgeOnline={bridgeOnline}
+          onRetryBridge={onRetryBridge || reload}
+          onToolStatus={onToolStatus || (() => {})}
+        />
+      );
+    }
     if (!available || !data) return null;
     switch (activeSection) {
       case 'softwareEnvironment': return <LibraryApp data={data as SoftwarePreview} lang={lang} variant="software" />;
-      case 'privacy': return <PrivacyApp data={data as PrivacyPreview} lang={lang} />;
       case 'drivers': return <DriverApp data={data as DriversPreview} lang={lang} />;
       case 'postInstall': return <SetupApp data={data as PostInstallPreview} lang={lang} />;
       case 'monitoring': return <OperationsApp data={data as OperationsPreview} lang={lang} />;
@@ -352,7 +364,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || activeSection === 'developerTools' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || activeSection === 'developerTools' || activeSection === 'privacy' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>
