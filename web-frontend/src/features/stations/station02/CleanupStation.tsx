@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertTriangle, ArrowRight, CircleAlert, Clock, Download, FileText,
-  LoaderCircle, LockKeyhole, Play, RefreshCw, ScanSearch, ShieldCheck, Sparkles, Square, Trash2, X,
+  AlertTriangle, ArrowRight, CircleAlert, Clock, Database, Download, FileText,
+  HardDrive, History, Layers, LoaderCircle, LockKeyhole, Play, RefreshCw,
+  ScanSearch, ShieldCheck, Sparkles, Square, Trash2, X,
 } from 'lucide-react';
+import CleanupHeroVisual from './CleanupHeroVisual';
 import type { BridgeRun, BridgeTool, CleanupPreview, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../../lib/api';
 import { api, BridgeError } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
@@ -34,15 +36,32 @@ interface ActiveRun {
   startedAt: number;
 }
 
+export type Station02Tab = 'overview' | 'caches' | 'system' | 'recycle' | 'master' | 'report';
+
 const COPY = {
   en: {
     eyebrow: 'CLEANUP PLAN', title: 'Space Cleaner', subtitle: 'Safe Windows cleanup center — scan first, review, then clean.',
+    productTitle: 'Space Cleaner Studio',
+    productSub: 'Safely recover storage space across user caches, Windows system temporary zones, and update files without risk to personal data.',
     scan: 'Scan for Cleanup', scanning: 'Scanning…', cancel: 'Cancel', close: 'Close',
+    primaryCta: 'SCAN FOR CLEANUP', secondaryCta: 'View Cleanup History',
+    navOverview: 'Overview', navCaches: 'User & Web Caches', navSystem: 'System & Updates', navRecycle: 'Recycle Bin & Large', navMaster: 'Master Clean', navReport: 'Report & History',
+    tabCachesTitle: 'User & Browser Temporary Caches',
+    tabCachesSub: 'Safe, restorable user caches. Isolated in quarantine without affecting passwords, cookies, or history.',
+    tabSystemTitle: 'Windows System Temp & Update Storage',
+    tabSystemSub: 'System temporary directories and update distribution caches. Files in active use are safely skipped.',
+    tabRecycleTitle: 'Recycle Bin Purge & Large Temp Items',
+    tabRecycleSub: 'Irreversible deletion from the Recycle Bin and temp files exceeding 100 MB. Explicit confirmation required.',
+    tabMasterTitle: 'Comprehensive System Cleanup & Inspection',
+    tabMasterSub: 'Combined multi-zone cleanup passes and safe read-only preview metrics.',
+    tabReportTitle: 'Cleanup Audit & Quarantine Report',
+    tabReportSub: 'Complete audit log of scanned candidate bytes, quarantined items, and verified recovered storage.',
     summaryTitle: 'Cleanup summary', groupsTitle: 'Cleanup groups', reviewTitle: 'Review workspace',
     protectTitle: 'Protected items', execTitle: 'Execution', beforeAfterTitle: 'Before / after',
     evidenceTitle: 'Evidence center', historyTitle: 'Station history', reportDownload: 'Download cleanup report',
     potential: 'Potentially recoverable', selected: 'Selected', recovered: 'Actually recovered',
     lastCleanup: 'Last cleanup', protectedNote: 'Protected paths are never touched. Exclusions are enforced by the shared safety core.',
+    protected: 'Protected',
     notScanned: 'Not scanned', unavailable: 'Unavailable', nothingSafe: 'Nothing safe to clean',
     analyze: 'Analyze', preview: 'What-if', run: 'Run', reviewRun: 'Review & run',
     selectSafe: 'Select all safe', clearSelection: 'Clear selection',
@@ -73,12 +92,27 @@ const COPY = {
   },
   ar: {
     eyebrow: 'خطة التنظيف', title: 'منظف المساحة', subtitle: 'مركز تنظيف ويندوز الآمن — افحص أولاً، راجع، ثم نظّف.',
+    productTitle: 'استوديو تنظيف المساحة',
+    productSub: 'استعد مساحة التخزين بأمان عبر ذاكرات التخزين المؤقت، ومؤقتات نظام ويندوز، وحزم التحديثات دون أي مساس ببياناتك الشخصية.',
     scan: 'فحص الملفات القابلة للتنظيف', scanning: 'جارٍ الفحص…', cancel: 'إيقاف', close: 'إغلاق',
+    primaryCta: 'فحص الملفات القابلة للتنظيف', secondaryCta: 'سجل عمليات التنظيف',
+    navOverview: 'نظرة عامة', navCaches: 'ذاكرة التخزين المؤقت', navSystem: 'النظام والتحديثات', navRecycle: 'سلة المحذوفات والكبيرة', navMaster: 'التنظيف الشامل', navReport: 'التقرير والسجل',
+    tabCachesTitle: 'الملفات المؤقتة للمستخدم والمتصفح',
+    tabCachesSub: 'ذاكرات مؤقتة آمنة وقابلة للاستعادة. تُعزل في الحجر دون لمس كلمات المرور أو الكوكيز أو السجل.',
+    tabSystemTitle: 'مؤقتات النظام ومخزن التحديثات',
+    tabSystemSub: 'مجلدات ويندوز المؤقتة وذاكرة تنزيل التحديثات. يتم تخطي الملفات قيد الاستخدام بأمان.',
+    tabRecycleTitle: 'تفريغ سلة المحذوفات والملفات الكبيرة',
+    tabRecycleSub: 'حذف نهائي لا يمكن التراجع عنه لسلة المحذوفات وللملفات المؤقتة التي تتجاوز 100 م.ب. يلزم تأكيد كتابي.',
+    tabMasterTitle: 'التنظيف الشامل والفحص المجمع',
+    tabMasterSub: 'مسارات تنظيف متعددة المراحل ومقاييس فحص آمنة للقراءة فقط.',
+    tabReportTitle: 'سجل تدقيق التنظيف وتقارير العزل',
+    tabReportSub: 'سجل تدقيق كامل للمساحات المرشحة، والعناصر المعزولة، والمساحات المستردة فعلياً بعد التحقق.',
     summaryTitle: 'ملخص التنظيف', groupsTitle: 'مجموعات التنظيف', reviewTitle: 'مساحة المراجعة',
     protectTitle: 'عناصر محمية', execTitle: 'التنفيذ', beforeAfterTitle: 'قبل / بعد',
     evidenceTitle: 'مركز الأدلة', historyTitle: 'سجل المحطة', reportDownload: 'تنزيل تقرير التنظيف',
     potential: 'مساحة محتمل استردادها', selected: 'المحدد', recovered: 'المساحة المستردة فعليًا',
     lastCleanup: 'آخر تنظيف', protectedNote: 'المسارات المحمية لا تُمس أبدًا. الاستثناءات يفرضها نواة الأمان المشتركة.',
+    protected: 'محمي',
     notScanned: 'لم يُفحص بعد', unavailable: 'غير متاح', nothingSafe: 'لا يوجد ما يمكن تنظيفه بأمان',
     analyze: 'تحليل', preview: 'معاينة', run: 'تشغيل', reviewRun: 'مراجعة وتشغيل',
     selectSafe: 'تحديد الآمن فقط', clearSelection: 'مسح التحديد',
@@ -182,9 +216,27 @@ export default function CleanupStation({
 
   const [preview, setPreview] = useState<CleanupPreview | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [activeTab, setActiveTab] = useState<Station02Tab>('overview');
   const [selected, setSelected] = useState<string[]>(() => CLEANUP_GROUPS.filter((g) => g.defaultSelected).map((g) => g.id));
   const [outcomes, setOutcomes] = useState<ToolOutcome[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory());
+
+  const displayedGroups = useMemo(() => {
+    switch (activeTab) {
+      case 'caches':
+        return CLEANUP_GROUPS.filter((g) => g.id === 'user-temp' || g.id === 'browser-cache' || g.id === 'thumbnails');
+      case 'system':
+        return CLEANUP_GROUPS.filter((g) => g.id === 'system-temp' || g.id === 'error-reports' || g.id === 'update-cache');
+      case 'recycle':
+        return CLEANUP_GROUPS.filter((g) => g.id === 'recycle-bin' || g.id === 'large-temp');
+      case 'master':
+        return CLEANUP_GROUPS.filter((g) => g.id === 'comprehensive' || g.id === 'dev-caches');
+      case 'overview':
+      case 'report':
+      default:
+        return CLEANUP_GROUPS;
+    }
+  }, [activeTab]);
   const [activeRun, setActiveRun] = useState<ActiveRun | null>(null);
   const [lines, setLines] = useState<Array<{ t: string; s: string; text: string }>>([]);
   const [showRaw, setShowRaw] = useState(false);
@@ -412,7 +464,122 @@ export default function CleanupStation({
           </div>
         )}
 
+        {/* ── Mini Navigation Rail ── */}
+        <nav className="cleanup-mini-nav" aria-label={lang === 'ar' ? 'تنقل استوديو تنظيف المساحة' : 'Space Cleaner Studio navigation'}>
+          <button
+            type="button"
+            className={`cleanup-mini-nav-btn ${activeTab === 'overview' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('overview')}
+          >
+            <Sparkles size={14} />
+            <span>{text.navOverview}</span>
+          </button>
+          <button
+            type="button"
+            className={`cleanup-mini-nav-btn ${activeTab === 'caches' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('caches')}
+          >
+            <Layers size={14} />
+            <span>{text.navCaches}</span>
+          </button>
+          <button
+            type="button"
+            className={`cleanup-mini-nav-btn ${activeTab === 'system' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('system')}
+          >
+            <HardDrive size={14} />
+            <span>{text.navSystem}</span>
+          </button>
+          <button
+            type="button"
+            className={`cleanup-mini-nav-btn ${activeTab === 'recycle' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('recycle')}
+          >
+            <Trash2 size={14} />
+            <span>{text.navRecycle}</span>
+          </button>
+          <button
+            type="button"
+            className={`cleanup-mini-nav-btn ${activeTab === 'master' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('master')}
+          >
+            <Database size={14} />
+            <span>{text.navMaster}</span>
+          </button>
+          <button
+            type="button"
+            className={`cleanup-mini-nav-btn ${activeTab === 'report' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('report')}
+          >
+            <FileText size={14} />
+            <span>{text.navReport}</span>
+          </button>
+        </nav>
+
+        {/* ── Contextual Tab Header ── */}
+        {activeTab !== 'overview' && (
+          <header className="cleanup-tab-header">
+            <h3>
+              {activeTab === 'caches' && <Layers size={18} />}
+              {activeTab === 'system' && <HardDrive size={18} />}
+              {activeTab === 'recycle' && <Trash2 size={18} />}
+              {activeTab === 'master' && <Database size={18} />}
+              {activeTab === 'report' && <FileText size={18} />}
+              <span>
+                {activeTab === 'caches' ? text.tabCachesTitle :
+                 activeTab === 'system' ? text.tabSystemTitle :
+                 activeTab === 'recycle' ? text.tabRecycleTitle :
+                 activeTab === 'master' ? text.tabMasterTitle :
+                 text.tabReportTitle}
+              </span>
+            </h3>
+            <p>
+              {activeTab === 'caches' ? text.tabCachesSub :
+               activeTab === 'system' ? text.tabSystemSub :
+               activeTab === 'recycle' ? text.tabRecycleSub :
+               activeTab === 'master' ? text.tabMasterSub :
+               text.tabReportSub}
+            </p>
+          </header>
+        )}
+
+        {/* ── LANDING CANVAS (Shown in Overview when not scanned yet) ── */}
+        {activeTab === 'overview' && preview === null && !scanning && activeRun === null && (
+          <section className="cleanup-landing-canvas">
+            <CleanupHeroVisual
+              lang={lang}
+              stage="idle"
+              activeTier="safe"
+              className="cleanup-landing-hero-visual"
+            />
+            <div className="cleanup-landing-copy">
+              <h2>{text.productTitle}</h2>
+              <p>{text.productSub}</p>
+              <div className="cleanup-landing-actions">
+                <button
+                  type="button"
+                  className="cleanup-landing-primary-cta"
+                  onClick={() => void runScan()}
+                  aria-label={text.primaryCta}
+                >
+                  <ScanSearch size={16} />
+                  <span>{text.primaryCta}</span>
+                </button>
+                <button
+                  type="button"
+                  className="cleanup-landing-secondary-cta"
+                  onClick={() => setActiveTab('report')}
+                >
+                  <History size={14} />
+                  <span>{text.secondaryCta}</span>
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* ── Summary hero: three separate byte roles ── */}
+        {(preview !== null || scanning || activeRun !== null || activeTab !== 'overview') && (
         <section className="cleanup-hero" aria-live="polite">
           <div className="cleanup-hero-copy">
             <p className="eyebrow"><Sparkles size={13} />{text.eyebrow}</p>
@@ -444,11 +611,13 @@ export default function CleanupStation({
             <div><dt>{text.lastCleanup}</dt><dd dir="auto">{lastCleanupAt || text.notScanned}</dd></div>
           </dl>
         </section>
+        )}
 
         {/* ── Groups ── */}
+        {activeTab !== 'report' && (
         <section aria-label={text.groupsTitle}>
           <div className="app-section-title">
-            <div><p>{STATION02_TOOL_IDS.length} · 02</p><h2>{text.groupsTitle}</h2></div>
+            <div><p>{activeTab === 'overview' ? STATION02_TOOL_IDS.length : displayedGroups.length} · 02</p><h2>{text.groupsTitle}</h2></div>
             <div className="cleanup-select-actions">
               <button type="button" className="cleanup-ghost" disabled={!preview || activeRun !== null} onClick={() => setSelected(CLEANUP_GROUPS.filter((g) => g.tier === 'safe').map((g) => g.id))}>{text.selectSafe}</button>
               <button type="button" className="cleanup-ghost" disabled={activeRun !== null} onClick={() => setSelected([])}>{text.clearSelection}</button>
@@ -458,7 +627,7 @@ export default function CleanupStation({
             <p className="cleanup-empty">{scanning ? text.scanning : text.notScanned}</p>
           ) : (
             <div className="cleanup-groups">
-              {CLEANUP_GROUPS.map((def) => {
+              {displayedGroups.map((def) => {
                 const item = classified.groups[def.id];
                 const tool = def.toolId ? byId.get(def.toolId) : null;
                 const checked = selected.includes(def.id);
@@ -518,6 +687,7 @@ export default function CleanupStation({
             </div>
           )}
         </section>
+        )}
 
         {/* ── Review workspace ── */}
         {preview && (
