@@ -10,7 +10,6 @@ import type { ElementType } from 'react';
 import type { ActiveSection, ToolStatus } from '../types';
 import type {
   BridgeTool, ExecutionMode,
-  PostInstallPreview,
   ToolRunConfirmation, ToolRunOptions,
 } from '../lib/api';
 import { api } from '../lib/api';
@@ -33,6 +32,7 @@ import PrivacyStation from '../features/stations/station13/PrivacyStation';
 import DriversStation from '../features/stations/station14/DriversStation';
 import MonitoringStation from '../features/stations/station15/MonitoringStation';
 import SoftwareStation from '../features/stations/station16/SoftwareStation';
+import PostInstallStation from '../features/stations/station17/PostInstallStation';
 import ProjectSonarApp from './ProjectSonarApp';
 
 interface ServiceAppsProps {
@@ -142,8 +142,6 @@ function SafetyNote({ lang }: { lang: Lang }) { const text = COPY[lang]; return 
 
 
 
-function SetupApp({ data, lang }: { data: PostInstallPreview; lang: Lang }) { return <div className="setup-app-view"><section className="setup-hero"><Rocket size={44} /><div><p>{lang === 'ar' ? 'استعداد الجهاز' : 'Device readiness'}</p><h2>{data.System.Caption}</h2><span>{lang === 'ar' ? 'اختر ما تحتاجه فقط لإعداد جهازك.' : 'Choose only what you need to prepare your device.'}</span></div><span className="setup-ready-badge">{data.Winget.Available ? <CheckCircle2 size={16} /> : <CircleAlert size={16} />}{data.Winget.Available ? (lang === 'ar' ? 'جاهز' : 'Ready') : (lang === 'ar' ? 'راجع' : 'Review')}</span></section><section className="setup-checklist"><SetupCheck label={lang === 'ar' ? 'عروض التعريفات' : 'Driver offers'} value={data.DriverOffers.Count || 0} lang={lang} /><SetupCheck label={lang === 'ar' ? 'تطبيقات أساسية' : 'Essential apps'} value={data.Catalog.filter((item) => !item.Detected).length} lang={lang} /><SetupCheck label={lang === 'ar' ? 'إعادة تشغيل معلقة' : 'Pending restart'} value={data.System.PendingRestartSignals.length} lang={lang} /></section><section className="setup-catalog-preview">{data.Catalog.slice(0, 4).map((item) => <article key={item.PackageId}><span className={item.Detected ? 'is-detected' : ''}><PackageCheck size={17} /></span><div><strong>{item.Name}</strong><small>{item.Category}</small></div><b>{item.Detected ? (lang === 'ar' ? 'موجود' : 'Installed') : (lang === 'ar' ? 'متاح' : 'Available')}</b></article>)}</section></div>; }
-function SetupCheck({ label, value, lang }: { label: string; value: number; lang: Lang }) { return <article><span>{value}</span><strong>{label}</strong><small>{value ? (lang === 'ar' ? 'راجع الخيارات' : 'Review choices') : (lang === 'ar' ? 'مكتمل' : 'Complete')}</small></article>; }
 
 
 
@@ -382,11 +380,21 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
         />
       );
     }
-    if (!available || !data) return null;
-    switch (activeSection) {
-      case 'postInstall': return <SetupApp data={data as PostInstallPreview} lang={lang} />;
-      default: return <GenericApp section={activeSection} lang={lang} />;
+    if (activeSection === 'postInstall') {
+      return (
+        <PostInstallStation
+          lang={lang}
+          tools={tools}
+          toolStatuses={toolStatuses}
+          bridgeElevated={bridgeElevated}
+          bridgeOnline={bridgeOnline}
+          onRetryBridge={onRetryBridge || reload}
+          onToolStatus={onToolStatus || (() => {})}
+        />
+      );
     }
+    if (!available || !data) return null;
+    return <GenericApp section={activeSection} lang={lang} />;
   }, [activeSection, available, data, lang, launchToolById, reviewableToolIds, tools, toolStatuses, bridgeElevated, bridgeOnline, onRetryBridge, onToolStatus, reload]);
   const specialContent = activeSection === 'duplicates'
     ? <DuplicateStation lang={lang} tools={tools} onPrepareRun={prepareToolRun} />
@@ -395,7 +403,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || activeSection === 'developerTools' || activeSection === 'privacy' || activeSection === 'drivers' || activeSection === 'monitoring' || activeSection === 'softwareEnvironment' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || activeSection === 'developerTools' || activeSection === 'privacy' || activeSection === 'drivers' || activeSection === 'monitoring' || activeSection === 'softwareEnvironment' || activeSection === 'postInstall' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>
