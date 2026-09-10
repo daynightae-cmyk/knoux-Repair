@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Activity, AppWindow, ArchiveRestore, ArrowRight, BadgeCheck, BarChart3, Boxes,
-  CheckCircle2, ChevronRight, CircleAlert, CloudCog, Copy, Cpu, DatabaseZap, Download, FolderKanban, Gauge, HardDrive,
+  Activity, AppWindow, ArchiveRestore, ArrowRight, BadgeCheck, Boxes,
+  CheckCircle2, ChevronRight, CircleAlert, CloudCog, Copy, Cpu, DatabaseZap, FolderKanban, Gauge, HardDrive,
   HeartPulse, Layers3, LoaderCircle, LockKeyhole, MonitorCog, Network, PackageCheck, Radar, RefreshCw,
   Rocket, ScanSearch, ShieldCheck, Sparkles, Trash2, TriangleAlert, UserRoundCheck,
   Wrench,
@@ -9,7 +9,7 @@ import {
 import type { ElementType } from 'react';
 import type { ActiveSection, ToolStatus } from '../types';
 import type {
-  BackupRecoveryPreview, BridgeTool, DiagnosticsPreview, DriversPreview, ExecutionMode,
+  BackupRecoveryPreview, BridgeTool, DriversPreview, ExecutionMode,
   OperationsPreview, PostInstallPreview, PrivacyPreview, SoftwarePreview,
   ToolRunConfirmation, ToolRunOptions,
 } from '../lib/api';
@@ -26,6 +26,7 @@ import DiskSpaceStation from '../features/stations/station06/DiskSpaceStation';
 import ServicesStation from '../features/stations/station07/ServicesStation';
 import PerformanceStation from '../features/stations/station08/PerformanceStation';
 import SecurityStation from '../features/stations/station09/SecurityStation';
+import DiagnosticsStation from '../features/stations/station10/DiagnosticsStation';
 import ProjectSonarApp from './ProjectSonarApp';
 
 interface ServiceAppsProps {
@@ -134,17 +135,7 @@ function SafetyNote({ lang }: { lang: Lang }) { const text = COPY[lang]; return 
 
 
 
-function DiagnosticsApp({ data, lang }: { data: DiagnosticsPreview; lang: Lang }) {
-  const tests = [
-    { label: lang === 'ar' ? 'أحداث النظام' : 'System events', state: data.Events.ErrorOrCriticalCount ? 'warning' : 'passed', detail: data.Events.ErrorOrCriticalCount ? `${number(data.Events.ErrorOrCriticalCount, lang)} ${lang === 'ar' ? 'حدث يحتاج مراجعة' : 'events need review'}` : (lang === 'ar' ? 'لا توجد أحداث حرجة في الفترة المقروءة' : 'No critical events in the observed period') },
-    { label: lang === 'ar' ? 'الأجهزة' : 'Devices', state: data.Devices.ProblemsObserved ? 'warning' : 'passed', detail: data.Devices.ProblemsObserved ? `${number(data.Devices.ProblemsObserved, lang)} ${lang === 'ar' ? 'جهاز يحتاج انتباهاً' : 'devices need attention'}` : (lang === 'ar' ? 'لا توجد مشكلة جهاز مُكتشفة' : 'No detected device problem') },
-    { label: lang === 'ar' ? 'التخزين الذكي' : 'Storage SMART', state: data.Storage.DisksObserved ? (data.Storage.SmartFailurePredicted ? 'warning' : 'passed') : 'unavailable', detail: data.Storage.DisksObserved ? (data.Storage.SmartFailurePredicted ? (lang === 'ar' ? 'هناك إشارة تخزين تحتاج متابعة' : 'A storage signal needs follow-up') : (lang === 'ar' ? 'لم تظهر إشارة فشل متوقعة' : 'No predicted failure signal observed')) : (lang === 'ar' ? 'لم تتوفر بيانات SMART' : 'SMART data unavailable') },
-    { label: lang === 'ar' ? 'الاعتمادية' : 'Reliability', state: data.Reliability.RecordsObserved ? 'passed' : 'unavailable', detail: data.Reliability.RecordsObserved ? `${number(data.Reliability.RecordsObserved, lang)} ${lang === 'ar' ? 'سجل تمت قراءته' : 'records read'}` : (lang === 'ar' ? 'لا توجد سجلات متاحة' : 'No records available') },
-  ];
-  const score = Math.max(0, 100 - data.Events.ErrorOrCriticalCount * 2 - data.Devices.ProblemsObserved * 8 - data.Storage.SmartFailurePredicted * 18);
-  return <div className="diagnostics-app-view diagnostics-product-view"><section className="diagnostic-scoreboard"><div className="diagnostic-score"><ScanSearch size={29} /><strong>{score}</strong><span>{lang === 'ar' ? 'مؤشر إرشادي' : 'guidance score'}</span></div><div><p>{lang === 'ar' ? 'مركز الفحص الاحترافي' : 'Professional checkup center'}</p><h2>{data.System.Os}</h2><span>{lang === 'ar' ? `قراءة النظام منذ ${data.System.UptimeHours.toLocaleString(lang)} ساعة تشغيل` : `System reading after ${data.System.UptimeHours.toLocaleString(lang)} hours of uptime`}</span></div><BarChart3 size={42} /></section><section className="diagnostic-finding-grid"><FindingCard icon={TriangleAlert} title={lang === 'ar' ? 'تنبيهات النظام' : 'System alerts'} value={data.Events.ErrorOrCriticalCount} detail={lang === 'ar' ? 'خلال الأيام الأخيرة' : 'in recent days'} lang={lang} /><FindingCard icon={Wrench} title={lang === 'ar' ? 'أجهزة تحتاج انتباهاً' : 'Devices needing attention'} value={data.Devices.ProblemsObserved} detail={lang === 'ar' ? 'ضمن الأجهزة المكتشفة' : 'among detected devices'} lang={lang} /><FindingCard icon={HardDrive} title={lang === 'ar' ? 'تحذيرات التخزين' : 'Storage warnings'} value={data.Storage.SmartFailurePredicted} detail={lang === 'ar' ? 'مؤشرات للمتابعة' : 'signals to follow up'} lang={lang} /></section><section className="diagnostic-test-list"><div className="app-section-title"><div><p>{lang === 'ar' ? 'نتائج الفحص' : 'Checkup results'}</p><h2>{lang === 'ar' ? 'اختبارات الجهاز والنظام' : 'System and device checks'}</h2></div></div>{tests.map((test) => <article className={`is-${test.state}`} key={test.label}><span>{test.state === 'passed' ? <CheckCircle2 size={17} /> : test.state === 'warning' ? <TriangleAlert size={17} /> : <CircleAlert size={17} />}</span><div><strong>{test.label}</strong><small>{test.detail}</small></div><b>{test.state === 'passed' ? (lang === 'ar' ? 'اجتاز' : 'Passed') : test.state === 'warning' ? (lang === 'ar' ? 'راجع' : 'Review') : (lang === 'ar' ? 'غير متاح' : 'Unavailable')}</b></article>)}</section><section className="diagnostic-report-card"><Download size={23} /><div><strong>{lang === 'ar' ? 'تقرير مبسط لجهازك' : 'A simple report for your device'}</strong><span>{lang === 'ar' ? 'يمكنك حفظ أو مشاركة دليل الدعم من نتيجة أي إجراء مكتمل.' : 'You can save or share support evidence from any completed action.'}</span></div><ChevronRight size={17} className="rtl:rotate-180" /></section></div>;
-}
-function FindingCard({ icon: Icon, title, value, detail, lang }: { icon: ElementType; title: string; value: number; detail: string; lang: Lang }) { return <article className={value ? 'has-finding' : 'is-clear'}><Icon size={20} /><strong>{number(value, lang)}</strong><span>{title}</span><small>{detail}</small></article>; }
+
 
 function RecoveryApp({ data, lang }: { data: BackupRecoveryPreview; lang: Lang }) {
   const readiness = [
@@ -316,9 +307,21 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
         />
       );
     }
+    if (activeSection === 'diagnostics') {
+      return (
+        <DiagnosticsStation
+          lang={lang}
+          tools={tools}
+          toolStatuses={toolStatuses}
+          bridgeElevated={bridgeElevated}
+          bridgeOnline={bridgeOnline}
+          onRetryBridge={onRetryBridge || reload}
+          onToolStatus={onToolStatus || (() => {})}
+        />
+      );
+    }
     if (!available || !data) return null;
     switch (activeSection) {
-      case 'diagnostics': return <DiagnosticsApp data={data as DiagnosticsPreview} lang={lang} />;
       case 'backupRecovery': return <RecoveryApp data={data as BackupRecoveryPreview} lang={lang} />;
       case 'softwareEnvironment': return <LibraryApp data={data as SoftwarePreview} lang={lang} variant="software" />;
       case 'developerTools': return <LibraryApp data={data as SoftwarePreview} lang={lang} variant="developer" />;
@@ -336,7 +339,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>
