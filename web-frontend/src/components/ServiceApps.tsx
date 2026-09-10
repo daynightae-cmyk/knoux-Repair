@@ -11,7 +11,7 @@ import type { ActiveSection, ToolStatus } from '../types';
 import type {
   BackupRecoveryPreview, BridgeTool, CleanupPreview, DiagnosticsPreview, DriversPreview, ExecutionMode,
   NetworkPreview, OperationsPreview, OptimizationPreview, PostInstallPreview, PrivacyPreview, SoftwarePreview,
-  SystemSnapshot, ToolRunOptions, BridgeRun,
+  SystemSnapshot, ToolRunConfirmation, ToolRunOptions, BridgeRun,
 } from '../lib/api';
 import { api } from '../lib/api';
 import type { Lang } from '../lib/i18n';
@@ -27,7 +27,7 @@ interface ServiceAppsProps {
   toolStatuses: Record<string, ToolStatus>;
   lang: Lang;
   bridgeElevated: boolean;
-  onRunTool: (tool: BridgeTool, mode: ExecutionMode, options?: ToolRunOptions) => void;
+  onRunTool: (tool: BridgeTool, mode: ExecutionMode, options?: ToolRunOptions, confirmation?: ToolRunConfirmation) => void;
   onCancelTool: () => void;
 }
 
@@ -325,6 +325,6 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>
-    {pending && <ExecutionConfirmDialog tool={pending.tool} mode={pending.mode} lang={lang} initialOptions={pending.options} onCancel={() => setPending(null)} onConfirm={(options) => { onRunTool(pending.tool, pending.mode, options); setPending(null); }} />}
+    {pending && <ExecutionConfirmDialog tool={pending.tool} mode={pending.mode} lang={lang} initialOptions={pending.options} onCancel={() => setPending(null)} onConfirm={(options, confirmation) => { onRunTool(pending.tool, pending.mode, options, confirmation); setPending(null); }} />}
   </>;
 }

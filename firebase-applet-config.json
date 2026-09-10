@@ -1,11 +1,13 @@
 {
-  "projectId": "united-olympics-sports",
-  "appId": "1:408361198060:web:3268961bc3492a8861a0c9",
-  "apiKey": "AIzaSyDPtwPAxWKf7-OZcwJJeGcjyIoNBTWDWdo",
-  "authDomain": "united-olympics-sports.firebaseapp.com",
-  "storageBucket": "united-olympics-sports.firebasestorage.app",
-  "messagingSenderId": "408361198060",
+  "_note": "KNOUX Repair dedicated Firebase configuration slot. This integration is NOT configured: no production Firebase project has been provisioned for KNOUX Repair, so all values are intentionally empty. The app boots and runs fully offline against the local localhost bridge. To enable Google Workspace sign-in, provision a dedicated KNOUX Firebase project and set configured=true with its public client values. Never point this file at another project's identifiers.",
+  "configured": false,
+  "projectId": "knoux-repair-local",
+  "appId": "",
+  "apiKey": "",
+  "authDomain": "",
+  "storageBucket": "",
+  "messagingSenderId": "",
   "measurementId": "",
-  "oAuthClientId": "408361198060-uqcsvkfhk1brru3jdidr2fcg7n9ac2pr.apps.googleusercontent.com",
+  "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }

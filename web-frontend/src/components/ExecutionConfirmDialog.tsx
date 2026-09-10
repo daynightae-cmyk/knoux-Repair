@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, FileKey2, FolderOpen, ShieldCheck, X } from 'lucide-react';
-import type { BridgeTool, ExecutionMode, ToolRunOptions } from '../lib/api';
+import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../lib/api';
 import type { Lang } from '../lib/i18n';
 import WorkspaceFolderPicker from './WorkspaceFolderPicker';
 
@@ -8,7 +8,7 @@ interface ExecutionConfirmDialogProps {
   tool: BridgeTool;
   mode: ExecutionMode;
   lang: Lang;
-  onConfirm: (options: ToolRunOptions) => void;
+  onConfirm: (options: ToolRunOptions, confirmation: ToolRunConfirmation) => void;
   onCancel: () => void;
   initialOptions?: ToolRunOptions;
 }
@@ -96,6 +96,15 @@ export default function ExecutionConfirmDialog({ tool, mode, lang, onConfirm, on
 
   const confirm = () => {
     if (!canConfirm) return;
+    // Immutable confirmation evidence for the bridge ExecutionRequest.
+    // SYSTEM_REPAIR and above carry the explicit typed phrase; read-only
+    // intent carries user confirmation without a phrase.
+    const confirmation: ToolRunConfirmation = {
+      confirmed: true,
+      confirmedAt: new Date().toISOString(),
+      ...(requiresPhrase ? { phrase: confirmation.trim() } : {}),
+      ...(requiresRecoveryAcknowledgement ? { acknowledgedRecovery: recoveryAcknowledged } : {}),
+    };
     onConfirm({
       ...initialOptions,
       selection: selection.trim() || undefined,
@@ -103,7 +112,7 @@ export default function ExecutionConfirmDialog({ tool, mode, lang, onConfirm, on
       localSourceIndex: localSourceIndex.trim() ? Number(localSourceIndex) : undefined,
       packageId: packageId.trim() || undefined,
       quick: supportsQuick ? quick : undefined,
-    });
+    }, confirmation);
   };
 
   return (

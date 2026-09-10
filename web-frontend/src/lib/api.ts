@@ -6,6 +6,25 @@ export const BRIDGE_URL =
     ? ''
     : 'http://127.0.0.1:8787');
 
+/**
+ * Per-launch local bridge capability token. The Electron shell generates a
+ * fresh secret on every start and delivers it to this renderer as the
+ * `bridgeToken` query parameter; mutation requests carry it back in the
+ * X-Knoux-Bridge-Token header. Plain web/dev sessions have no token, in
+ * which case the bridge enforces its origin + content-type boundary.
+ */
+function readBridgeToken(): string {
+  try {
+    if (typeof window === 'undefined') return '';
+    const token = new URLSearchParams(window.location.search).get('bridgeToken') || '';
+    return /^[A-Za-z0-9_-]{16,128}$/.test(token) ? token : '';
+  } catch {
+    return '';
+  }
+}
+
+export const BRIDGE_TOKEN = readBridgeToken();
+
 export type ExecutionMode = 'run' | 'analyze' | 'preview';
 export type OfflineCapability = 'FULL' | 'PARTIAL' | 'NO' | '';
 
@@ -18,6 +37,40 @@ export interface ToolRunOptions {
   duplicatePreviewId?: string;
   duplicateKeepPaths?: Array<{ groupId: string; keepPath: string }>;
   quarantineIds?: string[];
+}
+
+/**
+ * Phase 00 confirmation evidence. The UI collects this through the
+ * high-friction confirmation dialog; the bridge validates it against the
+ * tool risk level and forwards it to Core as an immutable ExecutionRequest.
+ * READ_ONLY / SAFE_CLEANUP run modes carry { confirmed: true } implicitly
+ * via user intent; SYSTEM_REPAIR and above require an explicit typed phrase.
+ */
+export interface ToolRunConfirmation {
+  confirmed: boolean;
+  phrase?: string;
+  acknowledgedRecovery?: boolean;
+  confirmedAt?: string;
+}
+
+export type ExecutionState =
+  | 'IDLE'
+  | 'PREPARING'
+  | 'WAITING_FOR_CONFIRMATION'
+  | 'WAITING_FOR_ELEVATION'
+  | 'RUNNING'
+  | 'VERIFYING'
+  | 'SUCCESS'
+  | 'WARNING'
+  | 'FAILED'
+  | 'CANCELLED'
+  | 'SKIPPED'
+  | 'INCONCLUSIVE';
+
+export interface RegistryCategory {
+  id: string;
+  tools: number;
+  available: number;
 }
 
 export interface BridgeTool {
@@ -56,7 +109,9 @@ export interface BridgeHealth {
   elevated: boolean;
   powershell: string;
   repoRoot: string;
+  resourceMode?: string;
   tools: number;
+  categories?: number;
 }
 
 export interface BridgeRunLine {
@@ -70,7 +125,7 @@ export interface BridgeRun {
   toolId: string;
   toolName: string;
   mode: ExecutionMode;
-  status: 'running' | 'success' | 'error' | 'cancelled';
+  status: 'running' | 'success' | 'error' | 'cancelled' | 'inconclusive';
   exitCode: number | null;
   startedAt: string;
   finishedAt: string | null;
@@ -80,6 +135,38 @@ export interface BridgeRun {
 }
 
 export interface KnouxRunResult {
+  // Canonical lowercase envelope (Phase 00 result contract). Unknown data
+  // is null/unavailable, never invented.
+  runId?: string | null;
+  toolId?: string | null;
+  category?: string | null;
+  mode?: string | null;
+  status?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  durationMs?: number | null;
+  changedSystem?: boolean | null;
+  restartNeeded?: boolean | null;
+  itemsFound?: number | null;
+  itemsProcessed?: number | null;
+  skippedCount?: number | null;
+  quarantinedCount?: number | null;
+  bytesPotentiallyRecoverable?: number | null;
+  bytesQuarantined?: number | null;
+  bytesPermanentlyDeleted?: number | null;
+  bytesActuallyRecovered?: number | null;
+  bytesMoved?: number | null;
+  backupPath?: string | null;
+  quarantinePath?: string | null;
+  verificationPerformed?: boolean | null;
+  verificationResult?: string | null;
+  exitCode?: number | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  evidence?: unknown;
+  rawOutput?: unknown;
+  reportPath?: string | null;
+  // Legacy PascalCase aliases (older reports on disk).
   ToolId: string;
   ToolName: string;
   Category: string;
@@ -526,7 +613,11 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 30000): 
       ...init,
       signal: controller.signal,
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(BRIDGE_TOKEN ? { 'X-Knoux-Bridge-Token': BRIDGE_TOKEN } : {}),
+        ...(init?.headers || {}),
+      },
     });
   } catch (e) {
     throw new BridgeError(0, 'BRIDGE_UNREACHABLE', String(e instanceof Error ? e.message : e));
@@ -572,6 +663,11 @@ export const api = {
   authStartUrl: (provider: AuthProviderId) => `${BRIDGE_URL}/api/auth/start/${provider}`,
   logout: () => request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }, 10000),
   tools: () => request<{ tools: BridgeTool[] }>('/api/tools', undefined, 15000),
+  categories: () => request<{ categories: RegistryCategory[] }>('/api/categories', undefined, 15000),
+  categoryTools: (categoryId: string) =>
+    request<{ category: string; tools: BridgeTool[] }>(`/api/categories/${encodeURIComponent(categoryId)}/tools`, undefined, 15000),
+  toolMetadata: (toolId: string) =>
+    request<{ tool: BridgeTool }>(`/api/tools/${encodeURIComponent(toolId)}`, undefined, 15000),
   system: () => request<{ system: SystemSnapshot }>('/api/system', undefined, 60000),
   folderRoots: () => request<{ roots: LocalFolderRoot[] }>('/api/folders/roots', undefined, 15000),
   folders: (folderPath?: string) => request<LocalFolderListing>(`/api/folders${folderPath ? `?path=${encodeURIComponent(folderPath)}` : ''}`, undefined, 15000),
@@ -601,8 +697,8 @@ export const api = {
   sonarAiStatus: () => request<ProjectSonarAiStatus>('/api/sonar/ai-status', undefined, 15000),
   sonarExport: (folderPath: string, format: 'pdf' | 'markdown', language: LangCode) => request<{ export: ProjectSonarExport }>('/api/sonar/export', { method: 'POST', body: JSON.stringify({ path: folderPath, format, language }) }, 125000),
   sonarAnalysis: (folderPath: string, language: LangCode) => request<ProjectSonarAiAnalysis>('/api/sonar/analysis', { method: 'POST', body: JSON.stringify({ path: folderPath, language }) }, 125000),
-  startRun: (toolId: string, mode: ExecutionMode = 'run', options: ToolRunOptions = {}) =>
-    request<{ runId: string }>('/api/runs', { method: 'POST', body: JSON.stringify({ toolId, mode, options }) }, 15000),
+  startRun: (toolId: string, mode: ExecutionMode = 'run', options: ToolRunOptions = {}, confirmation?: ToolRunConfirmation) =>
+    request<{ runId: string }>('/api/runs', { method: 'POST', body: JSON.stringify({ toolId, mode, options, confirmation }) }, 15000),
   getRun: (runId: string) => request<{ run: BridgeRun }>(`/api/runs/${runId}`, undefined, 15000),
   cancelRun: (runId: string) =>
     request<{ ok: boolean }>(`/api/runs/${runId}/cancel`, { method: 'POST' }, 15000),

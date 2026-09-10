@@ -10,48 +10,15 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# Load protected configuration when present; never fatal if missing.
-$script:ProtectedPaths = @(
-    "$env:SystemRoot\Prefetch",
-    "$env:SystemRoot\System32\LogFiles\CBS",
-    "$env:SystemRoot\Logs\CBS",
-    "$env:SystemRoot\Windows\System32\Config",
-    "$env:SystemRoot\System32\drivers",
-    "$env:SystemRoot\Boot",
-    "$env:SystemRoot\System32\Boot",
-    "$env:SystemRoot\System32\Config\Bcd",
-    "$env:SystemRoot\WinSxS",
-    "$env:SystemRoot\ServiceProfiles",
-    "$env:SystemRoot\System32\WindowsPowerShell",
-    "$env:SystemRoot\SoftwareDistribution",
-    "$env:SystemDrive\Windows.old",
-    "$env:SystemRoot\System32\drivers\etc"
-)
+# Validated configuration flows through KnouxRepair.Config.psm1 -
+# the single authoritative loader. Safety never invents policy.
+Import-Module (Join-Path $PSScriptRoot 'KnouxRepair.Config.psm1') -Force
 
-$script:ProtectedProcesses = @(
-    'System', 'System Idle Process', 'smss', 'csrss', 'wininit', 'winlogon',
-    'services', 'lsass', 'svchost', 'explorer', 'dwm', 'fontdrvhost',
-    'Registry', 'Memory Compression', 'SearchIndexer', 'Audiodg', 'Taskmgr',
-    'spoolsv', 'MsMpEng', 'NisSrv', 'WmiPrvSE', 'RuntimeBroker', 'conhost',
-    'ShellExperienceHost', 'TextInputHost', 'StartMenuExperienceHost',
-    'dllhost', 'sihost', 'taskhostw', 'SecurityHealthService', 'lsm'
-)
+# Load protected configuration when present; never fatal if missing.
+$script:ProtectedPaths = @(Get-KnouxProtectedPaths)
+$script:ProtectedProcesses = @(Get-KnouxProtectedProcesses)
 
 $script:ConfigDir = Join-Path $PSScriptRoot '..\Config'
-
-function Import-KnouxConfigList {
-    param([string]$FileName, [string[]]$Default)
-    $path = Join-Path $script:ConfigDir $FileName
-    if (Test-Path -LiteralPath $path) {
-        try {
-            $data = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
-            if ($data -is [array]) { return @($data | ForEach-Object { [string]$_ }) }
-        } catch {
-            Write-Warning "Could not read config '$FileName': $($_.Exception.Message)"
-        }
-    }
-    return @($Default)
-}
 
 # ============================================================
 #  Test-KnouxProtectedPath

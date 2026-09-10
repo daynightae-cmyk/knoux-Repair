@@ -4,14 +4,27 @@
 #  knoux Repair v2.0.2 | Shared Core Module
 #  Session lifecycle, logging, headers, results, admin checks,
 #  confirmation gates, OS info, size formatting, firewall state.
+#
+#  RUNTIME CONTRACT (Electron + Local Node Bridge):
+#    UI -> Bridge creates an immutable ExecutionRequest
+#         (runId, toolId, mode, riskLevel, parameters,
+#          confirmation evidence, requestedAt)
+#      -> Bridge validates the request (allowlist, mode, risk,
+#         confirmation) and spawns the category script with the
+#         validated context in $env:KNOUX_EXECUTION_CONTEXT.
+#      -> Core receives the ALREADY VALIDATED execution context
+#         and enforces it again (deny-by-default). Core never
+#         self-authorizes from a host environment flag.
 # ============================================================
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # Load the sibling modules so tools only need to import Core.
+Import-Module (Join-Path $PSScriptRoot 'KnouxRepair.Config.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'KnouxRepair.Safety.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'KnouxRepair.NativeCommands.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'KnouxRepair.Reporting.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'KnouxRepair.Contracts.psm1') -Force
 
 # ============================================================
 #  Format-KnouxSize
@@ -73,7 +86,9 @@ function Start-KnouxSession {
         [Parameter(Mandatory)][string]$ToolName,
         [Parameter(Mandatory)][string]$Category,
         [Parameter(Mandatory)][ValidateSet('READ_ONLY','SAFE_CLEANUP','SYSTEM_REPAIR','DESTRUCTIVE','REBOOT_REQUIRED','WINRE_ONLY')][string]$RiskLevel,
-        [string]$ProjectRoot = (Split-Path $PSScriptRoot -Parent)
+        [string]$ProjectRoot = (Split-Path $PSScriptRoot -Parent),
+        [string]$RunId = ([guid]::NewGuid().ToString('N')),
+        [ValidateSet('run','analyze','preview')][string]$Mode = 'run'
     )
     $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
     $sessionDir = Join-Path (Join-Path $ProjectRoot 'Reports') ('{0}-{1}' -f $timestamp, $ToolId)
@@ -81,6 +96,7 @@ function Start-KnouxSession {
     New-Item -ItemType Directory -Path $rawDir -Force | Out-Null
     $s = [pscustomobject]@{
         ToolId = $ToolId; ToolName = $ToolName; Category = $Category; RiskLevel = $RiskLevel
+        RunId = $RunId; Mode = $Mode
         ProjectRoot = $ProjectRoot; SessionDir = $sessionDir; RawDir = $rawDir
         OpLog = (Join-Path $sessionDir 'operation.log'); ErrLog = (Join-Path $sessionDir 'errors.log')
         StartedAt = Get-Date; FinishedAt = $null; Status = 'Success'; ErrorMessage = $null
@@ -212,35 +228,142 @@ function Write-KnouxResult {
     $color = if ($colorMap.ContainsKey($Session.Status)) { $colorMap[$Session.Status] } else { 'Green' }
     Write-Host ('  Status: ' + $Session.Status) -ForegroundColor $color
     Write-Host ('  Report: ' + $Session.SessionDir) -ForegroundColor DarkGray
-    # The WPF host owns navigation; never block a noninteractive process on console input.
+    # The Electron bridge host owns navigation; never block a noninteractive process on console input.
     Write-Host '  Result emitted to the host.' -ForegroundColor DarkGray
 }
 
 # ============================================================
+#  Get-KnouxExecutionContext
+#  Reads the validated ExecutionRequest the Bridge placed in
+#  $env:KNOUX_EXECUTION_CONTEXT (JSON):
+#    { runId, toolId, mode, riskLevel, parameters,
+#      confirmation, requestedAt }
+#  Returns $null when absent or malformed. This context is DATA
+#  produced by the Bridge allowlist validation - it is not a
+#  self-authorization flag set by the caller.
+# ============================================================
+function Get-KnouxExecutionContext {
+    [CmdletBinding()]
+    param()
+    $raw = $env:KNOUX_EXECUTION_CONTEXT
+    if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
+    try {
+        $ctx = $raw | ConvertFrom-Json
+        if (-not $ctx.toolId -or -not $ctx.runId) { return $null }
+        return $ctx
+    } catch {
+        Write-Warning "Ignoring malformed KNOUX_EXECUTION_CONTEXT: $($_.Exception.Message)"
+        return $null
+    }
+}
+
+# ============================================================
+#  Test-KnouxExecutionConfirmation
+#  Authoritative confirmation check for a risk level against the
+#  validated Bridge execution context. DENY-BY-DEFAULT: returns
+#  $false unless the context carries explicit confirmation
+#  evidence satisfying the risk matrix:
+#    READ_ONLY       - normal user intent is sufficient
+#    SAFE_CLEANUP    - normal intent (+ impact preview by caller)
+#    SYSTEM_REPAIR   - explicit confirmation required
+#    REBOOT_REQUIRED - explicit confirmation + restart warning
+#    DESTRUCTIVE     - strongest explicit confirmation required
+#    WINRE_ONLY      - never authorized for online repair
+#  A host environment variable can NEVER authorize an action by
+#  itself; only a well-formed context with confirmation evidence
+#  satisfies SYSTEM_REPAIR and above.
+# ============================================================
+function Test-KnouxExecutionConfirmation {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][ValidateSet('READ_ONLY','SAFE_CLEANUP','SYSTEM_REPAIR','DESTRUCTIVE','REBOOT_REQUIRED','WINRE_ONLY')][string]$RiskLevel,
+        [pscustomobject]$Context = (Get-KnouxExecutionContext)
+    )
+    if ($RiskLevel -eq 'WINRE_ONLY') { return $false }
+    if ($RiskLevel -eq 'READ_ONLY' -or $RiskLevel -eq 'SAFE_CLEANUP') { return $true }
+    if ($null -eq $Context -or $null -eq $Context.confirmation) { return $false }
+    $c = $Context.confirmation
+    $confirmed = ($c.confirmed -eq $true)
+    if (-not $confirmed) { return $false }
+    if ($RiskLevel -eq 'SYSTEM_REPAIR' -or $RiskLevel -eq 'REBOOT_REQUIRED' -or $RiskLevel -eq 'DESTRUCTIVE') {
+        # High-friction evidence: an explicit typed phrase recorded by the UI.
+        if ([string]::IsNullOrWhiteSpace([string]$c.phrase)) { return $false }
+    }
+    return $true
+}
+
+# ============================================================
 #  Confirm-KnouxAction
-#  Simple Y/N confirmation. Returns $true when confirmed.
+#  Simple Y/N confirmation. Deny-by-default when non-interactive:
+#  a redirected console or a missing operator CANNOT approve an
+#  action. When the Bridge supplied a validated execution context
+#  carrying confirmation evidence, that evidence is honored;
+#  otherwise an interactive operator is asked, and silence or
+#  redirection means denial.
 # ============================================================
 function Confirm-KnouxAction {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string]$Prompt)
-    # Confirmation is performed by the WPF host before execution. Keep this contract nonblocking.
-    if ([System.Console]::IsInputRedirected -or $env:KNOUX_WPF_HOST -eq '1') { return $true }
-    return $true
+    param(
+        [Parameter(Mandatory)][string]$Prompt,
+        [ValidateSet('READ_ONLY','SAFE_CLEANUP','SYSTEM_REPAIR','DESTRUCTIVE','REBOOT_REQUIRED','WINRE_ONLY')][string]$RiskLevel = 'SAFE_CLEANUP',
+        [string]$ToolId = ''
+    )
+    $ctx = Get-KnouxExecutionContext
+    if ($ctx -and $ToolId -and $ctx.toolId -ne $ToolId) {
+        Write-Warning "Execution context tool mismatch (expected '$ToolId'). Denying confirmation."
+        return $false
+    }
+    if ($ctx -and (Test-KnouxExecutionConfirmation -RiskLevel $RiskLevel -Context $ctx)) { return $true }
+    if ([System.Console]::IsInputRedirected -or (-not [Environment]::UserInteractive)) {
+        Write-Warning "Confirmation denied: no validated execution context and no interactive operator (prompt: $Prompt)"
+        return $false
+    }
+    try {
+        $answer = Read-Host $Prompt" [y/N]"
+        return ($answer -match '^(?i:y|yes)$')
+    } catch {
+        Write-Warning "Confirmation denied: $($_.Exception.Message)"
+        return $false
+    }
 }
 
 # ============================================================
 #  Confirm-KnouxDestructiveAction
 #  Requires the user to type an exact confirmation phrase.
+#  Deny-by-default: a non-interactive session can only proceed
+#  when the validated Bridge execution context already carries
+#  the matching typed phrase. Never returns $true from a host
+#  flag alone.
 # ============================================================
 function Confirm-KnouxDestructiveAction {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$Phrase,
-        [string]$Prompt = ("Type '{0}' to confirm this destructive action: " -f $Phrase)
+        [string]$Prompt = ("Type '{0}' to confirm this destructive action: " -f $Phrase),
+        [string]$ToolId = ''
     )
-    # Destructive confirmation is performed by the WPF host before execution.
-    if ([System.Console]::IsInputRedirected -or $env:KNOUX_WPF_HOST -eq '1') { return $true }
-    return $true
+    $ctx = Get-KnouxExecutionContext
+    if ($ctx -and $ToolId -and $ctx.toolId -ne $ToolId) {
+        Write-Warning "Execution context tool mismatch (expected '$ToolId'). Denying destructive confirmation."
+        return $false
+    }
+    if ($ctx -and $null -ne $ctx.confirmation -and $ctx.confirmation.confirmed -eq $true) {
+        $evidence = [string]$ctx.confirmation.phrase
+        if ($evidence -ceq $Phrase) { return $true }
+        Write-Warning 'Destructive confirmation denied: execution context phrase does not match.'
+        return $false
+    }
+    if ([System.Console]::IsInputRedirected -or (-not [Environment]::UserInteractive)) {
+        Write-Warning 'Destructive confirmation denied: no validated execution context and no interactive operator.'
+        return $false
+    }
+    try {
+        $answer = Read-Host $Prompt
+        return ($answer -ceq $Phrase)
+    } catch {
+        Write-Warning "Destructive confirmation denied: $($_.Exception.Message)"
+        return $false
+    }
 }
 
 # ============================================================
@@ -354,4 +477,4 @@ function Set-KnouxFirewallState {
     }
 }
 
-Export-ModuleMember -Function Test-KnouxAdministrator, Restart-KnouxAsAdministrator, Start-KnouxSession, Stop-KnouxSession, Write-KnouxLog, Write-KnouxHeader, Write-KnouxResult, Confirm-KnouxAction, Confirm-KnouxDestructiveAction, Get-KnouxOperatingSystemInfo, Format-KnouxSize, Export-KnouxReport, Test-KnouxReportSchema, Invoke-KnouxNativeCommand, Join-KnouxArguments, Test-KnouxProtectedPath, Test-KnouxWUDownloadCachePath, Test-KnouxProtectedProcess, New-KnouxBackup, New-KnouxRestorePoint, Move-KnouxItemToQuarantine, Restore-KnouxQuarantinedItem, Resolve-KnouxSafePath, Invoke-KnouxCleanup, Get-KnouxFolderSize, Get-KnouxScanFiles, Find-KnouxDuplicateGroups, Get-KnouxLargestFiles, Get-KnouxLargestFolders, Test-KnouxHardLink, Get-KnouxPowerPlans, Get-KnouxFirewallStatus, Set-KnouxFirewallState
+Export-ModuleMember -Function Test-KnouxAdministrator, Restart-KnouxAsAdministrator, Start-KnouxSession, Stop-KnouxSession, Write-KnouxLog, Write-KnouxHeader, Write-KnouxResult, Confirm-KnouxAction, Confirm-KnouxDestructiveAction, Get-KnouxExecutionContext, Test-KnouxExecutionConfirmation, Get-KnouxOperatingSystemInfo, Format-KnouxSize, Export-KnouxReport, Test-KnouxReportSchema, Invoke-KnouxNativeCommand, Join-KnouxArguments, Test-KnouxProtectedPath, Test-KnouxWUDownloadCachePath, Test-KnouxProtectedProcess, New-KnouxBackup, New-KnouxRestorePoint, Move-KnouxItemToQuarantine, Restore-KnouxQuarantinedItem, Resolve-KnouxSafePath, Invoke-KnouxCleanup, Get-KnouxFolderSize, Get-KnouxScanFiles, Find-KnouxDuplicateGroups, Get-KnouxLargestFiles, Get-KnouxLargestFolders, Test-KnouxHardLink, Get-KnouxPowerPlans, Get-KnouxFirewallStatus, Set-KnouxFirewallState

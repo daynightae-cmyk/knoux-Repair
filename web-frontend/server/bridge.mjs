@@ -31,7 +31,31 @@ function loadLocalEnv() {
 }
 loadLocalEnv();
 
-const REPO_ROOT = process.env.KNOUX_PROJECT_ROOT ? path.resolve(process.env.KNOUX_PROJECT_ROOT) : path.resolve(SERVER_DIR, '..', '..');
+/* ---------------- packaged resource-root resolver (Phase 00) ----------------
+ * Exactly one resolver. DEV resolves to the repository root (discovered by
+ * walking up from this file until Docs/TOOLS-MANIFEST.json is found, with
+ * KNOUX_PROJECT_ROOT as an explicit override). PACKAGED resolves to
+ * KNOUX_PROJECT_ROOT (Electron sets it to process.resourcesPath's
+ * knoux-runtime copy or the writable userData runtime). There is no
+ * absolute machine-specific fallback: resolution fails loudly instead of
+ * silently pointing at a developer workstation path.
+ */
+function resolveResourceRoot() {
+  const override = process.env.KNOUX_PROJECT_ROOT ? path.resolve(process.env.KNOUX_PROJECT_ROOT) : '';
+  if (override) return { root: override, mode: process.env.KNOUX_PACKAGED === '1' ? 'PACKAGED' : 'DEV' };
+  let dir = SERVER_DIR;
+  for (let depth = 0; depth < 8; depth += 1) {
+    if (fs.existsSync(path.join(dir, 'Docs', 'TOOLS-MANIFEST.json'))) {
+      return { root: dir, mode: 'DEV' };
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  throw new Error('KNOUX resource root not found: Docs/TOOLS-MANIFEST.json is unreachable and KNOUX_PROJECT_ROOT is unset.');
+}
+
+const { root: REPO_ROOT, mode: RESOURCE_MODE } = resolveResourceRoot();
 const DATA_ROOT = process.env.KNOUX_DATA_ROOT ? path.resolve(process.env.KNOUX_DATA_ROOT) : REPO_ROOT;
 const MANIFEST_PATH = path.join(REPO_ROOT, 'Docs', 'TOOLS-MANIFEST.json');
 const MENUS_PATH = path.join(REPO_ROOT, 'Config', 'menus.json');
@@ -48,6 +72,9 @@ const SYSTEM_CACHE_MS = 30 * 1000;
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'openrouter/free';
 const OPENROUTER_CONFIGURED = Boolean(process.env.OPENROUTER_API_KEY && /^sk-or-v1-[A-Za-z0-9]+$/.test(process.env.OPENROUTER_API_KEY));
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_CONFIGURED = GEMINI_API_KEY.length >= 16;
+const GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash';
 const SONAR_EXPORT_DIR = path.join(DATA_ROOT, 'Reports', 'Project-Sonar-Exports');
 const SONAR_EXPORT_TTL_MS = 60 * 60 * 1000;
 const sonarExports = new Map();
@@ -287,6 +314,56 @@ let activeRunId = null;
 
 const EXECUTION_MODES = new Set(['run', 'analyze', 'preview']);
 
+/* ---------------- Phase 00: immutable ExecutionRequest + risk matrix ----------------
+ * UI -> Bridge creates an immutable ExecutionRequest
+ *   { runId, toolId, mode, riskLevel, parameters, confirmation, requestedAt }
+ * -> Bridge validates it (allowlist, mode, risk, confirmation evidence)
+ * -> Core receives the already-validated context via KNOUX_EXECUTION_CONTEXT
+ *    and enforces it again deny-by-default.
+ * Confirmation evidence shape: { confirmed: true, phrase?: string,
+ *   acknowledgedRecovery?: boolean, confirmedAt?: string }.
+ */
+const RISK_LEVELS = new Set(['READ_ONLY', 'SAFE_CLEANUP', 'SYSTEM_REPAIR', 'DESTRUCTIVE', 'REBOOT_REQUIRED', 'WINRE_ONLY']);
+
+function normalizeConfirmation(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const confirmed = value.confirmed === true;
+  const phrase = typeof value.phrase === 'string' ? value.phrase.trim() : '';
+  const acknowledgedRecovery = value.acknowledgedRecovery === true;
+  const confirmedAt = typeof value.confirmedAt === 'string' ? value.confirmedAt : '';
+  return { confirmed, phrase, acknowledgedRecovery, confirmedAt };
+}
+
+function validateExecutionRequest({ tool, mode, confirmation }) {
+  const riskLevel = tool.RiskLevel || '';
+  if (!RISK_LEVELS.has(riskLevel)) {
+    throw Object.assign(new Error(`"${tool.EnglishName}" has an unknown risk level and cannot be executed.`), { status: 500, code: 'UNKNOWN_RISK' });
+  }
+  if (riskLevel === 'WINRE_ONLY') {
+    throw Object.assign(new Error(`"${tool.EnglishName}" requires WinRE and must not execute as a normal online repair.`), { status: 423, code: 'WINRE_ONLY_ONLINE_BLOCKED' });
+  }
+  if (mode !== 'run') return;
+  if (riskLevel === 'READ_ONLY' || riskLevel === 'SAFE_CLEANUP') return;
+  if (!confirmation || confirmation.confirmed !== true) {
+    throw Object.assign(new Error(`"${tool.EnglishName}" requires explicit confirmation before execution.`), { status: 403, code: 'CONFIRMATION_REQUIRED' });
+  }
+  if (!confirmation.phrase) {
+    throw Object.assign(new Error(`"${tool.EnglishName}" requires a typed confirmation phrase.`), { status: 403, code: 'CONFIRMATION_PHRASE_REQUIRED' });
+  }
+}
+
+function buildExecutionContext({ runId, toolId, mode, riskLevel, options, confirmation }) {
+  return {
+    runId,
+    toolId,
+    mode,
+    riskLevel,
+    parameters: options && typeof options === 'object' ? options : {},
+    confirmation: confirmation || null,
+    requestedAt: new Date().toISOString(),
+  };
+}
+
 function executionArguments(tool, scriptPath, mode) {
   if (mode === 'run') return [];
 
@@ -390,8 +467,15 @@ function buildDuplicatePlanArgs(toolId, options = {}) {
   return { args: ['-PlanPath', planPath], tempFiles: [planPath] };
 }
 
-function createRun(toolId, mode = 'run', options = {}) {
+function createRun(toolId, mode = 'run', options = {}, confirmation = null) {
   const tool = manifest.get(toolId);
+  if (!tool) {
+    throw Object.assign(
+      new Error(`Unknown tool id "${toolId}". Only manifest tools can be executed.`),
+      { status: 400, code: 'UNKNOWN_TOOL' }
+    );
+  }
+  validateExecutionRequest({ tool, mode, confirmation });
   const isTestTimeoutTool = TEST_MODE && toolId === TEST_TIMEOUT_TOOL_ID;
   const scriptPath = isTestTimeoutTool ? TEST_TIMEOUT_SCRIPT_PATH : path.resolve(REPO_ROOT, tool.ScriptPath);
   if (
@@ -411,9 +495,19 @@ function createRun(toolId, mode = 'run', options = {}) {
     const duplicatePlan = buildDuplicatePlanArgs(toolId, options);
   const args = [...executionArguments(tool, scriptPath, mode), ...optionArguments(scriptPath, options), ...duplicatePlan.args];
 
+  const runId = crypto.randomUUID();
+  const executionContext = buildExecutionContext({
+    runId,
+    toolId,
+    mode,
+    riskLevel: tool.RiskLevel || '',
+    options,
+    confirmation,
+  });
+
   const run = {
 
-    id: crypto.randomUUID(),
+    id: runId,
     toolId,
     toolName: tool.EnglishName,
     mode,
@@ -436,7 +530,10 @@ function createRun(toolId, mode = 'run', options = {}) {
     '-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
     '-File', scriptPath,
     ...args,
-  ], { cwd: REPO_ROOT, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  ], {
+    cwd: REPO_ROOT, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, KNOUX_EXECUTION_CONTEXT: JSON.stringify(executionContext) },
+  });
 
   run.child = child;
 
@@ -456,7 +553,7 @@ function createRun(toolId, mode = 'run', options = {}) {
     if (run.status === 'running') {
       const timeoutText = TEST_MODE ? `${RUN_TIMEOUT_MS}ms` : '10 minutes';
       pushLine('err', `[BRIDGE] Execution timed out after ${timeoutText}.`);
-      try { child.kill('SIGKILL'); } catch { /* ignore */ }
+      killProcessTree(child);
       finishRun(run.id, -1, 'TIMEOUT');
     }
   }, RUN_TIMEOUT_MS);
@@ -484,8 +581,15 @@ function parseKnouxRunResult(run) {
     const parsed = JSON.parse(fs.readFileSync(resultPath, 'utf8').replace(/^\uFEFF/, ''));
     return parsed && typeof parsed === 'object' ? parsed : null;
   } catch {
-    return { Status: 'Malformed', ReportPath: reportPath, ErrorMessage: 'The tool completed but returned malformed structured results.' };
+    return { status: 'Malformed', reportPath, errorMessage: 'The tool completed but returned malformed structured results.' };
   }
+}
+
+function resultField(result, ...names) {
+  for (const name of names) {
+    if (result && result[name] !== undefined && result[name] !== null) return result[name];
+  }
+  return undefined;
 }
 
 function finishRun(runId, exitCode, reason) {
@@ -507,10 +611,15 @@ function finishRun(runId, exitCode, reason) {
     if (exitCode !== 0) run.error = `Tool exited with code ${exitCode}.`;
   }
   run.result = parseKnouxRunResult(run);
-  if (run.result && typeof run.result.ExitCode === 'number') run.exitCode = run.result.ExitCode;
-  if (run.result?.Status === 'Warning' || run.result?.Status === 'Inconclusive') run.status = 'success';
-  if (run.result?.Status === 'Cancelled') run.status = 'cancelled';
-  if (run.result?.Status === 'Failed') { run.status = 'error'; run.error = run.result.ErrorMessage || run.error; }
+  const resultExitCode = resultField(run.result, 'exitCode', 'ExitCode');
+  if (run.result && typeof resultExitCode === 'number') run.exitCode = resultExitCode;
+  const resultStatus = String(resultField(run.result, 'status', 'Status') || '');
+  if (resultStatus === 'Warning' || resultStatus === 'WARNING') run.status = 'success';
+  // INCONCLUSIVE is a first-class terminal state: it is surfaced distinctly
+  // and never collapsed into success.
+  if (resultStatus === 'Inconclusive' || resultStatus === 'INCONCLUSIVE') run.status = 'inconclusive';
+  if (resultStatus === 'Cancelled' || resultStatus === 'CANCELLED') run.status = 'cancelled';
+  if (resultStatus === 'Failed' || resultStatus === 'FAILED') { run.status = 'error'; run.error = resultField(run.result, 'errorMessage', 'ErrorMessage') || run.error; }
   for (const tempPath of run.tempFiles || []) { try { fs.unlinkSync(tempPath); } catch { /* non-critical temporary plan cleanup */ } }
   if (activeRunId === runId) activeRunId = null;
 }
@@ -520,7 +629,7 @@ function cancelRun(runId) {
   if (!run) return false;
   if (run.status === 'running') {
     run.cancelled = true;
-    try { run.child.kill('SIGKILL'); } catch { /* ignore */ }
+    killProcessTree(run.child);
   }
   return true;
 }
@@ -937,6 +1046,119 @@ async function getProjectSonarAiAnalysis(value, language) {
   };
 }
 
+/* ---------------- AI provider endpoints (explicit routing, no fabrication) ----------------
+ * Provider routing is explicit and never crosses keys between providers:
+ *   Google model ids  -> Google Generative Language REST API with GEMINI_API_KEY only.
+ *   OpenRouter ids     -> OpenRouter chat API with the OpenRouter key only
+ *                        (server key or the caller-supplied OpenRouter key field).
+ * When no usable key exists the bridge returns a structured unavailable
+ * response (503 AI_PROVIDER_NOT_CONFIGURED) — it never invents an answer.
+ */
+const AI_MODEL_CATALOG = [
+  { id: 'gemini-2.5-flash', provider: 'google', label: 'Gemini Flash (Google AI Studio)' },
+  { id: 'deepseek/deepseek-r1:free', provider: 'openrouter', label: 'DeepSeek R1 (OpenRouter)' },
+  { id: 'qwen/qwen-2.5-coder-32b-instruct:free', provider: 'openrouter', label: 'Qwen Coder (OpenRouter)' },
+  { id: 'meta-llama/llama-3.2-3b-instruct:free', provider: 'openrouter', label: 'Llama 3.2 (OpenRouter)' },
+  { id: 'google/gemma-2-9b-it:free', provider: 'openrouter', label: 'Gemma 2 (OpenRouter)' },
+  { id: 'mistralai/mistral-7b-instruct:free', provider: 'openrouter', label: 'Mistral 7B (OpenRouter)' },
+];
+
+function extractCodeSnippets(text) {
+  const snippets = [];
+  const fence = /```(?:\w+)?\r?\n([\s\S]*?)```/g;
+  let match;
+  while ((match = fence.exec(String(text || ''))) && snippets.length < 8) {
+    const code = match[1].trim();
+    if (code) snippets.push(code);
+  }
+  return snippets;
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function generateWithOpenRouter({ apiKey, model, prompt, systemPrompt }) {
+  const startedAt = Date.now();
+  const response = await fetchWithTimeout(OPENROUTER_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      temperature: 0.3,
+      max_tokens: 2400,
+      messages: [
+        { role: 'system', content: systemPrompt || 'You are the KNOUX Repair diagnostic assistant. Provide precise, actionable, safe Windows repair guidance.' },
+        { role: 'user', content: prompt },
+      ],
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = String(payload?.error?.message || `OpenRouter returned HTTP ${response.status}`).slice(0, 500);
+    throw Object.assign(new Error(message), { status: 502, code: 'AI_PROVIDER_ERROR' });
+  }
+  const content = payload?.choices?.[0]?.message?.content;
+  const text = Array.isArray(content)
+    ? content.map((part) => (typeof part === 'string' ? part : part?.text || '')).join('')
+    : String(content || '');
+  if (!text.trim()) throw Object.assign(new Error('The AI provider returned an empty response.'), { status: 502, code: 'AI_EMPTY_RESPONSE' });
+  return { ok: true, model, provider: 'openrouter', text: text.trim(), codeSnippets: extractCodeSnippets(text), executionTimeMs: Date.now() - startedAt };
+}
+
+async function generateWithGemini({ model, prompt, systemPrompt }) {
+  const startedAt = Date.now();
+  const safeModel = /^[A-Za-z0-9][A-Za-z0-9._-]{1,80}$/.test(model) ? model : GEMINI_DEFAULT_MODEL;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(safeModel)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+  const response = await fetchWithTimeout(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt || 'You are the KNOUX Repair diagnostic assistant. Provide precise, actionable, safe Windows repair guidance.' }] },
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.3 },
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = String(payload?.error?.message || `Google AI returned HTTP ${response.status}`).slice(0, 500);
+    throw Object.assign(new Error(message), { status: 502, code: 'AI_PROVIDER_ERROR' });
+  }
+  const text = (payload?.candidates || []).map((c) => (c?.content?.parts || []).map((p) => p?.text || '').join('')).join('\n');
+  if (!text.trim()) throw Object.assign(new Error('The AI provider returned an empty response.'), { status: 502, code: 'AI_EMPTY_RESPONSE' });
+  return { ok: true, model: safeModel, provider: 'google', text: text.trim(), codeSnippets: extractCodeSnippets(text), executionTimeMs: Date.now() - startedAt };
+}
+
+async function generateAiText({ modelId, prompt, systemPrompt, customApiKey }) {
+  const cleanPrompt = String(prompt || '').trim();
+  if (!cleanPrompt) throw Object.assign(new Error('Prompt is required.'), { status: 400, code: 'AI_PROMPT_REQUIRED' });
+  if (cleanPrompt.length > 12000) throw Object.assign(new Error('Prompt exceeds the maximum supported length.'), { status: 400, code: 'AI_PROMPT_TOO_LONG' });
+  const requested = String(modelId || '').trim();
+  const catalogEntry = AI_MODEL_CATALOG.find((entry) => entry.id === requested);
+  const provider = catalogEntry ? catalogEntry.provider : (requested.includes('/') ? 'openrouter' : 'google');
+
+  if (provider === 'openrouter') {
+    const key = (typeof customApiKey === 'string' && /^sk-or-v1-[A-Za-z0-9]+$/.test(customApiKey.trim()))
+      ? customApiKey.trim()
+      : (OPENROUTER_CONFIGURED ? process.env.OPENROUTER_API_KEY : '');
+    if (!key) {
+      throw Object.assign(new Error('AI is unavailable: no OpenRouter key is configured on this local bridge.'), { status: 503, code: 'AI_PROVIDER_NOT_CONFIGURED' });
+    }
+    return generateWithOpenRouter({ apiKey: key, model: requested.includes('/') ? requested : OPENROUTER_MODEL, prompt: cleanPrompt, systemPrompt });
+  }
+
+  if (!GEMINI_CONFIGURED) {
+    throw Object.assign(new Error('AI is unavailable: no Google AI key is configured on this local bridge.'), { status: 503, code: 'AI_PROVIDER_NOT_CONFIGURED' });
+  }
+  return generateWithGemini({ model: requested || GEMINI_DEFAULT_MODEL, prompt: cleanPrompt, systemPrompt });
+}
+
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 }
@@ -1029,6 +1251,95 @@ if (!/^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/.test(AUTH_FRONTEND_ORIGIN)) {
 }
 ALLOWED_ORIGINS.add(AUTH_FRONTEND_ORIGIN);
 
+/* ---------------- localhost mutation security boundary ----------------
+ * CORS alone is not a security boundary: a hostile page can still transmit a
+ * simple cross-origin POST. Mutations therefore enforce three independent,
+ * server-side checks BEFORE any tool work is started:
+ *   1. Origin enforcement  — a present Origin (including opaque "null") must
+ *      be an explicitly allow-listed local application origin.
+ *   2. Content-Type gate   — JSON-body mutations require application/json so
+ *      simple form-encoded/text cross-origin requests are rejected outright.
+ *   3. Capability token    — when KNOUX_BRIDGE_TOKEN is configured (Electron
+ *      production always configures a per-launch secret), mutations must carry
+ *      it in the X-Knoux-Bridge-Token header. The token is never hard-coded,
+ *      never committed, and never exposed to arbitrary browser pages.
+ */
+const BRIDGE_TOKEN = process.env.KNOUX_BRIDGE_TOKEN || '';
+const BRIDGE_TOKEN_HEADER = 'x-knoux-bridge-token';
+
+function timingSafeTokenEqual(provided) {
+  const expected = Buffer.from(BRIDGE_TOKEN, 'utf8');
+  const actual = Buffer.from(String(provided || ''), 'utf8');
+  if (expected.length === 0 || actual.length !== expected.length) return false;
+  try {
+    return crypto.timingSafeEqual(expected, actual);
+  } catch {
+    return false;
+  }
+}
+
+function isAllowedOrigin(origin) {
+  return typeof origin === 'string' && origin.length > 0 && ALLOWED_ORIGINS.has(origin);
+}
+
+function checkMutationOrigin(req) {
+  const origin = req.headers.origin;
+  if (origin === undefined || origin === '') return null;
+  if (!isAllowedOrigin(origin)) {
+    return { status: 403, code: 'ORIGIN_FORBIDDEN', message: 'The request origin is not an approved local KNOUX origin.' };
+  }
+  return null;
+}
+
+function checkJsonContentType(req) {
+  const contentType = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+  if (contentType !== 'application/json') {
+    return { status: 415, code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Mutation requests must use Content-Type: application/json.' };
+  }
+  return null;
+}
+
+function checkBridgeToken(req) {
+  if (!BRIDGE_TOKEN) return null;
+  if (!timingSafeTokenEqual(req.headers[BRIDGE_TOKEN_HEADER])) {
+    return { status: 403, code: 'BRIDGE_TOKEN_INVALID', message: 'A valid local bridge capability token is required.' };
+  }
+  return null;
+}
+
+/** Enforce the full mutation boundary. Set options.jsonBody=false for POSTs without a JSON body (e.g. cancel). */
+function checkMutationGuard(req, { jsonBody = true } = {}) {
+  return checkMutationOrigin(req) || (jsonBody ? checkJsonContentType(req) : null) || checkBridgeToken(req);
+}
+
+function corsHeadersFor(origin) {
+  if (!isAllowedOrigin(origin)) return {};
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Knoux-Bridge-Token',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+}
+
+/* ---------------- Windows-safe process-tree termination ----------------
+ * child.kill('SIGKILL') does not reliably terminate PowerShell descendants on
+ * Windows, so timeouts and cancellations must kill the whole process tree via
+ * taskkill /T /F. argv arrays are used (no shell), and the PID is strictly
+ * validated so no unrelated process can ever be targeted.
+ */
+function killProcessTree(child) {
+  if (!child) return;
+  const pid = Number(child.pid);
+  if (process.platform === 'win32' && Number.isInteger(pid) && pid > 0) {
+    try {
+      const result = spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true, timeout: 15000 });
+      if (result.status === 0) return;
+    } catch { /* fall through to SIGKILL */ }
+  }
+  try { child.kill('SIGKILL'); } catch { /* process already gone */ }
+}
+
 function sendJson(res, status, body, extraHeaders = {}) {
   const data = JSON.stringify(body);
   res.writeHead(status, {
@@ -1059,14 +1370,15 @@ function sendSonarExport(res, id, corsHeaders) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
   const origin = req.headers.origin || '';
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'http://localhost:4173',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Credentials': 'true',
-  };
+  const corsHeaders = corsHeadersFor(origin);
 
   if (req.method === 'OPTIONS') {
+    // Preflight succeeds ONLY for approved local origins; a hostile page's
+    // preflighted request (e.g. application/json) is denied here, so the
+    // browser never transmits the actual mutation request.
+    if (!isAllowedOrigin(origin)) {
+      return sendError(res, 403, 'ORIGIN_FORBIDDEN', 'The request origin is not an approved local KNOUX origin.');
+    }
     res.writeHead(204, corsHeaders);
     res.end();
     return;
@@ -1091,13 +1403,17 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'auth' && pathParts[2] === 'logout') {
+      const guard = checkMutationGuard(req, { jsonBody: false });
+      if (guard) return sendError(res, guard.status, guard.code, guard.message, corsHeaders);
       return sendJson(res, 200, { ok: true }, { ...corsHeaders, ...clearAuthSession(req) });
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'health') {
+      const categoryIds = new Set([...manifest.values()].map((t) => t.Category));
       return sendJson(res, 200, {
         ok: true, bridge: 'knoux-bridge', version: '2.0.2', elevated: isElevated(),
-        powershell: PS, repoRoot: REPO_ROOT, tools: manifest.size,
+        powershell: PS, repoRoot: REPO_ROOT, resourceMode: RESOURCE_MODE,
+        tools: manifest.size, categories: categoryIds.size,
       }, corsHeaders);
     }
 
@@ -1119,6 +1435,51 @@ const server = http.createServer(async (req, res) => {
           TestResult: t.TestResult || '',
         }));
       return sendJson(res, 200, { ok: true, tools }, corsHeaders);
+    }
+
+    /* ---------------- Phase 00: manifest -> runtime registry ----------------
+     * The manifest is the authoritative tool registry. Category counts are
+     * always computed from the live runtime registry, never hard-coded.
+     */
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'categories' && pathParts.length === 2) {
+      const counts = new Map();
+      for (const tool of manifest.values()) counts.set(tool.Category, (counts.get(tool.Category) || 0) + 1);
+      const available = new Map();
+      for (const tool of [...manifest.values()].map(resolveToolCapabilities).filter((t) => t.ScriptAvailable)) {
+        available.set(tool.Category, (available.get(tool.Category) || 0) + 1);
+      }
+      const categories = [...counts.entries()]
+        .sort(([a], [b]) => String(a).localeCompare(String(b)))
+        .map(([id, total]) => ({ id, tools: total, available: available.get(id) || 0 }));
+      return sendJson(res, 200, { ok: true, categories }, corsHeaders);
+    }
+
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'categories' && pathParts.length === 4 && pathParts[3] === 'tools') {
+      const categoryId = decodeURIComponent(pathParts[2]);
+      const tools = [...manifest.values()]
+        .map(resolveToolCapabilities)
+        .filter((t) => t.Category === categoryId && t.ScriptAvailable)
+        .map((t) => ({
+          ToolId: t.ToolId, Category: t.Category, ScriptPath: t.ScriptPath,
+          EnglishName: t.EnglishName, ArabicName: t.ArabicName, Purpose: t.Purpose || '',
+          RiskLevel: t.RiskLevel || '', RequiresAdmin: !!t.RequiresAdmin,
+          RequiresRestart: !!t.RequiresRestart, OfflineCapability: t.OfflineCapability || '',
+          BackupMethod: t.BackupMethod || '', RollbackMethod: t.RollbackMethod || '',
+          AnalyzeOnlySupported: t.AnalyzeOnlySupported,
+          WhatIfSupported: t.WhatIfSupported,
+          Parameters: t.Parameters,
+          RequiresConfirmation: t.RequiresConfirmation,
+          ReportsEvidence: t.ReportsEvidence,
+          TestResult: t.TestResult || '',
+        }));
+      return sendJson(res, 200, { ok: true, category: categoryId, tools }, corsHeaders);
+    }
+
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'tools' && pathParts.length === 3) {
+      const toolId = decodeURIComponent(pathParts[2]);
+      const entry = manifest.get(toolId);
+      if (!entry) return sendError(res, 404, 'UNKNOWN_TOOL', `Unknown tool id "${toolId}".`, corsHeaders);
+      return sendJson(res, 200, { ok: true, tool: resolveToolCapabilities(entry) }, corsHeaders);
     }
 
         if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'system') {
@@ -1190,11 +1551,18 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'thumbnail') {
       const requestedPath = url.searchParams.get('path') || '';
       const requestedName = url.searchParams.get('name') || path.basename(requestedPath);
-      if (requestedPath && fs.existsSync(requestedPath)) {
-        const ext = path.extname(requestedPath).toLowerCase();
-        const mime = ({ '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.bmp': 'image/bmp' })[ext] || 'application/octet-stream';
-        res.writeHead(200, { 'Content-Type': mime, ...corsHeaders });
-        return fs.createReadStream(requestedPath).pipe(res);
+      const THUMBNAIL_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.ico', '.bmp']);
+      const MAX_THUMBNAIL_BYTES = 25 * 1024 * 1024;
+      if (requestedPath && path.isAbsolute(requestedPath) && THUMBNAIL_EXTENSIONS.has(path.extname(requestedPath).toLowerCase())) {
+        try {
+          const stat = fs.statSync(requestedPath);
+          if (stat.isFile() && stat.size <= MAX_THUMBNAIL_BYTES) {
+            const ext = path.extname(requestedPath).toLowerCase();
+            const mime = ({ '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.bmp': 'image/bmp' })[ext] || 'application/octet-stream';
+            res.writeHead(200, { 'Content-Type': mime, ...corsHeaders });
+            return fs.createReadStream(requestedPath).pipe(res);
+          }
+        } catch { /* fall through to generated placeholder */ }
       }
       const ext = (path.extname(requestedName || requestedPath).toLowerCase().replace('.', '') || 'IMG').toUpperCase();
       const isPng = ext === 'PNG';
@@ -1218,11 +1586,47 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, configured: OPENROUTER_CONFIGURED, model: OPENROUTER_CONFIGURED ? OPENROUTER_MODEL : null }, corsHeaders);
     }
 
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'ai' && pathParts[2] === 'models') {
+      return sendJson(res, 200, { ok: true, models: AI_MODEL_CATALOG, hasGeminiKey: GEMINI_CONFIGURED, hasOpenRouterKey: OPENROUTER_CONFIGURED }, corsHeaders);
+    }
+
+    if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'ai' && pathParts[2] === 'generate') {
+      const guard = checkMutationGuard(req);
+      if (guard) return sendError(res, guard.status, guard.code, guard.message, corsHeaders);
+      let body = {};
+      try {
+        const raw = await new Promise((resolve, reject) => {
+          let data = '';
+          req.on('data', (chunk) => { data += chunk; if (data.length > 32 * 1024) reject(new Error('body too large')); });
+          req.on('end', () => resolve(data));
+          req.on('error', reject);
+        });
+        body = JSON.parse(raw || '{}');
+      } catch { return sendError(res, 400, 'BAD_REQUEST', 'Invalid AI generation request.', corsHeaders); }
+      try {
+        const result = await generateAiText({
+          modelId: body.modelId,
+          prompt: body.prompt,
+          systemPrompt: body.systemPrompt,
+          customApiKey: body.customApiKey,
+        });
+        return sendJson(res, 200, result, corsHeaders);
+      } catch (e) {
+        const status = e.status || 500;
+        const code = e.code || 'AI_GENERATION_FAILED';
+        if (code === 'AI_PROVIDER_NOT_CONFIGURED') {
+          return sendJson(res, status, { ok: false, available: false, error: code, message: e.message }, corsHeaders);
+        }
+        return sendError(res, status, code, e.message, corsHeaders);
+      }
+    }
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'sonar' && pathParts[2] === 'exports' && pathParts[3]) {
       return sendSonarExport(res, pathParts[3], corsHeaders);
     }
 
     if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'sonar' && pathParts[2] === 'export') {
+      const guard = checkMutationGuard(req);
+      if (guard) return sendError(res, guard.status, guard.code, guard.message, corsHeaders);
       let body = {};
       try {
         const raw = await new Promise((resolve, reject) => {
@@ -1241,6 +1645,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'sonar' && pathParts[2] === 'analysis') {
+      const guard = checkMutationGuard(req);
+      if (guard) return sendError(res, guard.status, guard.code, guard.message, corsHeaders);
       let body = {};
       try {
         const raw = await new Promise((resolve, reject) => {
@@ -1261,6 +1667,8 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'runs' && pathParts.length === 2) {
       requireAuth(req);
+      const guard = checkMutationGuard(req);
+      if (guard) return sendError(res, guard.status, guard.code, guard.message, corsHeaders);
       let body = {};
       try {
         const raw = await new Promise((resolve, reject) => {
@@ -1275,6 +1683,7 @@ const server = http.createServer(async (req, res) => {
       const toolId = String(body.toolId || '');
       const mode = String(body.mode || 'run');
       const options = body.options && typeof body.options === 'object' && !Array.isArray(body.options) ? body.options : {};
+      const confirmation = normalizeConfirmation(body.confirmation);
       const tool = manifest.get(toolId);
       if (!tool) return sendError(res, 400, 'UNKNOWN_TOOL', `Unknown tool id "${toolId}". Only manifest tools can be executed.`, corsHeaders);
       if (!EXECUTION_MODES.has(mode)) return sendError(res, 400, 'MODE_NOT_SUPPORTED', 'Unsupported execution mode.', corsHeaders);
@@ -1284,7 +1693,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       try {
-        const run = createRun(toolId, mode, options);
+        const run = createRun(toolId, mode, options, confirmation);
         activeRunId = run.id;
         log('RUN start:', run.id, toolId, `[${mode}]`, '-', tool.EnglishName);
         return sendJson(res, 202, { ok: true, runId: run.id }, corsHeaders);
@@ -1300,6 +1709,10 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'runs' && pathParts[2] && pathParts[3] === 'cancel') {
+      // Cancel carries the same authorization weight as run creation: an
+      // unauthorized local page must not be able to stop a repair in flight.
+      const guard = checkMutationGuard(req, { jsonBody: false });
+      if (guard) return sendError(res, guard.status, guard.code, guard.message, corsHeaders);
       const ok = cancelRun(pathParts[2]);
       if (!ok) return sendError(res, 404, 'RUN_NOT_FOUND', 'Run not found.', corsHeaders);
       log('RUN cancel:', pathParts[2]);
@@ -1322,7 +1735,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 
 process.on('SIGINT', () => {
   for (const run of runs.values()) {
-    if (run.status === 'running') { try { run.child.kill('SIGKILL'); } catch { /* ignore */ } }
+    if (run.status === 'running') killProcessTree(run.child);
   }
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 2000).unref();
@@ -1335,9 +1748,20 @@ export {
   browseRoots,
   browseFolders,
   createRun,
+  cancelRun,
+  killProcessTree,
+  isAllowedOrigin,
+  checkMutationGuard,
+  ALLOWED_ORIGINS,
   manifest,
   menuIndex,
   EXECUTION_MODES,
+  RISK_LEVELS,
+  normalizeConfirmation,
+  validateExecutionRequest,
+  buildExecutionContext,
+  resolveResourceRoot,
+  RESOURCE_MODE,
   server,
   PORT,
 };

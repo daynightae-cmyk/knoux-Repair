@@ -28,6 +28,7 @@ import {
 import type { Lang } from '../lib/i18n';
 import {
   auth,
+  isWorkspaceConfigured,
   signInWithGoogleWorkspace,
   signOutGoogleWorkspace,
   onWorkspaceAuthChange,
@@ -77,7 +78,7 @@ export default function GoogleWorkspaceHub({ lang, bridgeElevated }: GoogleWorks
   const [gmailRecipient, setGmailRecipient] = useState('');
   const [gmailSubject, setGmailSubject] = useState('KNOUX Repair — System Health Alert');
   const [gmailBody, setGmailBody] = useState(
-    'KNOUX Repair Nexus Workstation Report\nStatus: All core security and disk diagnostics verified.\nUptime: Normal.'
+    'KNOUX Repair Nexus Workstation Report\nStatus: Not verified in this session — open the Action Center assessment for live evidence.\nUptime: Not verified.'
   );
 
   const [tasks, setTasks] = useState<TaskItem[]>([]);
@@ -93,8 +94,8 @@ export default function GoogleWorkspaceHub({ lang, bridgeElevated }: GoogleWorks
   // Keep Notes state (quick maintenance checklists)
   const [keepNotes, setKeepNotes] = useState<string[]>([
     'Inspect DISM and SFC integrity logs weekly',
-    'Verify Windows Defender signature version 1.417.820.0+',
-    'Perform duplicate file quarantine cleanup on drive D:',
+    'Verify Windows Defender signature version from the Security station',
+    'Perform duplicate file quarantine cleanup after a fresh preview',
   ]);
   const [newKeepNote, setNewKeepNote] = useState('');
 
@@ -124,7 +125,7 @@ export default function GoogleWorkspaceHub({ lang, bridgeElevated }: GoogleWorks
         setCloudSqlStatus(data);
       }
     } catch {
-      setCloudSqlStatus({ configured: false, database: 'united-olympics-sports:postgres', host: 'Offline' });
+      setCloudSqlStatus({ configured: false, database: 'postgres', host: 'Offline' });
     }
   }, []);
 
@@ -221,7 +222,7 @@ export default function GoogleWorkspaceHub({ lang, bridgeElevated }: GoogleWorks
       onConfirm: async () => {
         setIsProcessing(true);
         try {
-          const reportContent = `KNOUX Repair Nexus — Diagnostic Audit\nTimestamp: ${new Date().toISOString()}\nPlatform: Windows 11 / Cloud Hybrid\nCPU: Intel Core i9-14900K\nDefender Status: Active & Protected\nFirewall: Active\nCloud SQL: Connected (europe-west1)`;
+          const reportContent = `KNOUX Repair Nexus — Diagnostic Audit\nTimestamp: ${new Date().toISOString()}\nElevation: ${bridgeElevated ? 'Administrator' : 'Standard user'}\nCPU: Not verified in this session\nDefender Status: Not verified in this session\nFirewall: Not verified in this session\nCloud SQL: ${cloudSqlStatus?.configured ? `Configured (${cloudSqlStatus.database})` : 'Not configured'}\nNote: Open the Action Center assessment for live measured evidence.`;
           const result = await uploadToDrive(
             accessToken,
             `KNOUX_Diagnostic_Audit_${Date.now()}.txt`,
@@ -331,13 +332,15 @@ export default function GoogleWorkspaceHub({ lang, bridgeElevated }: GoogleWorks
         setIsProcessing(true);
         try {
           const headers = ['Timestamp', 'Metric / Component', 'Status / Value', 'Health Rating', 'Action Recommended'];
+          const unverified = lang === 'ar' ? 'غير متحقق — افتح مركز الإجراءات' : 'Not verified — open Action Center';
+          const cloudSqlState = cloudSqlStatus?.configured ? `Configured (${cloudSqlStatus.database})` : 'Not configured';
           const rows = [
-            [new Date().toLocaleTimeString(), 'CPU Core Load (i9-14900K)', '12% Nominal', 'Excellent (100)', 'None'],
-            [new Date().toLocaleTimeString(), 'System RAM (32 GB)', '21.6 GB Free', 'Optimal (98)', 'None'],
-            [new Date().toLocaleTimeString(), 'System Drive C: (NVMe)', '642 GB Free (62%)', 'Good (90)', 'Clear Temp Caches'],
-            [new Date().toLocaleTimeString(), 'Data Drive D: (SSD)', '1530 GB Free (74%)', 'Healthy (95)', 'Run Duplicate Scan'],
-            [new Date().toLocaleTimeString(), 'Windows Defender Realtime', 'Active / Signatures Up-to-date', 'Protected (100)', 'Maintain daily scan'],
-            [new Date().toLocaleTimeString(), 'Cloud SQL Database', 'Connected (europe-west1)', 'Online', 'Active replica'],
+            [new Date().toLocaleTimeString(), 'CPU Core Load', unverified, '—', 'Run live assessment'],
+            [new Date().toLocaleTimeString(), 'System RAM', unverified, '—', 'Run live assessment'],
+            [new Date().toLocaleTimeString(), 'System Drive', unverified, '—', 'Run live assessment'],
+            [new Date().toLocaleTimeString(), 'Data Drive', unverified, '—', 'Run live assessment'],
+            [new Date().toLocaleTimeString(), 'Windows Defender Realtime', unverified, '—', 'Open Security station'],
+            [new Date().toLocaleTimeString(), 'Cloud SQL Database', cloudSqlState, cloudSqlStatus?.configured ? 'Online' : 'Standby', 'Review Cloud SQL tab'],
           ];
 
           const result = await createDiagnosticsSpreadsheet(
@@ -398,22 +401,22 @@ KNOUX REPAIR NEXUS — COMPREHENSIVE SYSTEM AUDIT REPORT
 =====================================================
 
 1. EXECUTIVE OVERVIEW
-The workstation diagnostic sweep completed with 0 critical system faults.
-Hardware sensors report temperature and voltages within manufacturer tolerances.
-Cloud SQL relational replication is online in region europe-west1.
+Live measurements were not taken in this session. Values below marked
+"Not verified" require the Action Center assessment or the relevant station.
+Cloud SQL: ${cloudSqlStatus?.configured ? `Configured (${cloudSqlStatus.database})` : 'Not configured'}.
 
 2. STORAGE & DISK HEALTH
-- Drive C: System Root — 642 GB Free / 1024 GB (Healthy)
-- Drive D: Storage Volume — 1530 GB Free / 2048 GB (Healthy)
-- Duplicate Candidate Scan: Ready for optimization pass.
+- Drive C: Not verified in this session — open the Cleanup station for measured targets.
+- Drive D: Not verified in this session — open the Cleanup station for measured targets.
+- Duplicate Candidate Scan: run a fresh preview before any optimization pass.
 
 3. SECURITY & COMPLIANCE POSTURE
-- Windows Defender: Active & Real-time protection enabled.
-- Firewall Profiles: Domain, Private, and Public profiles enforcing rules.
+- Windows Defender: Not verified in this session — open the Security station.
+- Firewall Profiles: Not verified in this session — open the Security station.
 - Administrator Privileges: ${bridgeElevated ? 'Elevated (Full Access)' : 'Standard User'}.
 
 4. RECOMMENDATIONS
-- Proceed with scheduled temp directory cleanup.
+- Run the Action Center assessment to collect live evidence first.
 - Archive historic repair logs to Cloud SQL & Google Drive.`;
 
           const result = await createMaintenanceReportDoc(accessToken, docTitle, content);
@@ -465,11 +468,11 @@ Cloud SQL relational replication is online in region europe-west1.
           const title = `KNOUX Repair Executive Briefing`;
           const subtitle = `Comprehensive Workstation Audit & Optimization Overview`;
           const bullets = [
-            'System Architecture: Windows 11 Enterprise / Cloud Hybrid Workstation',
-            'Overall Health Score: 98/100 (Optimal Operational Condition)',
-            'Storage Optimization: Over 2.1 TB combined available disk space across drives C: & D:',
-            'Security Status: Windows Defender Realtime Guard active with latest virus definition telemetry',
-            'Cloud Infrastructure: Connected to Cloud SQL PostgreSQL in europe-west1 with Firebase sync',
+            'System Architecture: local Windows repair workstation (live values require assessment)',
+            'Health assessment: not verified in this session — run the Action Center assessment',
+            'Storage: not verified in this session — open the Cleanup station for measured targets',
+            'Security posture: not verified in this session — open the Security station',
+            `Cloud infrastructure: ${cloudSqlStatus?.configured ? `Cloud SQL configured (${cloudSqlStatus.database})` : 'Cloud SQL not configured'}`,
           ];
 
           const result = await createExecutiveBriefingSlides(accessToken, title, subtitle, bullets);
@@ -742,6 +745,13 @@ Cloud SQL relational replication is online in region europe-west1.
       {/* 1. OVERVIEW TAB */}
       {activeTab === 'overview' && (
         <div className="space-y-4">
+          {!isWorkspaceConfigured() && (
+            <div className="p-3.5 rounded-2xl bg-amber-500/[0.07] border border-amber-500/25 text-xs text-amber-200 leading-relaxed">
+              {lang === 'ar'
+                ? 'تكامل Google Workspace غير مهيأ: لا توجد بيئة Firebase مخصصة لـ KNOUX Repair، لذلك تبقى جميع ميزات الإصلاح المحلية تعمل عبر المحرك المحلي.'
+                : 'Google Workspace integration is not configured: no dedicated KNOUX Firebase project is provisioned, so all local repair features keep working through the local bridge.'}
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {/* Cloud SQL Status Card */}
             <div className="p-4 rounded-2xl bg-slate-900/60 border border-white/[0.07] hover:border-cyan-500/30 transition-all">
@@ -752,15 +762,15 @@ Cloud SQL relational replication is online in region europe-west1.
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-white">Cloud SQL PostgreSQL</h3>
-                    <p className="text-[10px] text-slate-400">united-olympics-sports</p>
+                    <p className="text-[10px] text-slate-400">{cloudSqlStatus ? `${cloudSqlStatus.database} • ${cloudSqlStatus.configured ? 'Configured' : 'Not configured'}` : 'Status unknown'}</p>
                   </div>
                 </div>
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                <span className={`w-2.5 h-2.5 rounded-full ${cloudSqlStatus?.configured ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-slate-600'}`} />
               </div>
               <div className="text-[11px] text-slate-300 space-y-1 bg-black/30 p-2.5 rounded-xl font-mono">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Region:</span>
-                  <span className="text-cyan-300 font-semibold">europe-west1</span>
+                  <span className="text-cyan-300 font-semibold">{cloudSqlStatus?.configured ? cloudSqlStatus.host : 'Not configured'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Engine:</span>
@@ -1311,7 +1321,7 @@ Cloud SQL relational replication is online in region europe-west1.
               <div>
                 <h2 className="text-sm font-bold text-white">Cloud SQL PostgreSQL Replication</h2>
                 <span className="text-[10px] text-slate-400 font-mono">
-                  Project: united-olympics-sports • Region: europe-west1 {cloudSqlStatus ? `• Status: ${cloudSqlStatus.configured ? 'Active' : 'Standby'}` : ''}
+                  {cloudSqlStatus ? `Database: ${cloudSqlStatus.database} • Host: ${cloudSqlStatus.host} • Status: ${cloudSqlStatus.configured ? 'Active' : 'Standby'}` : 'Cloud SQL status unknown'}
                 </span>
               </div>
             </div>
@@ -1329,18 +1339,18 @@ Cloud SQL relational replication is online in region europe-west1.
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-3 rounded-xl bg-black/30 border border-white/[0.08]">
               <div className="text-[10px] text-slate-500 font-mono">DATABASE ENGINE</div>
-              <div className="text-xs font-bold text-white mt-1">PostgreSQL 16</div>
-              <div className="text-[10px] text-emerald-400 font-mono">Status: Connected</div>
+              <div className="text-xs font-bold text-white mt-1">PostgreSQL</div>
+              <div className="text-[10px] text-emerald-400 font-mono">{cloudSqlStatus?.configured ? 'Status: Connected' : 'Status: Not configured'}</div>
             </div>
             <div className="p-3 rounded-xl bg-black/30 border border-white/[0.08]">
               <div className="text-[10px] text-slate-500 font-mono">INSTANCE REGION</div>
-              <div className="text-xs font-bold text-white mt-1">europe-west1</div>
-              <div className="text-[10px] text-cyan-400 font-mono">Low-Latency Cloud Run</div>
+              <div className="text-xs font-bold text-white mt-1">{cloudSqlStatus?.configured ? cloudSqlStatus.host : 'Not configured'}</div>
+              <div className="text-[10px] text-cyan-400 font-mono">{cloudSqlStatus?.configured ? 'Cloud SQL backend' : 'Local bridge only'}</div>
             </div>
             <div className="p-3 rounded-xl bg-black/30 border border-white/[0.08]">
               <div className="text-[10px] text-slate-500 font-mono">ORM LAYER</div>
               <div className="text-xs font-bold text-white mt-1">Drizzle ORM</div>
-              <div className="text-[10px] text-purple-400 font-mono">4 Tables Verified</div>
+              <div className="text-[10px] text-purple-400 font-mono">Schema defined locally</div>
             </div>
           </div>
 

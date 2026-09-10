@@ -7,7 +7,7 @@ import {
   X,
 } from 'lucide-react';
 import type { ActiveSection, ToolStatus } from '../types';
-import type { BridgeTool, ExecutionMode, ToolRunOptions } from '../lib/api';
+import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../lib/api';
 import type { Lang } from '../lib/i18n';
 import { CATEGORIES } from '../data/categories';
 import ExecutionConfirmDialog from './ExecutionConfirmDialog';
@@ -17,7 +17,7 @@ interface AllToolsCatalogProps {
   toolStatuses: Record<string, ToolStatus>;
   lang: Lang;
   bridgeElevated: boolean;
-  onRunTool: (tool: BridgeTool, mode: ExecutionMode, options?: ToolRunOptions) => void;
+  onRunTool: (tool: BridgeTool, mode: ExecutionMode, options?: ToolRunOptions, confirmation?: ToolRunConfirmation) => void;
   onCancelTool: () => void;
   onOpenSection: (section: ActiveSection) => void;
 }
@@ -130,8 +130,8 @@ export default function AllToolsCatalog({
               </h1>
               <p className="text-xs text-slate-400">
                 {lang === 'ar'
-                  ? 'بحث وتشغيل مباشر في كامل مكتبة الأدوات البالغ عددها 158 أداة مع معايير الأمان الشفافة.'
-                  : 'Search and launch directly across the full 158 verified Windows repair and diagnostic tools.'}
+                  ? `بحث وتشغيل مباشر في كامل مكتبة الأدوات (${tools.length} أداة مسجلة) مع معايير الأمان الشفافة.`
+                  : `Search and launch directly across the full runtime registry (${tools.length} registered tools) with transparent safety criteria.`}
               </p>
             </div>
           </div>
@@ -328,10 +328,10 @@ export default function AllToolsCatalog({
           tool={confirmTool.tool}
           mode={confirmTool.mode}
           lang={lang}
-          onConfirm={(options) => {
+          onConfirm={(options, confirmation) => {
             const { tool, mode } = confirmTool;
             setConfirmTool(null);
-            onRunTool(tool, mode, options);
+            onRunTool(tool, mode, options, confirmation);
           }}
           onCancel={() => setConfirmTool(null)}
         />

@@ -22,6 +22,8 @@ test('local web gateway contains no fabricated runtime evidence', () => {
     "name: 'System32'",
     "name: 'Program Files'",
     "name: 'AppData'",
+    'Based on your diagnostic analysis',
+    'Configure GEMINI_API_KEY for live online AI model streaming',
   ];
 
   for (const marker of forbiddenRuntimeMarkers) {
@@ -32,6 +34,69 @@ test('local web gateway contains no fabricated runtime evidence', () => {
   assert.match(source, /HOST\s*=\s*'127\.0\.0\.1'/, 'web gateway must remain loopback-only');
   assert.match(source, /bridgeIsHealthy/, 'gateway must verify bridge health');
   assert.match(source, /KNOUX_PROJECT_ROOT/, 'gateway must bind bridge execution to the resolved project root');
+});
+
+test('unavailable AI providers report unavailability instead of fabricated answers', () => {
+  const source = read('../server.ts');
+  assert.match(source, /AI_PROVIDER_NOT_CONFIGURED/, 'gateway must surface a structured unavailable reason');
+  assert.match(source, /available:\s*false/, 'unavailable AI must be explicit');
+  assert.match(source, /new GoogleGenAI\(\{\s*apiKey:\s*googleKey\s*\}\)/, 'Google SDK must receive only the Google key');
+  assert.match(source, /openrouter\.ai\/api\/v1\/chat\/completions/, 'OpenRouter traffic must use the OpenRouter API');
+});
+
+test('production UI never presents fabricated measurements as live facts', () => {
+  const actionCenter = read('../src/components/ActionCenter.tsx');
+  for (const marker of [
+    '4529848320',
+    'Intel Core Workstation',
+    '10.4 / 32 GB',
+    '21.6 GB Free',
+    '642 GB Free',
+    '382 GB / 1024 GB',
+    'Windows 11 Pro Workstation',
+    '?? 142',
+  ]) {
+    assert.equal(actionCenter.includes(marker), false, `ActionCenter must not contain fabricated marker: ${marker}`);
+  }
+  assert.match(actionCenter, /Unavailable/, 'ActionCenter must render unavailable states');
+
+  const workspace = read('../src/components/GoogleWorkspaceHub.tsx');
+  for (const marker of [
+    'united-olympics-sports',
+    'i9-14900K',
+    'Overall Health Score: 98/100',
+    'Over 2.1 TB combined available disk space',
+    'europe-west1 with Firebase sync',
+    'europe-west1',
+    '1530 GB Free (74%)',
+    'Defender Status: Active & Protected',
+  ]) {
+    assert.equal(workspace.includes(marker), false, `GoogleWorkspaceHub must not contain fabricated marker: ${marker}`);
+  }
+
+  const speedUp = read('../src/components/SpeedUpSuite.tsx');
+  assert.equal(speedUp.includes('3.8 GB Free'), false, 'SpeedUpSuite must not hard-code memory readings');
+
+  const care = read('../src/components/CareDashboard.tsx');
+  for (const marker of [
+    '?? 14',
+    '3840000000',
+    '1.4 GB RAM Released',
+    '128 Registry keys',
+    '6 Optimization Areas Detected',
+    'issues resolved',
+    'AI Mode',
+    'KNOUX AI SCAN ENGINE',
+    'Active & Enforced',
+  ]) {
+    assert.equal(care.includes(marker), false, `CareDashboard must not contain fabricated marker: ${marker}`);
+  }
+
+  const firebaseSlot = read('../firebase-applet-config.json');
+  assert.equal(firebaseSlot.includes('united-olympics-sports'), false, 'bundled Firebase slot must not reference a foreign project');
+  assert.match(firebaseSlot, /"configured":\s*false/, 'bundled Firebase slot must be explicitly unconfigured');
+  const firebase = read('../src/lib/firebase.ts');
+  assert.match(firebase, /isWorkspaceConfigured/, 'workspace backend must be gated on explicit configuration');
 });
 
 test('web and Electron local surfaces retain response security policy', () => {

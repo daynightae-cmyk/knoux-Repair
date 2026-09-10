@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import type { ElementType } from 'react';
 import type { ActiveSection, ToolStatus } from '../types';
-import type { BridgeTool, ExecutionMode, ToolRunOptions } from '../lib/api';
+import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../lib/api';
 import type { Lang } from '../lib/i18n';
 import { pickName } from '../lib/i18n';
 import ExecutionConfirmDialog from './ExecutionConfirmDialog';
@@ -17,7 +17,7 @@ interface ServicePlatformProps {
   toolStatuses: Record<string, ToolStatus>;
   lang: Lang;
   bridgeElevated: boolean;
-  onRunTool: (tool: BridgeTool, mode: ExecutionMode, options?: ToolRunOptions) => void;
+  onRunTool: (tool: BridgeTool, mode: ExecutionMode, options?: ToolRunOptions, confirmation?: ToolRunConfirmation) => void;
   onCancelTool: () => void;
 }
 
@@ -112,6 +112,6 @@ export default function ServicePlatform({ activeSection, tools, toolStatuses, la
         <section className="platform-safety-card"><ShieldCheck size={20} /><div><strong>{copy.safe}</strong><p>{copy.safeBody}</p></div></section>
       </aside>
     </div>
-    {pending && <ExecutionConfirmDialog tool={pending.tool} mode={pending.mode} lang={lang} onCancel={() => setPending(null)} onConfirm={(options) => { onRunTool(pending.tool, pending.mode, options); setPending(null); }} />}
+    {pending && <ExecutionConfirmDialog tool={pending.tool} mode={pending.mode} lang={lang} onCancel={() => setPending(null)} onConfirm={(options, confirmation) => { onRunTool(pending.tool, pending.mode, options, confirmation); setPending(null); }} />}
   </section>;
 }

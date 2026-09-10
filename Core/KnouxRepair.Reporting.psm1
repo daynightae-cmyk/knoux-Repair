@@ -57,33 +57,42 @@ function Export-KnouxReport {
     if (-not (Test-Path -LiteralPath $Session.ErrLog)) { Set-Content -LiteralPath $Session.ErrLog -Value '' -Encoding UTF8 }
 
     $result = [pscustomobject]@{
-        ToolId = $Session.ToolId
+        # --- Standard result contract (Electron UI envelope) ---
+        # Unknown data is $null and must stay $null: never invent values.
+        runId = $(if ($Session.PSObject.Properties['RunId']) { $Session.RunId } else { $null })
+        toolId = $Session.ToolId
+        category = $Session.Category
+        mode = $(if ($Session.PSObject.Properties['Mode']) { $Session.Mode } else { $null })
+        status = $Session.Status
+        startedAt = $Session.StartedAt.ToString('s')
+        finishedAt = $Session.FinishedAt.ToString('s')
+        durationMs = [int64](($Session.FinishedAt - $Session.StartedAt).TotalMilliseconds)
+        changedSystem = $Session.ChangedSystem
+        restartNeeded = $Session.RestartNeeded
+        itemsFound = $Session.ItemsFound
+        itemsProcessed = $Session.ItemsProcessed
+        skippedCount = $Session.SkippedCount
+        quarantinedCount = $Session.QuarantinedCount
+        bytesPotentiallyRecoverable = $Session.BytesPotentiallyRecoverable
+        bytesQuarantined = $Session.BytesQuarantined
+        bytesPermanentlyDeleted = $Session.BytesPermanentlyDeleted
+        bytesActuallyRecovered = $Session.BytesActuallyRecovered
+        bytesMoved = $Session.BytesMoved
+        backupPath = $Session.BackupPath
+        quarantinePath = $Session.QuarantinePath
+        verificationPerformed = $Session.VerificationPerformed
+        verificationResult = $Session.VerificationResult
+        exitCode = $Session.ExitCode
+        errorCode = $(if ($Session.PSObject.Properties['ErrorCode']) { $Session.ErrorCode } else { $null })
+        errorMessage = $Session.ErrorMessage
+        evidence = $(if ($Session.PSObject.Properties['Evidence']) { $Session.Evidence } else { $null })
+        rawOutput = $(if ($Session.PSObject.Properties['RawOutput']) { $Session.RawOutput } else { $null })
+        reportPath = $Session.SessionDir
+        # --- Legacy aliases (no case-collision with the canonical keys) ---
         ToolName = $Session.ToolName
-        Category = $Session.Category
         RiskLevel = $Session.RiskLevel
-        StartedAt = $Session.StartedAt.ToString('s')
-        FinishedAt = $Session.FinishedAt.ToString('s')
         Duration = ($Session.FinishedAt - $Session.StartedAt).ToString('g')
-        Status = $Session.Status
-        ExitCode = $Session.ExitCode
-        ChangedSystem = $Session.ChangedSystem
-        RestartNeeded = $Session.RestartNeeded
-        ItemsFound = $Session.ItemsFound
-        ItemsProcessed = $Session.ItemsProcessed
-        SkippedCount = $Session.SkippedCount
-        QuarantinedCount = $Session.QuarantinedCount
-        BytesPotentiallyRecoverable = $Session.BytesPotentiallyRecoverable
-        BytesQuarantined = $Session.BytesQuarantined
-        BytesPermanentlyDeleted = $Session.BytesPermanentlyDeleted
-        BytesActuallyRecovered = $Session.BytesActuallyRecovered
-        BytesMoved = $Session.BytesMoved
         BytesRecovered = $Session.BytesRecovered
-        BackupPath = $Session.BackupPath
-        QuarantinePath = $Session.QuarantinePath
-        VerificationPerformed = $Session.VerificationPerformed
-        VerificationResult = $Session.VerificationResult
-        ReportPath = $Session.SessionDir
-        ErrorMessage = $Session.ErrorMessage
     }
     $result | ConvertTo-Json -Depth 4 | Out-File -LiteralPath (Join-Path $Session.SessionDir 'results.json') -Encoding UTF8
     $result | Export-Csv -LiteralPath (Join-Path $Session.SessionDir 'results.csv') -NoTypeInformation -Encoding UTF8

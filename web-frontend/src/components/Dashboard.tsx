@@ -71,7 +71,8 @@ export default function Dashboard({ lang, onNavigate, toolStatuses }: DashboardP
   const successCount = completedEntries.filter(([, s]) => s === 'success').length;
   const errorCount = completedEntries.filter(([, s]) => s === 'error').length;
   const cancelledCount = completedEntries.filter(([, s]) => s === 'cancelled').length;
-  const totalRun = successCount + errorCount + cancelledCount;
+  const inconclusiveCount = completedEntries.filter(([, s]) => s === 'inconclusive').length;
+  const totalRun = successCount + errorCount + cancelledCount + inconclusiveCount;
 
   const freeDriveTotal = (system?.Drives || []).reduce((a, d) => a + (d.FreeGB || 0), 0);
 
@@ -139,7 +140,7 @@ export default function Dashboard({ lang, onNavigate, toolStatuses }: DashboardP
         />
         <StatCard
           label={t.cpu}
-          value={system ? `${system.CpuLoad ?? 0}%` : '--'}
+          value={system ? (system.CpuLoad === undefined || system.CpuLoad === null ? '--' : `${system.CpuLoad}%`) : '--'}
           sub={system ? system.CpuName || 'CPU' : t.unavailable}
           icon={Cpu}
           color="text-emerald-400"
@@ -155,7 +156,7 @@ export default function Dashboard({ lang, onNavigate, toolStatuses }: DashboardP
         />
         <StatCard
           label={t.processes}
-          value={system ? String(system.Processes ?? 0) : '--'}
+          value={system ? (system.Processes === undefined || system.Processes === null ? '--' : String(system.Processes)) : '--'}
           sub={t.sessionSummary}
           icon={Activity}
           color="text-cyan-400"
@@ -181,7 +182,7 @@ export default function Dashboard({ lang, onNavigate, toolStatuses }: DashboardP
           <Activity size={14} className="text-cyan-400" />
           <h3 className="font-mono text-[10px] tracking-[0.2em] text-cyan-400/70">{t.sessionSummary}</h3>
         </div>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           <div className="text-center">
             <p className="font-display text-2xl font-bold text-white">{totalRun}</p>
             <p className="font-mono text-[9px] text-white/25 tracking-wider mt-1">{t.executed}</p>
@@ -197,6 +198,10 @@ export default function Dashboard({ lang, onNavigate, toolStatuses }: DashboardP
           <div className="text-center">
             <p className="font-display text-2xl font-bold text-amber-400">{cancelledCount}</p>
             <p className="font-mono text-[9px] text-white/25 tracking-wider mt-1">{t.cancelled}</p>
+          </div>
+          <div className="text-center">
+            <p className="font-display text-2xl font-bold text-yellow-300">{inconclusiveCount}</p>
+            <p className="font-mono text-[9px] text-white/25 tracking-wider mt-1">INCONCLUSIVE</p>
           </div>
         </div>
       </motion.div>
@@ -236,6 +241,8 @@ export default function Dashboard({ lang, onNavigate, toolStatuses }: DashboardP
                   <CheckCircle size={14} className="text-emerald-400 shrink-0" />
                 ) : status === 'error' ? (
                   <AlertTriangle size={14} className="text-red-400 shrink-0" />
+                ) : status === 'inconclusive' ? (
+                  <AlertTriangle size={14} className="text-amber-400 shrink-0" />
                 ) : (
                   <Ban size={14} className="text-amber-400 shrink-0" />
                 )}
@@ -250,7 +257,13 @@ export default function Dashboard({ lang, onNavigate, toolStatuses }: DashboardP
                     {toolId}
                   </span>
                   <span className="text-slate-400">
-                    {status === 'success' ? 'SUCCESS' : status === 'error' ? 'FAILED' : 'CANCELLED'}
+                    {status === 'success'
+                      ? 'SUCCESS'
+                      : status === 'error'
+                        ? 'FAILED'
+                        : status === 'inconclusive'
+                          ? 'INCONCLUSIVE'
+                          : 'CANCELLED'}
                   </span>
                 </span>
               </motion.div>

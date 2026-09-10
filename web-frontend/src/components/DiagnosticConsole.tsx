@@ -10,7 +10,7 @@ interface DiagnosticConsoleProps {
   onClose: () => void;
   activeTool: BridgeTool | null;
   entries: ConsoleEntry[];
-  status: 'idle' | 'running' | 'success' | 'error' | 'cancelled';
+  status: 'idle' | 'running' | 'success' | 'error' | 'cancelled' | 'inconclusive';
   onRetry: () => void;
   onCancel: () => void;
   lang: Lang;
@@ -18,15 +18,17 @@ interface DiagnosticConsoleProps {
 
 const COPY = {
   en: {
-    working: 'Working on your request', success: 'Your request is complete', error: 'This request needs attention', cancelled: 'This request was stopped', idle: 'Ready when you are',
+    working: 'Working on your request', success: 'Your request is complete', inconclusive: 'The result needs a closer look', error: 'This request needs attention', cancelled: 'This request was stopped', idle: 'Ready when you are',
     workingBody: 'KNOUX is safely completing the selected step. You can keep this window open to follow progress.', successBody: 'The selected step has finished. You can continue using your device or return to the service for the next step.',
+    inconclusiveBody: 'KNOUX finished the step but the evidence was not conclusive. No result is claimed: review the details or run the verification step again.',
     errorBody: 'KNOUX could not complete this request. Review your device connection and permissions, then try again.', cancelledBody: 'No further steps will be taken unless you start the request again.', idleBody: 'Choose a service action to get started.',
     cancel: 'Stop', retry: 'Try again', close: 'Done', support: 'Download support report', privacy: 'Technical details are kept private unless you choose to share this report.',
     stagePreparing: 'Preparing a safe workspace', stageWorking: 'Completing the selected step', stageFinishing: 'Checking the result',
   },
   ar: {
-    working: 'جارٍ تنفيذ طلبك', success: 'اكتمل طلبك', error: 'يحتاج هذا الطلب إلى انتباه', cancelled: 'تم إيقاف الطلب', idle: 'جاهز عند اختيارك',
+    working: 'جارٍ تنفيذ طلبك', success: 'اكتمل طلبك', inconclusive: 'النتيجة تحتاج إلى مراجعة أدق', error: 'يحتاج هذا الطلب إلى انتباه', cancelled: 'تم إيقاف الطلب', idle: 'جاهز عند اختيارك',
     workingBody: 'ينفذ KNOUX الخطوة التي اخترتها بأمان. يمكنك إبقاء هذه النافذة مفتوحة لمتابعة التقدم.', successBody: 'انتهت الخطوة المختارة. يمكنك متابعة استخدام جهازك أو العودة للخدمة لاختيار الخطوة التالية.',
+    inconclusiveBody: 'أنهى KNOUX الخطوة لكن الأدلة غير حاسمة. لا يتم ادعاء أي نتيجة: راجع التفاصيل أو أعد تشغيل خطوة التحقق.',
     errorBody: 'تعذر على KNOUX إكمال هذا الطلب. راجع اتصال الجهاز والأذونات ثم حاول مرة أخرى.', cancelledBody: 'لن يتم تنفيذ خطوات إضافية إلا إذا بدأت الطلب مرة أخرى.', idleBody: 'اختر إجراءً من الخدمة للبدء.',
     cancel: 'إيقاف', retry: 'حاول مرة أخرى', close: 'تم', support: 'تنزيل تقرير الدعم', privacy: 'تبقى التفاصيل التقنية خاصة ما لم تختر مشاركة هذا التقرير.',
     stagePreparing: 'تحضير مساحة عمل آمنة', stageWorking: 'تنفيذ الخطوة المختارة', stageFinishing: 'التحقق من النتيجة',
@@ -55,9 +57,11 @@ export default function DiagnosticConsole({ visible, onClose, activeTool, entrie
         ? { title: text.error, body: text.errorBody, icon: CircleAlert, className: 'is-error' }
         : status === 'cancelled'
           ? { title: text.cancelled, body: text.cancelledBody, icon: CircleAlert, className: 'is-cancelled' }
-          : { title: text.idle, body: text.idleBody, icon: ShieldCheck, className: 'is-idle' };
+          : status === 'inconclusive'
+            ? { title: text.inconclusive, body: text.inconclusiveBody, icon: CircleAlert, className: 'is-warning' }
+            : { title: text.idle, body: text.idleBody, icon: ShieldCheck, className: 'is-idle' };
   const StatusIcon = content.icon;
-  const progress = status === 'success' ? 100 : status === 'running' ? Math.min(82, 18 + entries.length * 9) : status === 'error' || status === 'cancelled' ? 100 : 0;
+  const progress = status === 'success' || status === 'inconclusive' ? 100 : status === 'running' ? Math.min(82, 18 + entries.length * 9) : status === 'error' || status === 'cancelled' ? 100 : 0;
 
   return (
     <AnimatePresence>

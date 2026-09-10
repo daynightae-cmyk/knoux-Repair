@@ -58,6 +58,11 @@ export default function ActionCenter({
   const [cleanupData, setCleanupData] = useState<CleanupPreview | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
+  // Runtime registry total. Offline renders UNAVAILABLE, never "0 tools".
+  const registryTotal = useMemo(
+    () => Object.values(toolsByCategory).reduce((total, items) => total + items.length, 0),
+    [toolsByCategory],
+  );
 
   // Load live telemetry data
   const fetchData = useCallback(async () => {
@@ -102,13 +107,22 @@ export default function ActionCenter({
     return Object.values(toolsByCategory).reduce((acc, list) => acc + list.length, 0);
   }, [toolsByCategory]);
 
+  const hasSystemData = systemData !== null;
+  const hasCleanupData = cleanupData !== null;
+
+  const unavailableText = lang === 'ar' ? 'غير متاح' : 'Unavailable';
+  const bridgeOfflineText = lang === 'ar' ? 'يتطلب اتصال المحرك المحلي' : 'Requires the local bridge';
+
   const cleanableBytesFormatted = useMemo(() => {
-    const bytes = cleanupData?.Summary?.EstimatedReclaimableBytes ?? 4529848320; // fallback realistic estimate
+    const bytes = cleanupData?.Summary?.EstimatedReclaimableBytes;
+    // Product-truth rule: without measured evidence show unavailable, never a
+    // fabricated estimate.
+    if (bytes === undefined || bytes === null) return unavailableText;
     if (bytes >= 1024 ** 3) {
       return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
     }
     return `${(bytes / 1024 ** 2).toFixed(0)} MB`;
-  }, [cleanupData]);
+  }, [cleanupData, unavailableText]);
 
   // Assessment results based on live data
   const assessmentItems: AssessmentItem[] = useMemo(() => {
@@ -142,12 +156,16 @@ export default function ActionCenter({
     items.push({
       id: 'cleanup',
       title: {
-        en: `Cleanable Temporary Data (${cleanableBytesFormatted})`,
-        ar: `بيانات مؤقتة قابلة للتنظيف (${cleanableBytesFormatted})`,
+        en: hasCleanupData ? `Cleanable Temporary Data (${cleanableBytesFormatted})` : 'Cleanable Temporary Data (Unavailable)',
+        ar: hasCleanupData ? `بيانات مؤقتة قابلة للتنظيف (${cleanableBytesFormatted})` : 'بيانات مؤقتة قابلة للتنظيف (غير متاح)',
       },
       description: {
-        en: 'Reclaimable temporary files, Windows update caches, and browser storage detected.',
-        ar: 'تم اكتشاف ملفات مؤقتة قابلة للاسترداد وذاكرة التحديثات ومخلفات التصفح.',
+        en: hasCleanupData
+          ? 'Reclaimable temporary files, Windows update caches, and browser storage detected.'
+          : 'Cleanup evidence is unavailable. Connect the local bridge and refresh to measure real targets.',
+        ar: hasCleanupData
+          ? 'تم اكتشاف ملفات مؤقتة قابلة للاسترداد وذاكرة التحديثات ومخلفات التصفح.'
+          : 'أدلة التنظيف غير متاحة. اتصل بالمحرك المحلي وحدّث الصفحة لقياس الأهداف الحقيقية.',
       },
       status: 'attention',
       badge: {
@@ -163,23 +181,23 @@ export default function ActionCenter({
     });
 
     // 3. Performance & Memory
-    const ramUsedPercent = systemData
+    const ramUsedPercent = systemData && systemData.TotalRamGB > 0
       ? Math.round(((systemData.TotalRamGB - systemData.FreeRamGB) / systemData.TotalRamGB) * 100)
-      : 34;
+      : null;
     items.push({
       id: 'performance',
       title: {
-        en: `Memory & Background Load (${ramUsedPercent}% Active)`,
-        ar: `الذاكرة وضغط العمليات (${ramUsedPercent}% نشط)`,
+        en: ramUsedPercent === null ? 'Memory & Background Load (Unavailable)' : `Memory & Background Load (${ramUsedPercent}% Active)`,
+        ar: ramUsedPercent === null ? 'الذاكرة وضغط العمليات (غير متاح)' : `الذاكرة وضغط العمليات (${ramUsedPercent}% نشط)`,
       },
       description: {
-        en: `Process pool active with ${systemData?.Processes ?? 142} running tasks. Startup trace ready.`,
-        ar: `مجموعة العمليات نشطة بـ ${systemData?.Processes ?? 142} مهمة. تتبع الإقلاع جاهز.`,
+        en: systemData ? `Process pool active with ${systemData.Processes} running tasks. Startup trace ready.` : 'Live process data is unavailable. Connect the local bridge and refresh.',
+        ar: systemData ? `مجموعة العمليات نشطة بـ ${systemData.Processes} مهمة. تتبع الإقلاع جاهز.` : 'بيانات العمليات الحية غير متاحة. اتصل بالمحرك المحلي وحدّث الصفحة.',
       },
-      status: ramUsedPercent > 80 ? 'attention' : 'optimal',
+      status: ramUsedPercent !== null && ramUsedPercent > 80 ? 'attention' : ramUsedPercent === null ? 'ready' : 'optimal',
       badge: {
-        en: ramUsedPercent > 80 ? 'High Pressure' : 'Balanced',
-        ar: ramUsedPercent > 80 ? 'ضغط مرتفع' : 'متوازن',
+        en: ramUsedPercent === null ? 'Not verified' : ramUsedPercent > 80 ? 'High Pressure' : 'Balanced',
+        ar: ramUsedPercent === null ? 'غير متحقق' : ramUsedPercent > 80 ? 'ضغط مرتفع' : 'متوازن',
       },
       targetSection: 'performance',
       actionText: {
@@ -190,7 +208,7 @@ export default function ActionCenter({
     });
 
     // 4. Security & Protection Posture
-    const defenderOk = systemData?.DefenderRealtime ?? true;
+    const defenderState = systemData ? systemData.DefenderRealtime : null;
     items.push({
       id: 'security',
       title: {
@@ -198,17 +216,21 @@ export default function ActionCenter({
         ar: 'حالة Windows Defender والجدار الناري',
       },
       description: {
-        en: defenderOk
-          ? 'Real-time antivirus defense is active. Firewall profiles are enforced.'
-          : 'Security alerts require attention.',
-        ar: defenderOk
-          ? 'الحماية في الوقت الفعلي مفعّلة. ملفات الجدار الناري مؤمّنة.'
-          : 'تنبيهات الأمان تتطلب مراجعة.',
+        en: defenderState === null
+          ? 'Protection state is not verified. Connect the local bridge and refresh for live evidence.'
+          : defenderState
+            ? 'Real-time antivirus defense is active. Firewall profiles are enforced.'
+            : 'Security alerts require attention.',
+        ar: defenderState === null
+          ? 'حالة الحماية غير متحقق منها. اتصل بالمحرك المحلي وحدّث الصفحة للحصول على أدلة حية.'
+          : defenderState
+            ? 'الحماية في الوقت الفعلي مفعّلة. ملفات الجدار الناري مؤمّنة.'
+            : 'تنبيهات الأمان تتطلب مراجعة.',
       },
-      status: defenderOk ? 'optimal' : 'attention',
+      status: defenderState === null ? 'ready' : defenderState ? 'optimal' : 'attention',
       badge: {
-        en: defenderOk ? 'Protected' : 'Review Needed',
-        ar: defenderOk ? 'محمي' : 'يتطلب مراجعة',
+        en: defenderState === null ? 'Not verified' : defenderState ? 'Protected' : 'Review Needed',
+        ar: defenderState === null ? 'غير متحقق' : defenderState ? 'محمي' : 'يتطلب مراجعة',
       },
       targetSection: 'security',
       actionText: {
@@ -219,7 +241,7 @@ export default function ActionCenter({
     });
 
     return items;
-  }, [cleanableBytesFormatted, systemData]);
+  }, [cleanableBytesFormatted, hasCleanupData, hasSystemData, systemData, unavailableText, lang]);
 
   // Goal-centric symptom cards
   const symptomCards = [
@@ -357,16 +379,16 @@ export default function ActionCenter({
                 {lang === 'ar' ? 'المعالج' : 'CPU Load'}
               </span>
               <span className="text-xs font-mono font-bold text-blue-400">
-                {systemData?.CpuLoad ?? 12}%
+                {hasSystemData && systemData?.CpuLoad !== undefined && systemData?.CpuLoad !== null ? `${systemData.CpuLoad}%` : unavailableText}
               </span>
             </div>
             <div className="mt-1 text-sm font-semibold text-white truncate">
-              {systemData?.CpuName ? systemData.CpuName.split('@')[0] : 'Intel Core Workstation'}
+              {systemData?.CpuName ? systemData.CpuName.split('@')[0] : (lang === 'ar' ? 'اسم المعالج غير متاح' : 'CPU name unavailable')}
             </div>
             <div className="mt-1.5 w-full bg-slate-800 rounded-full h-1 overflow-hidden">
               <div
                 className="bg-blue-500 h-full"
-                style={{ width: `${Math.min(100, systemData?.CpuLoad ?? 12)}%` }}
+                style={{ width: `${hasSystemData && systemData?.CpuLoad !== undefined && systemData?.CpuLoad !== null ? Math.min(100, systemData.CpuLoad) : 0}%` }}
               />
             </div>
           </div>
@@ -385,13 +407,13 @@ export default function ActionCenter({
               <span className="text-xs font-mono font-bold text-emerald-400">
                 {systemData
                   ? `${(systemData.TotalRamGB - systemData.FreeRamGB).toFixed(1)} / ${systemData.TotalRamGB} GB`
-                  : '10.4 / 32 GB'}
+                  : unavailableText}
               </span>
             </div>
             <div className="mt-1 text-sm font-semibold text-white truncate">
               {systemData
                 ? `${systemData.FreeRamGB.toFixed(1)} GB ${lang === 'ar' ? 'متاح' : 'Available'}`
-                : '21.6 GB Free'}
+                : bridgeOfflineText}
             </div>
             <div className="mt-1.5 w-full bg-slate-800 rounded-full h-1 overflow-hidden">
               <div
@@ -417,13 +439,13 @@ export default function ActionCenter({
               <span className="text-xs font-mono font-bold text-purple-400">
                 {systemData?.Drives?.[0]
                   ? `${systemData.Drives[0].FreeGB} GB Free`
-                  : '642 GB Free'}
+                  : unavailableText}
               </span>
             </div>
             <div className="mt-1 text-sm font-semibold text-white truncate">
               {systemData?.Drives?.[0]
                 ? `${systemData.Drives[0].TotalGB - systemData.Drives[0].FreeGB} GB / ${systemData.Drives[0].TotalGB} GB`
-                : '382 GB / 1024 GB'}
+                : bridgeOfflineText}
             </div>
             <div className="mt-1.5 w-full bg-slate-800 rounded-full h-1 overflow-hidden">
               <div
@@ -447,14 +469,14 @@ export default function ActionCenter({
                 {lang === 'ar' ? 'حالة الحماية' : 'Security Posture'}
               </span>
               <span className="text-xs font-bold text-teal-400">
-                {systemData?.DefenderRealtime ? (lang === 'ar' ? 'محمي' : 'Active') : 'Review'}
+                {systemData ? (systemData.DefenderRealtime ? (lang === 'ar' ? 'محمي' : 'Active') : 'Review') : unavailableText}
               </span>
             </div>
             <div className="mt-1 text-sm font-semibold text-white truncate">
               {bridgeElevated ? (lang === 'ar' ? 'صلاحية مسؤول كاملة' : 'Admin Privileges') : (lang === 'ar' ? 'وضع قياسي' : 'Standard User')}
             </div>
             <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
-              <span className="truncate">{systemData?.Os ?? 'Windows 11 Pro Workstation'}</span>
+              <span className="truncate">{systemData?.Os ?? unavailableText}</span>
               <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${bridgeOnline ? 'text-emerald-400 bg-emerald-500/10' : 'text-amber-400 bg-amber-500/10'}`}>
                 {bridgeOnline ? (lang === 'ar' ? 'المحرك متصل' : 'Bridge Live') : (lang === 'ar' ? 'المحرك مفصول' : 'Bridge Offline')}
               </span>
@@ -601,14 +623,17 @@ export default function ActionCenter({
             onClick={onOpenAllTools}
             className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"
           >
-            <span>{lang === 'ar' ? 'عرض جميع الأدوات (158)' : 'View All 158 Tools'}</span>
+            <span>{bridgeOnline === true ? (lang === 'ar' ? `عرض جميع الأدوات (${registryTotal})` : `View All ${registryTotal} Tools`) : (lang === 'ar' ? 'الأدوات غير متاحة' : 'Tools Unavailable')}</span>
             <ArrowRight size={13} className="rtl:rotate-180" />
           </button>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
           {CATEGORIES.slice(0, 12).map((cat) => {
-            const count = toolsByCategory[cat.id]?.length ?? 0;
+            const items = toolsByCategory[cat.id];
+            const countLabel = bridgeOnline === true && items
+              ? `${items.length} ${lang === 'ar' ? 'أداة' : 'tools'}`
+              : (lang === 'ar' ? 'غير متاح' : 'Unavailable');
             return (
               <button
                 key={cat.id}
@@ -626,7 +651,7 @@ export default function ActionCenter({
                   {cat.name[lang]}
                 </div>
                 <div className="mt-1 text-[11px] font-mono text-slate-500">
-                  {count} {lang === 'ar' ? 'أداة' : 'tools'}
+                  {countLabel}
                 </div>
               </button>
             );

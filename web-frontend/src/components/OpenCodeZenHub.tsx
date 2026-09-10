@@ -390,7 +390,7 @@ export default function OpenCodeZenHub({
                   <Cpu size={14} className="text-indigo-400" />
                   {lang === 'ar' ? 'اختر الموديل المجاني' : 'Select Free AI Model'}
                 </span>
-                <span className="text-[10px] font-mono text-emerald-400">100% Free / Zero-Cost</span>
+                <span className="text-[10px] font-mono text-emerald-400">Free-tier models</span>
               </label>
 
               <div className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto pr-1 custom-scrollbar">

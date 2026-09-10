@@ -351,7 +351,7 @@ export default function SpeedUpSuite({
 
           <div className="pt-2 border-t border-white/[0.05] flex items-center justify-between text-xs">
             <span className="text-slate-400">
-              {lang === 'ar' ? 'حالة الذاكرة: 3.8 GB حرة' : 'Memory status: 3.8 GB Free'}
+              {lang === 'ar' ? 'حالة الذاكرة: غير متحقق منها — افتح مركز الإجراءات' : 'Memory status: not verified — open Action Center'}
             </span>
             <button
               type="button"

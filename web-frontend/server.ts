@@ -203,24 +203,8 @@ function proxyApi(req: Request, res: Response): void {
   proxyBridgeRequest(req.originalUrl, req, res);
 }
 
-// Load tools from Docs/TOOLS-MANIFEST.json if available
-let manifestTools: any[] = [];
-const manifestPaths = [
-  path.join(REPO_ROOT, 'Docs', 'TOOLS-MANIFEST.json'),
-  path.join(WEB_ROOT, 'Docs', 'TOOLS-MANIFEST.json'),
-  path.join(process.cwd(), 'Docs', 'TOOLS-MANIFEST.json'),
-];
-for (const p of manifestPaths) {
-  if (fs.existsSync(p)) {
-    try {
-      const raw = fs.readFileSync(p, 'utf-8');
-      manifestTools = JSON.parse(raw);
-      break;
-    } catch {
-      // non-critical
-    }
-  }
-}
+// Tool manifest reads always go through the authoritative local execution
+// bridge (/api/tools); the gateway never caches a parallel copy.
 
 async function startServer(): Promise<void> {
   if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) throw new Error('PORT must be an integer between 1 and 65535.');
@@ -272,14 +256,15 @@ async function startServer(): Promise<void> {
 
   customRouter.post('/cloudsql/repair-logs', async (req: Request, res: Response) => {
     try {
-      const { toolId, action, status, details, executionTimeMs } = req.body;
-      const log = await logRepairAction({
-        toolId: toolId || 'system-action',
-        action: action || 'run',
-        status: status || 'success',
-        details,
-        executionTimeMs,
-      });
+      const { uid, toolId, toolName, action, status, details, executionTimeMs } = req.body;
+      const log = await logRepairAction(
+        typeof uid === 'string' && uid ? uid : 'local-workstation',
+        typeof toolId === 'string' && toolId ? toolId : 'system-action',
+        typeof toolName === 'string' && toolName ? toolName : (typeof toolId === 'string' && toolId ? toolId : 'system-action'),
+        typeof status === 'string' && status ? status : (typeof action === 'string' && action ? action : 'success'),
+        typeof executionTimeMs === 'number' ? executionTimeMs : undefined,
+        details === undefined || details === null ? undefined : (typeof details === 'string' ? details : JSON.stringify(details)),
+      );
       res.json({ success: true, log });
     } catch (err: any) {
       console.error('Error logging repair action:', err);
@@ -290,7 +275,8 @@ async function startServer(): Promise<void> {
   customRouter.get('/cloudsql/repair-logs', async (req: Request, res: Response) => {
     try {
       const limit = Number(req.query.limit) || 50;
-      const logs = await getRepairLogs(limit);
+      const uid = typeof req.query.uid === 'string' && req.query.uid ? req.query.uid : 'local-workstation';
+      const logs = await getRepairLogs(uid, limit);
       res.json({ success: true, logs });
     } catch (err: any) {
       console.error('Error fetching repair logs:', err);
@@ -300,14 +286,15 @@ async function startServer(): Promise<void> {
 
   customRouter.post('/cloudsql/telemetry', async (req: Request, res: Response) => {
     try {
-      const { cpuUsage, ramUsagePercent, diskFreeGb, networkLatencyMs, healthStatus } = req.body;
-      const entry = await recordSystemTelemetry({
-        cpuUsage,
-        ramUsagePercent,
-        diskFreeGb,
-        networkLatencyMs,
-        healthStatus,
-      });
+      const { uid, cpuUsage, cpuLoad, ramUsagePercent, ramUsedGb, diskFreeGb, osVersion } = req.body;
+      const cpuValue = Number(cpuLoad ?? cpuUsage ?? NaN);
+      const entry = await recordSystemTelemetry(
+        typeof uid === 'string' && uid ? uid : 'local-workstation',
+        Number.isFinite(cpuValue) ? cpuValue : null,
+        ramUsedGb !== undefined && ramUsedGb !== null ? String(ramUsedGb) : (ramUsagePercent !== undefined && ramUsagePercent !== null ? String(ramUsagePercent) : ''),
+        diskFreeGb !== undefined && diskFreeGb !== null ? String(diskFreeGb) : '',
+        typeof osVersion === 'string' ? osVersion : '',
+      );
       res.json({ success: true, entry });
     } catch (err: any) {
       console.error('Error recording telemetry:', err);
@@ -317,13 +304,15 @@ async function startServer(): Promise<void> {
 
   customRouter.post('/cloudsql/workspace-events', async (req: Request, res: Response) => {
     try {
-      const { eventType, eventName, payload, status } = req.body;
-      const ev = await recordWorkspaceIntegrationEvent({
-        eventType: eventType || 'action',
-        eventName: eventName || 'event',
-        payload,
-        status: status || 'ok',
-      });
+      const { uid, service, eventType, resourceName, eventName, action, resourceId, resourceUrl } = req.body;
+      const ev = await recordWorkspaceIntegrationEvent(
+        typeof uid === 'string' && uid ? uid : 'local-workstation',
+        typeof service === 'string' && service ? service : (typeof eventType === 'string' && eventType ? eventType : 'workspace'),
+        typeof resourceName === 'string' && resourceName ? resourceName : (typeof eventName === 'string' && eventName ? eventName : 'event'),
+        typeof action === 'string' && action ? action : 'recorded',
+        typeof resourceId === 'string' ? resourceId : undefined,
+        typeof resourceUrl === 'string' ? resourceUrl : undefined,
+      );
       res.json({ success: true, event: ev });
     } catch (err: any) {
       console.error('Error recording workspace event:', err);
@@ -334,7 +323,8 @@ async function startServer(): Promise<void> {
   customRouter.get('/cloudsql/workspace-events', async (req: Request, res: Response) => {
     try {
       const limit = Number(req.query.limit) || 50;
-      const events = await getWorkspaceIntegrationEvents(limit);
+      const uid = typeof req.query.uid === 'string' && req.query.uid ? req.query.uid : 'local-workstation';
+      const events = await getWorkspaceIntegrationEvents(uid, limit);
       res.json({ success: true, events });
     } catch (err: any) {
       console.error('Error fetching workspace events:', err);
@@ -364,17 +354,56 @@ async function startServer(): Promise<void> {
         return res.status(400).json({ error: 'Prompt is required' });
       }
 
-      const apiKey = process.env.GEMINI_API_KEY || process.env.OPENROUTER_API_KEY;
+      // Explicit provider routing: a Google key drives the Google SDK, an
+      // OpenRouter key drives the OpenRouter HTTP API. One provider's key is
+      // never passed to the other provider's SDK.
+      const googleKey = process.env.GEMINI_API_KEY;
+      const openRouterKey = process.env.OPENROUTER_API_KEY;
+      const wantsOpenRouter = typeof modelId === 'string' && (modelId.includes('/') || modelId.includes(':'));
 
-      if (!apiKey) {
-        return res.json({
-          text: `[Nexus AI Assistant]: Based on your diagnostic analysis for "${prompt}", the recommended steps are:\n1. Run SFC (System File Checker) to verify core Windows integrity.\n2. Clear temporary caches in %temp% and Prefetch.\n3. Verify network gateway and DNS responsiveness.\n(Note: Configure GEMINI_API_KEY for live online AI model streaming).`,
-          model: modelId,
-          tokens: 120,
+      if (wantsOpenRouter) {
+        if (!openRouterKey) {
+          return res.status(503).json({
+            available: false,
+            reason: 'AI_PROVIDER_NOT_CONFIGURED',
+            message: 'AI is unavailable: no OpenRouter key is configured.',
+          });
+        }
+        const upstream = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openRouterKey}` },
+          body: JSON.stringify({
+            model: modelId,
+            temperature: 0.3,
+            max_tokens: 2400,
+            messages: [
+              { role: 'system', content: `You are the KNOUX Nexus System Diagnostic AI Assistant. Provide precise, actionable, and safe Windows system repair and maintenance troubleshooting guidance. Context: ${context}` },
+              { role: 'user', content: prompt },
+            ],
+          }),
+        });
+        const payload = await upstream.json().catch(() => ({}));
+        if (!upstream.ok) {
+          return res.status(502).json({ error: String(payload?.error?.message || `OpenRouter returned HTTP ${upstream.status}`) });
+        }
+        const content = payload?.choices?.[0]?.message?.content;
+        const text = Array.isArray(content)
+          ? content.map((part: unknown) => (typeof part === 'string' ? part : String((part as { text?: string })?.text || ''))).join('')
+          : String(content || '');
+        return res.json({ text: text.trim() || 'No diagnosis generated.', model: modelId });
+      }
+
+      if (!googleKey) {
+        // Product-truth rule: without a configured provider the gateway
+        // reports unavailability. It never fabricates a diagnostic answer.
+        return res.status(503).json({
+          available: false,
+          reason: 'AI_PROVIDER_NOT_CONFIGURED',
+          message: 'AI is unavailable: no Google AI key is configured.',
         });
       }
 
-      const ai = new GoogleGenAI({});
+      const ai = new GoogleGenAI({ apiKey: googleKey });
       const systemInstruction = `You are the KNOUX Nexus System Diagnostic AI Assistant. Provide precise, actionable, and safe Windows system repair and maintenance troubleshooting guidance. Context: ${context}`;
 
       const response = await ai.models.generateContent({
@@ -390,9 +419,9 @@ async function startServer(): Promise<void> {
         text: response.text || 'No diagnosis generated.',
         model: modelId,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('AI generate error:', err);
-      res.status(500).json({ error: err?.message || 'AI generation failed' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'AI generation failed' });
     }
   });
 

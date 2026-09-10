@@ -8,7 +8,6 @@ import {
   Cpu,
   CheckCircle2,
   ArrowRight,
-  Sliders,
   Layers,
   Wrench,
   Wifi,
@@ -44,13 +43,13 @@ interface CareDashboardProps {
   onOpenView?: (view: ViewMode) => void;
   bridgeElevated: boolean;
   bridgeOnline?: boolean | null;
+  registryTotal?: number | null;
 }
 
 interface ScanStep {
   id: string;
   name: { en: string; ar: string };
   category: ActiveSection;
-  issues: number;
 }
 
 type DomainFilter = 'all' | 'maintenance' | 'performance' | 'security' | 'advanced';
@@ -111,31 +110,29 @@ export default function CareDashboard({
   lang,
   toolsByCategory = {},
   onOpenSection,
-  onOpenSpeedUp,
   onOpenProtect,
   onOpenToolbox,
   bridgeElevated,
 }: CareDashboardProps) {
-  const [scanMode, setScanMode] = useState<'ai' | 'manual'>('ai');
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [scanCompleted, setScanCompleted] = useState(false);
-  const [turboBoostActive, setTurboBoostActive] = useState(false);
-  const [fixedCount, setFixedCount] = useState<number | null>(null);
   const [activeDomainFilter, setActiveDomainFilter] = useState<DomainFilter>('all');
 
   const [systemData, setSystemData] = useState<SystemSnapshot | null>(null);
   const [cleanupData, setCleanupData] = useState<CleanupPreview | null>(null);
 
+  // Station review steps: navigation shortcuts, not measurements. No issue
+  // counts are claimed here; real evidence comes from each station's tools.
   const scanSteps: ScanStep[] = useMemo(() => [
-    { id: 'registry', name: { en: 'Registry Integrity & Obsolete Keys', ar: 'سلامة السجل ومفاتيح النظام القديمة' }, category: 'maintenance', issues: 128 },
-    { id: 'junk', name: { en: 'System Cache & Temporary Junk Files', ar: 'ملفات المخلفات المؤقتة وذاكرة النظام' }, category: 'cleanup', issues: 2450 },
-    { id: 'privacy', name: { en: 'Browser History & Privacy Traces', ar: 'آثار التصفح وسجلات الخصوصية' }, category: 'privacy', issues: 1987 },
-    { id: 'startup', name: { en: 'Startup Programs & Boot Optimization', ar: 'برامج بدء التشغيل وتحسين الإقلاع' }, category: 'performance', issues: 9 },
-    { id: 'security', name: { en: 'Defender Realtime & Firewall Posture', ar: 'حالة الحماية في الوقت الفعلي والجدار الناري' }, category: 'security', issues: 0 },
-    { id: 'shortcuts', name: { en: 'Broken Shortcuts & Invalid Paths', ar: 'الاختصارات المعطوبة والمسارات غير الصالحة' }, category: 'maintenance', issues: 42 },
-    { id: 'disk', name: { en: 'Disk Fragmentation & File System Health', ar: 'صحة نظام الملفات ومساحة التخزين' }, category: 'disk', issues: 3 },
+    { id: 'registry', name: { en: 'Registry Integrity & Obsolete Keys', ar: 'سلامة السجل ومفاتيح النظام القديمة' }, category: 'maintenance' },
+    { id: 'junk', name: { en: 'System Cache & Temporary Junk Files', ar: 'ملفات المخلفات المؤقتة وذاكرة النظام' }, category: 'cleanup' },
+    { id: 'privacy', name: { en: 'Browser History & Privacy Traces', ar: 'آثار التصفح وسجلات الخصوصية' }, category: 'privacy' },
+    { id: 'startup', name: { en: 'Startup Programs & Boot Optimization', ar: 'برامج بدء التشغيل وتحسين الإقلاع' }, category: 'performance' },
+    { id: 'security', name: { en: 'Defender Realtime & Firewall Posture', ar: 'حالة الحماية في الوقت الفعلي والجدار الناري' }, category: 'security' },
+    { id: 'shortcuts', name: { en: 'Broken Shortcuts & Invalid Paths', ar: 'الاختصارات المعطوبة والمسارات غير الصالحة' }, category: 'maintenance' },
+    { id: 'disk', name: { en: 'Disk Fragmentation & File System Health', ar: 'صحة نظام الملفات ومساحة التخزين' }, category: 'disk' },
   ], []);
 
   // Fetch telemetry
@@ -152,12 +149,12 @@ export default function CareDashboard({
     return () => { mounted = false; };
   }, []);
 
-  // Handle AI Scan
+  // Handle station review walkthrough (guided navigation — this overview
+  // performs no measurements and changes nothing on the device).
   const startScan = useCallback(() => {
     if (isScanning) return;
     setIsScanning(true);
     setScanCompleted(false);
-    setFixedCount(null);
     setScanProgress(0);
     setCurrentStepIndex(0);
 
@@ -179,14 +176,18 @@ export default function CareDashboard({
   }, [isScanning, scanSteps.length]);
 
   const handleFixAll = () => {
-    setFixedCount(scanSteps.reduce((acc, s) => acc + s.issues, 0));
-    setScanCompleted(false);
+    // Honest path: an overview cannot fix anything. Send the user to the
+    // cleanup station where real measured tools run behind confirmation.
+    onOpenSection('cleanup');
   };
 
   const cleanableFormatted = useMemo(() => {
-    const bytes = cleanupData?.Summary?.EstimatedReclaimableBytes ?? 3840000000;
+    const bytes = cleanupData?.Summary?.EstimatedReclaimableBytes;
+    // Product-truth rule: without measured evidence show unavailable, never a
+    // fabricated estimate.
+    if (bytes === undefined || bytes === null) return lang === 'ar' ? 'غير مقاس بعد' : 'Not measured yet';
     return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
-  }, [cleanupData]);
+  }, [cleanupData, lang]);
 
   return (
     <div className="h-full flex flex-col overflow-y-auto space-y-6 pr-1 custom-scrollbar">
@@ -199,7 +200,7 @@ export default function CareDashboard({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl md:text-2xl font-black tracking-tight text-white font-display">
-                {lang === 'ar' ? 'مركز الرعاية الذكي' : 'AI Care & System Cockpit'}
+                {lang === 'ar' ? 'مركز الرعاية والنظام' : 'Care & System Cockpit'}
               </h1>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
                 PRO 2.0
@@ -213,47 +214,25 @@ export default function CareDashboard({
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              {fixedCount !== null
-                ? (lang === 'ar' ? `تم تحسين ${fixedCount} عنصر بنجاح!` : `System optimized! ${fixedCount} issues resolved.`)
-                : isScanning
-                ? (lang === 'ar' ? `جارٍ فحص المكونات (${scanProgress}%)...` : `Scanning system integrity (${scanProgress}%)...`)
-                : scanCompleted
-                ? (lang === 'ar' ? 'اكتمل الفحص: 6 فرص للتحسين متاحة' : 'Scan finished: 6 optimization areas identified')
-                : (lang === 'ar' ? 'جهازك محمي وجاهز للفحص الشامل الذكي' : 'Your PC is ready for full AI diagnostic scan')}
+              {isScanning
+              ? (lang === 'ar' ? `جارٍ استعراض المحطات (${scanProgress}%)...` : `Reviewing stations (${scanProgress}%)...`)
+              : scanCompleted
+              ? (lang === 'ar' ? 'اكتمل الاستعراض: افتح محطة أدناه لاتخاذ إجراء حقيقي' : 'Review finished: open a station below to take real action')
+              : (lang === 'ar' ? 'جهازك جاهز لاستعراض موجّه للمحطات' : 'Your PC is ready for a guided station review')}
             </p>
           </div>
         </div>
 
-        {/* AI Mode / Manual Mode Pill Switcher */}
+        {/* Review mode indicator: this overview navigates, it does not measure. */}
         <div className="flex items-center gap-2 self-start md:self-auto bg-slate-950/70 p-1 rounded-xl border border-white/[0.08]">
-          <button
-            type="button"
-            onClick={() => setScanMode('ai')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-              scanMode === 'ai'
-                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
+          <span className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]">
             <Sparkles size={13} />
-            <span>{lang === 'ar' ? 'الوضع الذكي (AI)' : 'AI Mode'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setScanMode('manual')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-              scanMode === 'manual'
-                ? 'bg-slate-800 text-white border border-white/[0.1]'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Sliders size={13} />
-            <span>{lang === 'ar' ? 'الوضع اليدوي' : 'Manual Mode'}</span>
-          </button>
+            <span>{lang === 'ar' ? 'استعراض موجّه' : 'Guided review'}</span>
+          </span>
         </div>
       </div>
 
-      {/* ── Central Masterpiece: The Glowing AI SCAN Orb ── */}
+      {/* ── Central Masterpiece: The Guided Review Orb ── */}
       <div className="relative overflow-hidden rounded-3xl bg-radial-gradient from-blue-950/40 via-slate-900/80 to-slate-950 border border-white/[0.08] p-8 md:p-12 shadow-2xl flex flex-col items-center justify-center min-h-[340px]">
         {/* Subtle decorative grid background */}
         <div className="absolute inset-0 bg-grid-pattern opacity-20 pointer-events-none" />
@@ -267,10 +246,10 @@ export default function CareDashboard({
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/25 text-cyan-300 text-xs font-semibold tracking-wider uppercase">
             <CircleDot size={12} className={isScanning ? 'animate-ping text-cyan-400' : 'text-emerald-400'} />
             {isScanning
-              ? (lang === 'ar' ? 'فحص النظام قيد التشغيل' : 'LIVE DIAGNOSTIC SCAN IN PROGRESS')
+              ? (lang === 'ar' ? 'استعراض المحطات قيد التشغيل' : 'GUIDED STATION REVIEW IN PROGRESS')
               : scanCompleted
-              ? (lang === 'ar' ? 'اكتمل الفحص الشامل' : 'SMART ASSESSMENT COMPLETED')
-              : (lang === 'ar' ? 'محرك فحص KNOUX AI جاهز' : 'KNOUX AI SCAN ENGINE ARMED')}
+              ? (lang === 'ar' ? 'اكتمل الاستعراض' : 'STATION REVIEW COMPLETED')
+              : (lang === 'ar' ? 'محرك الاستعراض الموجّه جاهز' : 'GUIDED REVIEW READY')}
           </span>
           {isScanning && (
             <p className="text-sm font-mono text-cyan-400 mt-2 animate-pulse">
@@ -388,12 +367,12 @@ export default function CareDashboard({
           >
             <div className="flex-1 text-center sm:text-start">
               <span className="text-xs font-bold text-white block">
-                {lang === 'ar' ? 'تم اكتشاف 6 مجالات للتحسين' : '6 Optimization Areas Detected'}
+                {lang === 'ar' ? 'راجع المحطات أدناه — لم يُجرِ هذا الاستعراض أي تغيير' : 'Review the stations below — this walkthrough changed nothing'}
               </span>
               <span className="text-[11px] text-slate-400">
                 {lang === 'ar'
-                  ? `مساحة قابلة للاسترداد: ${cleanableFormatted} · 128 مفتاح سجل · 9 برامج إقلاع`
-                  : `Reclaimable: ${cleanableFormatted} · 128 Registry keys · 9 Startup items`}
+                  ? `مساحة قابلة للاسترداد: ${cleanableFormatted}`
+                  : `Reclaimable: ${cleanableFormatted}`}
               </span>
             </div>
             <button
@@ -402,7 +381,7 @@ export default function CareDashboard({
               className="px-5 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center gap-2 transition-transform active:scale-95"
             >
               <Check size={16} />
-              <span>{lang === 'ar' ? 'إصلاح وتحسين الكل' : 'Fix & Optimize All'}</span>
+              <span>{lang === 'ar' ? 'فتح محطة التنظيف' : 'Open Cleanup station'}</span>
             </button>
           </motion.div>
         )}
@@ -419,23 +398,20 @@ export default function CareDashboard({
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white">
-                  {lang === 'ar' ? 'تعزيز السرعة (Turbo Boost)' : 'Turbo Boost'}
+                  {lang === 'ar' ? 'تعزيز السرعة' : 'Speed Boost'}
                 </h3>
                 <span className="text-[11px] font-mono text-amber-400 font-semibold">
-                  {turboBoostActive
-                    ? (lang === 'ar' ? 'مفعّل · تم تحرير 1.4 GB RAM' : 'ON · 1.4 GB RAM Released')
-                    : (lang === 'ar' ? 'متوقف · جاهز للتعزيز' : 'OFF · Standby Mode')}
+                  {lang === 'ar' ? 'اختصار لمحطة الأداء' : 'Shortcut to the Performance station'}
                 </span>
               </div>
             </div>
 
-            {/* Toggle Switch */}
+            {/* Shortcut to the real Performance station */}
             <button
               type="button"
-              onClick={() => setTurboBoostActive(!turboBoostActive)}
-              className={`w-12 h-6 rounded-full transition-colors p-0.5 flex items-center ${
-                turboBoostActive ? 'bg-amber-500 justify-end' : 'bg-slate-700 justify-start'
-              }`}
+              onClick={() => onOpenSection('performance')}
+              className={`w-12 h-6 rounded-full transition-colors p-0.5 flex items-center bg-slate-700 justify-start`}
+              aria-label={lang === 'ar' ? 'فتح محطة الأداء' : 'Open Performance station'}
             >
               <span className="w-5 h-5 rounded-full bg-white shadow-md" />
             </button>
@@ -443,8 +419,8 @@ export default function CareDashboard({
 
           <p className="text-xs text-slate-400 leading-relaxed">
             {lang === 'ar'
-              ? 'إيقاف العمليات الخلفية غير الضرورية وتحرير مساحة الذاكرة العشوائية لتسريع الألعاب والبرامج الثقيلة.'
-              : 'Stops unnecessary background processes and unloads idle RAM to unleash peak PC performance.'}
+              ? 'افتح محطة الأداء لتشغيل أدوات حقيقية مؤكدة لتحسين بدء التشغيل وإدارة العمليات.'
+              : 'Open the Performance station to run real, confirmed tools for startup and process tuning.'}
           </p>
 
           <div className="pt-2 border-t border-white/[0.05] flex items-center justify-between">
@@ -453,10 +429,10 @@ export default function CareDashboard({
             </span>
             <button
               type="button"
-              onClick={onOpenSpeedUp}
+              onClick={() => onOpenSection('performance')}
               className="text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1"
             >
-              <span>{lang === 'ar' ? 'تخصيص' : 'Configure'}</span>
+              <span>{lang === 'ar' ? 'فتح المحطة' : 'Open station'}</span>
               <ArrowRight size={13} className="rtl:rotate-180" />
             </button>
           </div>
@@ -471,23 +447,23 @@ export default function CareDashboard({
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white">
-                  {lang === 'ar' ? 'درع الحماية في الوقت الفعلي' : 'System Protection'}
+                  {lang === 'ar' ? 'الحماية' : 'System Protection'}
                 </h3>
                 <span className="text-[11px] font-mono text-emerald-400 font-semibold">
-                  {lang === 'ar' ? 'الحماية نشطة ومؤمنة' : 'Active & Enforced'}
+                  {systemData ? (systemData.DefenderRealtime ? (lang === 'ar' ? 'الحماية نشطة' : 'Realtime on') : (lang === 'ar' ? 'يتطلب مراجعة' : 'Needs review')) : (lang === 'ar' ? 'غير متحقق' : 'Not verified')}
                 </span>
               </div>
             </div>
 
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-              LIVE
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${systemData ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+              {systemData ? 'LIVE' : (lang === 'ar' ? 'غير متاح' : 'OFFLINE')}
             </span>
           </div>
 
           <p className="text-xs text-slate-400 leading-relaxed">
             {lang === 'ar'
-              ? 'Windows Defender نشط لمكافحة الفيروسات، الجدار الناري مفعل، مع حماية ضد التجسس وبرمجيات الفدية.'
-              : 'Real-time antivirus defense active. Firewall profiles enforced with anti-spyware tracking protection.'}
+              ? 'افتح محطة الحماية لتدقيق Defender والجدار الناري بأدلة حية قبل أي إجراء.'
+              : 'Open the Security station to audit Defender and firewall with live evidence before acting.'}
           </p>
 
           <div className="pt-2 border-t border-white/[0.05] flex items-center justify-between">
@@ -539,7 +515,7 @@ export default function CareDashboard({
 
           <div className="pt-2 border-t border-white/[0.05] flex items-center justify-between">
             <span className="text-[11px] text-slate-400">
-              {cleanupData?.Summary?.TargetCount ?? 14} {lang === 'ar' ? 'مسار تم تحليله' : 'paths scanned'}
+              {cleanupData?.Summary?.TargetCount ?? (lang === 'ar' ? 'غير متاح' : 'Unavailable')} {lang === 'ar' ? 'مسار تم تحليله' : 'paths scanned'}
             </span>
             <button
               type="button"
@@ -858,7 +834,7 @@ export default function CareDashboard({
               {lang === 'ar' ? 'صحة القرص (C:)' : 'Drive Health (C:)'}
             </span>
             <span className="text-xs font-bold text-white truncate block">
-              {systemData?.Drives?.[0]?.FreeGB ? `${systemData.Drives[0].FreeGB} GB Free` : 'Healthy'}
+              {systemData?.Drives?.[0]?.FreeGB ? `${systemData.Drives[0].FreeGB} GB Free` : (lang === 'ar' ? 'غير متاح' : 'Unavailable')}
             </span>
           </div>
         </div>
@@ -875,7 +851,7 @@ export default function CareDashboard({
             <span className="text-[10px] text-slate-400 block truncate group-hover:text-emerald-300">
               {lang === 'ar' ? 'صحة البرمجيات' : 'Software Health'}
             </span>
-            <span className="text-xs font-bold text-emerald-400">{lang === 'ar' ? 'آمن ومحدث' : 'Verified'}</span>
+            <span className="text-xs font-bold text-emerald-400">{lang === 'ar' ? 'افتح الفحص للتحقق' : 'Open assessment to verify'}</span>
           </div>
         </div>
 
@@ -892,7 +868,7 @@ export default function CareDashboard({
               {lang === 'ar' ? 'ضغط المعالج' : 'CPU Load'}
             </span>
             <span className="text-xs font-bold text-blue-400">
-              {systemData?.CpuLoad ?? 14}%
+              {systemData?.CpuLoad ?? (lang === 'ar' ? 'غير متاح' : 'Unavailable')}{systemData?.CpuLoad !== undefined && systemData?.CpuLoad !== null ? '%' : ''}
             </span>
           </div>
         </div>

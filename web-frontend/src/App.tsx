@@ -24,7 +24,7 @@ import type { ViewMode } from './components/Sidebar';
 
 import type { ActiveSection, ToolStatus, ConsoleEntry, ConsoleEntryType } from './types';
 import { SECTION_MAP } from './types';
-import type { BridgeAuthStatus, BridgeTool, BridgeRun, ExecutionMode, ToolRunOptions } from './lib/api';
+import type { BridgeAuthStatus, BridgeTool, BridgeRun, ExecutionMode, ToolRunOptions, ToolRunConfirmation } from './lib/api';
 import { api, BridgeError } from './lib/api';
 import type { Lang } from './lib/i18n';
 import { CATEGORIES } from './data/categories';
@@ -55,13 +55,15 @@ function NexusApp() {
   const [consoleVisible, setConsoleVisible] = useState(false);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
     const [activeTool, setActiveTool] = useState<BridgeTool | null>(null);
-  const [activeRequest, setActiveRequest] = useState<{ tool: BridgeTool; mode: ExecutionMode; options: ToolRunOptions } | null>(null);
-  const [consoleStatus, setConsoleStatus] = useState<'idle' | 'running' | 'success' | 'error' | 'cancelled'>('idle');
+  const [activeRequest, setActiveRequest] = useState<{ tool: BridgeTool; mode: ExecutionMode; options: ToolRunOptions; confirmation?: ToolRunConfirmation } | null>(null);
+  const [consoleStatus, setConsoleStatus] = useState<'idle' | 'running' | 'success' | 'error' | 'cancelled' | 'inconclusive'>('idle');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [splashVisible, setSplashVisible] = useState(true);
 
   const [bridgeOnline, setBridgeOnline] = useState<boolean | null>(null);
+  const [bridgeOfflineReason, setBridgeOfflineReason] = useState('');
+  const [bridgeToolCount, setBridgeToolCount] = useState<number | null>(null);
   const [bridgeElevated, setBridgeElevated] = useState(false);
   const [toolsByCategory, setToolsByCategory] = useState<Record<string, BridgeTool[]>>({});
   const [authStatus, setAuthStatus] = useState<BridgeAuthStatus | null>(null);
@@ -87,23 +89,49 @@ function NexusApp() {
   }, []);
 
   const connectBridge = useCallback(async () => {
+    // Phase 00 lifecycle: health and registry resolve independently so a
+    // half-ready bridge never reports "0 tools". Offline is UNAVAILABLE
+    // with a reason, never a zero count.
     setBridgeOnline(null);
+    setBridgeOfflineReason('');
+    let health: Awaited<ReturnType<typeof api.health>> | null = null;
+    let tools: BridgeTool[] = [];
+    let healthError = '';
+    let toolsError = '';
     try {
-      const [health, toolResponse] = await Promise.all([api.health(), api.tools()]);
-      const auth = await api.authStatus().catch(() => null);
-      const { tools } = toolResponse;
-      const byCategory: Record<string, BridgeTool[]> = {};
-      for (const t of tools) {
-        (byCategory[t.Category] ||= []).push(t);
-      }
-      setToolsByCategory(byCategory);
-      setBridgeElevated(health.elevated);
-      setAuthStatus(auth);
-      setAuthError(auth ? '' : 'Local OAuth routes are not available until the bridge is restarted with this release.');
-      setBridgeOnline(true);
+      health = await api.health();
     } catch (e) {
-      setBridgeOnline(false);
+      healthError = e instanceof BridgeError ? `[${e.code}] ${e.message}` : String(e);
     }
+    try {
+      ({ tools } = await api.tools());
+    } catch (e) {
+      toolsError = e instanceof BridgeError ? `[${e.code}] ${e.message}` : String(e);
+    }
+    if (!health) {
+      setBridgeOnline(false);
+      setBridgeToolCount(null);
+      setBridgeOfflineReason(healthError || 'Bridge health probe failed.');
+      return;
+    }
+    const byCategory: Record<string, BridgeTool[]> = {};
+    for (const t of tools) {
+      (byCategory[t.Category] ||= []).push(t);
+    }
+    setToolsByCategory(byCategory);
+    setBridgeToolCount(tools.length);
+    setBridgeElevated(health.elevated);
+    if (toolsError) {
+      // Bridge is up but the registry did not load: stay degraded, not "0 tools".
+      setBridgeOnline(false);
+      setBridgeOfflineReason(toolsError);
+      return;
+    }
+    const auth = await api.authStatus().catch(() => null);
+    setAuthStatus(auth);
+    setAuthError(auth ? '' : 'Local OAuth routes are not available until the bridge is restarted with this release.');
+    setBridgeOnline(true);
+    setBridgeOfflineReason('');
   }, []);
 
   useEffect(() => {
@@ -115,7 +143,10 @@ function NexusApp() {
   const startSignIn = useCallback((provider: 'github' | 'entra') => { window.location.assign(api.authStartUrl(provider)); }, []);
 
   const finishRun = useCallback((run: BridgeRun) => {
-    const status: ToolStatus = run.status === 'success' ? 'success' : run.status === 'error' ? 'error' : 'cancelled';
+    const status: ToolStatus =
+      run.status === 'success' ? 'success'
+      : run.status === 'inconclusive' ? 'inconclusive'
+      : run.status === 'error' ? 'error' : 'cancelled';
     setToolStatuses(prev => ({ ...prev, [run.toolId]: status }));
     setConsoleStatus(run.status);
     currentRunId.current = null;
@@ -148,16 +179,16 @@ function NexusApp() {
     tick();
   }, [finishRun]);
 
-  const runTool = useCallback(async (tool: BridgeTool, mode: ExecutionMode = 'run', options: ToolRunOptions = {}) => {
+  const runTool = useCallback(async (tool: BridgeTool, mode: ExecutionMode = 'run', options: ToolRunOptions = {}, confirmation?: ToolRunConfirmation) => {
     if (pollTimer.current) window.clearTimeout(pollTimer.current);
     setActiveTool(tool);
-    setActiveRequest({ tool, mode, options });
+    setActiveRequest({ tool, mode, options, confirmation });
     setConsoleVisible(true);
     setConsoleEntries([]);
     setConsoleStatus('running');
     setToolStatuses(prev => ({ ...prev, [tool.ToolId]: 'running' }));
     try {
-      const { runId } = await api.startRun(tool.ToolId, mode, options);
+      const { runId } = await api.startRun(tool.ToolId, mode, options, confirmation);
       currentRunId.current = runId;
       pollRun(runId, tool);
     } catch (e) {
@@ -180,7 +211,7 @@ function NexusApp() {
   }, []);
 
   const handleRetry = useCallback(() => {
-    if (activeRequest) runTool(activeRequest.tool, activeRequest.mode, activeRequest.options);
+    if (activeRequest) runTool(activeRequest.tool, activeRequest.mode, activeRequest.options, activeRequest.confirmation);
   }, [activeRequest, runTool]);
 
   const allToolsList = useMemo(() => {

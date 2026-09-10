@@ -138,7 +138,7 @@ export async function getRepairLogs(uid: string, limit = 20) {
 // 4. Record System Telemetry
 export async function recordSystemTelemetry(
   uid: string,
-  cpuLoad: number,
+  cpuLoad: number | null,
   ramUsedGb: string,
   diskFreeGb: string,
   osVersion: string

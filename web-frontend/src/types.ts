@@ -14,9 +14,10 @@ export type RiskLevel =
   | 'SAFE_CLEANUP'
   | 'SYSTEM_REPAIR'
   | 'REBOOT_REQUIRED'
-  | 'DESTRUCTIVE';
+  | 'DESTRUCTIVE'
+  | 'WINRE_ONLY';
 
-export type ToolStatus = 'idle' | 'running' | 'success' | 'error' | 'cancelled';
+export type ToolStatus = 'idle' | 'running' | 'success' | 'error' | 'cancelled' | 'inconclusive';
 
 export type ConsoleEntryType = 'info' | 'success' | 'error' | 'warning' | 'system' | 'data';
 

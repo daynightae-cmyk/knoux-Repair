@@ -8,7 +8,7 @@ import {
 import type { CSSProperties, ElementType, ReactNode } from 'react';
 import type { ActiveSection, ConsoleEntry, ToolStatus } from '../types';
 
-import type { BridgeTool, ExecutionMode, OfflineCapability, ToolRunOptions } from '../lib/api';
+import type { BridgeTool, ExecutionMode, OfflineCapability, ToolRunConfirmation, ToolRunOptions } from '../lib/api';
 import ExecutionConfirmDialog from './ExecutionConfirmDialog';
 import DuplicateExplorerPanel from './DuplicateExplorerPanel';
 import DiskPulsePanel from './DiskPulsePanel';
@@ -43,7 +43,7 @@ interface ToolGridProps {
   activeTool: BridgeTool | null;
   activityEntries: ConsoleEntry[];
   activityStatus: ToolStatus;
-  onRunTool: (tool: BridgeTool, mode: ExecutionMode, options?: ToolRunOptions) => void;
+  onRunTool: (tool: BridgeTool, mode: ExecutionMode, options?: ToolRunOptions, confirmation?: ToolRunConfirmation) => void;
 
   onCancelTool: () => void;
 }
@@ -122,6 +122,7 @@ const COPY = {
     resultSuccess: 'Completed',
     resultError: 'Needs review',
     resultCancelled: 'Cancelled',
+    resultInconclusive: 'Inconclusive',
   },
   ar: {
     currentCategory: 'محطة العمل الحالية',
@@ -154,6 +155,7 @@ const COPY = {
     resultSuccess: 'اكتمل',
     resultError: 'يتطلب مراجعة',
     resultCancelled: 'أُلغي',
+    resultInconclusive: 'غير حاسم',
   },
 };
 
@@ -204,6 +206,7 @@ function Status({ status, lang }: { status: ToolStatus; lang: Lang }) {
     success: { label: text.resultSuccess, className: 'is-success' },
     error: { label: text.resultError, className: 'is-error' },
     cancelled: { label: text.resultCancelled, className: 'is-cancelled' },
+    inconclusive: { label: text.resultInconclusive, className: 'is-warning' },
   };
   const item = statusMap[status];
   return <span className={`tool-status ${item.className}`}>{item.label}</span>;
@@ -548,8 +551,8 @@ export default function ToolGrid({
           lang={lang}
           onCancel={() => setPendingExecution(null)}
           initialOptions={pendingExecution.options}
-          onConfirm={(options) => {
-            onRunTool(pendingExecution.tool, pendingExecution.mode, { ...pendingExecution.options, ...options });
+          onConfirm={(options, confirmation) => {
+            onRunTool(pendingExecution.tool, pendingExecution.mode, { ...pendingExecution.options, ...options }, confirmation);
             setPendingExecution(null);
           }}
         />

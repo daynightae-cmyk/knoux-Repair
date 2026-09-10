@@ -1,13 +1,18 @@
 const { app, BrowserWindow, dialog, shell } = require('electron');
+const crypto = require('node:crypto');
 const http = require('node:http');
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { isAllowedNavigation, filterExternalUrl, resolveAssetPath } = require('./security.cjs');
 
 let frontendServer;
 let bridgeProcess;
 let quitting = false;
+// Per-launch capability secret for localhost bridge mutations. Generated fresh
+// on every start, kept in memory, never written to disk or committed to Git.
+const bridgeToken = crypto.randomBytes(32).toString('base64url');
 
 function sourceRuntimeRoot() {
   return app.isPackaged
@@ -26,9 +31,13 @@ function frontendRoot() {
 }
 
 function safeAssetPath(root, requestPath) {
-  const relative = decodeURIComponent((requestPath || '/').split('?')[0]).replace(/^\/+/, '') || 'index.html';
-  const candidate = path.resolve(root, relative);
-  return candidate.startsWith(`${path.resolve(root)}${path.sep}`) ? candidate : null;
+  const resolved = resolveAssetPath(root, requestPath);
+  return resolved.ok ? resolved.path : null;
+}
+
+function isMalformedAssetUrl(requestPath) {
+  const resolved = resolveAssetPath(frontendRoot(), requestPath);
+  return !resolved.ok && resolved.reason === 'BAD_ENCODING';
 }
 
 function contentType(filePath) {
@@ -67,6 +76,11 @@ function startFrontendServer() {
   const root = frontendRoot();
   if (!fs.existsSync(path.join(root, 'index.html'))) throw new Error(`Glass Nexus build is missing: ${root}`);
   frontendServer = http.createServer((request, response) => {
+    if (isMalformedAssetUrl(request.url)) {
+      response.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      response.end('Bad request.');
+      return;
+    }
     const candidate = safeAssetPath(root, request.url);
     const target = candidate && fs.existsSync(candidate) && fs.statSync(candidate).isFile() ? candidate : path.join(root, 'index.html');
     response.writeHead(200, frontendSecurityHeaders(target));
@@ -111,10 +125,16 @@ function startBridge(runtimeRoot, frontendOrigin) {
       KNOUX_PROJECT_ROOT: runtimeRoot,
       KNOUX_DATA_ROOT: runtimeRoot,
       KNOUX_BRIDGE_PORT: '8787',
+      KNOUX_BRIDGE_TOKEN: bridgeToken,
       KNOUX_AUTH_FRONTEND_ORIGIN: frontendOrigin,
     },
   });
   bridgeProcess.once('error', () => { /* The Glass Nexus UI stays responsive and displays bridge-offline state. */ });
+}
+
+function openExternalSafe(targetUrl) {
+  const allowed = filterExternalUrl(targetUrl);
+  if (allowed) shell.openExternal(allowed).catch(() => { /* external open is best-effort */ });
 }
 
 function createWindow(frontendOrigin) {
@@ -133,14 +153,14 @@ function createWindow(frontendOrigin) {
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true },
   });
   window.once('ready-to-show', () => window.show());
-  window.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
+  window.webContents.setWindowOpenHandler(({ url }) => { openExternalSafe(url); return { action: 'deny' }; });
   window.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith(frontendOrigin)) { event.preventDefault(); shell.openExternal(url); }
+    if (!isAllowedNavigation(url, frontendOrigin)) { event.preventDefault(); openExternalSafe(url); }
   });
   window.webContents.on('render-process-gone', () => {
     if (!quitting) dialog.showErrorBox('KNOUX Repair', 'Glass Nexus stopped unexpectedly. Please reopen the application.');
   });
-  window.loadURL(frontendOrigin).catch((error) => dialog.showErrorBox('KNOUX Repair startup failed', error.message));
+  window.loadURL(`${frontendOrigin}?bridgeToken=${encodeURIComponent(bridgeToken)}`).catch((error) => dialog.showErrorBox('KNOUX Repair startup failed', error.message));
   return window;
 }
 
