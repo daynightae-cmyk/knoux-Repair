@@ -8,12 +8,18 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'NI06' -ToolName 'Test Connection Quality' -Category '03-Network-Internet' -RiskLevel 'READ_ONLY'
+$Session = Start-KnouxSession -ToolId 'NI06' -ToolName 'Test Connection Quality' -Category '03-Network-Internet' -RiskLevel 'READ_ONLY' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $Session.OfflineCapable = $false
 $rc = 0
 
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf
 
+if ($AnalyzeOnly -or $WhatIf) {
+    Write-Host '[ANALYZE] Would run: ping -n 10 8.8.8.8 and parse loss percent + average latency.' -ForegroundColor Green
+    Write-Host '[ANALYZE] Read-only plan; no packets are sent in analyze mode.' -ForegroundColor Green
+    Write-KnouxLog -Session $Session 'Analyze mode: connection quality plan only'
+    $Session.Status = 'Success'
+} else {
 Write-Host 'This test pings a public host (8.8.8.8) and traces the route.' -ForegroundColor DarkGray
 Write-Host 'It requires an active internet connection.' -ForegroundColor DarkGray
 
@@ -49,6 +55,7 @@ if ($r) {
     $Session.ErrorMessage = 'ping could not be started.'
     Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
 }
+} # end else (normal measurement mode)
 
 $Session.ExitCode = $rc
 $result = Stop-KnouxSession -Session $Session

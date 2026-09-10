@@ -8,12 +8,18 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'NI10' -ToolName 'Network Report' -Category '03-Network-Internet' -RiskLevel 'READ_ONLY'
+$Session = Start-KnouxSession -ToolId 'NI10' -ToolName 'Network Report' -Category '03-Network-Internet' -RiskLevel 'READ_ONLY' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $Session.OfflineCapable = $true
 $rc = 0
 
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf
 
+if ($AnalyzeOnly -or $WhatIf) {
+    Write-Host '[ANALYZE] Would build a per-adapter report: status, speed, IP, gateway, DNS, DHCP (JSON + CSV).' -ForegroundColor Green
+    Write-Host '[ANALYZE] Read-only plan; no system queries are executed in analyze mode.' -ForegroundColor Green
+    Write-KnouxLog -Session $Session 'Analyze mode: network report plan only'
+    $Session.Status = 'Success'
+} else {
 try {
     $rows = @()
     $cimOk = $true
@@ -77,6 +83,7 @@ try {
     Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
     Write-KnouxLog -Session $Session -Message $Session.ErrorMessage 'ERROR'
 }
+} # end else (normal measurement mode)
 
 $Session.ExitCode = $rc
 $result = Stop-KnouxSession -Session $Session

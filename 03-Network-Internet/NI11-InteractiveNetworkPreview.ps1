@@ -7,7 +7,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $utf8NoBom=[System.Text.UTF8Encoding]::new($false);[Console]::OutputEncoding=$utf8NoBom;$OutputEncoding=$utf8NoBom
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
-$Session=Start-KnouxSession -ToolId 'NI11' -ToolName 'Interactive Network Preview' -Category '03-Network-Internet' -RiskLevel 'READ_ONLY'
+$Session=Start-KnouxSession -ToolId 'NI11' -ToolName 'Interactive Network Preview' -Category '03-Network-Internet' -RiskLevel 'READ_ONLY' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 try {
   $configurations=@(Get-CimInstance Win32_NetworkAdapterConfiguration -ErrorAction Stop | Where-Object { $_.IPEnabled })
   $adapters=@($configurations | ForEach-Object {

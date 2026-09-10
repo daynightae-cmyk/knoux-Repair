@@ -4,13 +4,13 @@ import {
   CheckCircle2, ChevronRight, CircleAlert, CloudCog, Copy, Cpu, DatabaseZap, Download, FolderKanban, Gauge, HardDrive,
   HeartPulse, Layers3, LoaderCircle, LockKeyhole, MemoryStick, MonitorCog, Network, PackageCheck, Radar, RefreshCw,
   Rocket, ScanSearch, ShieldCheck, Sparkles, Trash2, TriangleAlert, UserRoundCheck,
-  WandSparkles, Wrench,
+  Wrench,
 } from 'lucide-react';
 import type { ElementType } from 'react';
 import type { ActiveSection, ToolStatus } from '../types';
 import type {
   BackupRecoveryPreview, BridgeTool, DiagnosticsPreview, DriversPreview, ExecutionMode,
-  NetworkPreview, OperationsPreview, OptimizationPreview, PostInstallPreview, PrivacyPreview, SoftwarePreview,
+  OperationsPreview, OptimizationPreview, PostInstallPreview, PrivacyPreview, SoftwarePreview,
   SystemSnapshot, ToolRunConfirmation, ToolRunOptions,
 } from '../lib/api';
 import { api } from '../lib/api';
@@ -19,6 +19,7 @@ import { pickName } from '../lib/i18n';
 import ExecutionConfirmDialog from './ExecutionConfirmDialog';
 import MaintenanceStation from '../features/stations/station01/MaintenanceStation';
 import CleanupStation from '../features/stations/station02/CleanupStation';
+import NetworkStation from '../features/stations/station03/NetworkStation';
 import DuplicateOrganizerApp from './DuplicateOrganizerApp';
 import ProjectSonarApp from './ProjectSonarApp';
 
@@ -134,15 +135,6 @@ function StorageApp({ data, lang }: { data: SystemSnapshot; lang: Lang }) {
   return <div className="storage-app-view storage-product-view"><section className="product-command-hero storage-hero"><div><p>{lang === 'ar' ? 'مستكشف التخزين' : 'Storage explorer'}</p><h2>{number(totalFree, lang)} GB</h2><span>{lang === 'ar' ? 'مساحة متاحة عبر الأقراص المتصلة التي اكتشفها الجهاز.' : 'Available capacity across drives detected on this device.'}</span></div><HardDrive size={52} /><aside><span>{lang === 'ar' ? 'السعة الكلية' : 'Total capacity'}</span><strong>{number(totalCapacity, lang)} GB</strong><small>{lang === 'ar' ? `أكبر قرص: ${largest?.Name || '—'}` : `Largest drive: ${largest?.Name || '—'}`}</small></aside></section><section className="storage-drive-wall">{data.Drives.map((drive) => { const used = percent(100 - drive.FreeGB / Math.max(1, drive.TotalGB) * 100); const selected = activeDrive?.Name === drive.Name; return <button type="button" className={selected ? 'is-selected' : ''} key={drive.Name} onClick={() => setActiveDriveName(drive.Name)}><header><span>{drive.Name}</span><strong>{used.toFixed(0)}%</strong></header><div className="storage-bar"><i style={{ width: `${used}%` }} /></div><footer><span>{number(drive.FreeGB, lang)} GB {text.free}</span><span>{number(drive.TotalGB, lang)} GB</span></footer></button>; })}</section>{activeDrive && <section className="storage-inspector"><div><p>{lang === 'ar' ? 'تفاصيل القرص المختار' : 'Selected drive details'}</p><h3>{activeDrive.Name}</h3><span>{lang === 'ar' ? 'هذه القراءة تعرض السعة الفعلية فقط. تصفح المجلدات أو حذف الملفات غير متاحين من هذه الشاشة حتى تتوفر بيانات فهرسة حقيقية.' : 'This reading shows actual capacity only. Folder browsing or deletion is not available here until real indexing data is available.'}</span></div><div className="storage-inspector-number"><strong>{number(percent(100 - activeDrive.FreeGB / Math.max(1, activeDrive.TotalGB) * 100), lang)}%</strong><small>{lang === 'ar' ? 'مستخدم' : 'used'}</small></div></section>}</div>;
 }
 
-function NetworkApp({ data, lang }: { data: NetworkPreview; lang: Lang }) {
-  const stages = [
-    { label: lang === 'ar' ? 'المحوّل' : 'Adapter', detail: `${number(data.ActiveAdapters, lang)} ${lang === 'ar' ? 'واجهة نشطة' : 'active adapters'}`, ready: data.ActiveAdapters > 0 },
-    { label: 'IPv4', detail: data.Adapters.some((adapter) => Boolean(adapter.IPv4)) ? (lang === 'ar' ? 'عنوان متاح' : 'Address available') : (lang === 'ar' ? 'لا يوجد عنوان' : 'No address'), ready: data.Adapters.some((adapter) => Boolean(adapter.IPv4)) },
-    { label: lang === 'ar' ? 'البوابة' : 'Gateway', detail: `${number(data.WithGateway, lang)} ${lang === 'ar' ? 'مسار متاح' : 'available routes'}`, ready: data.WithGateway > 0 },
-    { label: 'DNS', detail: `${number(data.WithDns, lang)} ${lang === 'ar' ? 'واجهة لديها DNS' : 'adapters with DNS'}`, ready: data.WithDns > 0 },
-  ];
-  return <div className="network-app-view network-product-view"><section className="network-map"><div className="network-node is-device"><MonitorCog size={22} /><span>{lang === 'ar' ? 'هذا الجهاز' : 'This device'}</span></div><i /><div className="network-node is-router"><Network size={23} /><span>{lang === 'ar' ? 'بوابة الشبكة' : 'Gateway'}</span></div><i /><div className="network-node is-world"><WandSparkles size={23} /><span>{lang === 'ar' ? 'الوجهة' : 'Destination'}</span></div></section><section className="network-summary"><article><span>{lang === 'ar' ? 'اتصالات نشطة' : 'Active connections'}</span><strong>{number(data.ActiveAdapters, lang)}</strong><small>{lang === 'ar' ? 'واجهة شبكة' : 'network adapters'}</small></article><article><span>{lang === 'ar' ? 'بوابة متاحة' : 'Gateway available'}</span><strong>{number(data.WithGateway, lang)}</strong><small>{lang === 'ar' ? 'اتصال جاهز' : 'ready links'}</small></article><article><span>{lang === 'ar' ? 'خدمة أسماء' : 'Name service'}</span><strong>{number(data.WithDns, lang)}</strong><small>DNS</small></article></section><section className="network-pipeline"><div className="app-section-title"><div><p>{lang === 'ar' ? 'مسار التشخيص' : 'Diagnostic pipeline'}</p><h2>{lang === 'ar' ? 'قراءات الاتصال الحالية' : 'Current connection readings'}</h2></div><span className="product-evidence-badge"><DatabaseZap size={13} />{lang === 'ar' ? 'قراءة حيّة' : 'Live read'}</span></div><div>{stages.map((stage, index) => <article className={stage.ready ? 'is-passed' : 'is-review'} key={stage.label}><span>{stage.ready ? <CheckCircle2 size={16} /> : <CircleAlert size={16} />}</span><div><strong>{index + 1}. {stage.label}</strong><small>{stage.detail}</small></div></article>)}</div></section><section className="network-adapter-list"><div className="app-section-title"><div><p>{lang === 'ar' ? 'تفاصيل الاتصال' : 'Connection details'}</p><h2>{lang === 'ar' ? 'الواجهات المكتشفة' : 'Detected adapters'}</h2></div></div>{data.Adapters.slice(0, 6).map((adapter) => <article key={`${adapter.Description}-${adapter.MacAddress}`}><span className={adapter.Gateway ? 'network-status-dot' : 'network-status-dot is-review'} /><div><strong>{adapter.Description}</strong><small>{adapter.IPv4 || (lang === 'ar' ? 'لا يوجد عنوان حالي' : 'No current address')} · {adapter.DNS.length ? adapter.DNS.join(', ') : 'DNS —'}</small></div><b>{adapter.Gateway ? (lang === 'ar' ? 'متصل' : 'Connected') : (lang === 'ar' ? 'راجع' : 'Review')}</b></article>)}</section></div>;
-}
 
 function SecurityApp({ data, lang }: { data: SystemSnapshot; lang: Lang }) {
   const firewallOn = Boolean(data.Firewall?.length && data.Firewall.every((item) => item.Enabled)); const secure = data.DefenderRunning && data.DefenderRealtime && firewallOn;
@@ -231,11 +223,24 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
   };
   const spec = specs[activeSection] || { title: { en: 'KNOUX', ar: 'KNOUX' }, eyebrow: { en: 'SERVICE', ar: 'خدمة' }, icon: Sparkles, accent: '#48c8dd' };
   const content = useMemo(() => {
-    // Station 01/02 own their evidence lifecycle (no preview-loader gate):
+    // Station 01/02/03 own their evidence lifecycle (no preview-loader gate):
     // they render real states even before any scan, and their own offline states.
     if (activeSection === 'maintenance') {
       return (
         <MaintenanceStation
+          lang={lang}
+          tools={tools}
+          toolStatuses={toolStatuses}
+          bridgeElevated={bridgeElevated}
+          bridgeOnline={bridgeOnline}
+          onRetryBridge={onRetryBridge || reload}
+          onToolStatus={onToolStatus || (() => {})}
+        />
+      );
+    }
+    if (activeSection === 'network') {
+      return (
+        <NetworkStation
           lang={lang}
           tools={tools}
           toolStatuses={toolStatuses}
@@ -263,7 +268,6 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
     switch (activeSection) {
       case 'performance': return <PerformanceApp data={data as OptimizationPreview} lang={lang} reviewableToolIds={reviewableToolIds} onReviewSignal={launchToolById} />;
       case 'disk': return <StorageApp data={data as SystemSnapshot} lang={lang} />;
-      case 'network': return <NetworkApp data={data as NetworkPreview} lang={lang} />;
       case 'security': return <SecurityApp data={data as SystemSnapshot} lang={lang} />;
       case 'diagnostics': return <DiagnosticsApp data={data as DiagnosticsPreview} lang={lang} />;
       case 'backupRecovery': return <RecoveryApp data={data as BackupRecoveryPreview} lang={lang} />;
@@ -284,7 +288,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>

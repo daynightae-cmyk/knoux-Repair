@@ -8,12 +8,18 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'NI01' -ToolName 'Test Network Connectivity' -Category '03-Network-Internet' -RiskLevel 'READ_ONLY'
+$Session = Start-KnouxSession -ToolId 'NI01' -ToolName 'Test Network Connectivity' -Category '03-Network-Internet' -RiskLevel 'READ_ONLY' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $Session.OfflineCapable = $false
 $rc = 0
 
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf
 
+if ($AnalyzeOnly -or $WhatIf) {
+    Write-Host '[ANALYZE] Would check: up adapters, default gateway (ipconfig/route), ping gateway x4, DNS resolution, ping 8.8.8.8 x4.' -ForegroundColor Green
+    Write-Host '[ANALYZE] Read-only plan; no packets are sent in analyze mode.' -ForegroundColor Green
+    Write-KnouxLog -Session $Session 'Analyze mode: connectivity check plan only'
+    $Session.Status = 'Success'
+} else {
 try {
     $ping = "$env:SystemRoot\System32\ping.exe"
     $results = @()
@@ -87,6 +93,7 @@ try {
     Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
     Write-KnouxLog -Session $Session -Message $Session.ErrorMessage 'ERROR'
 }
+} # end else (normal measurement mode)
 
 $Session.ExitCode = $rc
 $result = Stop-KnouxSession -Session $Session

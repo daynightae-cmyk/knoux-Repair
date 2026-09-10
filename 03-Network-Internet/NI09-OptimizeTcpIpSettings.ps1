@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'NI09' -ToolName 'Optimize TCP/IP Settings' -Category '03-Network-Internet' -RiskLevel 'SYSTEM_REPAIR'
+$Session = Start-KnouxSession -ToolId 'NI09' -ToolName 'Optimize TCP/IP Settings' -Category '03-Network-Internet' -RiskLevel 'SYSTEM_REPAIR' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $Session.RequiresAdmin = $true
 $Session.OfflineCapable = $true
 $rc = 0

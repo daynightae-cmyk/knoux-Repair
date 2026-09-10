@@ -8,12 +8,18 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'NI07' -ToolName 'Show Network Configuration' -Category '03-Network-Internet' -RiskLevel 'READ_ONLY'
+$Session = Start-KnouxSession -ToolId 'NI07' -ToolName 'Show Network Configuration' -Category '03-Network-Internet' -RiskLevel 'READ_ONLY' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $Session.OfflineCapable = $true
 $rc = 0
 
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf
 
+if ($AnalyzeOnly -or $WhatIf) {
+    Write-Host '[ANALYZE] Would run: ipconfig /all plus per-adapter IP/gateway/DNS/DHCP table (JSON + CSV).' -ForegroundColor Green
+    Write-Host '[ANALYZE] Read-only plan; no system queries are executed in analyze mode.' -ForegroundColor Green
+    Write-KnouxLog -Session $Session 'Analyze mode: configuration report plan only'
+    $Session.Status = 'Success'
+} else {
 try {
     Write-Host '[1] ipconfig /all' -ForegroundColor Cyan
     $r = Invoke-KnouxNativeCommand -FilePath "$env:SystemRoot\System32\ipconfig.exe" -ArgumentList @('/all') -TimeoutSeconds 60
@@ -54,6 +60,7 @@ try {
     Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
     Write-KnouxLog -Session $Session -Message $Session.ErrorMessage 'ERROR'
 }
+} # end else (normal measurement mode)
 
 $Session.ExitCode = $rc
 $result = Stop-KnouxSession -Session $Session
