@@ -113,7 +113,12 @@ export default function CareDashboard({
   onOpenProtect,
   onOpenToolbox,
   bridgeElevated,
+  bridgeOnline = null,
+  registryTotal = null,
 }: CareDashboardProps) {
+  // Runtime registry counts only. Offline renders UNAVAILABLE, never "0 tools".
+  const runtimeTotal = registryTotal ?? Object.values(toolsByCategory).reduce((total, items) => total + items.length, 0);
+  const registryKnown = bridgeOnline === true || registryTotal !== null || Object.keys(toolsByCategory).length > 0;
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -634,7 +639,9 @@ export default function CareDashboard({
                   {lang === 'ar' ? 'صندوق الأدوات الشامل (4 أعمدة)' : 'Master Toolbox'}
                 </h3>
                 <span className="text-[11px] font-mono text-cyan-300 font-bold">
-                  {lang === 'ar' ? '158 أداة متخصصة جاهزة' : '158 Dedicated Tools'}
+                  {registryKnown
+                    ? (lang === 'ar' ? `${runtimeTotal} أداة متخصصة جاهزة` : `${runtimeTotal} Dedicated Tools`)
+                    : (lang === 'ar' ? 'الأدوات غير متاحة' : 'Tools Unavailable')}
                 </span>
               </div>
             </div>
@@ -679,7 +686,7 @@ export default function CareDashboard({
                   {lang === 'ar' ? 'بوابة خدمات وأقسام الصيانة الـ 18' : 'Master 18 Repair Suites & Services'}
                 </h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                  158 TOOLS
+                  {registryKnown ? `${runtimeTotal} TOOLS` : 'UNAVAILABLE'}
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
