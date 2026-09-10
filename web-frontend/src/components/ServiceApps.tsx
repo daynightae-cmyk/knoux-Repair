@@ -33,7 +33,7 @@ import DriversStation from '../features/stations/station14/DriversStation';
 import MonitoringStation from '../features/stations/station15/MonitoringStation';
 import SoftwareStation from '../features/stations/station16/SoftwareStation';
 import PostInstallStation from '../features/stations/station17/PostInstallStation';
-import ProjectSonarApp from './ProjectSonarApp';
+import ProjectSonarStation from '../features/stations/station18/ProjectSonarStation';
 
 interface ServiceAppsProps {
   activeSection: ActiveSection;
@@ -393,17 +393,29 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
         />
       );
     }
+    if (activeSection === 'projectSonar') {
+      return (
+        <ProjectSonarStation
+          lang={lang}
+          tools={tools}
+          toolStatuses={toolStatuses}
+          bridgeElevated={bridgeElevated}
+          bridgeOnline={bridgeOnline}
+          onRetryBridge={onRetryBridge || reload}
+          onToolStatus={onToolStatus || (() => {})}
+          onPrepareRun={prepareToolRun}
+        />
+      );
+    }
     if (!available || !data) return null;
     return <GenericApp section={activeSection} lang={lang} />;
-  }, [activeSection, available, data, lang, launchToolById, reviewableToolIds, tools, toolStatuses, bridgeElevated, bridgeOnline, onRetryBridge, onToolStatus, reload]);
+  }, [activeSection, available, data, lang, launchToolById, prepareToolRun, reviewableToolIds, tools, toolStatuses, bridgeElevated, bridgeOnline, onRetryBridge, onToolStatus, reload]);
   const specialContent = activeSection === 'duplicates'
     ? <DuplicateStation lang={lang} tools={tools} onPrepareRun={prepareToolRun} />
-    : activeSection === 'projectSonar'
-      ? <ProjectSonarApp lang={lang} tools={tools} onPrepareRun={prepareToolRun} />
-      : null;
+    : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || activeSection === 'developerTools' || activeSection === 'privacy' || activeSection === 'drivers' || activeSection === 'monitoring' || activeSection === 'softwareEnvironment' || activeSection === 'postInstall' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || activeSection === 'developerTools' || activeSection === 'privacy' || activeSection === 'drivers' || activeSection === 'monitoring' || activeSection === 'softwareEnvironment' || activeSection === 'postInstall' || activeSection === 'projectSonar' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>
