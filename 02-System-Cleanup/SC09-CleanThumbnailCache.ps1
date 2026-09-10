@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'SC09' -ToolName 'Clean Thumbnail Cache' -Category '02-System-Cleanup' -RiskLevel 'SAFE_CLEANUP'
+$Session = Start-KnouxSession -ToolId 'SC09' -ToolName 'Clean Thumbnail Cache' -Category '02-System-Cleanup' -RiskLevel 'SAFE_CLEANUP' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $Session.OfflineCapable = $true
 
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf

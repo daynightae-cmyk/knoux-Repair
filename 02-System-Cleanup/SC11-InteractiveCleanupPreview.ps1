@@ -23,7 +23,7 @@ function Get-KnouxFolderEvidence([string]$Category, [string]$ToolId, [string]$Pa
   [pscustomobject]@{ Category=$Category; ToolId=$ToolId; Path=$Path; Exists=$exists; FileCount=$files; SizeBytes=$bytes; UserDataExcluded=$UserDataExcluded; Evidence='Path metadata and file sizes only; no file contents read.' }
 }
 
-$Session = Start-KnouxSession -ToolId 'SC11' -ToolName 'Interactive Cleanup Preview' -Category '02-System-Cleanup' -RiskLevel 'READ_ONLY'
+$Session = Start-KnouxSession -ToolId 'SC11' -ToolName 'Interactive Cleanup Preview' -Category '02-System-Cleanup' -RiskLevel 'READ_ONLY' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 try {
   $targets = @(
     [pscustomobject]@{ Category='User temp'; ToolId='SC01'; Path=$env:TEMP },

@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'SC10' -ToolName 'Comprehensive Cleanup' -Category '02-System-Cleanup' -RiskLevel 'DESTRUCTIVE'
+$Session = Start-KnouxSession -ToolId 'SC10' -ToolName 'Comprehensive Cleanup' -Category '02-System-Cleanup' -RiskLevel 'DESTRUCTIVE' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $Session.RequiresAdmin = $true
 $Session.OfflineCapable = $true
 

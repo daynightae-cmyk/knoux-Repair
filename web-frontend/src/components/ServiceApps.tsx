@@ -2,14 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity, AppWindow, ArchiveRestore, ArrowRight, BadgeCheck, BarChart3, Boxes, Check,
   CheckCircle2, ChevronRight, CircleAlert, CloudCog, Copy, Cpu, DatabaseZap, Download, FolderKanban, Gauge, HardDrive,
-  HeartPulse, Layers3, ListChecks, LoaderCircle, LockKeyhole, MemoryStick, MonitorCog, Network, PackageCheck, Radar, RefreshCw,
-  Rocket, ScanSearch, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, TriangleAlert, UserRoundCheck,
+  HeartPulse, Layers3, LoaderCircle, LockKeyhole, MemoryStick, MonitorCog, Network, PackageCheck, Radar, RefreshCw,
+  Rocket, ScanSearch, ShieldCheck, Sparkles, Trash2, TriangleAlert, UserRoundCheck,
   WandSparkles, Wrench,
 } from 'lucide-react';
 import type { ElementType } from 'react';
 import type { ActiveSection, ToolStatus } from '../types';
 import type {
-  BackupRecoveryPreview, BridgeTool, CleanupPreview, DiagnosticsPreview, DriversPreview, ExecutionMode,
+  BackupRecoveryPreview, BridgeTool, DiagnosticsPreview, DriversPreview, ExecutionMode,
   NetworkPreview, OperationsPreview, OptimizationPreview, PostInstallPreview, PrivacyPreview, SoftwarePreview,
   SystemSnapshot, ToolRunConfirmation, ToolRunOptions,
 } from '../lib/api';
@@ -18,6 +18,7 @@ import type { Lang } from '../lib/i18n';
 import { pickName } from '../lib/i18n';
 import ExecutionConfirmDialog from './ExecutionConfirmDialog';
 import MaintenanceStation from '../features/stations/station01/MaintenanceStation';
+import CleanupStation from '../features/stations/station02/CleanupStation';
 import DuplicateOrganizerApp from './DuplicateOrganizerApp';
 import ProjectSonarApp from './ProjectSonarApp';
 
@@ -121,17 +122,6 @@ function ActionRail({ tools, lang, toolStatuses, bridgeElevated, onLaunch, onCan
 }
 
 function SafetyNote({ lang }: { lang: Lang }) { const text = COPY[lang]; return <aside className="app-safety-note"><ShieldCheck size={18} /><div><strong>{text.safe}</strong><span>{text.safeBody}</span></div></aside>; }
-
-function CleanerApp({ data, lang, reviewableToolIds, onReviewTarget }: { data: CleanupPreview; lang: Lang; reviewableToolIds: Set<string>; onReviewTarget: (toolId: string) => void }) {
-  const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
-  const selected = data.Targets.find((target) => target.ToolId === selectedToolId) || null;
-  return <div className="cleaner-app-view cleaner-product-view">
-    <section className="product-command-hero cleaner-hero-meter"><div><p>{lang === 'ar' ? 'محلل التنظيف' : 'Cleanup analyzer'}</p><strong>{bytes(data.Summary.EstimatedReclaimableBytes, lang)}</strong><span>{lang === 'ar' ? 'مساحة قابلة للمراجعة من الفئات التي وجدها الفحص الحقيقي.' : 'Reviewable space from categories found by the real scan.'}</span><div className="product-hero-actions">{selected && reviewableToolIds.has(selected.ToolId) ? <button type="button" className="product-primary-action" onClick={() => onReviewTarget(selected.ToolId)}><ListChecks size={16} />{lang === 'ar' ? 'مراجعة الفئة المختارة' : 'Review selected category'}</button> : <span className="product-selection-hint"><SlidersHorizontal size={15} />{selected ? (lang === 'ar' ? 'لا توجد مراجعة مسجلة لهذه الفئة' : 'No registered review for this category') : (lang === 'ar' ? 'اختر فئة للمراجعة' : 'Choose a category to review')}</span>}</div></div><div className="cleaner-meter-orbit"><Trash2 size={34} /><span>{number(data.Summary.TotalFiles, lang)}</span><small>{lang === 'ar' ? 'ملفاً قابلاً للمراجعة' : 'reviewable files'}</small></div></section>
-    <section className="cleaner-buckets">{data.Targets.slice(0, 8).map((target) => { const selectedTarget = selectedToolId === target.ToolId; return <button type="button" className={selectedTarget ? 'is-selected' : ''} key={`${target.ToolId}-${target.Path}`} onClick={() => setSelectedToolId(target.ToolId)}><div className="cleaner-bucket-icon"><Boxes size={16} /></div><strong>{target.Category}</strong><span>{bytes(target.SizeBytes, lang)}</span><small>{target.UserDataExcluded ? (lang === 'ar' ? 'لا تشمل ملفاتك الشخصية' : 'Your personal files مستثناة') : (lang === 'ar' ? 'تحتاج مراجعة قبل الإزالة' : 'Review before removal')}</small>{selectedTarget && <i><CheckCircle2 size={14} /></i>}</button>; })}</section>
-    <section className="cleaner-review-summary"><div><span>{lang === 'ar' ? 'اختيار المراجعة' : 'Review selection'}</span><strong>{selected ? selected.Category : (lang === 'ar' ? 'لم تُحدّد فئة بعد' : 'No category selected yet')}</strong><small>{selected ? `${bytes(selected.SizeBytes, lang)} · ${number(selected.FileCount, lang)} ${lang === 'ar' ? 'ملف' : 'files'}` : (lang === 'ar' ? 'لن تُنفذ أي عملية قبل المراجعة والتأكيد.' : 'Nothing runs before review and confirmation.')}</small></div><ShieldCheck size={22} /></section>
-    <section className="cleaner-protection"><ArchiveRestore size={22} /><div><strong>{lang === 'ar' ? 'منطقة استعادة محمية' : 'Protected recovery area'}</strong><span>{bytes(data.Summary.QuarantineBytes, lang)} {lang === 'ar' ? 'محفوظة للاستعادة عند الحاجة' : 'kept available for recovery when needed'}</span></div><BadgeCheck size={20} /></section>
-  </div>;
-}
 
 function PerformanceApp({ data, lang, reviewableToolIds, onReviewSignal }: { data: OptimizationPreview; lang: Lang; reviewableToolIds: Set<string>; onReviewSignal: (toolId: string) => void }) {
   const text = COPY[lang];
@@ -241,8 +231,8 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
   };
   const spec = specs[activeSection] || { title: { en: 'KNOUX', ar: 'KNOUX' }, eyebrow: { en: 'SERVICE', ar: 'خدمة' }, icon: Sparkles, accent: '#48c8dd' };
   const content = useMemo(() => {
-    // Station 01 owns its own evidence lifecycle (no preview-loader gate):
-    // it renders real states even before any scan, and its own offline state.
+    // Station 01/02 own their evidence lifecycle (no preview-loader gate):
+    // they render real states even before any scan, and their own offline states.
     if (activeSection === 'maintenance') {
       return (
         <MaintenanceStation
@@ -256,9 +246,21 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
         />
       );
     }
+    if (activeSection === 'cleanup') {
+      return (
+        <CleanupStation
+          lang={lang}
+          tools={tools}
+          toolStatuses={toolStatuses}
+          bridgeElevated={bridgeElevated}
+          bridgeOnline={bridgeOnline}
+          onRetryBridge={onRetryBridge || reload}
+          onToolStatus={onToolStatus || (() => {})}
+        />
+      );
+    }
     if (!available || !data) return null;
     switch (activeSection) {
-      case 'cleanup': return <CleanerApp data={data as CleanupPreview} lang={lang} reviewableToolIds={reviewableToolIds} onReviewTarget={launchToolById} />;
       case 'performance': return <PerformanceApp data={data as OptimizationPreview} lang={lang} reviewableToolIds={reviewableToolIds} onReviewSignal={launchToolById} />;
       case 'disk': return <StorageApp data={data as SystemSnapshot} lang={lang} />;
       case 'network': return <NetworkApp data={data as NetworkPreview} lang={lang} />;
@@ -282,7 +284,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>

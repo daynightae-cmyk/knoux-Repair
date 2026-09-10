@@ -143,6 +143,34 @@ function runtimeFingerprint(source) {
       hash.update(`missing:${relative}`);
     }
   }
+  // Category tool scripts define execution behavior (modes, safety gates);
+  // hash them too so script updates refresh the copy even when the
+  // manifest and version are unchanged.
+  let scriptEntries = [];
+  try {
+    scriptEntries = fs.readdirSync(source, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && /^\d\d-/.test(entry.name))
+      .flatMap((entry) => {
+        try {
+          return fs.readdirSync(path.join(source, entry.name))
+            .filter((file) => file.toLowerCase().endsWith('.ps1'))
+            .sort()
+            .map((file) => `${entry.name}/${file}`);
+        } catch {
+          return [];
+        }
+      });
+  } catch {
+    hash.update('missing:categories');
+  }
+  for (const relative of scriptEntries) {
+    try {
+      hash.update(relative);
+      hash.update(fs.readFileSync(path.join(source, relative)));
+    } catch {
+      hash.update(`missing:${relative}`);
+    }
+  }
   return hash.digest('hex');
 }
 

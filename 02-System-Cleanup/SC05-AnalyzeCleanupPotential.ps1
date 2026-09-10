@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'SC05' -ToolName 'Analyze Cleanup Potential' -Category '02-System-Cleanup' -RiskLevel 'READ_ONLY'
+$Session = Start-KnouxSession -ToolId 'SC05' -ToolName 'Analyze Cleanup Potential' -Category '02-System-Cleanup' -RiskLevel 'READ_ONLY' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $Session.OfflineCapable = $true
 
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf
