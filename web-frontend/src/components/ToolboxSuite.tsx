@@ -43,6 +43,7 @@ interface ToolboxSuiteProps {
   onOpenSection: (section: ActiveSection) => void;
   toolsByCategory?: Record<string, BridgeTool[]>;
   bridgeElevated: boolean;
+  bridgeOnline?: boolean | null;
 }
 
 const CATEGORY_ICONS: Record<CategoryIconKey, React.ElementType> = {
@@ -90,6 +91,7 @@ export default function ToolboxSuite({
   onOpenSection,
   toolsByCategory = {},
   bridgeElevated,
+  bridgeOnline = null,
 }: ToolboxSuiteProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'featured' | 'suites'>('featured');
@@ -373,6 +375,11 @@ export default function ToolboxSuite({
     }));
   }, [columns, searchQuery]);
 
+  // Runtime registry counts only: offline renders UNAVAILABLE, never "0 tools".
+  const featuredCount = columns.reduce((total, column) => total + column.items.length, 0);
+  const runtimeTotal = Object.values(toolsByCategory).reduce((total, items) => total + items.length, 0);
+  const registryKnown = bridgeOnline === true || Object.keys(toolsByCategory).length > 0;
+
   const handleToolClick = (tool: ToolboxItem) => {
     setQuickActionNotice(lang === 'ar' ? `فتح ${tool.name.ar}...` : `Launching ${tool.name.en}...`);
     setTimeout(() => {
@@ -446,7 +453,11 @@ export default function ToolboxSuite({
                   {lang === 'ar' ? 'صندوق الأدوات الشامل (4 أعمدة)' : 'Master Toolbox Suite'}
                 </h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                  {activeTab === 'featured' ? '24 PRO TOOLS' : '158 TOOLS / 18 SUITES'}
+                  {activeTab === 'featured'
+                    ? `${featuredCount} PRO TOOLS`
+                    : registryKnown
+                      ? `${runtimeTotal} TOOLS / ${CATEGORIES.length} SUITES`
+                      : 'UNAVAILABLE'}
                 </span>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
                   bridgeElevated
@@ -511,7 +522,7 @@ export default function ToolboxSuite({
             }`}
           >
             <Boxes size={14} />
-            <span>{lang === 'ar' ? 'محطات الصيانة الـ 18 الأصلية (158 أداة)' : 'All 18 Original Suites (158 Tools)'}</span>
+            <span>{lang === 'ar' ? `محطات الصيانة الأصلية (${CATEGORIES.length} محطة)` : `All ${CATEGORIES.length} Original Suites (${registryKnown ? `${runtimeTotal} Tools` : 'Unavailable'})`}</span>
           </button>
         </div>
       </div>
@@ -681,7 +692,11 @@ export default function ToolboxSuite({
 
                         <div className="pt-2 border-t border-white/[0.04] flex items-center justify-between">
                           <span className="text-[10px] font-mono text-slate-400 px-2 py-0.5 rounded-md bg-white/[0.04]">
-                            {toolCount > 0 ? `${toolCount} ${lang === 'ar' ? 'أداة' : 'tools'}` : (lang === 'ar' ? 'محطة نشطة' : 'Active Suite')}
+                            {toolCount > 0
+                              ? `${toolCount} ${lang === 'ar' ? 'أداة' : 'tools'}`
+                              : registryKnown
+                                ? (lang === 'ar' ? 'محطة نشطة' : 'Active Suite')
+                                : (lang === 'ar' ? 'غير متاح' : 'Unavailable')}
                           </span>
                           <div className="flex items-center gap-1 text-[11px] font-semibold text-cyan-400 group-hover:text-cyan-300">
                             <span>{lang === 'ar' ? 'فتح المحطة' : 'Open Suite'}</span>

@@ -227,7 +227,7 @@ export default function Sidebar({
           >
             <span className="workspace-nav-entry-icon"><Terminal size={16} /></span>
             <span className="flex-1 min-w-0 text-start">{lang === 'ar' ? 'فهرس الأدوات الشامل' : 'All Tools Catalog'}</span>
-            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-white/[0.08]">{totalTools}</span>
+            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-white/[0.08]">{bridgeOnline === true ? totalTools : '–'}</span>
           </button>
         </div>
 
@@ -258,7 +258,8 @@ export default function Sidebar({
                 {CATEGORIES.map((category) => {
                   const isActive = viewMode === 'tools' && active === category.section;
                   const Icon = ICONS[category.icon];
-                  const count = toolsByCategory[category.id]?.length ?? 0;
+                  const items = toolsByCategory[category.id];
+                  const countLabel = bridgeOnline === true && items ? String(items.length) : '–';
                   const style: AccentStyle = { '--accent': category.accent };
 
                   return (
@@ -273,7 +274,7 @@ export default function Sidebar({
                     >
                       <span className="category-nav-icon"><Icon size={15} strokeWidth={isActive ? 2.5 : 1.8} /></span>
                       <span className="flex-1 min-w-0 text-start truncate text-xs">{category.name[lang]}</span>
-                      <span className="category-count" aria-label={`${count} tools`}>{count}</span>
+                      <span className="category-count" aria-label={bridgeOnline === true ? `${countLabel} tools` : 'registry unavailable'}>{countLabel}</span>
                     </motion.button>
                   );
                 })}

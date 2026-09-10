@@ -17,6 +17,8 @@ interface AllToolsCatalogProps {
   toolStatuses: Record<string, ToolStatus>;
   lang: Lang;
   bridgeElevated: boolean;
+  bridgeOnline?: boolean | null;
+  onRetryBridge?: () => void;
   onRunTool: (tool: BridgeTool, mode: ExecutionMode, options?: ToolRunOptions, confirmation?: ToolRunConfirmation) => void;
   onCancelTool: () => void;
   onOpenSection: (section: ActiveSection) => void;
@@ -26,6 +28,8 @@ export default function AllToolsCatalog({
   tools,
   lang,
   bridgeElevated,
+  bridgeOnline = null,
+  onRetryBridge,
   onRunTool,
 }: AllToolsCatalogProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -212,7 +216,28 @@ export default function AllToolsCatalog({
 
       {/* ── Scrollable Tools Table/Grid ── */}
       <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2.5">
-        {filteredTools.length === 0 ? (
+        {bridgeOnline === false && tools.length === 0 ? (
+          <div className="h-64 flex flex-col items-center justify-center text-center p-6 rounded-2xl border border-dashed border-amber-500/25 bg-amber-500/[0.03]">
+            <p className="font-mono text-[10px] tracking-[0.3em] text-amber-400/70 mb-2">
+              {lang === 'ar' ? 'غير متاح' : 'UNAVAILABLE'}
+            </p>
+            <p className="text-sm font-semibold text-slate-300">
+              {lang === 'ar' ? 'فهرس الأدوات غير متاح — الجسر مفصول' : 'Tool Index Unavailable — bridge offline'}
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              {lang === 'ar' ? 'لا يتم عرض صفر أدوات؛ أعد الاتصال بالجسر المحلي.' : 'Offline is not zero tools. Reconnect the local bridge.'}
+            </p>
+            {onRetryBridge && (
+              <button
+                type="button"
+                onClick={onRetryBridge}
+                className="mt-4 px-3 py-1.5 rounded-lg font-mono text-[10px] font-semibold text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/10 transition-all"
+              >
+                {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+              </button>
+            )}
+          </div>
+        ) : filteredTools.length === 0 ? (
           <div className="h-64 flex flex-col items-center justify-center text-center p-6 rounded-2xl border border-dashed border-white/[0.08]">
             <Search size={32} className="text-slate-600 mb-3" />
             <p className="text-sm font-semibold text-slate-400">

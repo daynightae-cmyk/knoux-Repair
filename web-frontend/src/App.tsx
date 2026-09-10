@@ -62,7 +62,13 @@ function NexusApp() {
   const [splashVisible, setSplashVisible] = useState(true);
 
   const [bridgeOnline, setBridgeOnline] = useState<boolean | null>(null);
-  const [bridgeOfflineReason, setBridgeOfflineReason] = useState('');
+  const [bridgeOfflineReason, setBridgeOfflineReason] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('bridgeError') || '';
+    } catch {
+      return '';
+    }
+  });
   const [bridgeToolCount, setBridgeToolCount] = useState<number | null>(null);
   const [bridgeElevated, setBridgeElevated] = useState(false);
   const [toolsByCategory, setToolsByCategory] = useState<Record<string, BridgeTool[]>>({});
@@ -411,6 +417,8 @@ function NexusApp() {
                   }}
                   onOpenView={(view) => setActiveView(view)}
                   bridgeElevated={bridgeElevated}
+                  bridgeOnline={bridgeOnline}
+                  registryTotal={bridgeToolCount}
                 />
               </PageTransition>
             ) : activeView === 'speedup' ? (
@@ -424,6 +432,7 @@ function NexusApp() {
                   }}
                   onOpenView={(view) => setActiveView(view)}
                   bridgeElevated={bridgeElevated}
+                  bridgeOnline={bridgeOnline}
                 />
               </PageTransition>
             ) : activeView === 'protect' ? (
@@ -437,6 +446,7 @@ function NexusApp() {
                   }}
                   onOpenView={(view) => setActiveView(view)}
                   bridgeElevated={bridgeElevated}
+                  bridgeOnline={bridgeOnline}
                 />
               </PageTransition>
             ) : activeView === 'toolbox' ? (
@@ -449,6 +459,7 @@ function NexusApp() {
                     setActiveView('tools');
                   }}
                   bridgeElevated={bridgeElevated}
+                  bridgeOnline={bridgeOnline}
                 />
               </PageTransition>
             ) : activeView === 'action-center' ? (
@@ -499,6 +510,8 @@ function NexusApp() {
                   toolStatuses={toolStatuses}
                   lang={lang}
                   bridgeElevated={bridgeElevated}
+                  bridgeOnline={bridgeOnline}
+                  onRetryBridge={() => { void connectBridge(); }}
                   onRunTool={runTool}
                   onCancelTool={cancelRun}
                   onOpenSection={(section) => {
@@ -523,8 +536,22 @@ function NexusApp() {
 
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-mono text-slate-400">
-                        {toolsByCategory[SECTION_MAP[activeSection]]?.length || 0} {lang === 'ar' ? 'أداة متاحة' : 'tools ready'}
+                        {bridgeOnline === true
+                          ? `${toolsByCategory[SECTION_MAP[activeSection]]?.length || 0} ${lang === 'ar' ? 'أداة متاحة' : 'tools ready'}`
+                          : bridgeOnline === false
+                            ? (lang === 'ar' ? 'غير متاح — الجسر مفصول' : 'UNAVAILABLE — bridge offline')
+                            : (lang === 'ar' ? 'جارٍ الاتصال...' : 'CONNECTING...')}
                       </span>
+                      {bridgeOnline === false && (
+                        <button
+                          type="button"
+                          onClick={() => { void connectBridge(); }}
+                          title={bridgeOfflineReason}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-colors"
+                        >
+                          {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setActiveView('toolbox')}
@@ -562,7 +589,7 @@ function NexusApp() {
         setTheme={setTheme}
         bridgeOnline={bridgeOnline}
         bridgeElevated={bridgeElevated}
-        toolCount={Object.values(toolsByCategory).reduce((total, items) => total + items.length, 0)}
+        toolCount={bridgeToolCount ?? Object.values(toolsByCategory).reduce((total, items) => total + items.length, 0)}
         onReplaySplash={() => { setSettingsOpen(false); setSplashVisible(true); }}
         auth={authStatus}
         onSignIn={startSignIn}
@@ -587,7 +614,7 @@ function NexusApp() {
         onDone={() => setSplashVisible(false)}
         lang={lang}
         bridgeOnline={bridgeOnline}
-        toolCount={Object.values(toolsByCategory).reduce((total, items) => total + items.length, 0)}
+        toolCount={bridgeToolCount ?? Object.values(toolsByCategory).reduce((total, items) => total + items.length, 0)}
       />
     </div>
   );

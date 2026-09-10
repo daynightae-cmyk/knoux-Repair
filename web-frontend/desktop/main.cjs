@@ -124,6 +124,7 @@ function startBridge(runtimeRoot, frontendOrigin) {
       ELECTRON_RUN_AS_NODE: '1',
       KNOUX_PROJECT_ROOT: runtimeRoot,
       KNOUX_DATA_ROOT: runtimeRoot,
+      KNOUX_PACKAGED: app.isPackaged ? '1' : '0',
       KNOUX_BRIDGE_PORT: '8787',
       KNOUX_BRIDGE_TOKEN: bridgeToken,
       KNOUX_AUTH_FRONTEND_ORIGIN: frontendOrigin,
@@ -137,7 +138,7 @@ function openExternalSafe(targetUrl) {
   if (allowed) shell.openExternal(allowed).catch(() => { /* external open is best-effort */ });
 }
 
-function createWindow(frontendOrigin) {
+function createWindow(frontendOrigin, bridgeState) {
   const window = new BrowserWindow({
     width: 1540,
     height: 980,
@@ -160,7 +161,20 @@ function createWindow(frontendOrigin) {
   window.webContents.on('render-process-gone', () => {
     if (!quitting) dialog.showErrorBox('KNOUX Repair', 'Glass Nexus stopped unexpectedly. Please reopen the application.');
   });
-  window.loadURL(`${frontendOrigin}?bridgeToken=${encodeURIComponent(bridgeToken)}`).catch((error) => dialog.showErrorBox('KNOUX Repair startup failed', error.message));
+  const launchUrl = new URL(frontendOrigin);
+  launchUrl.searchParams.set('bridgeToken', bridgeToken);
+  // Phase 00 lifecycle: the renderer must not report READY before the bridge
+  // readiness probe (health + manifest + registry) completes. When the probe
+  // fails the exact offline reason travels with the URL so first paint shows
+  // UNAVAILABLE/OFFLINE instead of "0 tools".
+  if (bridgeState && bridgeState.ready) {
+    launchUrl.searchParams.set('bridgeReady', '1');
+    launchUrl.searchParams.set('bridgeTools', String(bridgeState.tools));
+    launchUrl.searchParams.set('bridgeCategories', String(bridgeState.categories));
+  } else {
+    launchUrl.searchParams.set('bridgeError', (bridgeState && bridgeState.reason) || 'Execution bridge offline');
+  }
+  window.loadURL(launchUrl.toString()).catch((error) => dialog.showErrorBox('KNOUX Repair startup failed', error.message));
   return window;
 }
 
@@ -169,13 +183,63 @@ function stopRuntime() {
   try { bridgeProcess?.kill(); } catch { }
 }
 
+function fetchJson(url, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const request = http.get(url, { timeout: timeoutMs }, (response) => {
+      let data = '';
+      response.on('data', (chunk) => { data += chunk; });
+      response.on('end', () => {
+        try {
+          resolve({ status: response.statusCode, body: JSON.parse(data) });
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+    request.on('timeout', () => request.destroy(new Error(`probe timeout after ${timeoutMs}ms`)));
+    request.on('error', reject);
+  });
+}
+
+/**
+ * Phase 00 readiness probe: bridge starts -> health -> manifest loads ->
+ * registry validates. Resolves READY only when the registry reports tools;
+ * otherwise resolves with the exact offline reason (never "0 tools").
+ */
+async function probeBridgeReady({ timeoutMs = 20000, intervalMs = 400 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  let lastReason = 'Bridge process did not respond.';
+  while (Date.now() < deadline) {
+    try {
+      const health = await fetchJson('http://127.0.0.1:8787/api/health', 2500);
+      if (health.status === 200 && health.body && health.body.ok === true) {
+        const tools = await fetchJson('http://127.0.0.1:8787/api/tools', 5000);
+        const list = tools.body && Array.isArray(tools.body.tools) ? tools.body.tools : null;
+        if (tools.status === 200 && list) {
+          const categories = new Set(list.map((tool) => tool.Category)).size;
+          return { ready: true, tools: list.length, categories, reason: '' };
+        }
+        lastReason = 'Bridge is up but the tool registry did not validate.';
+      } else {
+        lastReason = `Bridge health check returned HTTP ${health.status}.`;
+      }
+    } catch (error) {
+      lastReason = error instanceof Error ? error.message : String(error);
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  return { ready: false, tools: 0, categories: 0, reason: lastReason };
+}
+
 app.whenReady().then(async () => {
   try {
-    const frontendOrigin = await startFrontendServer();
-    createWindow(frontendOrigin);
-    // This runs after the UI is visible; first-run copying cannot freeze the dashboard.
+    // Own the lifecycle: runtime copy -> bridge start -> readiness probe ->
+    // window. The UI never shows READY before the registry validates.
     const runtimeRoot = await prepareWritableRuntime();
+    const frontendOrigin = await startFrontendServer();
     startBridge(runtimeRoot, frontendOrigin);
+    const bridgeState = await probeBridgeReady();
+    createWindow(frontendOrigin, bridgeState);
   } catch (error) {
     dialog.showErrorBox('KNOUX Repair startup failed', error instanceof Error ? error.message : String(error));
     app.quit();
@@ -184,4 +248,4 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => { quitting = true; stopRuntime(); });
 app.on('window-all-closed', () => app.quit());
-app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0 && frontendServer) createWindow(`http://127.0.0.1:${frontendServer.address().port}`); });
+app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0 && frontendServer) createWindow(`http://127.0.0.1:${frontendServer.address().port}`, null); });

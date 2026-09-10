@@ -26,6 +26,7 @@ interface SpeedUpSuiteProps {
   onOpenView?: (view: ViewMode) => void;
   toolsByCategory?: Record<string, BridgeTool[]>;
   bridgeElevated: boolean;
+  bridgeOnline?: boolean | null;
 }
 
 export default function SpeedUpSuite({
@@ -33,6 +34,7 @@ export default function SpeedUpSuite({
   onOpenSection,
   toolsByCategory = {},
   bridgeElevated,
+  bridgeOnline = null,
 }: SpeedUpSuiteProps) {
   const [turboBoost, setTurboBoost] = useState(false);
   const [boostMode, setBoostMode] = useState<'work' | 'game' | 'economy'>('game');
@@ -477,7 +479,7 @@ export default function SpeedUpSuite({
                     <SrvIcon size={20} />
                   </div>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.04] text-slate-400 border border-white/[0.05]">
-                    {count > 0 ? `${count} ${lang === 'ar' ? 'أدوات' : 'tools'}` : 'Suite'}
+                    {count > 0 ? `${count} ${lang === 'ar' ? 'أدوات' : 'tools'}` : bridgeOnline === false ? (lang === 'ar' ? 'غير متاح' : 'Unavailable') : 'Suite'}
                   </span>
                 </div>
                 <div>

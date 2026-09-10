@@ -83,7 +83,9 @@ export function getSplashPresentation({
     : bridgeOnline === false
       ? c.bridgeOffline
       : c.bridgeConnecting;
-  const toolsLabel = toolCount > 0 ? c.toolsReady(toolCount) : c.toolsSyncing;
+  const toolsLabel = bridgeOnline === false
+    ? (c.bridgeOffline as string)
+    : toolCount > 0 ? c.toolsReady(toolCount) : c.toolsSyncing;
 
   return {
     stage,

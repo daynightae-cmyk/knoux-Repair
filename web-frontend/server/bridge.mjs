@@ -261,8 +261,15 @@ function resolveToolCapabilities(tool) {
   return {
     ...tool,
     ScriptAvailable: scriptAvailable,
-    AnalyzeOnlySupported: scriptAvailable && /\$AnalyzeOnly\b/i.test(scriptText),
-    WhatIfSupported: scriptAvailable && /\$WhatIf\b/i.test(scriptText),
+    // Phase 00: the manifest is the authoritative registry. Its curated
+    // AnalyzeOnlySupported/WhatIfSupported flags win; script-text detection
+    // is only a fallback for entries that lack them.
+    AnalyzeOnlySupported: typeof tool.AnalyzeOnlySupported === 'boolean'
+      ? (scriptAvailable && tool.AnalyzeOnlySupported)
+      : (scriptAvailable && /\$AnalyzeOnly\b/i.test(scriptText)),
+    WhatIfSupported: typeof tool.WhatIfSupported === 'boolean'
+      ? (scriptAvailable && tool.WhatIfSupported)
+      : (scriptAvailable && /\$WhatIf\b/i.test(scriptText)),
     Parameters: [...extractSupportedParameters(scriptText)],
     RequiresConfirmation: /Confirm-Knoux(?:Destructive)?Action\b/i.test(scriptText),
     ReportsEvidence: /Start-KnouxSession|Write-KnouxResult|RawDir|SessionDir/i.test(scriptText),
@@ -366,8 +373,22 @@ function buildExecutionContext({ runId, toolId, mode, riskLevel, options, confir
 
 function executionArguments(tool, scriptPath, mode) {
   if (mode === 'run') return [];
+  if (!EXECUTION_MODES.has(mode)) {
+    throw Object.assign(
+      new Error(`"${tool.EnglishName}" does not support ${mode} execution.`),
+      { status: 400, code: 'MODE_NOT_SUPPORTED' }
+    );
+  }
 
   const parameterName = mode === 'analyze' ? 'AnalyzeOnly' : 'WhatIf';
+  // Manifest flags are authoritative; script-text detection is the fallback.
+  const manifestFlag = mode === 'analyze' ? tool.AnalyzeOnlySupported : tool.WhatIfSupported;
+  if (manifestFlag === false) {
+    throw Object.assign(
+      new Error(`"${tool.EnglishName}" does not support ${mode} execution.`),
+      { status: 400, code: 'MODE_NOT_SUPPORTED' }
+    );
+  }
   const parameterExpression = new RegExp(`\\$${parameterName}\\b`, 'i');
   let scriptCapability = false;
   try { scriptCapability = parameterExpression.test(fs.readFileSync(scriptPath, 'utf8')); } catch { /* script path is validated below */ }
@@ -476,6 +497,9 @@ function createRun(toolId, mode = 'run', options = {}, confirmation = null) {
     );
   }
   validateExecutionRequest({ tool, mode, confirmation });
+  if (!EXECUTION_MODES.has(mode)) {
+    throw Object.assign(new Error('Unsupported execution mode.'), { status: 400, code: 'MODE_NOT_SUPPORTED' });
+  }
   const isTestTimeoutTool = TEST_MODE && toolId === TEST_TIMEOUT_TOOL_ID;
   const scriptPath = isTestTimeoutTool ? TEST_TIMEOUT_SCRIPT_PATH : path.resolve(REPO_ROOT, tool.ScriptPath);
   if (
@@ -1417,7 +1441,7 @@ const server = http.createServer(async (req, res) => {
       }, corsHeaders);
     }
 
-    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'tools') {
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'tools' && pathParts.length === 2) {
       const tools = [...manifest.values()]
         .map(resolveToolCapabilities)
         .filter((t) => t.ScriptAvailable)

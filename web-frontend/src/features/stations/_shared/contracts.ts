@@ -81,7 +81,7 @@ export function buildConfirmationEvidence(input: {
     confirmed: true,
     confirmedAt: new Date().toISOString(),
     ...(input.requiresPhrase ? { phrase: input.typedPhrase.trim() } : {}),
-    ...(input.requiresRecoveryAcknowledgement ? { acknowledgedRecovery: input.requiresRecoveryAcknowledged } : {}),
+    ...(input.requiresRecoveryAcknowledgement ? { acknowledgedRecovery: input.recoveryAcknowledged } : {}),
   };
 }
 

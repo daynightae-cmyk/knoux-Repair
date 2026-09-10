@@ -35,6 +35,7 @@ interface ProtectSuiteProps {
   onOpenView?: (view: ViewMode) => void;
   toolsByCategory?: Record<string, BridgeTool[]>;
   bridgeElevated: boolean;
+  bridgeOnline?: boolean | null;
 }
 
 interface ScanItem {
@@ -50,6 +51,7 @@ export default function ProtectSuite({
   onOpenSection,
   toolsByCategory = {},
   bridgeElevated,
+  bridgeOnline = null,
 }: ProtectSuiteProps) {
   // Real-time security toggles
   const [antivirusShield, setAntivirusShield] = useState(true);
@@ -538,7 +540,7 @@ export default function ProtectSuite({
                     <SrvIcon size={20} />
                   </div>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.04] text-slate-400 border border-white/[0.05]">
-                    {count > 0 ? `${count} ${lang === 'ar' ? 'أدوات' : 'tools'}` : 'Suite'}
+                    {count > 0 ? `${count} ${lang === 'ar' ? 'أدوات' : 'tools'}` : bridgeOnline === false ? (lang === 'ar' ? 'غير متاح' : 'Unavailable') : 'Suite'}
                   </span>
                 </div>
                 <div>

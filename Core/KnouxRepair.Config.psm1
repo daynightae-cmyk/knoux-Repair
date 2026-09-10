@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # ============================================================
 #  KnouxRepair.Config.psm1
 #  knoux Repair v2.0.2 | Validated shared configuration loader

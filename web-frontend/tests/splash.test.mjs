@@ -52,7 +52,8 @@ test('bridge offline never claims that the system bridge is ready', () => {
   assert.equal(result.stage, 'offline');
   assert.match(result.stageLabel, /bridge unavailable/i);
   assert.equal(result.bridgeLabel, 'OFFLINE');
-  assert.equal(result.toolsLabel, 'TOOLS SYNCING');
+  // Phase 00: offline renders OFFLINE, never a zero-tool or syncing claim.
+  assert.equal(result.toolsLabel, 'OFFLINE');
   assert.doesNotMatch(result.stageLabel, /^System ready$/);
 });
 

@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # ============================================================
 #  KnouxRepair.Contracts.psm1
 #  knoux Repair v2.0.2 | Standard tool / execution / result contracts

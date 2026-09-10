@@ -201,6 +201,7 @@ export const RISK_COLORS: Record<RiskLevel, { text: string; bg: string; border: 
   SYSTEM_REPAIR: { text: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', glow: 'neon-glow-amber' },
   REBOOT_REQUIRED: { text: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20', glow: 'neon-glow-amber' },
   DESTRUCTIVE: { text: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', glow: 'neon-glow-red' },
+  WINRE_ONLY: { text: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20', glow: 'neon-glow-red' },
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {

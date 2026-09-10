@@ -99,7 +99,7 @@ export default function ExecutionConfirmDialog({ tool, mode, lang, onConfirm, on
     // Immutable confirmation evidence for the bridge ExecutionRequest.
     // SYSTEM_REPAIR and above carry the explicit typed phrase; read-only
     // intent carries user confirmation without a phrase.
-    const confirmation: ToolRunConfirmation = {
+    const confirmationEvidence: ToolRunConfirmation = {
       confirmed: true,
       confirmedAt: new Date().toISOString(),
       ...(requiresPhrase ? { phrase: confirmation.trim() } : {}),
@@ -112,7 +112,7 @@ export default function ExecutionConfirmDialog({ tool, mode, lang, onConfirm, on
       localSourceIndex: localSourceIndex.trim() ? Number(localSourceIndex) : undefined,
       packageId: packageId.trim() || undefined,
       quick: supportsQuick ? quick : undefined,
-    }, confirmation);
+    }, confirmationEvidence);
   };
 
   return (
