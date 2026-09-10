@@ -8,7 +8,6 @@
 
 import type {
   BridgeTool,
-  DriverPreviewDeviceProblem,
   DriverPreviewItem,
   DriversPreview,
   KnouxRunResult,

@@ -5,17 +5,28 @@ import { copyTechnicalDetails } from './bridgeLifecycle';
 
 interface StationOfflineStateProps {
   lang: Lang;
-  reason: string;
+  reason?: string;
   technical?: string;
-  onRetry: () => void;
+  onRetry?: () => void;
   retrying?: boolean;
+  onRetryBridge?: () => void;
+  customNotice?: string;
 }
 
 /**
  * StationOfflineState — the ONLY offline presentation stations may use.
  * Bridge unavailable renders UNAVAILABLE/OFFLINE, never "0 tools".
  */
-export default function StationOfflineState({ lang, reason, technical = '', onRetry, retrying = false }: StationOfflineStateProps) {
+export default function StationOfflineState({
+  lang,
+  reason = '',
+  technical = '',
+  onRetry,
+  retrying = false,
+  onRetryBridge,
+  customNotice
+}: StationOfflineStateProps) {
+  const handleRetry = onRetry || onRetryBridge || (() => {});
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -39,7 +50,7 @@ export default function StationOfflineState({ lang, reason, technical = '', onRe
           {lang === 'ar' ? 'الجسر المحلي غير متصل' : 'Execution Bridge Offline'}
         </h2>
         <p className="text-sm text-slate-400 leading-relaxed mb-4" dir="auto">
-          {reason || (lang === 'ar' ? 'تعذر الوصول إلى الجسر المحلي.' : 'The local execution bridge could not be reached.')}
+          {customNotice || reason || (lang === 'ar' ? 'تعذر الوصول إلى الجسر المحلي.' : 'The local execution bridge could not be reached.')}
         </p>
         {technical && (
           <p className="font-mono text-[10px] text-amber-300/70 tracking-wider mb-6 break-all" dir="ltr">
@@ -49,7 +60,7 @@ export default function StationOfflineState({ lang, reason, technical = '', onRe
         <div className="flex items-center justify-center gap-2 flex-wrap">
           <button
             type="button"
-            onClick={onRetry}
+            onClick={handleRetry}
             disabled={retrying}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-mono text-xs font-semibold tracking-wider text-cyan-400 border border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/15 transition-all disabled:opacity-50"
           >

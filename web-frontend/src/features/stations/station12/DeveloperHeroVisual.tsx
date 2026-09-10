@@ -1,4 +1,3 @@
-import React from 'react';
 import type { DeveloperWorkbenchState } from './developerModel';
 
 interface DeveloperHeroVisualProps {

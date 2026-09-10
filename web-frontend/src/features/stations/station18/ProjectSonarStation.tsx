@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Radar, FolderKanban, ShieldCheck, FileCode2, GitBranch,
-  BarChart3, Sparkles, ChevronRight, Check, Download,
+  Radar, FolderKanban, ShieldCheck,
+  BarChart3, ChevronRight, Check, Download,
   WandSparkles, LoaderCircle, TriangleAlert, CheckCircle2,
   RefreshCw, Play, XCircle, History
 } from 'lucide-react';
@@ -129,7 +129,7 @@ const COPY = {
 
 export default function ProjectSonarStation(props: ProjectSonarStationProps) {
   const {
-    lang, tools, toolStatuses = {}, bridgeElevated = false,
+    lang, tools, toolStatuses = {},
     bridgeOnline = true, onRetryBridge, onToolStatus, onPrepareRun
   } = props;
   const t = COPY[lang];
@@ -139,7 +139,6 @@ export default function ProjectSonarStation(props: ProjectSonarStationProps) {
   const [pickerOpen, setPickerOpen] = useState<boolean>(false);
   const [preview, setPreview] = useState<ProjectSonarPreview | null>(null);
   const [filter, setFilter] = useState<'ALL' | SonarSeverity>('ALL');
-  const [findingQuery, setFindingQuery] = useState<string>('');
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [exporting, setExporting] = useState<'pdf' | 'markdown' | null>(null);
@@ -196,8 +195,8 @@ export default function ProjectSonarStation(props: ProjectSonarStationProps) {
   );
 
   const filteredFindings = useMemo(
-    () => filterFindings(preview?.Findings, filter, findingQuery),
-    [preview?.Findings, filter, findingQuery]
+    () => filterFindings(preview?.Findings, filter),
+    [preview?.Findings, filter]
   );
 
   const selectedFinding: ProjectSonarFinding | null = useMemo(() => {

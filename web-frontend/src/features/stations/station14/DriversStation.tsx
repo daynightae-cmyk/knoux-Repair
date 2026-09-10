@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Wrench, ShieldCheck, TriangleAlert, Layers3,
-  HardDrive, RefreshCw, Play, CheckCircle2, AlertTriangle,
-  XCircle, Download, History, FileText, Cpu, Search,
+  RefreshCw, Play, CheckCircle2, AlertTriangle,
+  XCircle, Download, History, FileText, Search,
   FolderArchive, DatabaseZap
 } from 'lucide-react';
 import type {
@@ -155,8 +155,6 @@ export default function DriversStation(props: DriversStationProps) {
 function DriversStationContent({
   lang,
   tools,
-  toolStatuses,
-  bridgeElevated,
   bridgeOnline,
   onRetryBridge,
   onToolStatus,

@@ -57,10 +57,17 @@ function MasterWorkstation() {
     return saved === 'ar' ? 'ar' : 'en';
   });
 
+  // ── URL Query Parameters ──
+  const searchParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const initialView = (searchParams.get('view') as ActiveView) || 'ai-scan';
+  const initialService = (searchParams.get('service') as ServiceId) || null;
+  const initialTool = searchParams.get('tool') || null;
+  const initialSplash = searchParams.get('nosplash') !== '1';
+
   // ── Navigation State ──
-  const [activeView, setActiveView] = useState<ActiveView>('ai-scan');
-  const [selectedService, setSelectedService] = useState<ServiceId | null>(null);
-  const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<ActiveView>(initialView);
+  const [selectedService, setSelectedService] = useState<ServiceId | null>(initialService);
+  const [selectedToolId, setSelectedToolId] = useState<string | null>(initialTool);
 
   // ── Bridge Runtime State ──
   const [bridgeOnline, setBridgeOnline] = useState<boolean | null>(null);
@@ -83,7 +90,7 @@ function MasterWorkstation() {
   // ── Modals / Overlays ──
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [splashVisible, setSplashVisible] = useState(true);
+  const [splashVisible, setSplashVisible] = useState(initialSplash);
 
   // ── Auth ──
   const [authStatus, setAuthStatus] = useState<BridgeAuthStatus | null>(null);
@@ -93,12 +100,20 @@ function MasterWorkstation() {
   const currentRunId = useRef<string | null>(null);
   const pollTimer = useRef<number | null>(null);
 
+  // ── Theme State ──
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem('knoux-theme') as 'dark' | 'light') || 'dark');
+
   // ── Synchronize HTML attributes ──
   useEffect(() => {
     document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
     document.documentElement.setAttribute('lang', lang);
     localStorage.setItem('knoux-lang', lang);
   }, [lang]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('knoux-theme', theme);
+  }, [theme]);
 
   useEffect(() => () => {
     if (pollTimer.current) window.clearTimeout(pollTimer.current);
@@ -368,8 +383,8 @@ function MasterWorkstation() {
                   onClose={() => setActiveView('ai-scan')}
                   lang={lang}
                   setLang={setLang}
-                  theme="dark"
-                  setTheme={() => {}}
+                  theme={theme}
+                  setTheme={setTheme}
                   bridgeOnline={bridgeOnline}
                   bridgeElevated={bridgeElevated}
                   toolCount={bridgeToolCount ?? allTools.length}
@@ -476,8 +491,8 @@ function MasterWorkstation() {
         onClose={() => setSettingsOpen(false)}
         lang={lang}
         setLang={setLang}
-        theme="dark"
-        setTheme={() => {}}
+        theme={theme}
+        setTheme={setTheme}
         bridgeOnline={bridgeOnline}
         bridgeElevated={bridgeElevated}
         toolCount={bridgeToolCount ?? allTools.length}

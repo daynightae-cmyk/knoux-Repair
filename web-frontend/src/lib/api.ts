@@ -25,7 +25,7 @@ function readBridgeToken(): string {
 
 export const BRIDGE_TOKEN = readBridgeToken();
 
-export type ExecutionMode = 'run' | 'analyze' | 'preview';
+export type ExecutionMode = 'run' | 'analyze' | 'preview' | 'AnalyzeOnly' | 'WhatIf' | 'Execute' | 'repair';
 export type OfflineCapability = 'FULL' | 'PARTIAL' | 'NO' | '';
 
 export interface ToolRunOptions {
@@ -37,6 +37,8 @@ export interface ToolRunOptions {
   duplicatePreviewId?: string;
   duplicateKeepPaths?: Array<{ groupId: string; keepPath: string }>;
   quarantineIds?: string[];
+  analyzeOnly?: boolean;
+  customParameters?: Record<string, unknown>;
 }
 
 /**
@@ -132,6 +134,8 @@ export interface BridgeRun {
   lines: BridgeRunLine[];
   error: string | null;
   result: KnouxRunResult | null;
+  Outcome?: string;
+  ErrorMessage?: string;
 }
 
 export interface KnouxRunResult {
@@ -165,6 +169,7 @@ export interface KnouxRunResult {
   errorMessage?: string | null;
   evidence?: unknown;
   rawOutput?: unknown;
+  output?: string;
   reportPath?: string | null;
   // Legacy PascalCase aliases (older reports on disk).
   ToolId: string;

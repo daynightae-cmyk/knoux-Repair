@@ -40,12 +40,21 @@ export function decideExecution(input: ExecutionRequestInput, bridgeElevated: bo
   return { ok: true, nextState: 'PREPARING' };
 }
 
-export async function startExecution(input: ExecutionRequestInput): Promise<string> {
-  const { runId } = await api.startRun(input.tool.ToolId, input.mode, input.options || {}, input.confirmation);
+export async function startExecution(
+  inputOrTool: ExecutionRequestInput | BridgeTool,
+  mode?: ExecutionMode,
+  options?: ToolRunOptions,
+  confirmation?: ToolRunConfirmation
+): Promise<string> {
+  if ('ToolId' in inputOrTool) {
+    const { runId } = await api.startRun(inputOrTool.ToolId, mode || 'run', options || {}, confirmation);
+    return runId;
+  }
+  const { runId } = await api.startRun(inputOrTool.tool.ToolId, inputOrTool.mode, inputOrTool.options || {}, inputOrTool.confirmation);
   return runId;
 }
 
-export async function pollExecution(runId: string): Promise<BridgeRun> {
+export async function pollExecution(runId: string, _intervalMs?: number): Promise<BridgeRun> {
   const { run } = await api.getRun(runId);
   return run;
 }

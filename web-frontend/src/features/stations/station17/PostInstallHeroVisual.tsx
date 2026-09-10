@@ -1,4 +1,3 @@
-import React from 'react';
 import type { Lang } from '../../../types';
 import type { ProvisioningReadiness } from './postInstallModel';
 
@@ -19,7 +18,6 @@ export default function PostInstallHeroVisual({
   catalogDetected,
   catalogTotal,
   driverOffersCount,
-  pendingRestartCount,
   wingetAvailable,
   lang,
 }: PostInstallHeroVisualProps) {

@@ -1,7 +1,6 @@
-import { Bell, CheckCircle2, AlertTriangle, Clock, ArrowRight } from 'lucide-react';
+import { Bell, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
 import type { ToolStatus } from '../../types';
 import type { NavDestination } from '../../data/family-map';
-import { FAMILIES } from '../../data/family-map';
 import type { BridgeTool, ExecutionMode } from '../../lib/api';
 
 interface ActiveTask {
@@ -99,30 +98,47 @@ export default function ActionCenterPage({ lang, activeTasks, toolStatuses, onNa
       {/* Recommendations */}
       <section>
         <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--knoux-text-secondary)' }}>
-          {lang === 'ar' ? 'التوصيات' : 'Recommendations'}
+          {lang === 'ar' ? 'التوصيات والإجراءات المقترحة' : 'Recommendations & Actions'}
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {FAMILIES.slice(0, 4).map(family => (
-            <button
-              key={family.id}
-              type="button"
-              className="knoux-glass p-4 text-left hover:bg-white/[0.03] transition-colors group"
-              onClick={() => onNavigate({ family: family.id })}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium" style={{ color: 'var(--knoux-text)' }}>
-                    {lang === 'ar' ? family.name.ar : family.name.en}
-                  </h3>
-                  <p className="text-xs mt-1" style={{ color: 'var(--knoux-text-faint)' }}>
-                    {family.expectedTools} {lang === 'ar' ? 'أداة متاحة' : 'tools available'}
-                  </p>
+        {warningCount > 0 ? (
+          <div className="space-y-2">
+            {Object.entries(toolStatuses)
+              .filter(([_, s]) => s === 'error' || s === 'inconclusive')
+              .map(([toolId, status]) => (
+                <div key={toolId} className="knoux-glass p-4 flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-amber-300">
+                      {lang === 'ar' ? `إعادة محاولة الأداة ${toolId}` : `Retry Tool ${toolId}`}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-0.5">
+                      {lang === 'ar' ? `الحالة السابقة: ${status}` : `Prior run status: ${status}`}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onNavigate({ family: 'vitality', toolId });
+                    }}
+                    className="knoux-btn knoux-btn-secondary text-xs"
+                  >
+                    {lang === 'ar' ? 'فتح الأداة' : 'Open Tool'}
+                  </button>
                 </div>
-                <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--knoux-text-muted)' }} />
-              </div>
-            </button>
-          ))}
-        </div>
+              ))}
+          </div>
+        ) : (
+          <div className="knoux-glass p-6 text-center">
+            <CheckCircle2 size={24} className="mx-auto mb-2 text-emerald-400/60" />
+            <p className="text-sm font-medium" style={{ color: 'var(--knoux-text-muted)' }}>
+              {lang === 'ar' ? 'لا توجد توصيات معلقة حالياً' : 'No recommendations yet'}
+            </p>
+            <p className="text-xs mt-1 text-slate-500">
+              {lang === 'ar'
+                ? 'شغّل الفحص الذكي AI Scan أو قم بتشغيل أدوات التشخيص لتوليد توصيات مبنية على أدلة حقيقية.'
+                : 'Run an AI Scan or execute diagnostics to generate evidence-backed recommendations.'}
+            </p>
+          </div>
+        )}
       </section>
 
       {/* Recently Completed */}

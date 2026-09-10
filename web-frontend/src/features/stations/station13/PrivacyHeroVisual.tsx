@@ -1,4 +1,3 @@
-import React from 'react';
 import type { PrivacyStance } from './privacyModel';
 
 interface PrivacyHeroVisualProps {
@@ -14,8 +13,6 @@ export default function PrivacyHeroVisual({
   stance,
   totalSettings,
   restrictedCount,
-  runHistoryCount,
-  dnsCacheCount,
   lang = 'en',
 }: PrivacyHeroVisualProps) {
   const isRtl = lang === 'ar';

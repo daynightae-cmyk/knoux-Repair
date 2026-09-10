@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Layers, Terminal, Puzzle, Database, RefreshCw, Play,
   CheckCircle2, AlertTriangle, XCircle, History, Search,
@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import type {
   BridgeTool, ExecutionMode,
-  SoftwarePreview, AdvancedSoftwarePreview, SoftwarePreviewItem,
+  SoftwarePreview, AdvancedSoftwarePreview,
   ToolRunConfirmation, ToolRunOptions
 } from '../../../lib/api';
 import { api } from '../../../lib/api';
@@ -152,7 +152,7 @@ const COPY = {
 };
 
 export default function SoftwareStation(props: SoftwareStationProps) {
-  const { lang, tools, toolStatuses, bridgeElevated, bridgeOnline, onRetryBridge, onToolStatus } = props;
+  const { lang, tools, toolStatuses, bridgeOnline, onRetryBridge, onToolStatus } = props;
   const t = COPY[lang];
 
   const [activeTab, setActiveTab] = useState<TabKey>('overview');

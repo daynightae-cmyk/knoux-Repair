@@ -1,4 +1,3 @@
-import React from 'react';
 import type { Lang } from '../../../types';
 import type { SonarCondition } from './sonarModel';
 

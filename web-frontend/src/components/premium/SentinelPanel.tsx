@@ -27,15 +27,6 @@ export default function SentinelPanel({
 }: SentinelPanelProps) {
   const isRtl = lang === 'ar';
 
-  const getHealthStatus = () => {
-    if (bridgeOnline === false) return { text: isRtl ? 'الجسر غير متصل' : 'Bridge Offline', color: 'text-red-500' };
-    if (bridgeOnline === null) return { text: isRtl ? 'جارٍ الاتصال...' : 'Connecting...', color: 'text-amber-400' };
-    if (activeTasks.some(t => t.status === 'running')) return { text: isRtl ? 'مهمة قيد التشغيل' : 'Active Job', color: 'text-cyan-400' };
-    return { text: isRtl ? 'حالة مستقرة' : 'Protected', color: 'text-emerald-400' };
-  };
-
-  const health = getHealthStatus();
-
   // Compute memory percent if real
   const memoryUsedGB = systemSnapshot && systemSnapshot.TotalRamGB && systemSnapshot.FreeRamGB
     ? Math.max(0, systemSnapshot.TotalRamGB - systemSnapshot.FreeRamGB)
@@ -49,6 +40,25 @@ export default function SentinelPanel({
   const diskPercent = sysDrive && sysDrive.TotalGB
     ? Math.round(((sysDrive.TotalGB - sysDrive.FreeGB) / sysDrive.TotalGB) * 100)
     : null;
+
+  const getHealthStatus = () => {
+    if (bridgeOnline === false) return { text: isRtl ? 'الجسر غير متصل' : 'Bridge Offline', color: 'text-red-500' };
+    if (bridgeOnline === null) return { text: isRtl ? 'جارٍ الاتصال...' : 'Connecting...', color: 'text-amber-400' };
+    if (activeTasks.some(t => t.status === 'running')) return { text: isRtl ? 'مهمة قيد التشغيل' : 'Active Job', color: 'text-cyan-400' };
+
+    const isHighDisk = diskPercent !== null && diskPercent > 90;
+    const isHighMemory = memoryPercent !== null && memoryPercent > 90;
+    const isHighCpu = systemSnapshot?.CpuLoad !== undefined && systemSnapshot.CpuLoad > 90;
+    const isDefenderOff = systemSnapshot?.DefenderRealtime === false;
+
+    if (isHighDisk || isHighMemory || isHighCpu || isDefenderOff) {
+      return { text: isRtl ? 'تنبيه مطلوب' : 'Attention Required', color: 'text-amber-400' };
+    }
+
+    return { text: isRtl ? 'النظام جاهز' : 'Ready', color: 'text-emerald-400' };
+  };
+
+  const health = getHealthStatus();
 
   return (
     <aside className="knoux-sentinel w-[280px] h-full flex flex-col bg-black/30 backdrop-blur-xl border-l border-white/10 shrink-0" dir={isRtl ? 'rtl' : 'ltr'}>

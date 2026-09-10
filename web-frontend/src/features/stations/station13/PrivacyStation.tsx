@@ -1,12 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ShieldCheck, Lock, Eye, EyeOff, Camera, Mic,
+  ShieldCheck, Lock, EyeOff, Camera, Mic,
   MapPin, RefreshCw, Play, CheckCircle2, AlertTriangle,
-  XCircle, Trash2, History, FileText, UserCheck, Activity
+  Trash2, History, FileText, UserCheck, Activity
 } from 'lucide-react';
 import type {
   BridgeTool, ExecutionMode, PrivacyPreview,
-  PrivacyPreviewSetting, ToolRunConfirmation, ToolRunOptions
+  ToolRunConfirmation, ToolRunOptions
 } from '../../../lib/api';
 import { api } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
@@ -135,8 +135,6 @@ export default function PrivacyStation(props: PrivacyStationProps) {
 function PrivacyStationContent({
   lang,
   tools,
-  toolStatuses,
-  bridgeElevated,
   bridgeOnline,
   onRetryBridge,
   onToolStatus,
@@ -520,7 +518,6 @@ function PrivacyStationContent({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
             {appPermissions.map((s) => {
               const state = (s.State || '').toLowerCase();
-              const isAllowed = state === 'allowed' || state === 'enabled';
               const isRestricted = state === 'restricted' || state === 'denied' || state === 'disabled';
               return (
                 <div

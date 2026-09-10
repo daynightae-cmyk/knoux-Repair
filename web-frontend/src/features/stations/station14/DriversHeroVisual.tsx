@@ -1,4 +1,4 @@
-import React from 'react';
+import { Fragment } from 'react';
 import type { DriverCondition } from './driversModel';
 
 interface DriversHeroVisualProps {
@@ -14,7 +14,6 @@ export default function DriversHeroVisual({
   condition,
   totalDrivers,
   signedDrivers,
-  unsignedDrivers,
   deviceProblemsCount,
   lang = 'en',
 }: DriversHeroVisualProps) {
@@ -132,10 +131,10 @@ export default function DriversHeroVisual({
 
         {/* Microcontroller Pins (Top & Bottom) */}
         {Array.from({ length: 6 }).map((_, i) => (
-          <React.Fragment key={i}>
+          <Fragment key={i}>
             <line x1={215 + i * 18} y1="58" x2={215 + i * 18} y2="65" stroke="#94a3b8" strokeWidth="2" />
             <line x1={215 + i * 18} y1="165" x2={215 + i * 18} y2="172" stroke="#94a3b8" strokeWidth="2" />
-          </React.Fragment>
+          </Fragment>
         ))}
 
         {/* Chip Die Core / Signature Stamp */}

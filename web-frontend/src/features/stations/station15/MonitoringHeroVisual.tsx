@@ -1,4 +1,3 @@
-import React from 'react';
 import type { ObservatoryCondition } from './monitoringModel';
 
 interface MonitoringHeroVisualProps {

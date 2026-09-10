@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Code, Terminal, Cpu, Network, GitBranch,
   Play, RefreshCw, CheckCircle2, AlertTriangle,
-  XCircle, ShieldAlert, Layers, Trash2, StopCircle,
-  FileCode, History, ExternalLink, HardDrive
+  Layers, Trash2, StopCircle,
+  FileCode, History
 } from 'lucide-react';
 import type {
   BridgeTool, ExecutionMode,
@@ -144,8 +144,6 @@ export default function DeveloperStation(props: DeveloperStationProps) {
 function DeveloperStationContent({
   lang,
   tools,
-  toolStatuses,
-  bridgeElevated,
   bridgeOnline,
   onRetryBridge,
   onToolStatus,
@@ -155,7 +153,7 @@ function DeveloperStationContent({
   const [loading, setLoading] = useState(false);
   const [toolchain, setToolchain] = useState<ToolchainItem[]>([]);
   const [ports, setPorts] = useState<DevPortItem[]>([]);
-  const [gitBranch, setGitBranch] = useState<string>('main');
+  const [gitBranch] = useState<string>('main');
   const [history, setHistory] = useState<StationHistoryEntry[]>([]);
   const [pendingTool, setPendingTool] = useState<{ tool: BridgeTool; mode: ExecutionMode } | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
@@ -890,7 +888,6 @@ function DeveloperStationContent({
                 return name.includes(searchFilter.toLowerCase()) || id.includes(searchFilter.toLowerCase());
               })
               .map((tool) => {
-                const currentStatus = toolStatuses[tool.ToolId];
                 return (
                   <div
                     key={tool.ToolId}

@@ -1,12 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity, Cpu, HardDrive, RefreshCw, Play,
-  CheckCircle2, AlertTriangle, XCircle, Search,
-  History, FileText, Server, AlertOctagon, Zap, ShieldAlert
+  CheckCircle2, AlertTriangle, Search,
+  History, FileText, Server, AlertOctagon, Zap
 } from 'lucide-react';
 import type {
   BridgeTool, ExecutionMode,
-  OperationsPreview, OperationsPreviewProcess,
+  OperationsPreview,
   ToolRunConfirmation, ToolRunOptions
 } from '../../../lib/api';
 import { api } from '../../../lib/api';
@@ -138,8 +138,6 @@ export default function MonitoringStation(props: MonitoringStationProps) {
 function MonitoringStationContent({
   lang,
   tools,
-  toolStatuses,
-  bridgeElevated,
   bridgeOnline,
   onRetryBridge,
   onToolStatus,

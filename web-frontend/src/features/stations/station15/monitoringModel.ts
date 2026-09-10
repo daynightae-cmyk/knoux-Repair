@@ -11,7 +11,6 @@ import type {
   KnouxRunResult,
   OperationsPreview,
   OperationsPreviewProcess,
-  OperationsPreviewService,
 } from '../../../lib/api';
 
 export type ObservatoryCondition = 'NOMINAL' | 'ELEVATED_LOAD' | 'CRITICAL_BOTTLENECK' | 'INCONCLUSIVE';

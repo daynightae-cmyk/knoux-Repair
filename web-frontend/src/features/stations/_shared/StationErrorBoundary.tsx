@@ -4,6 +4,7 @@ interface StationErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: (error: unknown) => void;
+  lang?: string;
 }
 
 interface StationErrorBoundaryState {
