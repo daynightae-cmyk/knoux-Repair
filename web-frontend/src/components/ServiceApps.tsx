@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Activity, AppWindow, ArchiveRestore, ArrowRight, Boxes,
+  Activity, AppWindow, ArchiveRestore, ArrowRight,
   CheckCircle2, ChevronRight, CircleAlert, CloudCog, Copy, Cpu, DatabaseZap, FolderKanban, Gauge, HardDrive,
   HeartPulse, Layers3, LoaderCircle, LockKeyhole, MonitorCog, Network, PackageCheck, Radar, RefreshCw,
   Rocket, ScanSearch, ShieldCheck, Sparkles, Trash2, TriangleAlert, UserRoundCheck,
@@ -10,7 +10,7 @@ import type { ElementType } from 'react';
 import type { ActiveSection, ToolStatus } from '../types';
 import type {
   BridgeTool, ExecutionMode,
-  PostInstallPreview, SoftwarePreview,
+  PostInstallPreview,
   ToolRunConfirmation, ToolRunOptions,
 } from '../lib/api';
 import { api } from '../lib/api';
@@ -32,6 +32,7 @@ import DeveloperStation from '../features/stations/station12/DeveloperStation';
 import PrivacyStation from '../features/stations/station13/PrivacyStation';
 import DriversStation from '../features/stations/station14/DriversStation';
 import MonitoringStation from '../features/stations/station15/MonitoringStation';
+import SoftwareStation from '../features/stations/station16/SoftwareStation';
 import ProjectSonarApp from './ProjectSonarApp';
 
 interface ServiceAppsProps {
@@ -138,12 +139,6 @@ function SafetyNote({ lang }: { lang: Lang }) { const text = COPY[lang]; return 
 
 
 
-function LibraryApp({ data, lang, variant }: { data: SoftwarePreview; lang: Lang; variant: 'software' | 'apps' | 'developer' }) {
-  const [filter, setFilter] = useState<'all' | 'desktop' | 'store'>('all'); const [selectedName, setSelectedName] = useState<string | null>(data.Items[0]?.Name || null);
-  const labels = variant === 'developer' ? { title: lang === 'ar' ? 'بيئة العمل' : 'Work environment', subtitle: lang === 'ar' ? 'الأدوات والتطبيقات المحلية' : 'Local tools and applications' } : variant === 'apps' ? { title: lang === 'ar' ? 'مركز التطبيقات' : 'App center', subtitle: lang === 'ar' ? 'كل ما هو مثبت على الجهاز' : 'Everything installed on this device' } : { title: lang === 'ar' ? 'مكتبة البرامج' : 'Software library', subtitle: lang === 'ar' ? 'تطبيقاتك في مكان واحد' : 'Your applications in one place' };
-  const items = data.Items.filter((item) => filter === 'all' || (filter === 'desktop' ? item.Kind === 'Desktop' : item.Kind === 'Appx')); const selected = items.find((item) => item.Name === selectedName) || data.Items.find((item) => item.Name === selectedName) || null;
-  return <div className="library-app-view library-product-view"><section className="library-overview"><div><p>{labels.subtitle}</p><h2>{number(data.Total, lang)}</h2><span>{labels.title}</span></div><Boxes size={45} /><aside><span>{lang === 'ar' ? 'تطبيقات سطح المكتب' : 'Desktop apps'}</span><strong>{number(data.DesktopCount, lang)}</strong><span>{lang === 'ar' ? 'تطبيقات المتجر' : 'Store apps'}</span><strong>{number(data.AppxCount, lang)}</strong></aside></section><section className="library-toolbar"><div><span>{lang === 'ar' ? 'عرض' : 'Show'}</span>{([['all', lang === 'ar' ? 'الكل' : 'All'], ['desktop', lang === 'ar' ? 'سطح المكتب' : 'Desktop'], ['store', lang === 'ar' ? 'المتجر' : 'Store']] as const).map(([id, label]) => <button type="button" className={filter === id ? 'is-active' : ''} key={id} onClick={() => setFilter(id)}>{label}</button>)}</div><small>{data.Truncated ? (lang === 'ar' ? 'تُعرض عينة من الجرد المتاح.' : 'A sample of the available inventory is displayed.') : (lang === 'ar' ? 'جرد التطبيقات مكتمل.' : 'Application inventory is complete.')}</small></section><section className="library-shelf">{items.slice(0, 12).map((item) => <button type="button" className={selected?.Name === item.Name ? 'is-selected' : ''} key={`${item.Name}-${item.Version}`} onClick={() => setSelectedName(item.Name)}><span>{item.Name.slice(0, 1).toUpperCase()}</span><div><strong>{item.Name}</strong><small>{item.Publisher || (lang === 'ar' ? 'تطبيق محلي' : 'Local application')}</small></div><b>{item.Version || '—'}</b></button>)}</section>{selected && <section className="library-detail-card"><div><p>{lang === 'ar' ? 'التطبيق المختار' : 'Selected application'}</p><h3>{selected.Name}</h3><span>{selected.Publisher || (lang === 'ar' ? 'ناشر غير معروف' : 'Unknown publisher')} · {selected.Version || '—'}</span></div><div><span>{lang === 'ar' ? 'المصدر' : 'Source'}</span><strong>{selected.Kind === 'Appx' ? (lang === 'ar' ? 'متجر ويندوز' : 'Windows Store') : (lang === 'ar' ? 'سطح المكتب' : 'Desktop')}</strong></div><div><span>{lang === 'ar' ? 'إزالة مسجلة' : 'Registered uninstall'}</span><strong>{selected.CanUninstall ? (lang === 'ar' ? 'متاحة عبر إجراء معتمد' : 'Available through an approved action') : (lang === 'ar' ? 'غير متاحة' : 'Unavailable')}</strong></div></section>}</div>;
-}
 
 
 
@@ -374,9 +369,21 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
         />
       );
     }
+    if (activeSection === 'softwareEnvironment') {
+      return (
+        <SoftwareStation
+          lang={lang}
+          tools={tools}
+          toolStatuses={toolStatuses}
+          bridgeElevated={bridgeElevated}
+          bridgeOnline={bridgeOnline}
+          onRetryBridge={onRetryBridge || reload}
+          onToolStatus={onToolStatus || (() => {})}
+        />
+      );
+    }
     if (!available || !data) return null;
     switch (activeSection) {
-      case 'softwareEnvironment': return <LibraryApp data={data as SoftwarePreview} lang={lang} variant="software" />;
       case 'postInstall': return <SetupApp data={data as PostInstallPreview} lang={lang} />;
       default: return <GenericApp section={activeSection} lang={lang} />;
     }
@@ -388,7 +395,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || activeSection === 'developerTools' || activeSection === 'privacy' || activeSection === 'drivers' || activeSection === 'monitoring' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || activeSection === 'developerTools' || activeSection === 'privacy' || activeSection === 'drivers' || activeSection === 'monitoring' || activeSection === 'softwareEnvironment' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>
