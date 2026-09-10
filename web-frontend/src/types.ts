@@ -1,3 +1,5 @@
+export type { Lang } from './lib/i18n';
+
 export interface Tool {
   ToolId: string;
   Category: string;

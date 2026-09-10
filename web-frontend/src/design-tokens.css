@@ -1,0 +1,141 @@
+/* ═══════════════════════════════════════════════════════════
+   KNOUX Repair — Design System Tokens
+   Premium glassmorphic desktop workstation identity
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Canvas ── */
+  --knoux-bg: #050714;
+  --knoux-bg-rgb: 5, 7, 20;
+
+  /* ── Surfaces ── */
+  --knoux-surface: rgba(15, 23, 42, 0.7);
+  --knoux-surface-elevated: rgba(30, 41, 59, 0.8);
+  --knoux-surface-overlay: rgba(15, 23, 42, 0.92);
+  --knoux-surface-glass: rgba(15, 23, 42, 0.5);
+  --knoux-surface-inset: rgba(2, 4, 12, 0.6);
+
+  /* ── Brand Colors ── */
+  --knoux-violet: #7C3AED;
+  --knoux-violet-rgb: 124, 58, 237;
+  --knoux-violet-dark: #5B21B6;
+  --knoux-purple: #A855F7;
+  --knoux-purple-rgb: 168, 85, 247;
+  --knoux-blue: #06B6FF;
+  --knoux-blue-rgb: 6, 182, 255;
+  --knoux-cyan: #22D3EE;
+  --knoux-cyan-rgb: 34, 211, 238;
+
+  /* ── Semantic ── */
+  --knoux-success: #10B981;
+  --knoux-success-rgb: 16, 185, 129;
+  --knoux-warning: #F59E0B;
+  --knoux-warning-rgb: 245, 158, 11;
+  --knoux-danger: #EF4444;
+  --knoux-danger-rgb: 239, 68, 68;
+  --knoux-info: #3B82F6;
+  --knoux-info-rgb: 59, 130, 246;
+
+  /* ── Text ── */
+  --knoux-text: #F8FAFF;
+  --knoux-text-secondary: #CBD5E1;
+  --knoux-text-muted: #94A3B8;
+  --knoux-text-faint: #64748B;
+  --knoux-text-disabled: #475569;
+
+  /* ── Borders ── */
+  --knoux-border: rgba(255, 255, 255, 0.08);
+  --knoux-border-subtle: rgba(255, 255, 255, 0.04);
+  --knoux-border-accent: rgba(124, 58, 237, 0.3);
+  --knoux-border-highlight: rgba(255, 255, 255, 0.12);
+
+  /* ── Glass ── */
+  --knoux-glass-blur: 20px;
+  --knoux-glass-blur-heavy: 40px;
+  --knoux-glass-border: 1px solid rgba(255, 255, 255, 0.08);
+  --knoux-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --knoux-glass-shadow-elevated: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --knoux-glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  /* ── Radius ── */
+  --knoux-radius-xs: 4px;
+  --knoux-radius-sm: 8px;
+  --knoux-radius-md: 12px;
+  --knoux-radius-lg: 16px;
+  --knoux-radius-xl: 20px;
+  --knoux-radius-2xl: 24px;
+  --knoux-radius-full: 9999px;
+
+  /* ── Spacing ── */
+  --knoux-space-1: 4px;
+  --knoux-space-2: 8px;
+  --knoux-space-3: 12px;
+  --knoux-space-4: 16px;
+  --knoux-space-5: 20px;
+  --knoux-space-6: 24px;
+  --knoux-space-8: 32px;
+  --knoux-space-10: 40px;
+  --knoux-space-12: 48px;
+  --knoux-space-16: 64px;
+
+  /* ── Typography ── */
+  --knoux-font-display: 'Space Grotesk', 'Inter', system-ui, -apple-system, sans-serif;
+  --knoux-font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --knoux-font-mono: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+
+  --knoux-text-display: 700 48px/56px var(--knoux-font-display);
+  --knoux-text-section: 600 32px/40px var(--knoux-font-display);
+  --knoux-text-card-title: 600 24px/32px var(--knoux-font-display);
+  --knoux-text-subheading: 600 20px/28px var(--knoux-font-display);
+  --knoux-text-body-lg: 400 16px/24px var(--knoux-font-body);
+  --knoux-text-body: 400 14px/20px var(--knoux-font-body);
+  --knoux-text-caption: 500 12px/16px var(--knoux-font-body);
+  --knoux-text-overline: 600 11px/14px var(--knoux-font-body);
+  --knoux-text-mono: 400 13px/18px var(--knoux-font-mono);
+
+  /* ── Motion ── */
+  --knoux-duration-fast: 150ms;
+  --knoux-duration-normal: 200ms;
+  --knoux-duration-slow: 300ms;
+  --knoux-duration-reveal: 400ms;
+  --knoux-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --knoux-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Z-Index ── */
+  --knoux-z-rail: 100;
+  --knoux-z-topbar: 200;
+  --knoux-z-sentinel: 50;
+  --knoux-z-modal: 500;
+  --knoux-z-search: 600;
+  --knoux-z-splash: 900;
+  --knoux-z-toast: 800;
+
+  /* ── Breakpoints (reference only — use media queries) ── */
+  /* compact: 1024px */
+  /* standard: 1366px */
+  /* large: 1920px */
+
+  /* ── Family Accents ── */
+  --knoux-family-vitality: #7C3AED;
+  --knoux-family-vitality-rgb: 124, 58, 237;
+  --knoux-family-recovery: #06B6D4;
+  --knoux-family-recovery-rgb: 6, 182, 212;
+  --knoux-family-assurance: #10B981;
+  --knoux-family-assurance-rgb: 16, 185, 129;
+  --knoux-family-software: #A855F7;
+  --knoux-family-software-rgb: 168, 85, 247;
+  --knoux-family-workbench: #7C3AED;
+  --knoux-family-workbench-rgb: 124, 58, 237;
+  --knoux-family-investigation: #3B82F6;
+  --knoux-family-investigation-rgb: 59, 130, 246;
+}
+
+/* ── Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --knoux-duration-fast: 0ms;
+    --knoux-duration-normal: 0ms;
+    --knoux-duration-slow: 0ms;
+    --knoux-duration-reveal: 0ms;
+  }
+}
