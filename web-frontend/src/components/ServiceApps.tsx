@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity, AppWindow, ArchiveRestore, ArrowRight, BadgeCheck, BarChart3, Boxes, Check,
   CheckCircle2, ChevronRight, CircleAlert, CloudCog, Copy, Cpu, DatabaseZap, Download, FolderKanban, Gauge, HardDrive,
-  HeartPulse, Layers3, LoaderCircle, LockKeyhole, MemoryStick, MonitorCog, Network, PackageCheck, Radar, RefreshCw,
+  HeartPulse, Layers3, LoaderCircle, LockKeyhole, MonitorCog, Network, PackageCheck, Radar, RefreshCw,
   Rocket, ScanSearch, ShieldCheck, Sparkles, Trash2, TriangleAlert, UserRoundCheck,
   Wrench,
 } from 'lucide-react';
@@ -10,7 +10,7 @@ import type { ElementType } from 'react';
 import type { ActiveSection, ToolStatus } from '../types';
 import type {
   BackupRecoveryPreview, BridgeTool, DiagnosticsPreview, DriversPreview, ExecutionMode,
-  OperationsPreview, OptimizationPreview, PostInstallPreview, PrivacyPreview, SoftwarePreview,
+  OperationsPreview, PostInstallPreview, PrivacyPreview, SoftwarePreview,
   SystemSnapshot, ToolRunConfirmation, ToolRunOptions,
 } from '../lib/api';
 import { api } from '../lib/api';
@@ -24,6 +24,7 @@ import ProgramsStation from '../features/stations/station04/ProgramsStation';
 import DuplicateStation from '../features/stations/station05/DuplicateStation';
 import DiskSpaceStation from '../features/stations/station06/DiskSpaceStation';
 import ServicesStation from '../features/stations/station07/ServicesStation';
+import PerformanceStation from '../features/stations/station08/PerformanceStation';
 import ProjectSonarApp from './ProjectSonarApp';
 
 interface ServiceAppsProps {
@@ -99,7 +100,6 @@ function bytes(value: number | null | undefined, lang: Lang) {
   return `${value.toLocaleString(lang)} B`;
 }
 function number(value: number | null | undefined, lang: Lang) { return value === null || value === undefined ? '—' : value.toLocaleString(lang); }
-function percent(value: number | null | undefined) { return Math.max(0, Math.min(100, value || 0)); }
 function preferredMode(tool: BridgeTool): ExecutionMode { return tool.AnalyzeOnlySupported ? 'analyze' : tool.WhatIfSupported ? 'preview' : 'run'; }
 function tone(status: ToolStatus | undefined) { return status === 'success' ? 'is-success' : status === 'error' ? 'is-error' : status === 'running' ? 'is-running' : ''; }
 
@@ -127,11 +127,7 @@ function ActionRail({ tools, lang, toolStatuses, bridgeElevated, onLaunch, onCan
 
 function SafetyNote({ lang }: { lang: Lang }) { const text = COPY[lang]; return <aside className="app-safety-note"><ShieldCheck size={18} /><div><strong>{text.safe}</strong><span>{text.safeBody}</span></div></aside>; }
 
-function PerformanceApp({ data, lang, reviewableToolIds, onReviewSignal }: { data: OptimizationPreview; lang: Lang; reviewableToolIds: Set<string>; onReviewSignal: (toolId: string) => void }) {
-  const text = COPY[lang];
-  const severity = (level: string) => level.toUpperCase() === 'HIGH' || level.toUpperCase() === 'CRITICAL' ? (lang === 'ar' ? 'أثر مرتفع' : 'High impact') : level.toUpperCase() === 'MEDIUM' ? (lang === 'ar' ? 'أثر متوسط' : 'Medium impact') : (lang === 'ar' ? 'أثر محدود' : 'Low impact');
-  return <div className="performance-app-view performance-product-view"><section className="performance-cockpit"><div className="performance-gauge"><Gauge size={27} /><strong>{data.Cpu.LoadPercent}%</strong><span>{lang === 'ar' ? 'تحميل المعالج' : 'CPU load'}</span></div><div className="performance-brief"><p>{lang === 'ar' ? 'مركز الأداء' : 'Performance center'}</p><h2>{data.Signals.length ? text.attention : text.healthy}</h2><span>{lang === 'ar' ? 'يتم توليد فرص التحسين من إشارات الجهاز الحالية فقط.' : 'Opportunities are generated only from current device signals.'}</span></div><div className="performance-memory"><span>{lang === 'ar' ? 'ضغط الذاكرة' : 'Memory pressure'}</span><strong>{data.Memory.LoadPercent}%</strong><i><b style={{ width: `${percent(data.Memory.LoadPercent)}%` }} /></i><small>{number(data.Memory.FreeGB, lang)} GB {lang === 'ar' ? 'متاحة' : 'available'}</small></div></section><section className="performance-metrics-grid"><Metric icon={Cpu} label={lang === 'ar' ? 'المعالج' : 'CPU'} value={`${data.Cpu.LoadPercent}%`} /><Metric icon={MemoryStick} label={lang === 'ar' ? 'الذاكرة المستخدمة' : 'Memory used'} value={`${number(data.Memory.UsedGB, lang)} GB`} /><Metric icon={HardDrive} label={lang === 'ar' ? 'الأقراص' : 'Drives'} value={number(data.Disks.length, lang)} /><Metric icon={Activity} label={lang === 'ar' ? 'العمليات' : 'Processes'} value={number(data.ProcessCount, lang)} /></section><section className="performance-signals product-findings">{data.Signals.length ? data.Signals.slice(0, 6).map((signal) => <article key={signal.Code}><span className={`signal-level ${signal.Level.toLowerCase()}`} /><div><strong>{signal.Message}</strong><small>{severity(signal.Level)} · {lang === 'ar' ? 'مبني على قراءة الجهاز' : 'based on device reading'}</small></div>{signal.SuggestedTool && reviewableToolIds.has(signal.SuggestedTool) ? <button type="button" onClick={() => onReviewSignal(signal.SuggestedTool)}>{lang === 'ar' ? 'راجع' : 'Review'}<ChevronRight size={15} className="rtl:rotate-180" /></button> : <ChevronRight size={16} className="rtl:rotate-180" />}</article>) : <article className="performance-positive"><CheckCircle2 size={19} />{lang === 'ar' ? 'لا توجد إشارات أداء عاجلة حالياً.' : 'No urgent performance signals right now.'}</article>}</section><section className="performance-process-strip"><div><div><p>{lang === 'ar' ? 'أعلى التطبيقات استخداماً' : 'Top active apps'}</p><h3>{lang === 'ar' ? 'لقطة الاستخدام' : 'Usage snapshot'}</h3></div><Activity size={22} /></div>{data.TopProcesses.slice(0, 6).map((process) => <span key={process.Id}><b>{process.Name}</b><small>{number(process.MemoryMB, lang)} MB</small></span>)}</section></div>;
-}
+
 
 
 
@@ -303,9 +299,21 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
         />
       );
     }
+    if (activeSection === 'performance') {
+      return (
+        <PerformanceStation
+          lang={lang}
+          tools={tools}
+          toolStatuses={toolStatuses}
+          bridgeElevated={bridgeElevated}
+          bridgeOnline={bridgeOnline}
+          onRetryBridge={onRetryBridge || reload}
+          onToolStatus={onToolStatus || (() => {})}
+        />
+      );
+    }
     if (!available || !data) return null;
     switch (activeSection) {
-      case 'performance': return <PerformanceApp data={data as OptimizationPreview} lang={lang} reviewableToolIds={reviewableToolIds} onReviewSignal={launchToolById} />;
       case 'security': return <SecurityApp data={data as SystemSnapshot} lang={lang} />;
       case 'diagnostics': return <DiagnosticsApp data={data as DiagnosticsPreview} lang={lang} />;
       case 'backupRecovery': return <RecoveryApp data={data as BackupRecoveryPreview} lang={lang} />;
@@ -325,7 +333,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>
