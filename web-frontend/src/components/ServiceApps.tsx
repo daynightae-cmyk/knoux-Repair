@@ -261,6 +261,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           bridgeElevated={bridgeElevated}
           bridgeOnline={bridgeOnline}
           onRetryBridge={onRetryBridge || reload}
+          onToolStatus={onToolStatus || (() => {})}
         />
       );
     }
@@ -284,7 +285,6 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       case 'security': return <SecurityApp data={data as SystemSnapshot} lang={lang} />;
       case 'diagnostics': return <DiagnosticsApp data={data as DiagnosticsPreview} lang={lang} />;
       case 'backupRecovery': return <RecoveryApp data={data as BackupRecoveryPreview} lang={lang} />;
-      case 'programs': return <LibraryApp data={data as SoftwarePreview} lang={lang} variant="apps" />;
       case 'softwareEnvironment': return <LibraryApp data={data as SoftwarePreview} lang={lang} variant="software" />;
       case 'developerTools': return <LibraryApp data={data as SoftwarePreview} lang={lang} variant="developer" />;
       case 'privacy': return <PrivacyApp data={data as PrivacyPreview} lang={lang} />;

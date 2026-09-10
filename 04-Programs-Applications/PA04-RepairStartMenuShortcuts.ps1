@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 #  knoux Repair v2.0.2 | 04-Programs-Applications | PA04 - Repair Start Menu Shortcuts
 #  Risk: SYSTEM_REPAIR
 #  Fixes Start Menu and desktop shortcuts whose target path is broken.

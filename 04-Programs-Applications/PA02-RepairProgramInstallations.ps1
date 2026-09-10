@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 #  knoux Repair v2.0.2 | 04-Programs-Applications | PA02 - Repair Program Installations
 #  Risk: SYSTEM_REPAIR | Admin: Required
 #  Repairs common obstacles to clean installs of user programs:

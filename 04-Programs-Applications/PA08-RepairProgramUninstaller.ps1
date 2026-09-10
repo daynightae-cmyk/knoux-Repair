@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 #  knoux Repair v2.0.2 | 04-Programs-Applications | PA08 - Repair Program Uninstaller
 #  Risk: SYSTEM_REPAIR | Offline: Yes
 #  Re-registers the Windows Installer and clears common blockers that

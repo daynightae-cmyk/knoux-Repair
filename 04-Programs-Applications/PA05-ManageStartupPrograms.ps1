@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 #  knoux Repair v2.0 | 04-Programs-Applications | PA05 - Manage Startup Programs
 #  Risk: SYSTEM_REPAIR
 #  Lists startup entries (Run/RunOnce for HKLM + HKCU). Enables the

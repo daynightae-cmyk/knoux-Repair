@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 #  knoux Repair v2.0 | 04-Programs-Applications | PA07 - Remove Unnecessary Windows Apps
 #  Risk: DESTRUCTIVE | Admin: Required (machine-wide) or user (per-user)
 #  Lists provisioned Windows Store apps. Lets the user remove selected
