@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Activity, AppWindow, ArchiveRestore, ArrowRight, BadgeCheck, BarChart3, Boxes, Check,
+  Activity, AppWindow, ArchiveRestore, ArrowRight, BadgeCheck, BarChart3, Boxes,
   CheckCircle2, ChevronRight, CircleAlert, CloudCog, Copy, Cpu, DatabaseZap, Download, FolderKanban, Gauge, HardDrive,
   HeartPulse, Layers3, LoaderCircle, LockKeyhole, MonitorCog, Network, PackageCheck, Radar, RefreshCw,
   Rocket, ScanSearch, ShieldCheck, Sparkles, Trash2, TriangleAlert, UserRoundCheck,
@@ -11,7 +11,7 @@ import type { ActiveSection, ToolStatus } from '../types';
 import type {
   BackupRecoveryPreview, BridgeTool, DiagnosticsPreview, DriversPreview, ExecutionMode,
   OperationsPreview, PostInstallPreview, PrivacyPreview, SoftwarePreview,
-  SystemSnapshot, ToolRunConfirmation, ToolRunOptions,
+  ToolRunConfirmation, ToolRunOptions,
 } from '../lib/api';
 import { api } from '../lib/api';
 import type { Lang } from '../lib/i18n';
@@ -25,6 +25,7 @@ import DuplicateStation from '../features/stations/station05/DuplicateStation';
 import DiskSpaceStation from '../features/stations/station06/DiskSpaceStation';
 import ServicesStation from '../features/stations/station07/ServicesStation';
 import PerformanceStation from '../features/stations/station08/PerformanceStation';
+import SecurityStation from '../features/stations/station09/SecurityStation';
 import ProjectSonarApp from './ProjectSonarApp';
 
 interface ServiceAppsProps {
@@ -132,16 +133,6 @@ function SafetyNote({ lang }: { lang: Lang }) { const text = COPY[lang]; return 
 
 
 
-function SecurityApp({ data, lang }: { data: SystemSnapshot; lang: Lang }) {
-  const firewallOn = Boolean(data.Firewall?.length && data.Firewall.every((item) => item.Enabled)); const secure = data.DefenderRunning && data.DefenderRealtime && firewallOn;
-  const findings = [
-    { label: lang === 'ar' ? 'الحماية الفورية' : 'Real-time protection', active: data.DefenderRealtime, detail: lang === 'ar' ? 'تفحص ويندوز الملفات والتغييرات أثناء الاستخدام.' : 'Windows monitors files and changes while you work.' },
-    { label: lang === 'ar' ? 'خدمة الحماية' : 'Protection service', active: data.DefenderRunning, detail: lang === 'ar' ? 'خدمة Windows Defender متاحة للنظام.' : 'The Windows Defender service is available to the system.' },
-    { label: lang === 'ar' ? 'الجدار الناري' : 'Firewall', active: firewallOn, detail: lang === 'ar' ? 'كل ملفات تعريف الجدار الناري التي أمكن قراءتها مفعّلة.' : 'Every firewall profile that could be read is enabled.' },
-  ];
-  return <div className="security-app-view security-product-view"><section className={`security-shield ${secure ? 'is-secure' : 'is-review'}`}><ShieldCheck size={60} /><div><p>{lang === 'ar' ? 'مركز الحماية' : 'Protection center'}</p><h2>{secure ? (lang === 'ar' ? 'الحماية مفعّلة' : 'Protection is on') : (lang === 'ar' ? 'تحتاج الحماية مراجعة' : 'Protection needs review')}</h2><span>{lang === 'ar' ? 'تقييم مبني على Windows Defender وحالة الجدار الناري الحالية.' : 'An assessment based on current Windows Defender and firewall status.'}</span></div><span className="security-posture-chip">{secure ? <CheckCircle2 size={15} /> : <CircleAlert size={15} />}{secure ? (lang === 'ar' ? 'جاهز' : 'Ready') : (lang === 'ar' ? 'راجع' : 'Review')}</span></section><section className="security-checks">{findings.map((finding) => <SecurityCheck key={finding.label} icon={finding.label === 'Firewall' || finding.label === 'الجدار الناري' ? LockKeyhole : ShieldCheck} label={finding.label} value={finding.active} lang={lang} />)}</section><section className="security-finding-list">{findings.filter((finding) => !finding.active).length ? findings.filter((finding) => !finding.active).map((finding) => <article key={finding.label}><CircleAlert size={19} /><div><strong>{finding.label}</strong><span>{finding.detail}</span></div><small>{lang === 'ar' ? 'راجع إجراء الحماية المتاح أدناه.' : 'Review an available protection action below.'}</small></article>) : <article className="is-clear"><CheckCircle2 size={19} /><div><strong>{lang === 'ar' ? 'لا توجد ملاحظة حماية فورية' : 'No immediate protection finding'}</strong><span>{lang === 'ar' ? 'يعرض هذا الملخص فقط ما استطاع الجهاز التحقق منه الآن.' : 'This summary reports only what the device could verify now.'}</span></div></article>}</section><section className="security-signature"><BadgeCheck size={20} /><div><span>{lang === 'ar' ? 'آخر تعريفات الحماية' : 'Protection definitions'}</span><strong>{data.DefenderSignatures || '—'}</strong></div></section></div>;
-}
-function SecurityCheck({ icon: Icon, label, value, lang }: { icon: ElementType; label: string; value: boolean; lang: Lang }) { return <article className={value ? 'is-good' : 'is-review'}><Icon size={20} /><div><strong>{label}</strong><span>{value ? (lang === 'ar' ? 'جاهز' : 'Ready') : (lang === 'ar' ? 'تحتاج مراجعة' : 'Needs review')}</span></div>{value ? <Check size={18} /> : <TriangleAlert size={18} />}</article>; }
 
 function DiagnosticsApp({ data, lang }: { data: DiagnosticsPreview; lang: Lang }) {
   const tests = [
@@ -312,9 +303,21 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
         />
       );
     }
+    if (activeSection === 'security') {
+      return (
+        <SecurityStation
+          lang={lang}
+          tools={tools}
+          toolStatuses={toolStatuses}
+          bridgeElevated={bridgeElevated}
+          bridgeOnline={bridgeOnline}
+          onRetryBridge={onRetryBridge || reload}
+          onToolStatus={onToolStatus || (() => {})}
+        />
+      );
+    }
     if (!available || !data) return null;
     switch (activeSection) {
-      case 'security': return <SecurityApp data={data as SystemSnapshot} lang={lang} />;
       case 'diagnostics': return <DiagnosticsApp data={data as DiagnosticsPreview} lang={lang} />;
       case 'backupRecovery': return <RecoveryApp data={data as BackupRecoveryPreview} lang={lang} />;
       case 'softwareEnvironment': return <LibraryApp data={data as SoftwarePreview} lang={lang} variant="software" />;
@@ -333,7 +336,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>
