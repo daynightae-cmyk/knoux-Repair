@@ -27,7 +27,44 @@ export interface StartupItem {
 }
 
 export function parseInstalledApps(lines: string[]): InstalledApp[] {
-  // Minimal parser matching existing PowerShell output markers.
+  // Real parser: tries JSON from PA01 output (installed-programs.json); falls back to line parsing.
+  try {
+    const jsonText = lines.join('\n');
+    if (jsonText.includes('installed-programs')) {
+      const parsed = JSON.parse(jsonText);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item: unknown) => {
+          const i = item as Record<string, unknown>;
+          return {
+            Name: String(i.Name || i.DisplayName || 'Unknown'),
+            Version: String(i.Version || i.DisplayVersion || ''),
+            Publisher: String(i.Publisher || ''),
+            InstallDate: String(i.InstallDate || ''),
+            EstimatedSizeMB: Number(i.EstimatedSizeMB || 0),
+            UninstallString: String(i.UninstallString || ''),
+          };
+        });
+      }
+    }
+  } catch {
+    // Not JSON: attempt simple line parsing.
+    const out: InstalledApp[] = [];
+    const nameRe = /Name\s*=[^;]+/;
+    for (const line of lines) {
+      const match = line.match(/Name=([^;]+)/);
+      if (match) {
+        out.push({
+          Name: match[1].trim(),
+          Version: '',
+          Publisher: '',
+          InstallDate: '',
+          EstimatedSizeMB: 0,
+          UninstallString: '',
+        });
+      }
+    }
+    return out;
+  }
   return [];
 }
 
