@@ -28,6 +28,7 @@ import PerformanceStation from '../features/stations/station08/PerformanceStatio
 import SecurityStation from '../features/stations/station09/SecurityStation';
 import DiagnosticsStation from '../features/stations/station10/DiagnosticsStation';
 import RecoveryStation from '../features/stations/station11/RecoveryStation';
+import DeveloperStation from '../features/stations/station12/DeveloperStation';
 import ProjectSonarApp from './ProjectSonarApp';
 
 interface ServiceAppsProps {
@@ -321,10 +322,22 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
         />
       );
     }
+    if (activeSection === 'developerTools') {
+      return (
+        <DeveloperStation
+          lang={lang}
+          tools={tools}
+          toolStatuses={toolStatuses}
+          bridgeElevated={bridgeElevated}
+          bridgeOnline={bridgeOnline}
+          onRetryBridge={onRetryBridge || reload}
+          onToolStatus={onToolStatus || (() => {})}
+        />
+      );
+    }
     if (!available || !data) return null;
     switch (activeSection) {
       case 'softwareEnvironment': return <LibraryApp data={data as SoftwarePreview} lang={lang} variant="software" />;
-      case 'developerTools': return <LibraryApp data={data as SoftwarePreview} lang={lang} variant="developer" />;
       case 'privacy': return <PrivacyApp data={data as PrivacyPreview} lang={lang} />;
       case 'drivers': return <DriverApp data={data as DriversPreview} lang={lang} />;
       case 'postInstall': return <SetupApp data={data as PostInstallPreview} lang={lang} />;
@@ -339,7 +352,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || activeSection === 'developerTools' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>
