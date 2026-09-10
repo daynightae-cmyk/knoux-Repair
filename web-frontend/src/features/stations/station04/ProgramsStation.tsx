@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AppWindow, Download, LoaderCircle, LockKeyhole, RefreshCw, ScanSearch,
-  X, AlertTriangle, Layers, HelpCircle, ExternalLink, Activity
+  X, AlertTriangle, Layers, HelpCircle, ExternalLink, Activity,
+  History, Rocket, Boxes, Trash2, Wrench, Waypoints, Cpu
 } from 'lucide-react';
+import ProgramsHeroVisual from './ProgramsHeroVisual';
 import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
 import { pickName } from '../../../lib/i18n';
@@ -55,6 +57,10 @@ const COPY = {
     eyebrow: 'PROGRAMS & APPLICATIONS',
     title: 'Programs & Applications Workstation',
     subtitle: 'Unified Windows software management, startup control, cache cleanup, and repair.',
+    productTitle: 'Software Management & Application Studio',
+    productSub: 'Audit installed desktop and Store applications, manage startup programs, clean leftover residuals, and verify system features.',
+    primaryCta: 'RUN FULL INVENTORY',
+    secondaryCta: 'Startup Control',
     diagnose: 'Run Full Inventory',
     diagnosing: 'Scanning Software…',
     cancel: 'Cancel',
@@ -96,6 +102,20 @@ const COPY = {
       evidence: 'Live Log',
       history: 'History',
     },
+    tabDescriptions: {
+      overview: { title: 'Software Health & Service Matrix', sub: 'Comprehensive overview of installed inventory, startup items, and 10 backed services.' },
+      inventory: { title: 'Installed Application Inventory', sub: 'Registry HKLM, HKCU, WOW6432Node, and AppX package enumeration.' },
+      startup: { title: 'Startup Dispatch & Execution Control', sub: 'Inspect and reversibly disable startup programs from Run keys and startup directories.' },
+      windowsApps: { title: 'Provisioned & Installed Windows Apps', sub: 'Audit bundled AppX packages and safely remove unnecessary bloat.' },
+      cacheOrphans: { title: 'Application Caches & Residual Artifacts', sub: 'Safely identify candidate cache folders while strictly protecting user data and databases.' },
+      repair: { title: 'Application Repair & Scaffolding', sub: 'Targeted MSI re-registration and isolated repair routines without global wildcard execution.' },
+      associations: { title: 'File Associations & Protocol Handlers', sub: 'Diagnose broken file extensions with UserChoice security adherence.' },
+      features: { title: 'Optional Windows Features & Subsystems', sub: 'Query enabled and disabled Windows optional platform features.' },
+      updates: { title: 'Installed Windows Updates & KBs', sub: 'Audit installed servicing packages and hotfixes.' },
+      compatibility: { title: 'Compatibility & Runtime Troubleshooting', sub: 'Detect missing VC++ or .NET dependencies and broken application shortcuts.' },
+      evidence: { title: 'Execution Log & Raw Output', sub: 'Real-time stdout/stderr stream from background PowerShell bridge commands.' },
+      history: { title: 'Audit History & Evidence Archive', sub: 'Session ledger of all executed queries and repairs.' },
+    },
     downloadReport: 'Download Programs Report',
     searchPlaceholder: 'Search applications...',
   },
@@ -103,6 +123,10 @@ const COPY = {
     eyebrow: 'البرامج والتطبيقات',
     title: 'محطة إدارة وصيانة البرامج والتطبيقات',
     subtitle: 'إدارة متكاملة لبرامج ويندوز، بدء التشغيل، تنظيف البقايا، وإصلاح التثبيت.',
+    productTitle: 'استوديو إدارة وصيانة البرامج والتطبيقات',
+    productSub: 'جرد تطبيقات سطح المكتب والمتجر، إدارة بدء التشغيل، تنظيف البقايا المعزولة، والتحقق من ميزات ويندوز.',
+    primaryCta: 'فحص شامل للتطبيقات',
+    secondaryCta: 'برامج بدء التشغيل',
     diagnose: 'فحص شامل للتطبيقات',
     diagnosing: 'جارٍ فحص البرامج…',
     cancel: 'إلغاء',
@@ -143,6 +167,20 @@ const COPY = {
       compatibility: 'استكشاف الأخطاء',
       evidence: 'السجل المباشر',
       history: 'سجل العمليات',
+    },
+    tabDescriptions: {
+      overview: { title: 'صحة البرامج ومصفوفة الخدمات', sub: 'نظرة شاملة على جرد التطبيقات المثبتة، برامج البدء، والخدمات العشر المعتمدة.' },
+      inventory: { title: 'جرد التطبيقات المثبتة', sub: 'قراءة سجلات HKLM و HKCU و WOW6432Node وحزم AppX.' },
+      startup: { title: 'التحكم في بدء التشغيل', sub: 'فحص وتعطيل برامج بدء التشغيل بصورة قابلة للإلغاء من مفاتيح Run ومجلدات البدء.' },
+      windowsApps: { title: 'تطبيقات ويندوز المضمنة', sub: 'جرد حزم AppX وإزالة التطبيقات غير الضرورية بأمان.' },
+      cacheOrphans: { title: 'كاش البرامج وبقايا الملفات', sub: 'تحديد مجلدات الذاكرة المؤقتة القابلة للحذف مع حماية تامة لقواعد البيانات وملفات المستخدم.' },
+      repair: { title: 'إصلاح التثبيت وإعادة التسجيل', sub: 'إصلاح مخصص لحزم MSI ومكونات التطبيقات دون أوامر عشوائية.' },
+      associations: { title: 'اقترانات الملفات والبروتوكولات', sub: 'تشخيص اقترانات الامتدادات المعطلة مع احترام حماية UserChoice.' },
+      features: { title: 'ميزات ويندوز الاختيارية', sub: 'استعراض ميزات النظام الإضافية المفعلة والمعطلة.' },
+      updates: { title: 'تحديثات ويندوز المثبتة', sub: 'جرد حزم التحديثات والإصلاحات الأمنية التراكمية.' },
+      compatibility: { title: 'استكشاف أخطاء التوافق وبيئات التشغيل', sub: 'اكتشاف مكتبات الـ Runtime المفقودة واختصارات البرامج المعطلة.' },
+      evidence: { title: 'سجل التنفيذ المباشر', sub: 'متابعة نصوص الإخراج الفعلية من أوامر الباورشيل المحلية.' },
+      history: { title: 'سجل التدقيق والأرشيف', sub: 'سجل تفصيلي بجميع عمليات الفحص والإصلاح المنجزة.' },
     },
     downloadReport: 'تنزيل تقرير البرامج',
     searchPlaceholder: 'بحث في التطبيقات...',
@@ -369,16 +407,53 @@ export default function ProgramsStation({
     URL.revokeObjectURL(url);
   }, [evidence, lang]);
 
+  const hasScannedEvidence = useMemo(() =>
+    evidence.inventory.length > 0 || evidence.startup.length > 0 || history.length > 0 || recommendations.length > 0,
+    [evidence, history, recommendations]
+  );
+
+  const activeDomainForRun = useMemo(() => {
+    if (!activeRun) return null;
+    if (activeRun.toolId === 'PA01' || activeRun.toolId === 'PA07') return 'inventory';
+    if (activeRun.toolId === 'PA05') return 'startup';
+    if (activeRun.toolId === 'PA03' || activeRun.toolId === 'PA04') return 'residuals';
+    if (activeRun.toolId === 'PA06' || activeRun.toolId === 'PA08' || activeRun.toolId === 'PA09') return 'features';
+    return 'inventory';
+  }, [activeRun]);
+
+  const heroStage = useMemo(() => {
+    if (activeRun !== null) return 'scanning';
+    if (hasScannedEvidence) return 'healthy';
+    return 'idle';
+  }, [activeRun, hasScannedEvidence]);
+
+  const renderTabIcon = (tab: TabKey) => {
+    switch (tab) {
+      case 'overview': return <ScanSearch size={14} />;
+      case 'inventory': return <AppWindow size={14} />;
+      case 'startup': return <Rocket size={14} />;
+      case 'windowsApps': return <Boxes size={14} />;
+      case 'cacheOrphans': return <Trash2 size={14} />;
+      case 'repair': return <Wrench size={14} />;
+      case 'associations': return <Waypoints size={14} />;
+      case 'features': return <Cpu size={14} />;
+      case 'updates': return <RefreshCw size={14} />;
+      case 'compatibility': return <HelpCircle size={14} />;
+      case 'evidence': return <Activity size={14} />;
+      case 'history': return <History size={14} />;
+    }
+  };
+
   return (
     <StationErrorBoundary>
-      <section className="service-app-shell" dir={isAr ? 'rtl' : 'ltr'}>
+      <div className="programs-station" dir={isAr ? 'rtl' : 'ltr'}>
         {/* Topbar */}
-        <header className="service-app-topbar">
-          <div className="service-app-brand">
-            <AppWindow size={22} className="text-cyan-400" />
+        <header className="flex items-center justify-between gap-4 p-3 bg-slate-900/60 border border-slate-800/80 rounded-xl backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <AppWindow size={22} className="text-orange-400" />
             <div>
-              <h1 className="text-lg font-bold leading-tight">{t.title}</h1>
-              <p className="text-xs text-slate-400">{t.subtitle}</p>
+              <h1 className="text-base font-bold leading-tight text-slate-100">{t.title}</h1>
+              <p className="text-[11px] text-slate-400">{t.subtitle}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -415,7 +490,7 @@ export default function ProgramsStation({
         {/* Offline / Elevation Warnings */}
         {bridgeOnline === false && <StationOfflineState lang={lang} onRetry={onRetryBridge} reason="Bridge service is offline." />}
         {!bridgeElevated && (
-          <div className="mx-4 mt-3 p-3 bg-amber-950/40 border border-amber-500/30 rounded flex items-center justify-between text-xs text-amber-200">
+          <div className="p-3 bg-amber-950/40 border border-amber-500/30 rounded-lg flex items-center justify-between text-xs text-amber-200">
             <div className="flex items-center gap-2">
               <LockKeyhole size={16} className="text-amber-400 shrink-0" />
               <span>{t.elevateHelp}</span>
@@ -428,7 +503,7 @@ export default function ProgramsStation({
 
         {/* Active Error Banner */}
         {activeError && (
-          <div className="mx-4 mt-3 p-3 bg-red-950/40 border border-red-500/30 rounded flex items-center justify-between text-xs text-red-200">
+          <div className="p-3 bg-red-950/40 border border-red-500/30 rounded-lg flex items-center justify-between text-xs text-red-200">
             <div className="flex items-center gap-2">
               <AlertTriangle size={16} className="text-red-400 shrink-0" />
               <span>{activeError}</span>
@@ -440,28 +515,85 @@ export default function ProgramsStation({
         )}
 
         {/* Navigation Tabs */}
-        <nav className="flex gap-1 border-b border-slate-800 px-4 pt-2 overflow-x-auto text-xs">
+        <nav className="programs-mini-nav" aria-label={isAr ? 'تنقل محطة البرامج والتطبيقات' : 'Programs Station navigation'}>
           {(Object.keys(t.tabs) as TabKey[]).map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={`px-3 py-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
-                activeTab === tab
-                  ? 'border-cyan-400 text-cyan-300 bg-cyan-950/20'
-                  : 'border-transparent text-slate-400 hover:text-slate-200'
-              }`}
+              className={`programs-mini-nav-btn ${activeTab === tab ? 'is-active' : ''}`}
             >
-              {t.tabs[tab]}
+              {renderTabIcon(tab)}
+              <span>{t.tabs[tab]}</span>
             </button>
           ))}
         </nav>
 
+        {/* Contextual Tab Header */}
+        {activeTab !== 'overview' && (
+          <header className="programs-tab-header">
+            <h3>
+              {renderTabIcon(activeTab)}
+              <span>{t.tabDescriptions[activeTab]?.title || t.tabs[activeTab]}</span>
+            </h3>
+            <p>{t.tabDescriptions[activeTab]?.sub || ''}</p>
+          </header>
+        )}
+
         {/* Main Tab Content */}
-        <div className="p-4 space-y-6 flex-1 overflow-y-auto">
+        <div className="space-y-6 flex-1 overflow-y-auto">
           {/* TAB 1: OVERVIEW & HEALTH */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
+              {/* Landing Canvas before scan */}
+              {!hasScannedEvidence && activeRun === null && (
+                <section className="programs-landing-canvas">
+                  <ProgramsHeroVisual
+                    lang={lang}
+                    stage={heroStage}
+                    className="programs-landing-hero-visual"
+                  />
+                  <div className="programs-landing-copy">
+                    <h2>{t.productTitle}</h2>
+                    <p>{t.productSub}</p>
+                    <div className="programs-landing-actions">
+                      <button
+                        type="button"
+                        className="programs-landing-primary-cta"
+                        onClick={() => handleLaunchTool('PA01', 'run')}
+                        disabled={Boolean(activeRun)}
+                        aria-label={t.primaryCta}
+                      >
+                        <ScanSearch size={16} />
+                        <span>{t.primaryCta}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="programs-landing-secondary-cta"
+                        onClick={() => setActiveTab('startup')}
+                      >
+                        <Rocket size={14} />
+                        <span>{t.secondaryCta}</span>
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* Active Scanning Visual Banner */}
+              {activeRun !== null && (
+                <section className="programs-scanning-banner">
+                  <ProgramsHeroVisual
+                    lang={lang}
+                    stage="scanning"
+                    activeDomain={activeDomainForRun}
+                    appCount={evidence.inventory.length || null}
+                    startupCount={evidence.startup.length || null}
+                    className="programs-scanning-hero-visual"
+                  />
+                </section>
+              )}
+
               {/* Recommendations Card */}
               {recommendations.length > 0 && (
                 <section className="bg-slate-900/60 border border-slate-800 rounded-lg p-4">
@@ -1101,7 +1233,7 @@ export default function ProgramsStation({
             }}
           />
         )}
-      </section>
+      </div>
     </StationErrorBoundary>
   );
 }

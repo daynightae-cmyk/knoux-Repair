@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, ArrowRight, CircleAlert, Clock, Download, FileText,
-  LoaderCircle, LockKeyhole, Play, RefreshCw, ScanSearch, ShieldCheck, Square, Waypoints, Wifi, X,
+  History, Layers3, LoaderCircle, LockKeyhole, Play, RefreshCw, ScanSearch, ShieldCheck, Square,
+  Waypoints, Wifi, Wrench, X,
 } from 'lucide-react';
 import type { BridgeRun, BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../../lib/api';
 import { api, BridgeError } from '../../../lib/api';
@@ -16,6 +17,9 @@ import {
   stationTools, STATION03_TOOL_IDS, formatMs,
   type ConnectionLayerId, type DiagnoseEvidence, type HistoryEntry, type LayerState, type PreviewAdapter, type ToolOutcome,
 } from './networkModel';
+import NetworkHeroVisual from './NetworkHeroVisual';
+
+export type Station03Tab = 'overview' | 'adapters' | 'layers' | 'ladder' | 'ops' | 'report';
 
 interface NetworkStationProps {
   lang: Lang;
@@ -37,7 +41,10 @@ interface ActiveRun {
 const COPY = {
   en: {
     eyebrow: 'CONNECTION MAP', title: 'Network Diagnostic Workstation', subtitle: 'Real adapters, gateways, DNS, and reachability — measured layer by layer.',
+    productTitle: 'Connection Map & Network Topology', productSub: 'Real adapters, gateways, DNS, and reachability — measured layer by layer without simulated telemetry.',
     diagnose: 'Diagnose Connection', diagnosing: 'Diagnosing…', cancel: 'Cancel', close: 'Close',
+    primaryCta: 'DIAGNOSE CONNECTION', secondaryCta: 'View Repair Ladder',
+    navOverview: 'Overview', navAdapters: 'Adapters & IP', navLayers: 'Layer Evidence', navLadder: 'Repair Ladder', navOps: 'Operations', navReport: 'Report & History',
     pathTitle: 'Connection path', adaptersTitle: 'Adapters & IP', layersTitle: 'Layer evidence',
     findingsTitle: 'Findings', ladderTitle: 'Repair ladder', opsTitle: 'Network operations',
     verifyTitle: 'Before / after verification', evidenceTitle: 'Evidence center', historyTitle: 'Station history',
@@ -67,10 +74,23 @@ const COPY = {
     lastResort: 'Last resort', level: 'Level',
     yes: 'Yes', no: 'No',
     historyCols: { when: 'When', kind: 'Kind', tool: 'Tool', mode: 'Mode', result: 'Result', finding: 'Finding', changed: 'Changed', restart: 'Restart', verify: 'Verify', report: 'Report' },
+    tabAdaptersTitle: 'Network Adapters & IP Addressing',
+    tabAdaptersSub: 'Inspect active network adapters, physical/virtual categorization, DHCP leases, and gateways.',
+    tabLayersTitle: 'Network Layer Evidence & Diagnostics',
+    tabLayersSub: 'Real measurements from ICMP reachability, DNS queries, packet latency, and routing verification.',
+    tabLadderTitle: 'Evidence-Graded Repair Ladder',
+    tabLadderSub: 'Evidence-graded connection repair: refresh, then DNS, then DHCP, then Winsock, then full reset.',
+    tabOpsTitle: 'Specialized Network Operations',
+    tabOpsSub: 'All 11 registered diagnostic and repair tools with analyze, preview, and safe execution gates.',
+    tabReportTitle: 'Connection Audit & Evidence Report',
+    tabReportSub: 'Review session run history, before/after restoration verification, and export markdown reports.',
   },
   ar: {
     eyebrow: 'خريطة الاتصال', title: 'محطة تشخيص الشبكة', subtitle: 'محولات وبوابات وDNS ووصول حقيقي — يُقاس طبقة طبقة.',
+    productTitle: 'خريطة الاتصال وطوبولوجيا الشبكة', productSub: 'محولات وبوابات وDNS ووصول حقيقي — يُقاس طبقة طبقة دون محاكاة أو أرقام وهمية.',
     diagnose: 'تشخيص الاتصال', diagnosing: 'جارٍ التشخيص…', cancel: 'إيقاف', close: 'إغلاق',
+    primaryCta: 'تشخيص الاتصال', secondaryCta: 'سلم الإصلاح',
+    navOverview: 'نظرة عامة', navAdapters: 'المحولات وعناوين IP', navLayers: 'أدلة الطبقات', navLadder: 'سلم الإصلاح', navOps: 'العمليات', navReport: 'التقرير والسجل',
     pathTitle: 'مسار الاتصال', adaptersTitle: 'المحولات وعناوين IP', layersTitle: 'أدلة الطبقات',
     findingsTitle: 'النتائج', ladderTitle: 'سلم الإصلاح', opsTitle: 'عمليات الشبكة',
     verifyTitle: 'التحقق قبل / بعد', evidenceTitle: 'مركز الأدلة', historyTitle: 'سجل المحطة',
@@ -100,6 +120,16 @@ const COPY = {
     lastResort: 'الملاذ الأخير', level: 'المستوى',
     yes: 'نعم', no: 'لا',
     historyCols: { when: 'الوقت', kind: 'النوع', tool: 'الأداة', mode: 'الوضع', result: 'النتيجة', finding: 'النتيجة', changed: 'غيّر', restart: 'إعادة', verify: 'التحقق', report: 'التقرير' },
+    tabAdaptersTitle: 'محولات الشبكة وعناوين IP',
+    tabAdaptersSub: 'فحص محولات الشبكة النشطة وتصنيفها واشتراكات DHCP والبوابات.',
+    tabLayersTitle: 'أدلة طبقات الشبكة والتشخيص',
+    tabLayersSub: 'قياسات حقيقية من استجابة ICMP واستعلامات DNS والكمون والتوجيه.',
+    tabLadderTitle: 'سلم إصلاح الشبكة المتدرج',
+    tabLadderSub: 'إصلاح الاتصال بتدرج مثبت بالأدلة: تحديث، ثم DNS، ثم DHCP، ثم Winsock، ثم الشامل.',
+    tabOpsTitle: 'عمليات الشبكة المتخصصة',
+    tabOpsSub: 'كافة أدوات الشبكة الـ 11 المسجلة مع بوابات التحليل والمعاينة والتنفيذ الآمن.',
+    tabReportTitle: 'تقرير تدقيق الاتصال والأدلة',
+    tabReportSub: 'مراجعة سجل عمليات الجلسة، والتحقق قبل/بعد الاستعادة، وتصدير التقارير.',
   },
 } as const;
 
@@ -170,6 +200,7 @@ export default function NetworkStation({
   const station = useMemo(() => stationTools(tools), [tools]);
   const byId = useMemo(() => new Map(station.map((tool) => [tool.ToolId, tool])), [station]);
 
+  const [activeTab, setActiveTab] = useState<Station03Tab>('overview');
   const [evidence, setEvidence] = useState<DiagnoseEvidence>(() => emptyEvidence());
   const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory());
   const [activeRun, setActiveRun] = useState<ActiveRun | null>(null);
@@ -201,6 +232,27 @@ export default function NetworkStation({
   const failingLayer = useMemo(() => firstFailedLayer(layers), [layers]);
   const recommendations = useMemo(() => buildRecommendations(evidence, station), [evidence, station]);
   const outcomes = useMemo(() => Object.values(evidence.outcomes), [evidence]);
+  const hasScannedEvidence = useMemo(() => evidence.adapters.length > 0 || evidence.ni01 !== null || evidence.ni06 !== null || outcomes.length > 0, [evidence, outcomes]);
+
+  const activeLayerForRun = useMemo((): ConnectionLayerId | null => {
+    if (!activeRun) return null;
+    if (activeRun.toolId === 'NI11' || activeRun.toolId === 'NI10') return 'adapter';
+    if (activeRun.toolId === 'NI02') return 'ip';
+    if (activeRun.toolId === 'NI01') return 'gateway';
+    if (activeRun.toolId === 'NI03') return 'dns';
+    if (activeRun.toolId === 'NI05') return 'internet';
+    if (activeRun.toolId === 'NI06' || activeRun.toolId === 'NI07') return 'quality';
+    return 'routing';
+  }, [activeRun]);
+
+  const heroStage = useMemo(() => {
+    if (activeRun !== null) return 'diagnosing';
+    if (failingLayer) {
+      return layers[failingLayer] === 'UNREACHABLE' ? 'disconnected' : 'degraded';
+    }
+    if (hasScannedEvidence) return 'connected';
+    return 'idle';
+  }, [activeRun, failingLayer, hasScannedEvidence, layers]);
 
   const recordOutcome = useCallback((outcome: ToolOutcome, kind: HistoryEntry['kind'], finding: string) => {
     setEvidence((current) => {
@@ -289,7 +341,7 @@ export default function NetworkStation({
     } finally {
       setDiagnosing(false);
     }
-  }, [byId, executeStep, lang, onToolStatus, recordOutcome]);
+  }, [byId, executeStep, lang, onToolStatus, recordOutcome, station]);
 
   const runSingle = useCallback(async (toolId: string, mode: ExecutionMode, confirmation?: ToolRunConfirmation, verify = false) => {
     setBanner('');
@@ -385,132 +437,267 @@ export default function NetworkStation({
             <button type="button" onClick={() => setBanner('')} aria-label={text.close}><X size={13} /></button>
           </div>
         )}
+
+        {/* ── Mini Navigation Rail ── */}
+        <nav className="network-mini-nav" aria-label={lang === 'ar' ? 'تنقل محطة تشخيص الشبكة' : 'Network Diagnostic Workstation navigation'}>
+          <button
+            type="button"
+            className={`network-mini-nav-btn ${activeTab === 'overview' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('overview')}
+          >
+            <ScanSearch size={14} />
+            <span>{text.navOverview}</span>
+          </button>
+          <button
+            type="button"
+            className={`network-mini-nav-btn ${activeTab === 'adapters' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('adapters')}
+          >
+            <Wifi size={14} />
+            <span>{text.navAdapters}</span>
+          </button>
+          <button
+            type="button"
+            className={`network-mini-nav-btn ${activeTab === 'layers' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('layers')}
+          >
+            <Layers3 size={14} />
+            <span>{text.navLayers}</span>
+          </button>
+          <button
+            type="button"
+            className={`network-mini-nav-btn ${activeTab === 'ladder' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('ladder')}
+          >
+            <Waypoints size={14} />
+            <span>{text.navLadder}</span>
+          </button>
+          <button
+            type="button"
+            className={`network-mini-nav-btn ${activeTab === 'ops' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('ops')}
+          >
+            <Wrench size={14} />
+            <span>{text.navOps}</span>
+          </button>
+          <button
+            type="button"
+            className={`network-mini-nav-btn ${activeTab === 'report' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('report')}
+          >
+            <FileText size={14} />
+            <span>{text.navReport}</span>
+          </button>
+        </nav>
+
+        {/* ── Contextual Tab Header ── */}
+        {activeTab !== 'overview' && (
+          <header className="network-tab-header">
+            <h3>
+              {activeTab === 'adapters' && <Wifi size={18} />}
+              {activeTab === 'layers' && <Layers3 size={18} />}
+              {activeTab === 'ladder' && <Waypoints size={18} />}
+              {activeTab === 'ops' && <Wrench size={18} />}
+              {activeTab === 'report' && <FileText size={18} />}
+              <span>
+                {activeTab === 'adapters' ? text.tabAdaptersTitle :
+                 activeTab === 'layers' ? text.tabLayersTitle :
+                 activeTab === 'ladder' ? text.tabLadderTitle :
+                 activeTab === 'ops' ? text.tabOpsTitle :
+                 text.tabReportTitle}
+              </span>
+            </h3>
+            <p>
+              {activeTab === 'adapters' ? text.tabAdaptersSub :
+               activeTab === 'layers' ? text.tabLayersSub :
+               activeTab === 'ladder' ? text.tabLadderSub :
+               activeTab === 'ops' ? text.tabOpsSub :
+               text.tabReportSub}
+            </p>
+          </header>
+        )}
+
+        {/* ── LANDING CANVAS (Shown in Overview before scan) ── */}
+        {activeTab === 'overview' && !hasScannedEvidence && activeRun === null && (
+          <section className="network-landing-canvas">
+            <NetworkHeroVisual
+              lang={lang}
+              stage={heroStage}
+              className="network-landing-hero-visual"
+            />
+            <div className="network-landing-copy">
+              <h2>{text.productTitle}</h2>
+              <p>{text.productSub}</p>
+              <div className="network-landing-actions">
+                <button
+                  type="button"
+                  className="network-landing-primary-cta"
+                  onClick={() => void runDiagnose()}
+                  disabled={diagnosing}
+                  aria-label={text.primaryCta}
+                >
+                  <ScanSearch size={16} />
+                  <span>{text.primaryCta}</span>
+                </button>
+                <button
+                  type="button"
+                  className="network-landing-secondary-cta"
+                  onClick={() => setActiveTab('ladder')}
+                >
+                  <History size={14} />
+                  <span>{text.secondaryCta}</span>
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ── Active Scanning Visual State ── */}
+        {activeRun !== null && (
+          <section className="network-scanning-banner">
+            <NetworkHeroVisual
+              lang={lang}
+              stage="diagnosing"
+              activeLayer={activeLayerForRun}
+              lossPercent={evidence.ni06?.lossPercent}
+              avgMs={evidence.ni06?.avgMs}
+              className="network-scanning-hero-visual"
+            />
+          </section>
+        )}
+
         <p className="network-scope-note"><ShieldCheck size={12} />{text.bridgeVsInternet}</p>
 
-        {/* ── Connection path hero ── */}
-        <section className="network-hero" aria-live="polite" aria-label={text.pathTitle}>
-          <div className="network-hero-copy">
-            <p className="eyebrow"><Waypoints size={13} />{text.eyebrow}</p>
-            <h2>{text.title}</h2>
-            <p className="network-failing" role="status" dir="auto">
-              {failingLayer
-                ? `${LAYER_COPY[failingLayer][lang]}: ${LAYER_STATE_COPY[layers[failingLayer]][lang]}`
-                : evidence.adapters.length > 0 || evidence.ni01
-                  ? (lang === 'ar' ? 'لا توجد طبقة فاشلة مؤكدة' : 'No confidently failed layer')
-                  : text.notChecked}
-            </p>
-            <p className="network-sub">{text.subtitle}</p>
-            <div className="network-hero-actions">
-              <button
-                type="button" className="network-primary" onClick={() => void runDiagnose()}
-                disabled={diagnosing || activeRun !== null} aria-label={text.diagnose}
-              >
-                {diagnosing || activeRun ? <LoaderCircle size={15} className="animate-spin" /> : <ScanSearch size={15} />}
-                {diagnosing ? text.diagnosing : text.diagnose}
-              </button>
-              {activeRun && (
-                <button type="button" className="network-ghost" onClick={() => void cancelActive()}>
-                  <Square size={13} />{text.cancel}
+        {/* ── Connection path hero (Always accessible in overview when scanned) ── */}
+        {(activeTab === 'overview') && (hasScannedEvidence || activeRun !== null) && (
+          <section className="network-hero" aria-live="polite" aria-label={text.pathTitle}>
+            <div className="network-hero-copy">
+              <p className="eyebrow"><Waypoints size={13} />{text.eyebrow}</p>
+              <h2>{text.title}</h2>
+              <p className="network-failing" role="status" dir="auto">
+                {failingLayer
+                  ? `${LAYER_COPY[failingLayer][lang]}: ${LAYER_STATE_COPY[layers[failingLayer]][lang]}`
+                  : evidence.adapters.length > 0 || evidence.ni01
+                    ? (lang === 'ar' ? 'لا توجد طبقة فاشلة مؤكدة' : 'No confidently failed layer')
+                    : text.notChecked}
+              </p>
+              <p className="network-sub">{text.subtitle}</p>
+              <div className="network-hero-actions">
+                <button
+                  type="button" className="network-primary" onClick={() => void runDiagnose()}
+                  disabled={diagnosing || activeRun !== null} aria-label={text.diagnose}
+                >
+                  {diagnosing || activeRun ? <LoaderCircle size={15} className="animate-spin" /> : <ScanSearch size={15} />}
+                  {diagnosing ? text.diagnosing : text.diagnose}
                 </button>
-              )}
+                {activeRun && (
+                  <button type="button" className="network-ghost" onClick={() => void cancelActive()}>
+                    <Square size={13} />{text.cancel}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-          <ol className="network-path">
-            {(['adapter', 'ip', 'gateway', 'dns', 'internet'] as const).map((layer, index, list) => (
-              <li key={layer} className={`network-node is-${layers[layer].toLowerCase().replace(/_/g, '-')}`}>
-                <span className="network-node-index" aria-hidden="true">{index + 1}</span>
-                <strong>{LAYER_COPY[layer][lang]}</strong>
-                <small>{LAYER_STATE_COPY[layers[layer]][lang]}</small>
-                {index < list.length - 1 && <i className="network-link" aria-hidden="true" />}
-              </li>
-            ))}
-          </ol>
-        </section>
+            <ol className="network-path">
+              {(['adapter', 'ip', 'gateway', 'dns', 'internet'] as const).map((layer, index, list) => (
+                <li key={layer} className={`network-node is-${layers[layer].toLowerCase().replace(/_/g, '-')}`}>
+                  <span className="network-node-index" aria-hidden="true">{index + 1}</span>
+                  <strong>{LAYER_COPY[layer][lang]}</strong>
+                  <small>{LAYER_STATE_COPY[layers[layer]][lang]}</small>
+                  {index < list.length - 1 && <i className="network-link" aria-hidden="true" />}
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
 
         {/* ── Adapters & IP ── */}
-        <section aria-label={text.adaptersTitle}>
-          <div className="app-section-title"><div><p>{text.eyebrow}</p><h2>{text.adaptersTitle}</h2></div></div>
-          {evidence.adapters.length === 0 ? (
-            <p className="network-empty">{text.notChecked}</p>
-          ) : (
-            <div className="network-adapters">
-              {evidence.adapters.map((adapter, index) => {
-                const kind = classifyAdapter(adapter.Description);
-                const isPrimary = primaryAdapter === adapter;
-                return (
-                  <article key={`${adapter.MacAddress || index}-${index}`} className={`network-adapter is-${kind}${isPrimary ? ' is-primary' : ''}`}>
-                    <header>
-                      <Wifi size={16} />
-                      <strong dir="auto">{adapter.Description || `Adapter ${index + 1}`}</strong>
-                      <span className="network-kind">{KIND_COPY[kind][lang]}</span>
-                      {isPrimary && <span className="network-primary-tag">{lang === 'ar' ? 'محول الشبكة النشط' : 'Active adapter · primary path'}</span>}
-                    </header>
-                    <dl>
-                      <div><dt>IPv4</dt><dd dir="ltr">{adapter.IPv4 || text.unavailable}</dd></div>
-                      <div><dt>{lang === 'ar' ? 'البوابة' : 'Gateway'}</dt><dd dir="ltr">{adapter.Gateway || text.unavailable}</dd></div>
-                      <div><dt>DNS</dt><dd dir="ltr">{(adapter.DNS || []).join(', ') || text.unavailable}</dd></div>
-                      <div><dt>DHCP</dt><dd>{adapter.DHCP ? text.yes : text.no}</dd></div>
-                      <div><dt>MAC</dt><dd dir="ltr">{adapter.MacAddress || text.unavailable}</dd></div>
-                    </dl>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
+        {(activeTab === 'overview' || activeTab === 'adapters') && (
+          <section aria-label={text.adaptersTitle}>
+            <div className="app-section-title"><div><p>{text.eyebrow}</p><h2>{text.adaptersTitle}</h2></div></div>
+            {evidence.adapters.length === 0 ? (
+              <p className="network-empty">{text.notChecked}</p>
+            ) : (
+              <div className="network-adapters">
+                {evidence.adapters.map((adapter, index) => {
+                  const kind = classifyAdapter(adapter.Description);
+                  const isPrimary = primaryAdapter === adapter;
+                  return (
+                    <article key={`${adapter.MacAddress || index}-${index}`} className={`network-adapter is-${kind}${isPrimary ? ' is-primary' : ''}`}>
+                      <header>
+                        <Wifi size={16} />
+                        <strong dir="auto">{adapter.Description || `Adapter ${index + 1}`}</strong>
+                        <span className="network-kind">{KIND_COPY[kind][lang]}</span>
+                        {isPrimary && <span className="network-primary-tag">{lang === 'ar' ? 'محول الشبكة النشط' : 'Active adapter · primary path'}</span>}
+                      </header>
+                      <dl>
+                        <div><dt>IPv4</dt><dd dir="ltr">{adapter.IPv4 || text.unavailable}</dd></div>
+                        <div><dt>{lang === 'ar' ? 'البوابة' : 'Gateway'}</dt><dd dir="ltr">{adapter.Gateway || text.unavailable}</dd></div>
+                        <div><dt>DNS</dt><dd dir="ltr">{(adapter.DNS || []).join(', ') || text.unavailable}</dd></div>
+                        <div><dt>DHCP</dt><dd>{adapter.DHCP ? text.yes : text.no}</dd></div>
+                        <div><dt>MAC</dt><dd dir="ltr">{adapter.MacAddress || text.unavailable}</dd></div>
+                      </dl>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* ── Layer evidence ── */}
-        <section aria-label={text.layersTitle}>
-          <div className="app-section-title"><div><p>{text.pathTitle}</p><h2>{text.layersTitle}</h2></div></div>
-          <div className="network-layers">
-            <article>
-              <strong>{LAYER_COPY.gateway[lang]}</strong>
-              <p dir="ltr">{evidence.ni01?.gateway || text.unavailable}</p>
-              <small>{evidence.ni01 ? LAYER_STATE_COPY[layers.gateway][lang] : text.notChecked}</small>
-            </article>
-            <article>
-              <strong>{LAYER_COPY.dns[lang]}</strong>
-              <p dir="ltr">
-                {evidence.ni01 && evidence.ni01.dnsOk !== null
-                  ? (evidence.ni01.dnsOk ? (lang === 'ar' ? 'يُحَل' : 'Resolves') : (lang === 'ar' ? 'يفشل' : 'Fails'))
-                  : text.notMeasured}
-              </p>
-              <small>{evidence.ni01 ? LAYER_STATE_COPY[layers.dns][lang] : text.notChecked}</small>
-            </article>
-            <article>
-              <strong>{LAYER_COPY.internet[lang]}</strong>
-              <p dir="ltr">
-                {evidence.ni01 && evidence.ni01.internetOk !== null
-                  ? (evidence.ni01.internetOk ? '8.8.8.8 reachable' : '8.8.8.8 unreachable')
-                  : text.notMeasured}
-              </p>
-              <small>{evidence.ni01 ? LAYER_STATE_COPY[layers.internet][lang] : text.notChecked}</small>
-            </article>
-            <article>
-              <strong>{LAYER_COPY.quality[lang]}</strong>
-              <p dir="ltr">
-                {evidence.ni06 && evidence.ni06.measured
-                  ? `loss ${evidence.ni06.lossPercent}% · avg ${formatMs(evidence.ni06.avgMs, lang)} · n=${evidence.ni06.attempts}`
-                  : text.notMeasured}
-              </p>
-              <small>{evidence.ni06 ? LAYER_STATE_COPY[layers.quality][lang] : text.notChecked} · {lang === 'ar' ? 'فقد الحزم' : 'Packet loss'}</small>
-            </article>
-            <article>
-              <strong>{LAYER_COPY.routing[lang]}</strong>
-              <p dir="ltr">{evidence.ni01?.gateway || primaryAdapter?.Gateway || text.unavailable}</p>
-              <small>
-                {layers.routing === 'CONFIGURED'
-                  ? (lang === 'ar' ? 'بوابة افتراضية مهيأة — لم تُتحقق بعد' : 'Default route configured — not verified by measurement')
-                  : (lang === 'ar' ? 'البوابة الافتراضية فقط' : 'Default gateway only')}
-              </small>
-            </article>
-            <article>
-              <strong>Proxy</strong>
-              <p>{lang === 'ar' ? 'غير مدعوم من الأدوات' : 'Unsupported by tools'}</p>
-              <small>{text.notMeasured}</small>
-            </article>
-          </div>
-        </section>
+        {(activeTab === 'overview' || activeTab === 'layers') && (
+          <section aria-label={text.layersTitle}>
+            <div className="app-section-title"><div><p>{text.pathTitle}</p><h2>{text.layersTitle}</h2></div></div>
+            <div className="network-layers">
+              <article>
+                <strong>{LAYER_COPY.gateway[lang]}</strong>
+                <p dir="ltr">{evidence.ni01?.gateway || text.unavailable}</p>
+                <small>{evidence.ni01 ? LAYER_STATE_COPY[layers.gateway][lang] : text.notChecked}</small>
+              </article>
+              <article>
+                <strong>{LAYER_COPY.dns[lang]}</strong>
+                <p dir="ltr">
+                  {evidence.ni01 && evidence.ni01.dnsOk !== null
+                    ? (evidence.ni01.dnsOk ? (lang === 'ar' ? 'يُحَل' : 'Resolves') : (lang === 'ar' ? 'يفشل' : 'Fails'))
+                    : text.notMeasured}
+                </p>
+                <small>{evidence.ni01 ? LAYER_STATE_COPY[layers.dns][lang] : text.notChecked}</small>
+              </article>
+              <article>
+                <strong>{LAYER_COPY.internet[lang]}</strong>
+                <p dir="ltr">
+                  {evidence.ni01 && evidence.ni01.internetOk !== null
+                    ? (evidence.ni01.internetOk ? '8.8.8.8 reachable' : '8.8.8.8 unreachable')
+                    : text.notMeasured}
+                </p>
+                <small>{evidence.ni01 ? LAYER_STATE_COPY[layers.internet][lang] : text.notChecked}</small>
+              </article>
+              <article>
+                <strong>{LAYER_COPY.quality[lang]}</strong>
+                <p dir="ltr">
+                  {evidence.ni06 && evidence.ni06.measured
+                    ? `loss ${evidence.ni06.lossPercent}% · avg ${formatMs(evidence.ni06.avgMs, lang)} · n=${evidence.ni06.attempts}`
+                    : text.notMeasured}
+                </p>
+                <small>{evidence.ni06 ? LAYER_STATE_COPY[layers.quality][lang] : text.notChecked} · {lang === 'ar' ? 'فقد الحزم' : 'Packet loss'}</small>
+              </article>
+              <article>
+                <strong>{LAYER_COPY.routing[lang]}</strong>
+                <p dir="ltr">{evidence.ni01?.gateway || primaryAdapter?.Gateway || text.unavailable}</p>
+                <small>
+                  {layers.routing === 'CONFIGURED'
+                    ? (lang === 'ar' ? 'بوابة افتراضية مهيأة — لم تُتحقق بعد' : 'Default route configured — not verified by measurement')
+                    : (lang === 'ar' ? 'البوابة الافتراضية فقط' : 'Default gateway only')}
+                </small>
+              </article>
+              <article>
+                <strong>Proxy</strong>
+                <p>{lang === 'ar' ? 'غير مدعوم من الأدوات' : 'Unsupported by tools'}</p>
+                <small>{text.notMeasured}</small>
+              </article>
+            </div>
+          </section>
+        )}
 
         {/* ── Live execution ── */}
         {activeRun && activeTool && (
@@ -567,159 +754,166 @@ export default function NetworkStation({
         )}
 
         {/* ── Repair ladder ── */}
-        <section aria-label={text.ladderTitle}>
-          <div className="app-section-title"><div><p>{text.ladderTitle}</p><h2>{text.ladderTitle}</h2></div></div>
-          <p className="network-sub">{lang === 'ar' ? 'إصلاح الاتصال بتدرج مثبت بالأدلة: تحديث، ثم DNS، ثم DHCP، ثم Winsock، ثم الشامل.' : 'Evidence-graded connection repair: refresh, then DNS, then DHCP, then Winsock, then full reset.'}</p>
-          <ol className="network-ladder">
-            {REPAIR_LADDER.map((step) => {
-              const tool = byId.get(step.toolId);
-              if (!tool) return null;
-              const blocked = tool.RequiresAdmin && !elevated;
-              const lastResort = step.level === 5;
-              return (
-                <li key={`${step.level}-${step.toolId}`} className={`network-rung${lastResort ? ' is-last-resort' : ''}`}>
-                  <span className="network-level">{text.level} {step.level}</span>
-                  <div>
-                    <strong dir="auto">{lang === 'ar' ? step.titleAr : step.titleEn} · {step.toolId}</strong>
-                    <p dir="auto">{lang === 'ar' ? step.impactAr : step.impactEn}</p>
-                    <small dir="auto">
-                      {tool.RiskLevel}{tool.RequiresAdmin ? ' · Admin' : ''}{tool.RequiresRestart ? ` · ${text.restart}` : ''}
-                      {lastResort ? ` · ${text.lastResort}` : ''}
-                    </small>
-                    {blocked && <small className="is-permission"><LockKeyhole size={11} />{text.permissionTitle}</small>}
-                  </div>
-                  <button
-                    type="button" className="network-ghost" disabled={blocked || activeRun !== null}
-                    onClick={() => setPending({ tool, mode: 'run' })}
-                  >
-                    <Play size={11} />{text.run}
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-          {!elevated && (
-            <div className="network-permission">
-              <LockKeyhole size={16} />
-              <div><strong>{text.permissionTitle}</strong><p>{text.elevateHelp}</p></div>
-              <button type="button" className="network-ghost" onClick={() => void recheckElevation()}><RefreshCw size={12} />{text.elevationRetry}</button>
-            </div>
-          )}
-        </section>
-
-        {/* ── Operations (all 11) ── */}
-        <section aria-label={text.opsTitle}>
-          <div className="app-section-title"><div><p>{STATION03_TOOL_IDS.length} · 03</p><h2>{text.opsTitle}</h2></div></div>
-          <div className="network-ops">
-            {station.map((tool) => {
-              const runBlocked = tool.RequiresAdmin && !elevated;
-              return (
-                <article key={tool.ToolId} className="network-op">
-                  <header>
-                    <span className="network-op-id">{tool.ToolId}</span>
-                    <strong dir="auto">{pickName(tool, lang)}</strong>
-                    <span className={`network-risk is-${tool.RiskLevel.toLowerCase().replace(/_/g, '-')}`}>{tool.RiskLevel}</span>
-                  </header>
-                  <p dir="auto">{tool.Purpose}</p>
-                  <dl className="network-op-meta">
-                    <div><dt>{text.lastResult}</dt><dd dir="auto">{globalStatus(tool)}</dd></div>
-                    <div><dt>{text.risk}</dt><dd dir="auto">{tool.RiskLevel}</dd></div>
-                    <div><dt>{text.admin}</dt><dd>{tool.RequiresAdmin ? text.yes : text.no}</dd></div>
-                  </dl>
-                  <div className="network-op-actions">
-                    {tool.AnalyzeOnlySupported && (
-                      <button type="button" disabled={activeRun !== null} onClick={() => setPending({ tool, mode: 'analyze' })}>{text.analyze}</button>
-                    )}
-                    {tool.WhatIfSupported && (
-                      <button type="button" disabled={activeRun !== null} onClick={() => setPending({ tool, mode: 'preview' })}>{text.preview}</button>
-                    )}
+        {(activeTab === 'overview' || activeTab === 'ladder') && (
+          <section aria-label={text.ladderTitle}>
+            <div className="app-section-title"><div><p>{text.ladderTitle}</p><h2>{text.ladderTitle}</h2></div></div>
+            <p className="network-sub">{lang === 'ar' ? 'إصلاح الاتصال بتدرج مثبت بالأدلة: تحديث، ثم DNS، ثم DHCP، ثم Winsock، ثم الشامل.' : 'Evidence-graded connection repair: refresh, then DNS, then DHCP, then Winsock, then full reset.'}</p>
+            <ol className="network-ladder">
+              {REPAIR_LADDER.map((step) => {
+                const tool = byId.get(step.toolId);
+                if (!tool) return null;
+                const blocked = tool.RequiresAdmin && !elevated;
+                const lastResort = step.level === 5;
+                return (
+                  <li key={`${step.level}-${step.toolId}`} className={`network-rung${lastResort ? ' is-last-resort' : ''}`}>
+                    <span className="network-level">{text.level} {step.level}</span>
+                    <div>
+                      <strong dir="auto">{lang === 'ar' ? step.titleAr : step.titleEn} · {step.toolId}</strong>
+                      <p dir="auto">{lang === 'ar' ? step.impactAr : step.impactEn}</p>
+                      <small dir="auto">
+                        {tool.RiskLevel}{tool.RequiresAdmin ? ' · Admin' : ''}{tool.RequiresRestart ? ` · ${text.restart}` : ''}
+                        {lastResort ? ` · ${text.lastResort}` : ''}
+                      </small>
+                      {blocked && <small className="is-permission"><LockKeyhole size={11} />{text.permissionTitle}</small>}
+                    </div>
                     <button
-                      type="button" className="is-run" disabled={activeRun !== null || runBlocked}
+                      type="button" className="network-ghost" disabled={blocked || activeRun !== null}
                       onClick={() => setPending({ tool, mode: 'run' })}
-                      title={runBlocked ? text.permissionTitle : undefined}
                     >
                       <Play size={11} />{text.run}
                     </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-          {station.length === 0 && <p className="network-empty" role="status">{text.unavailable}</p>}
-        </section>
-
-        {/* ── Before / after verification ── */}
-        {verifyPair && (
-          <section aria-label={text.verifyTitle}>
-            <div className="app-section-title">
-              <div><p>{text.verifyTitle}</p><h2>{text.verifyTitle}</h2></div>
-              <button type="button" className="network-ghost" onClick={() => void runSingle('NI01', 'run')} disabled={activeRun !== null}>
-                <RefreshCw size={12} />{text.retest}
-              </button>
-            </div>
-            <div className="network-verify">
-              <dl>
-                <div><dt>gw {lang === 'ar' ? 'قبل' : 'before'}</dt><dd dir="ltr">{verifyPair.before.gateway || '—'}</dd></div>
-                <div><dt>dns {lang === 'ar' ? 'قبل' : 'before'}</dt><dd dir="ltr">{String(verifyPair.before.dnsOk)}</dd></div>
-                <div><dt>net {lang === 'ar' ? 'قبل' : 'before'}</dt><dd dir="ltr">{String(verifyPair.before.internetOk)}</dd></div>
-                <div><dt>gw {lang === 'ar' ? 'بعد' : 'after'}</dt><dd dir="ltr">{verifyPair.after?.gateway || text.notMeasured}</dd></div>
-                <div><dt>dns {lang === 'ar' ? 'بعد' : 'after'}</dt><dd dir="ltr">{verifyPair.after ? String(verifyPair.after.dnsOk) : text.notMeasured}</dd></div>
-                <div><dt>net {lang === 'ar' ? 'بعد' : 'after'}</dt><dd dir="ltr">{verifyPair.after ? String(verifyPair.after.internetOk) : text.notMeasured}</dd></div>
-              </dl>
-              <p className="network-verify-note">
-                {verifyPair.after
-                  ? (verifyPair.after.internetOk === true && verifyPair.before.internetOk !== true
-                    ? (lang === 'ar' ? 'تمت استعادة الاتصال' : 'Connection restored')
-                    : text.commandVsRestored)
-                  : text.restartToVerify}
-              </p>
-            </div>
+                  </li>
+                );
+              })}
+            </ol>
+            {!elevated && (
+              <div className="network-permission">
+                <LockKeyhole size={16} />
+                <div><strong>{text.permissionTitle}</strong><p>{text.elevateHelp}</p></div>
+                <button type="button" className="network-ghost" onClick={() => void recheckElevation()}><RefreshCw size={12} />{text.elevationRetry}</button>
+              </div>
+            )}
           </section>
         )}
 
-        {/* ── Evidence + history ── */}
-        <section aria-label={text.evidenceTitle}>
-          <div className="app-section-title">
-            <div><p>{text.historyTitle}</p><h2>{text.evidenceTitle}</h2></div>
-            <button type="button" className="network-ghost" onClick={downloadReport} disabled={history.length === 0 && outcomes.length === 0}>
-              <Download size={13} />{text.reportDownload}
-            </button>
-          </div>
-          {history.length === 0 ? (
-            <p className="network-empty">{text.emptyHistory}</p>
-          ) : (
-            <div className="network-history-wrap">
-              <table className="network-history">
-                <thead><tr>
-                  <th>{text.historyCols.when}</th><th>{text.historyCols.kind}</th><th>{text.historyCols.tool}</th>
-                  <th>{text.historyCols.mode}</th><th>{text.historyCols.result}</th><th>{text.historyCols.finding}</th>
-                  <th>{text.historyCols.changed}</th><th>{text.historyCols.restart}</th>
-                  <th>{text.historyCols.verify}</th><th>{text.historyCols.report}</th>
-                </tr></thead>
-                <tbody>
-                  {history.slice(0, 30).map((entry, index) => (
-                    <tr key={`${entry.toolId}-${entry.finishedAt}-${index}`}>
-                      <td dir="ltr">{entry.finishedAt || '—'}</td><td>{entry.kind}</td>
-                      <td><strong>{entry.toolId}</strong></td><td>{entry.mode}</td>
-                      <td><span className={`is-${entry.status.toLowerCase()}`}>{entry.status}</span></td>
-                      <td dir="auto">{entry.finding || '—'}</td>
-                      <td>{entry.changedSystem ? text.yes : text.no}</td><td>{entry.restartNeeded ? text.yes : text.no}</td>
-                      <td dir="auto">{entry.verification || '—'}</td>
-                      <td dir="ltr">{entry.reportPath ? <FileText size={11} /> : '—'}</td>
-                    </tr>
+        {/* ── Operations (all 11) ── */}
+        {(activeTab === 'overview' || activeTab === 'ops') && (
+          <section aria-label={text.opsTitle}>
+            <div className="app-section-title"><div><p>{STATION03_TOOL_IDS.length} · 03</p><h2>{text.opsTitle}</h2></div></div>
+            <div className="network-ops">
+              {station.map((tool) => {
+                const runBlocked = tool.RequiresAdmin && !elevated;
+                return (
+                  <article key={tool.ToolId} className="network-op">
+                    <header>
+                      <span className="network-op-id">{tool.ToolId}</span>
+                      <strong dir="auto">{pickName(tool, lang)}</strong>
+                      <span className={`network-risk is-${tool.RiskLevel.toLowerCase().replace(/_/g, '-')}`}>{tool.RiskLevel}</span>
+                    </header>
+                    <p dir="auto">{tool.Purpose}</p>
+                    <dl className="network-op-meta">
+                      <div><dt>{text.lastResult}</dt><dd dir="auto">{globalStatus(tool)}</dd></div>
+                      <div><dt>{text.risk}</dt><dd dir="auto">{tool.RiskLevel}</dd></div>
+                      <div><dt>{text.admin}</dt><dd>{tool.RequiresAdmin ? text.yes : text.no}</dd></div>
+                    </dl>
+                    <div className="network-op-actions">
+                      {tool.AnalyzeOnlySupported && (
+                        <button type="button" disabled={activeRun !== null} onClick={() => setPending({ tool, mode: 'analyze' })}>{text.analyze}</button>
+                      )}
+                      {tool.WhatIfSupported && (
+                        <button type="button" disabled={activeRun !== null} onClick={() => setPending({ tool, mode: 'preview' })}>{text.preview}</button>
+                      )}
+                      <button
+                        type="button" className="is-run" disabled={activeRun !== null || runBlocked}
+                        onClick={() => setPending({ tool, mode: 'run' })}
+                        title={runBlocked ? text.permissionTitle : undefined}
+                      >
+                        <Play size={11} />{text.run}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+            {station.length === 0 && <p className="network-empty" role="status">{text.unavailable}</p>}
+          </section>
+        )}
+
+        {/* ── Before / after verification & Evidence ── */}
+        {(activeTab === 'overview' || activeTab === 'report') && (
+          <>
+            {verifyPair && (
+              <section aria-label={text.verifyTitle}>
+                <div className="app-section-title">
+                  <div><p>{text.verifyTitle}</p><h2>{text.verifyTitle}</h2></div>
+                  <button type="button" className="network-ghost" onClick={() => void runSingle('NI01', 'run')} disabled={activeRun !== null}>
+                    <RefreshCw size={12} />{text.retest}
+                  </button>
+                </div>
+                <div className="network-verify">
+                  <dl>
+                    <div><dt>gw {lang === 'ar' ? 'قبل' : 'before'}</dt><dd dir="ltr">{verifyPair.before.gateway || '—'}</dd></div>
+                    <div><dt>dns {lang === 'ar' ? 'قبل' : 'before'}</dt><dd dir="ltr">{String(verifyPair.before.dnsOk)}</dd></div>
+                    <div><dt>net {lang === 'ar' ? 'قبل' : 'before'}</dt><dd dir="ltr">{String(verifyPair.before.internetOk)}</dd></div>
+                    <div><dt>gw {lang === 'ar' ? 'بعد' : 'after'}</dt><dd dir="ltr">{verifyPair.after?.gateway || text.notMeasured}</dd></div>
+                    <div><dt>dns {lang === 'ar' ? 'بعد' : 'after'}</dt><dd dir="ltr">{verifyPair.after ? String(verifyPair.after.dnsOk) : text.notMeasured}</dd></div>
+                    <div><dt>net {lang === 'ar' ? 'بعد' : 'after'}</dt><dd dir="ltr">{verifyPair.after ? String(verifyPair.after.internetOk) : text.notMeasured}</dd></div>
+                  </dl>
+                  <p className="network-verify-note">
+                    {verifyPair.after
+                      ? (verifyPair.after.internetOk === true && verifyPair.before.internetOk !== true
+                        ? (lang === 'ar' ? 'تمت استعادة الاتصال' : 'Connection restored')
+                        : text.commandVsRestored)
+                      : text.restartToVerify}
+                  </p>
+                </div>
+              </section>
+            )}
+
+            <section aria-label={text.evidenceTitle}>
+              <div className="app-section-title">
+                <div><p>{text.historyTitle}</p><h2>{text.evidenceTitle}</h2></div>
+                <button type="button" className="network-ghost" onClick={downloadReport} disabled={history.length === 0 && outcomes.length === 0}>
+                  <Download size={13} />{text.reportDownload}
+                </button>
+              </div>
+              {history.length === 0 ? (
+                <p className="network-empty">{text.emptyHistory}</p>
+              ) : (
+                <div className="network-history-wrap">
+                  <table className="network-history">
+                    <thead><tr>
+                      <th>{text.historyCols.when}</th><th>{text.historyCols.kind}</th><th>{text.historyCols.tool}</th>
+                      <th>{text.historyCols.mode}</th><th>{text.historyCols.result}</th><th>{text.historyCols.finding}</th>
+                      <th>{text.historyCols.changed}</th><th>{text.historyCols.restart}</th>
+                      <th>{text.historyCols.verify}</th><th>{text.historyCols.report}</th>
+                    </tr></thead>
+                    <tbody>
+                      {history.slice(0, 30).map((entry, index) => (
+                        <tr key={`${entry.toolId}-${entry.finishedAt}-${index}`}>
+                          <td dir="ltr">{entry.finishedAt || '—'}</td><td>{entry.kind}</td>
+                          <td><strong>{entry.toolId}</strong></td><td>{entry.mode}</td>
+                          <td><span className={`is-${entry.status.toLowerCase()}`}>{entry.status}</span></td>
+                          <td dir="auto">{entry.finding || '—'}</td>
+                          <td>{entry.changedSystem ? text.yes : text.no}</td><td>{entry.restartNeeded ? text.yes : text.no}</td>
+                          <td dir="auto">{entry.verification || '—'}</td>
+                          <td dir="ltr">{entry.reportPath ? <FileText size={11} /> : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {activeRun === null && lines.length > 0 && (
+                <div className="network-rawlog is-settled">
+                  {lines.slice(-200).map((line, index) => (
+                    <p key={index} className={line.s === 'err' ? 'is-error' : ''} dir="auto">{line.text}</p>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {activeRun === null && lines.length > 0 && (
-            <div className="network-rawlog is-settled">
-              {lines.slice(-200).map((line, index) => (
-                <p key={index} className={line.s === 'err' ? 'is-error' : ''} dir="auto">{line.text}</p>
-              ))}
-            </div>
-          )}
-        </section>
+                </div>
+              )}
+            </section>
+          </>
+        )}
 
         {/* ── Single-operation confirmation ── */}
         {pending && (

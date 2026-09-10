@@ -301,7 +301,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
       : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
     </LiveShell>

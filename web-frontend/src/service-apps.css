@@ -873,6 +873,436 @@
 @media(max-width:860px){.network-hero{grid-template-columns:1fr}.network-path{grid-template-columns:repeat(2,1fr)}.network-adapters,.network-ops,.network-layers{grid-template-columns:1fr}.network-verify dl{grid-template-columns:repeat(2,1fr)}}
 @media(prefers-reduced-motion:reduce){.network-progress i.is-indeterminate{animation:none}}
 
+/* Station 03 — Mini-Nav Rail, Landing Canvas, and Custom Vector Hero */
+.network-mini-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  backdrop-filter: blur(12px);
+  overflow-x: auto;
+}
+.network-mini-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.64rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.network-mini-nav-btn:hover {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.04);
+}
+.network-mini-nav-btn.is-active {
+  color: var(--app-accent, #35c9da);
+  background: color-mix(in srgb, var(--app-accent, #35c9da) 12%, transparent);
+  border-color: color-mix(in srgb, var(--app-accent, #35c9da) 32%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--app-accent, #35c9da) 14%, transparent);
+}
+
+.network-tab-header {
+  padding: 0.9rem 1.1rem;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.6) 0%, rgba(30, 41, 59, 0.35) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 0.85rem;
+  backdrop-filter: blur(10px);
+}
+.network-tab-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.88rem;
+  color: #f1f5f9;
+}
+.network-tab-header h3 svg {
+  color: var(--app-accent, #35c9da);
+}
+.network-tab-header p {
+  margin: 0.3rem 0 0;
+  font-size: 0.65rem;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.network-landing-canvas {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.6rem 1.8rem;
+  background: radial-gradient(circle at 35% 45%, color-mix(in srgb, var(--app-accent, #35c9da) 14%, transparent), transparent 60%),
+              linear-gradient(135deg, rgba(15, 23, 42, 0.7) 0%, rgba(30, 41, 59, 0.4) 100%);
+  border: 1px solid color-mix(in srgb, var(--app-accent, #35c9da) 28%, transparent);
+  border-radius: 1.25rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+.network-landing-hero-visual {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.knoux-network-hero-container {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  justify-content: center;
+}
+.knoux-network-hero-container svg {
+  width: 100%;
+  height: auto;
+  max-height: 280px;
+  filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.45));
+}
+.network-landing-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.network-landing-copy h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f8fafc;
+  line-height: 1.3;
+}
+.network-landing-copy p {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+.network-landing-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+.network-landing-primary-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--app-accent, #35c9da) 70%, #fff);
+  background: linear-gradient(135deg, var(--app-accent, #35c9da), color-mix(in srgb, var(--app-accent, #35c9da) 85%, #0284c7));
+  color: #071c24;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--app-accent, #35c9da) 30%, transparent);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.network-landing-primary-cta:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--app-accent, #35c9da) 45%, transparent);
+}
+.network-landing-secondary-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.65rem 1rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.network-landing-secondary-cta:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+}
+
+.network-scanning-banner {
+  padding: 1.25rem;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--app-accent, #35c9da) 12%, transparent), transparent 70%),
+              linear-gradient(135deg, rgba(15, 23, 42, 0.65) 0%, rgba(30, 41, 59, 0.35) 100%);
+  border: 1px solid color-mix(in srgb, var(--app-accent, #35c9da) 25%, transparent);
+  border-radius: 1.15rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.network-scanning-hero-visual {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Animations for Network Topology */
+@keyframes netRadarRotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.net-radar-sweep-anim {
+  animation: netRadarRotate 4s linear infinite;
+}
+@keyframes netTracePulse {
+  0% { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
+}
+.net-trace-flow {
+  animation: netTracePulse 1.2s linear infinite;
+}
+.net-satellite-node {
+  transition: transform 0.25s ease;
+}
+.net-satellite-node:hover {
+  transform: scale(1.08);
+}
+@media(max-width:860px){
+  .network-landing-canvas {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1.2rem;
+  }
+}
+
+/* ========================================================================= */
+/* Station 04 — Programs & Applications Studio (Mini Nav & Hero Visual)      */
+/* ========================================================================= */
+
+.programs-station {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.programs-mini-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  backdrop-filter: blur(12px);
+  overflow-x: auto;
+}
+
+.programs-mini-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.64rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.programs-mini-nav-btn:hover {
+  color: #fed7aa;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.programs-mini-nav-btn.is-active {
+  color: #fb923c;
+  background: rgba(249, 115, 22, 0.12);
+  border-color: rgba(249, 115, 22, 0.32);
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.16);
+}
+
+.programs-tab-header {
+  padding: 0.9rem 1.1rem;
+  background: linear-gradient(135deg, rgba(25, 15, 10, 0.6) 0%, rgba(35, 20, 15, 0.35) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 0.85rem;
+  backdrop-filter: blur(10px);
+}
+
+.programs-tab-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.88rem;
+  color: #f8fafc;
+}
+
+.programs-tab-header h3 svg {
+  color: #f97316;
+}
+
+.programs-tab-header p {
+  margin: 0.3rem 0 0;
+  font-size: 0.65rem;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.programs-landing-canvas {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.6rem 1.8rem;
+  background: radial-gradient(circle at 35% 45%, rgba(249, 115, 22, 0.14), transparent 60%),
+              linear-gradient(135deg, rgba(20, 12, 10, 0.75) 0%, rgba(35, 20, 15, 0.45) 100%);
+  border: 1px solid rgba(249, 115, 22, 0.28);
+  border-radius: 1.25rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+.programs-landing-hero-visual {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.knoux-programs-hero-container {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  justify-content: center;
+}
+
+.knoux-programs-hero-container svg {
+  width: 100%;
+  height: auto;
+  max-height: 280px;
+  filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.45));
+}
+
+.programs-landing-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.programs-landing-copy h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f8fafc;
+  line-height: 1.3;
+}
+
+.programs-landing-copy p {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #cbd5e1;
+  line-height: 1.6;
+}
+
+.programs-landing-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.programs-landing-primary-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(254, 215, 170, 0.6);
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: #1a0802;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.programs-landing-primary-cta:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 6px 22px rgba(249, 115, 22, 0.48);
+}
+
+.programs-landing-secondary-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.65rem 1rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.programs-landing-secondary-cta:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+}
+
+.programs-scanning-banner {
+  padding: 1.25rem;
+  background: radial-gradient(circle at 50% 50%, rgba(249, 115, 22, 0.12), transparent 70%),
+              linear-gradient(135deg, rgba(20, 12, 10, 0.75) 0%, rgba(35, 20, 15, 0.4) 100%);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-radius: 1.15rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.programs-scanning-hero-visual {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+@keyframes progTracePulse {
+  0% { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.prog-trace-flow {
+  animation: progTracePulse 1.2s linear infinite;
+}
+
+.prog-satellite-node {
+  transition: transform 0.25s ease;
+}
+
+.prog-satellite-node:hover {
+  transform: scale(1.08);
+}
+
+@media(max-width:860px){
+  .programs-landing-canvas {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1.2rem;
+  }
+}
+
 /* ========================================================================= */
 /* Station 05 — KNOUX Duplicate Studio (Mini Navigation & Hero Visual)       */
 /* ========================================================================= */
