@@ -102,7 +102,7 @@ async function inspectPage(page, target) {
     serviceCards: document.querySelectorAll('.knoux-service-card').length,
     toolCards: document.querySelectorAll('.knoux-tool-card').length,
     workspace: Boolean(document.querySelector('.knoux-tool-workspace')),
-    direction: document.documentElement.getAttribute('dir') || document.body.getAttribute('dir') || '',
+    direction: document.querySelector('.knoux-shell')?.getAttribute('dir') || document.documentElement.getAttribute('dir') || document.body.getAttribute('dir') || '',
   }));
 
   if (['vitality', 'recovery', 'assurance', 'software', 'workbench', 'investigation'].includes(target.view)) {
