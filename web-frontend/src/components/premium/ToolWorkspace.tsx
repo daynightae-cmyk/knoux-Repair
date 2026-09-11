@@ -358,7 +358,7 @@ export default function ToolWorkspace({
               <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] leading-relaxed">
                 <p className="text-slate-300">
                   {lang === 'ar'
-                    ? `هذه الأداة جزء من منصة KNOUX Repair الكنسية (المعرف: ${tool.ToolId}). تنفذ عبر كونسول PowerShell المدار والمحمي بالـ Nonce Token دون مخاطر خروج عن النطاق المسموح به.`
+                    ? `هذه الأداة جزء من منظومة KNOUX Repair المعتمدة (المعرف: ${tool.ToolId}). تنفذ عبر كونسول PowerShell المدار والمحمي بالـ Nonce Token دون مخاطر خروج عن النطاق المسموح به.`
                     : `This tool is part of the KNOUX Repair canonical suite (ID: ${tool.ToolId}). Executes via the managed loopback PowerShell bridge secured with single-use nonce tokens.`}
                 </p>
               </div>

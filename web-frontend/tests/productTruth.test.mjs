@@ -99,6 +99,21 @@ test('production UI never presents fabricated measurements as live facts', () =>
   assert.match(firebase, /isWorkspaceConfigured/, 'workspace backend must be gated on explicit configuration');
 });
 
+test('Arabic UI uses approved canonical terminology without the ecclesiastical mistranslation', () => {
+  const arabicUiSources = [
+    '../src/components/pages/AIScanPage.tsx',
+    '../src/components/premium/AllServicesNavigator.tsx',
+    '../src/components/premium/ToolWorkspace.tsx',
+  ].map(read);
+
+  for (const source of arabicUiSources) {
+    assert.equal(source.includes('كنسية'), false, 'Canonical product architecture must be translated as معتمدة, not كنسية');
+  }
+  assert.match(arabicUiSources[0], /أداة معتمدة/);
+  assert.match(arabicUiSources[1], /البنية المعتمدة/);
+  assert.match(arabicUiSources[2], /منظومة KNOUX Repair المعتمدة/);
+});
+
 test('web and Electron local surfaces retain response security policy', () => {
   const gateway = read('../server.ts');
   const electron = read('../desktop/main.cjs');

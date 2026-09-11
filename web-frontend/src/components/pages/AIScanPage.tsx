@@ -198,7 +198,7 @@ export default function AIScanPage({
             {/* Tag */}
             <div className="text-[10px] md:text-xs font-mono font-semibold tracking-wider text-cyan-400 uppercase mb-2">
               {isRtl
-                ? `ذكاء اصطناعي • رؤى عميقة • ${toolCount ?? 158} أداة كنسية`
+                ? `ذكاء اصطناعي • رؤى عميقة • ${toolCount ?? 158} أداة معتمدة`
                 : `AI POWERED • DEEP INSIGHTS • ${toolCount ?? 158} CANONICAL TOOLS`}
             </div>
 
@@ -215,7 +215,7 @@ export default function AIScanPage({
             {/* Subtitle */}
             <p className="text-xs md:text-sm text-slate-300 leading-relaxed mb-5">
               {isRtl
-                ? 'فحص ذكي للكشف عن المشاكل، وتقييم صحة الحاسوب، وتقديم حلول موجهة عبر جميع عائلات الإصلاح الكنسية دون مخاطر.'
+                ? 'فحص ذكي للكشف عن المشاكل، وتقييم صحة الحاسوب، وتقديم حلول موجهة عبر جميع عائلات الإصلاح المعتمدة دون مخاطر.'
                 : "Run an intelligent scan to detect issues, assess your PC's health, and get guided solutions across all repair families."}
             </p>
 

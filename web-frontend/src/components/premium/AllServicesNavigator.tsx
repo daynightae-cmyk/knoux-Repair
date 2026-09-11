@@ -93,7 +93,7 @@ export default function AllServicesNavigator({ lang, onNavigate }: AllServicesNa
       <div className="relative rounded-2xl border border-white/10 p-6 bg-gradient-to-r from-[#0d1433]/90 via-[#0a0f28]/90 to-[#0e173a]/90 backdrop-blur-xl shadow-2xl overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="text-[10px] md:text-xs font-mono font-bold tracking-widest text-cyan-400 uppercase mb-1">
-            {isRtl ? 'مستعرض الخدمات الشامل • البنية الكنسية' : 'ALL SERVICES NAVIGATOR'}
+            {isRtl ? 'مستعرض الخدمات الشامل • البنية المعتمدة' : 'ALL SERVICES NAVIGATOR'}
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight font-display mb-1">
             {isRtl ? (
