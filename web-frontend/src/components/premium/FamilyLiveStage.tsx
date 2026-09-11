@@ -1,9 +1,11 @@
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import * as LucideIcons from 'lucide-react';
 import { Activity, ShieldCheck, Wifi, Layers3 } from 'lucide-react';
-import type { BridgeTool, ExecutionMode } from '../../lib/api';
+import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../lib/api';
 import type { FamilyDefinition, ServiceDefinition, ServiceId } from '../../data/family-map';
 import type { ToolStatus, ConsoleEntry } from '../../types';
+import ExecutionConfirmDialog from '../ExecutionConfirmDialog';
 import ToolWorkspace from './ToolWorkspace';
 
 interface FamilyLiveStageProps {
@@ -16,13 +18,18 @@ interface FamilyLiveStageProps {
   bridgeOnline: boolean | null;
   bridgeElevated: boolean;
   toolStatuses: Record<string, ToolStatus>;
-  onRunTool: (tool: BridgeTool, mode?: ExecutionMode) => void;
+  onRunTool: (tool: BridgeTool, mode?: ExecutionMode, options?: ToolRunOptions, confirmation?: ToolRunConfirmation) => void;
   onCancelTool: () => void;
   onClearTool: () => void;
   onSelectService: (id: ServiceId) => void;
   consoleEntries?: ConsoleEntry[];
   activeToolId?: string | null;
 }
+
+type PendingExecution = {
+  toolId: string;
+  mode: ExecutionMode;
+};
 
 export default function FamilyLiveStage({
   family,
@@ -41,6 +48,7 @@ export default function FamilyLiveStage({
   consoleEntries,
   activeToolId,
 }: FamilyLiveStageProps) {
+  const [pendingExecution, setPendingExecution] = useState<PendingExecution | null>(null);
   const isRtl = lang === 'ar';
   const FamilyIcon = (LucideIcons as unknown as Record<string, React.ElementType>)[family.icon] ?? LucideIcons.Activity;
   const bridgeLabel = bridgeOnline === true
@@ -48,6 +56,30 @@ export default function FamilyLiveStage({
     : bridgeOnline === false
       ? (isRtl ? 'الجسر غير متصل' : 'Bridge offline')
       : (isRtl ? 'جارٍ فحص الجسر' : 'Checking bridge');
+
+  useEffect(() => {
+    setPendingExecution(null);
+  }, [selectedTool?.ToolId]);
+
+  const requestExecution = (mode: ExecutionMode) => {
+    if (!selectedTool) return;
+
+    if (selectedTool.RequiresConfirmation) {
+      setPendingExecution({ toolId: selectedTool.ToolId, mode });
+      return;
+    }
+
+    onRunTool(selectedTool, mode);
+  };
+
+  const pendingTool = selectedTool && pendingExecution?.toolId === selectedTool.ToolId
+    ? selectedTool
+    : null;
+
+  const clearTool = () => {
+    setPendingExecution(null);
+    onClearTool();
+  };
 
   return (
     <section className="knoux-live-stage" data-mode={selectedTool ? 'tool' : 'family'} dir={isRtl ? 'rtl' : 'ltr'}>
@@ -87,11 +119,11 @@ export default function FamilyLiveStage({
               lang={lang}
               bridgeElevated={bridgeElevated}
               toolStatus={toolStatuses[selectedTool.ToolId] ?? 'idle'}
-              onRun={(mode) => onRunTool(selectedTool, mode)}
+              onRun={requestExecution}
               onCancel={onCancelTool}
               consoleEntries={consoleEntries}
               activeToolId={activeToolId}
-              onBack={onClearTool}
+              onBack={clearTool}
             />
           </motion.div>
         ) : (
@@ -164,6 +196,20 @@ export default function FamilyLiveStage({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {pendingTool && pendingExecution && (
+        <ExecutionConfirmDialog
+          tool={pendingTool}
+          mode={pendingExecution.mode}
+          lang={lang}
+          onCancel={() => setPendingExecution(null)}
+          onConfirm={(options, confirmation) => {
+            const mode = pendingExecution.mode;
+            setPendingExecution(null);
+            onRunTool(pendingTool, mode, options, confirmation);
+          }}
+        />
+      )}
     </section>
   );
 }
