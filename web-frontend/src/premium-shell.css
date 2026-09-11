@@ -542,7 +542,7 @@
 }
 
 /* ── Responsive ── */
-@media (max-width: 1365px) {
+@media (max-width: 1100px) {
   .knoux-rail {
     width: 64px;
     padding: var(--knoux-space-2) var(--knoux-space-1);

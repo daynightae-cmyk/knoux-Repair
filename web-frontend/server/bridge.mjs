@@ -18,6 +18,7 @@ const SERVER_DIR = path.dirname(fileURLToPath(import.meta.url));
 const LOCAL_ENV_PATH = path.join(SERVER_DIR, '..', '.env.local');
 
 function loadLocalEnv() {
+  if (process.env.KNOUX_IGNORE_DOTENV === '1') return;
   if (!fs.existsSync(LOCAL_ENV_PATH)) return;
   for (const rawLine of fs.readFileSync(LOCAL_ENV_PATH, 'utf8').split(/\r?\n/)) {
     const line = rawLine.trim();

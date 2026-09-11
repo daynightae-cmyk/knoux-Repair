@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import {
   Sparkles, ArrowRight, ArrowLeft, ShieldCheck, Activity, Database,
   Shield, Package, Code2, Search, Loader2, CheckCircle2, AlertTriangle,
-  RotateCcw
+  Zap, Clock, Play
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -56,6 +56,7 @@ export default function AIScanPage({
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [findings, setFindings] = useState<ScanFinding[] | null>(null);
   const [scanTimestamp, setScanTimestamp] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const runDiagnosticScan = useCallback(async () => {
     if (!bridgeOnline) return;
@@ -118,40 +119,39 @@ export default function AIScanPage({
           discoveredFindings.push({
             id: 'defender-disabled',
             severity: 'critical',
-            titleEn: 'Defender Real-Time Protection Inactive',
-            titleAr: 'حماية Windows Defender بالوقت الحقيقي غير نشطة',
-            detailEn: 'Real-time antivirus defense appears disabled or unmanaged.',
-            detailAr: 'حماية مكافحة الفيروسات الفورية معطلة أو غير مدارة بشكل صحيح.',
-            metric: 'Protection Inactive',
-            dest: { family: 'assurance', service: '09-Security', toolId: 'SC01' },
-            actionLabelEn: 'Audit Security Posture (SC01)',
-            actionLabelAr: 'تدقيق الأمان (SC01)'
+            titleEn: 'Real-Time Protection Disabled',
+            titleAr: 'الحماية في الوقت الفعلي معطلة',
+            detailEn: 'Windows Defender real-time protection is inactive, leaving the system exposed.',
+            detailAr: 'الحماية الفورية لويندوز ديفندر متوقفة حالياً، مما يجعل النظام غير محمي.',
+            metric: 'Security Alert',
+            dest: { family: 'assurance', service: '09-Security', toolId: 'SE04' },
+            actionLabelEn: 'Check Security Posture (SE04)',
+            actionLabelAr: 'فحص إعدادات الأمان (SE04)'
           });
         }
       }
 
       // Step 2: Cleanup preview
-      setProgressPercent(65);
-      setScanStage(isRtl ? 'تدقيق ملفات التخزين المؤقت والمخلفات...' : 'Auditing cache repositories & temporary files...');
+      setProgressPercent(60);
+      setScanStage(isRtl ? 'تحليل مخلفات النظام المؤكدة...' : 'Analyzing reclaimable temporary files...');
       const cleanRes = await api.cleanupPreview().catch(() => null);
 
       if (cleanRes?.preview) {
         const clean = cleanRes.preview;
-        const totalBytes = clean.Summary?.EstimatedReclaimableBytes ?? 0;
-        const totalMb = totalBytes / (1024 * 1024);
-        if (totalMb > 100) {
-          const formattedSize = totalMb >= 1024 ? `${(totalMb / 1024).toFixed(2)} GB` : `${Math.round(totalMb)} MB`;
+        const bytes = clean.Summary?.EstimatedReclaimableBytes ?? 0;
+        const mb = Math.round(bytes / (1024 * 1024));
+        if (mb > 500) {
           discoveredFindings.push({
-            id: 'cache-cleanup-eligible',
-            severity: totalMb > 2048 ? 'warning' : 'optimal',
-            titleEn: 'Reclaimable Temporary Cache Detected',
-            titleAr: 'ملفات مؤقتة قابلة للتنظيف بأمان',
-            detailEn: `Discovered approximately ${formattedSize} of disposable temp files and system log residue.`,
-            detailAr: `تم اكتشاف ما يقارب ${formattedSize} من الملفات المؤقتة وسجلات النظام المؤهلة للعزل والتنظيف.`,
-            metric: formattedSize,
-            dest: { family: 'recovery', service: '02-System-Cleanup', toolId: 'CL01' },
-            actionLabelEn: 'Clean System Caches (CL01)',
-            actionLabelAr: 'تنظيف المخلفات (CL01)'
+            id: 'cleanup-cache-bloat',
+            severity: mb > 2048 ? 'critical' : 'warning',
+            titleEn: 'Safe Reclaimable Disk Space',
+            titleAr: 'مساحة قابلة للاسترجاع بأمان',
+            detailEn: `Found approx. ${mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`} of dispensable caches and temporary files.`,
+            detailAr: `تم العثور على ما يقارب ${mb >= 1024 ? `${(mb / 1024).toFixed(1)} جيجابايت` : `${mb} ميجابايت`} من الملفات المؤقتة والذاكرة المخبأة الآمن حذفها.`,
+            metric: `${mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`}`,
+            dest: { family: 'recovery', service: '02-System-Cleanup', toolId: 'SC01' },
+            actionLabelEn: 'Clean System Junk (SC01)',
+            actionLabelAr: 'تنظيف المخلفات (SC01)'
           });
         }
       }
@@ -191,98 +191,250 @@ export default function AIScanPage({
   }, [bridgeOnline, isRtl]);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-12" dir={isRtl ? 'rtl' : 'ltr'}>
-      {/* Hero / AI Scanner Orb */}
-      <div className="flex flex-col items-center text-center">
-        <div className="relative w-36 h-36 mb-6 flex items-center justify-center">
-          {/* Animated halo rings */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 to-violet-500/20 rounded-full blur-2xl animate-pulse" />
-          <div className="absolute inset-2 border border-cyan-500/30 rounded-full animate-spin" style={{ animationDuration: '15s' }} />
-          <div className="absolute inset-4 border border-violet-500/40 rounded-full animate-spin" style={{ animationDuration: '25s', animationDirection: 'reverse' }} />
+    <div className="max-w-6xl mx-auto space-y-8" dir={isRtl ? 'rtl' : 'ltr'}>
+      {/* ── 1. Hero Card: Autonomous AI Scan Command Center (Matching P0-02) ── */}
+      <div className="relative rounded-2xl border border-white/10 p-6 md:p-8 bg-gradient-to-br from-[#0b1026]/90 via-[#070b1a]/90 to-[#0c122c]/90 backdrop-blur-xl shadow-2xl overflow-hidden">
+        {/* Ambient Glows */}
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-80 h-80 bg-violet-600/15 rounded-full blur-3xl pointer-events-none" />
 
-          <motion.div
-            animate={{ scale: scanning ? [1, 1.12, 1] : [1, 1.06, 1] }}
-            transition={{ duration: scanning ? 1.5 : 4, repeat: Infinity, ease: "easeInOut" }}
-            className="w-24 h-24 rounded-full bg-slate-950/80 border border-cyan-400/50 flex items-center justify-center shadow-[0_0_35px_rgba(34,211,238,0.35)] backdrop-blur-xl z-10"
-          >
-            {scanning ? (
-              <Loader2 size={36} className="text-cyan-400 animate-spin" />
-            ) : (
-              <Sparkles size={40} className="text-cyan-400" />
-            )}
-          </motion.div>
+        <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8">
+          {/* Left Column: Heading, Search & Actions */}
+          <div className="flex-1 max-w-xl">
+            {/* Tag */}
+            <div className="text-[10px] md:text-xs font-mono font-semibold tracking-wider text-cyan-400 uppercase mb-2">
+              {isRtl
+                ? `ذكاء اصطناعي • رؤى عميقة • ${toolCount ?? 158} أداة كنسية`
+                : `AI POWERED • DEEP INSIGHTS • ${toolCount ?? 158} CANONICAL TOOLS`}
+            </div>
+
+            {/* Title */}
+            <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight font-display mb-2">
+              AI <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-violet-400 to-fuchsia-400">Scan</span>
+            </h1>
+
+            {/* Headline */}
+            <p className="text-base md:text-lg font-bold text-slate-100 mb-2">
+              {isRtl ? 'دع KNOUX يكتشف ما يهم نظامك حقاً.' : 'Let KNOUX find what matters.'}
+            </p>
+
+            {/* Subtitle */}
+            <p className="text-xs md:text-sm text-slate-300 leading-relaxed mb-5">
+              {isRtl
+                ? 'فحص ذكي للكشف عن المشاكل، وتقييم صحة الحاسوب، وتقديم حلول موجهة عبر جميع عائلات الإصلاح الكنسية دون مخاطر.'
+                : "Run an intelligent scan to detect issues, assess your PC's health, and get guided solutions across all repair families."}
+            </p>
+
+            {/* Search / Prompt Query Box */}
+            <div className="relative mb-5">
+              <div className="flex items-center gap-3 bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 focus-within:border-cyan-400/60 focus-within:ring-1 focus-within:ring-cyan-400/40 transition-all shadow-inner">
+                <Search size={16} className="text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={isRtl ? 'صف المشكلة، أو ابحث في أدوات KNOUX...' : 'Describe an issue, or ask KNOUX anything...'}
+                  className="bg-transparent border-none text-xs md:text-sm text-white placeholder-slate-500 focus:outline-none w-full"
+                />
+                <Sparkles size={16} className="text-cyan-400 shrink-0" />
+              </div>
+              <div className="text-[10px] text-slate-400 mt-1 flex gap-2">
+                <span>{isRtl ? 'أمثلة:' : 'Examples:'}</span>
+                <button type="button" onClick={() => setSearchQuery('Disk space low')} className="hover:text-cyan-300 transition-colors">
+                  &quot;Disk space low&quot;
+                </button>
+                <span>•</span>
+                <button type="button" onClick={() => setSearchQuery('Slow performance')} className="hover:text-cyan-300 transition-colors">
+                  &quot;Slow performance&quot;
+                </button>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+              <button
+                type="button"
+                onClick={runDiagnosticScan}
+                disabled={scanning || !bridgeOnline}
+                className={clsx(
+                  "px-6 py-2.5 rounded-xl text-xs md:text-sm font-bold flex items-center gap-2.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white shadow-[0_0_20px_rgba(124,58,237,0.4)] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
+                  scanning && "animate-pulse"
+                )}
+              >
+                {scanning ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>{isRtl ? 'جارٍ فحص النظام...' : 'Running Diagnostic Scan...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Play size={15} className="fill-white" />
+                    <span>{findings ? (isRtl ? 'إعادة تشغيل الفحص' : 'Rerun AI Scan') : (isRtl ? 'بدء الفحص الذكي' : 'Start AI Scan')}</span>
+                    {isRtl ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigate({ family: 'navigator' })}
+                className="px-5 py-2.5 rounded-xl text-xs md:text-sm font-semibold bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-slate-200 transition-all cursor-pointer flex items-center gap-2"
+              >
+                <Package size={15} />
+                <span>{isRtl ? 'استعراض عائلات الإصلاح' : 'Explore Repair Families'}</span>
+              </button>
+            </div>
+
+            {/* Value Props Row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-4 border-t border-white/10 text-[10px] text-slate-300">
+              <div className="flex items-center gap-1.5">
+                <Zap size={13} className="text-cyan-400 shrink-0" />
+                <div>
+                  <b className="block text-white">FASTER</b>
+                  <span className="text-slate-400">{isRtl ? 'تشخيص فوري' : 'Diagnose quickly'}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck size={13} className="text-emerald-400 shrink-0" />
+                <div>
+                  <b className="block text-white">SAFER</b>
+                  <span className="text-slate-400">{isRtl ? 'إصلاحات موثوقة' : 'Trusted, guided'}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Sparkles size={13} className="text-violet-400 shrink-0" />
+                <div>
+                  <b className="block text-white">SMARTER</b>
+                  <span className="text-slate-400">{isRtl ? 'تحليل ذكي' : 'AI-powered'}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Activity size={13} className="text-pink-400 shrink-0" />
+                <div>
+                  <b className="block text-white">STRONGER</b>
+                  <span className="text-slate-400">{isRtl ? 'نظام أكثر متانة' : 'Healthier PC'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Holographic Orbital Sphere with Faceted "K" Monogram */}
+          <div className="relative flex items-center justify-center p-4">
+            <div className="relative w-64 h-64 flex items-center justify-center">
+              {/* Radial Energy Glow */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 via-violet-600/30 to-fuchsia-500/20 rounded-full blur-2xl animate-pulse" />
+
+              {/* Orbital Scanner Rings SVG */}
+              <svg className="w-full h-full" viewBox="0 0 240 240" fill="none">
+                <defs>
+                  <linearGradient id="orbRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#22D3EE" />
+                    <stop offset="50%" stopColor="#818CF8" />
+                    <stop offset="100%" stopColor="#C084FC" />
+                  </linearGradient>
+                </defs>
+
+                {/* Outer Concentric Static Rings */}
+                <circle cx="120" cy="120" r="100" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+                <circle cx="120" cy="120" r="85" stroke="rgba(34,211,238,0.15)" strokeWidth="1" strokeDasharray="6 6" />
+                <circle cx="120" cy="120" r="70" stroke="rgba(129,140,248,0.2)" strokeWidth="1.5" />
+
+                {/* Tilted Elliptical Orbital Rings (Saturn Style) */}
+                <ellipse
+                  cx="120"
+                  cy="120"
+                  rx="105"
+                  ry="40"
+                  stroke="url(#orbRingGrad)"
+                  strokeWidth="2"
+                  transform="rotate(-25 120 120)"
+                  className="opacity-80 drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]"
+                />
+                <ellipse
+                  cx="120"
+                  cy="120"
+                  rx="95"
+                  ry="30"
+                  stroke="#22D3EE"
+                  strokeWidth="1.2"
+                  strokeDasharray="4 8"
+                  transform="rotate(35 120 120)"
+                  className="opacity-70"
+                />
+
+                {/* Pulsing Energy Core */}
+                <circle cx="120" cy="120" r="50" fill="rgba(11,16,38,0.9)" stroke="rgba(34,211,238,0.4)" strokeWidth="1.5" />
+              </svg>
+
+              {/* Central Faceted "K" Monogram */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <svg className="w-20 h-20 drop-shadow-[0_0_20px_rgba(129,140,248,0.9)]" viewBox="0 0 100 100" fill="none">
+                  <defs>
+                    <linearGradient id="kStemLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#7C3AED" />
+                      <stop offset="100%" stopColor="#4F46E5" />
+                    </linearGradient>
+                    <linearGradient id="kStemRight" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#22D3EE" />
+                      <stop offset="100%" stopColor="#06B6D4" />
+                    </linearGradient>
+                    <linearGradient id="kArmTop" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#38BDF8" />
+                      <stop offset="100%" stopColor="#2563EB" />
+                    </linearGradient>
+                    <linearGradient id="kArmBottom" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#A855F7" />
+                      <stop offset="100%" stopColor="#6366F1" />
+                    </linearGradient>
+                  </defs>
+
+                  {/* Vertical Spine Facets */}
+                  <polygon points="20,15 36,15 36,85 20,85" fill="url(#kStemLeft)" />
+                  <polygon points="36,15 44,22 44,78 36,85" fill="url(#kStemRight)" />
+
+                  {/* Top Diagonal Arm Facets */}
+                  <polygon points="38,50 68,18 82,18 48,54" fill="url(#kArmTop)" />
+                  <polygon points="48,54 82,18 84,26 52,60" fill="url(#kStemRight)" opacity="0.8" />
+
+                  {/* Bottom Diagonal Arm Facets */}
+                  <polygon points="44,48 78,85 64,85 36,54" fill="url(#kArmBottom)" />
+                  <polygon points="44,48 52,48 84,85 78,85" fill="url(#kStemRight)" opacity="0.6" />
+                </svg>
+              </div>
+
+              {/* Vertical Typography: SCAN ANALYZE UNDERSTAND REPAIR TOGETHER */}
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-col gap-1 text-[8px] font-mono tracking-widest text-slate-400 uppercase select-none opacity-60">
+                <span>SCAN</span>
+                <span>ANALYZE</span>
+                <span>UNDERSTAND</span>
+                <span>REPAIR</span>
+                <span>TOGETHER</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <h1 className="text-4xl font-black text-white mb-3 tracking-tight font-display">
-          KNOUX <span className="text-cyan-400">AI Scan</span>
-        </h1>
-        <p className="text-sm md:text-base text-slate-300 max-w-xl leading-relaxed mb-6">
-          {isRtl
-            ? 'نظام الفحص والتوجيه الاستراتيجي. تشخيص عميق للبنية التحتية عبر استدعاءات المعاينة الآمنة، وتوجيه مباشر نحو أدوات الإصلاح الكنسية.'
-            : 'Autonomous diagnostic and system guidance engine. Executes safe read-only audits across subsystems and deep-links directly into canonical repair tools.'}
-        </p>
-
-        {/* Scan Actions */}
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={runDiagnosticScan}
-            disabled={scanning || !bridgeOnline}
-            className={clsx(
-              "knoux-btn knoux-btn-primary px-8 py-3 rounded-xl text-sm font-bold flex items-center gap-2.5 shadow-[0_0_25px_rgba(124,58,237,0.4)] hover:shadow-[0_0_35px_rgba(124,58,237,0.6)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
-              scanning && "animate-pulse"
-            )}
-          >
-            {scanning ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                <span>{isRtl ? 'جارٍ فحص النظام...' : 'Running Diagnostic Scan...'}</span>
-              </>
-            ) : (
-              <>
-                <Sparkles size={16} />
-                <span>{findings ? (isRtl ? 'إعادة تشغيل الفحص' : 'Rerun AI Scan') : (isRtl ? 'بدء الفحص الذكي الشامل' : 'Start AI Scan')}</span>
-              </>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onNavigate({ family: 'recovery', service: '02-System-Cleanup' })}
-            className="knoux-btn knoux-btn-secondary px-6 py-3 rounded-xl text-sm font-semibold cursor-pointer"
-          >
-            {isRtl ? 'فحص التخزين والاسترداد' : 'Inspect Storage'}
-          </button>
-        </div>
-
-        {/* Progress Bar when scanning */}
+        {/* Scan Progress Bar (if active) */}
         {scanning && (
-          <div className="w-full max-w-md mt-6 space-y-2">
+          <div className="w-full mt-6 space-y-2 border-t border-white/10 pt-4">
             <div className="flex items-center justify-between text-xs text-slate-300">
-              <span className="font-mono">{scanStage}</span>
+              <span className="font-mono flex items-center gap-2">
+                <Loader2 size={14} className="animate-spin text-cyan-400" />
+                {scanStage}
+              </span>
               <span className="font-mono font-bold text-cyan-400">{progressPercent}%</span>
             </div>
             <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-cyan-500 to-violet-500 transition-all duration-300 rounded-full"
+                className="h-full bg-gradient-to-r from-cyan-500 via-violet-500 to-pink-500 transition-all duration-300 rounded-full"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
           </div>
         )}
-
-        {/* Engine Status Tag */}
-        <div className="mt-4 flex items-center gap-2 text-xs font-mono text-slate-400">
-          <span className={clsx("w-2 h-2 rounded-full", bridgeOnline ? "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "bg-red-400")} />
-          <span>
-            {bridgeOnline
-              ? `${isRtl ? 'محرك الفحص نشط' : 'Diagnostic Engine Ready'} (${toolCount ?? 158} ${isRtl ? 'أداة مسجلة' : 'canonical tools'})${scanTimestamp ? ` • ${isRtl ? 'آخر فحص:' : 'Last scan:'} ${scanTimestamp}` : ''}`
-              : (isRtl ? 'الجسر المحلي مفصول — شغل خادم الجسر للبدء' : 'Local Bridge Offline — start bridge server')}
-          </span>
-        </div>
       </div>
 
-      {/* Discovered Findings Section */}
+      {/* ── 2. Discovered Findings Section (Real Diagnostic Evidence) ── */}
       <AnimatePresence>
         {findings !== null && (
           <motion.div
@@ -298,44 +450,41 @@ export default function AIScanPage({
                   {isRtl ? 'نتائج الفحص والتشخيص' : 'Discovered Diagnostics & Actionable Findings'}
                 </h2>
                 <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  {findings.length} {isRtl ? 'ملاحظة' : 'findings'}
+                  {findings.length} {isRtl ? 'عناصر' : 'items'}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={runDiagnosticScan}
-                disabled={scanning}
-                className="text-xs text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors"
-              >
-                <RotateCcw size={12} />
-                <span>{isRtl ? 'تحديث' : 'Refresh'}</span>
-              </button>
+              {scanTimestamp && (
+                <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
+                  <Clock size={12} />
+                  <span>{scanTimestamp}</span>
+                </div>
+              )}
             </div>
 
             {findings.length === 0 ? (
-              <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center space-y-2">
-                <CheckCircle2 size={32} className="mx-auto text-emerald-400" />
-                <h3 className="text-sm font-bold text-white">
-                  {isRtl ? 'النظام في حالة مستقرة ومثالية' : 'All Inspected Subsystems Operating Within Normal Parameters'}
-                </h3>
-                <p className="text-xs text-slate-400 max-w-md mx-auto">
+              <div className="p-6 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-1">
+                <CheckCircle2 size={24} className="mx-auto text-emerald-400 mb-2" />
+                <p className="text-sm font-semibold text-emerald-300">
+                  {isRtl ? 'جميع الأنظمة المفحوصة في حالة مثالية' : 'All Inspected Subsystems Operating Within Safe Limits'}
+                </p>
+                <p className="text-xs text-slate-400">
                   {isRtl
-                    ? 'لم يتم العثور على أخطاء حرجة في الذاكرة أو أقراص النظام أو برامج التشغيل أثناء هذا الفحص.'
-                    : 'No critical memory pressure, drive saturation, or hardware faults were detected during this scan cycle.'}
+                    ? 'لم يتم رصد ضغط غير عادي على الذاكرة أو القرص، ومحرك الحماية يعمل بشكل طبيعي.'
+                    : 'No memory exhaustion, storage pressure, or critical defender omissions detected.'}
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3">
-                {findings.map(finding => (
+                {findings.map((finding) => (
                   <div
                     key={finding.id}
                     className={clsx(
-                      "p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all",
+                      "p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-colors",
                       finding.severity === 'critical'
-                        ? "bg-red-500/[0.06] border-red-500/30"
+                        ? "bg-red-500/10 border-red-500/30"
                         : finding.severity === 'warning'
-                          ? "bg-amber-500/[0.06] border-amber-500/30"
-                          : "bg-cyan-500/[0.04] border-cyan-500/20"
+                          ? "bg-amber-500/10 border-amber-500/30"
+                          : "bg-cyan-500/10 border-cyan-500/30"
                     )}
                   >
                     <div className="flex items-start gap-3">
@@ -386,19 +535,24 @@ export default function AIScanPage({
         )}
       </AnimatePresence>
 
-      {/* Strategic Entry Points - Deep-link Cards */}
+      {/* ── 3. Six Pathways Section: "AI SCAN FINDS. REPAIR FAMILIES SOLVE." ── */}
       <div>
-        <div className="flex items-center justify-between mb-4 border-b border-white/[0.08] pb-3">
-          <h2 className="text-base font-bold text-white tracking-wide flex items-center gap-2">
-            <ShieldCheck size={18} className="text-cyan-400" />
-            <span>{isRtl ? 'عائلات الإصلاح الست' : 'Six Canonical Repair Families'}</span>
-          </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 border-b border-white/[0.08] pb-3 gap-1">
+          <div>
+            <h2 className="text-sm md:text-base font-bold text-white tracking-wide flex items-center gap-2">
+              <ShieldCheck size={18} className="text-cyan-400" />
+              <span>{isRtl ? 'عائلات الإصلاح الست' : 'Six Canonical Repair Families'}</span>
+            </h2>
+            <span className="text-[10px] md:text-xs text-cyan-400 font-mono">
+              {isRtl ? 'فحص واحد • ستة مسارات • غد أكثر صحة' : 'ONE SCAN • SIX PATHWAYS • A HEALTHIER TOMORROW'}
+            </span>
+          </div>
           <span className="text-xs text-slate-400 font-mono">
-            {isRtl ? '18 خدمة متخصصة' : '18 Dedicated Services'}
+            {isRtl ? '18 خدمة متخصصة • 158 أداة' : '18 Dedicated Services • 158 Tools'}
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {FAMILIES.map((fam) => {
             const Icon = FAMILY_ICONS[fam.id] || Activity;
             return (

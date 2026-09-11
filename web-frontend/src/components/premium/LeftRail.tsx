@@ -1,13 +1,13 @@
 import { useCallback } from 'react';
 import {
   Sparkles, Activity, Database, Shield, Package,
-  Code2, Search, Bell, Settings,
+  Code2, Search, Bell, Settings, LayoutGrid,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import type { FamilyId } from '../../data/family-map';
 
-export type ActiveView = FamilyId | 'ai-scan' | 'action-center' | 'settings';
+export type ActiveView = FamilyId | 'ai-scan' | 'action-center' | 'settings' | 'navigator';
 
 export interface LeftRailProps {
   activeView: ActiveView;
@@ -31,6 +31,7 @@ const MAIN_ITEMS: NavItem[] = [
   { id: 'software', icon: Package, labelEn: 'Software Library', labelAr: 'مكتبة البرامج' },
   { id: 'workbench', icon: Code2, labelEn: 'Engineering Workbench', labelAr: 'ورشة الهندسة' },
   { id: 'investigation', icon: Search, labelEn: 'Investigation', labelAr: 'التحقيق' },
+  { id: 'navigator', icon: LayoutGrid, labelEn: 'All Services', labelAr: 'دليل الخدمات' },
 ];
 
 const BOTTOM_ITEMS: NavItem[] = [

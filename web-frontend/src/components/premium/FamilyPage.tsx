@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { FamilyDefinition, ServiceId } from '../../data/family-map';
-import type { BridgeTool, ExecutionMode, ToolRunOptions, ToolRunConfirmation } from '../../lib/api';
-import type { ToolStatus } from '../../types';
+import type { BridgeTool, ExecutionMode, ToolRunOptions, ToolRunConfirmation, SystemSnapshot } from '../../lib/api';
+import type { ToolStatus, ConsoleEntry } from '../../types';
 import HeroSection from './HeroSection';
 import ServiceCard from './ServiceCard';
 import ToolRow from './ToolRow';
@@ -22,6 +22,9 @@ interface FamilyPageProps {
   selectedToolId: string | null;
   onSelectTool: (id: string | null) => void;
   onRetryBridge: () => void;
+  systemSnapshot?: SystemSnapshot | null;
+  consoleEntries?: ConsoleEntry[];
+  activeToolId?: string | null;
 }
 
 export default function FamilyPage({
@@ -29,6 +32,7 @@ export default function FamilyPage({
   toolStatuses, onRunTool, onCancelTool,
   selectedService, onSelectService,
   selectedToolId, onSelectTool, onRetryBridge,
+  systemSnapshot, consoleEntries, activeToolId,
 }: FamilyPageProps) {
   // Default to first service if none selected
   const activeServiceId = selectedService ?? family.services[0]?.id ?? null;
@@ -53,10 +57,29 @@ export default function FamilyPage({
     [selectedToolId, serviceTools]
   );
 
+  // If a tool is selected, render the dedicated Universal Tool Workspace matching P0-10
+  if (selectedTool && activeService) {
+    return (
+      <ToolWorkspace
+        tool={selectedTool}
+        family={family}
+        service={activeService}
+        lang={lang}
+        bridgeElevated={bridgeElevated}
+        toolStatus={toolStatuses[selectedTool.ToolId] ?? 'idle'}
+        onRun={(mode) => onRunTool(selectedTool, mode)}
+        onCancel={onCancelTool}
+        consoleEntries={consoleEntries}
+        activeToolId={activeToolId}
+        onBack={() => onSelectTool(null)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Hero */}
-      <HeroSection family={family} totalTools={familyTools.length} lang={lang} />
+      <HeroSection family={family} totalTools={familyTools.length} lang={lang} systemSnapshot={systemSnapshot} />
 
       {/* Service selector */}
       <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'thin' }}>
@@ -142,6 +165,8 @@ export default function FamilyPage({
               toolStatus={toolStatuses[selectedTool.ToolId] ?? 'idle'}
               onRun={(mode) => onRunTool(selectedTool, mode)}
               onCancel={onCancelTool}
+              consoleEntries={consoleEntries}
+              activeToolId={activeToolId}
             />
           </motion.div>
         )}

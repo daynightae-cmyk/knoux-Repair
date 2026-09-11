@@ -25,6 +25,7 @@ import type { SentinelTask } from './components/premium/SentinelPanel';
 import FamilyPage from './components/premium/FamilyPage';
 import AIScanPage from './components/pages/AIScanPage';
 import ActionCenterPage from './components/pages/ActionCenterPage';
+import AllServicesNavigator from './components/premium/AllServicesNavigator';
 import GlobalSearch from './components/premium/GlobalSearch';
 import DiagnosticConsole from './components/DiagnosticConsole';
 import SettingsCenter from './components/SettingsCenter';
@@ -32,7 +33,7 @@ import NexusSplash from './components/NexusSplash';
 import AuthGate from './components/AuthGate';
 
 // ── Types ──
-type ActiveView = FamilyId | 'ai-scan' | 'action-center' | 'settings';
+type ActiveView = FamilyId | 'ai-scan' | 'action-center' | 'settings' | 'navigator';
 
 // ── Console entry helper ──
 let entryCounter = 0;
@@ -310,7 +311,7 @@ function MasterWorkstation() {
 
   // ── Active Family Definition ──
   const activeFamily = useMemo(() => {
-    if (activeView === 'ai-scan' || activeView === 'action-center' || activeView === 'settings') return null;
+    if (activeView === 'ai-scan' || activeView === 'action-center' || activeView === 'settings' || activeView === 'navigator') return null;
     return FAMILIES.find((f: FamilyDefinition) => f.id === activeView) ?? null;
   }, [activeView]);
 
@@ -352,6 +353,19 @@ function MasterWorkstation() {
                   lang={lang}
                   bridgeOnline={bridgeOnline}
                   toolCount={bridgeToolCount}
+                  onNavigate={navigateTo}
+                />
+              </motion.div>
+            ) : activeView === 'navigator' ? (
+              <motion.div
+                key="navigator"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.18 }}
+              >
+                <AllServicesNavigator
+                  lang={lang}
                   onNavigate={navigateTo}
                 />
               </motion.div>
@@ -416,19 +430,24 @@ function MasterWorkstation() {
                   selectedToolId={selectedToolId}
                   onSelectTool={setSelectedToolId}
                   onRetryBridge={() => { void connectBridge(); }}
+                  systemSnapshot={systemSnapshot}
+                  consoleEntries={consoleEntries}
+                  activeToolId={activeTool?.ToolId ?? null}
                 />
               </motion.div>
             ) : null}
           </AnimatePresence>
         </main>
 
-        <SentinelPanel
-          lang={lang}
-          bridgeOnline={bridgeOnline}
-          activeFamily={activeFamily?.id ?? null}
-          activeTasks={activeTasks}
-          systemSnapshot={systemSnapshot}
-        />
+        {!selectedToolId && (
+          <SentinelPanel
+            lang={lang}
+            bridgeOnline={bridgeOnline}
+            activeFamily={activeFamily?.id ?? null}
+            activeTasks={activeTasks}
+            systemSnapshot={systemSnapshot}
+          />
+        )}
       </div>
 
       {/* Footer / Status Strip */}

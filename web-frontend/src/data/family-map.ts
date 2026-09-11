@@ -18,7 +18,8 @@ export type FamilyId =
   | 'assurance'
   | 'software'
   | 'workbench'
-  | 'investigation';
+  | 'investigation'
+  | 'navigator';
 
 // ── Service identifiers (matching backend category IDs) ──
 export type ServiceId =

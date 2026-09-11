@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 // A per-process bridge token forces the capability-token boundary on for every
 // test in this file (the bridge reads it once at module load).
 process.env.KNOUX_BRIDGE_TOKEN = 'knoux-test-capability-token-001';
+process.env.KNOUX_IGNORE_DOTENV = '1';
 delete process.env.GEMINI_API_KEY;
 delete process.env.OPENROUTER_API_KEY;
 
