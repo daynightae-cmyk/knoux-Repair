@@ -5,8 +5,8 @@ import type { BridgeTool, ExecutionMode, ToolRunOptions, ToolRunConfirmation, Sy
 import type { ToolStatus, ConsoleEntry } from '../../types';
 import HeroSection from './HeroSection';
 import ServiceCard from './ServiceCard';
-import ToolRow from './ToolRow';
-import ToolWorkspace from './ToolWorkspace';
+import ToolCard from './ToolCard';
+import FamilyLiveStage from './FamilyLiveStage';
 
 interface FamilyPageProps {
   family: FamilyDefinition;
@@ -34,152 +34,155 @@ export default function FamilyPage({
   selectedToolId, onSelectTool, onRetryBridge,
   systemSnapshot, consoleEntries, activeToolId,
 }: FamilyPageProps) {
-  // Default to first service if none selected
   const activeServiceId = selectedService ?? family.services[0]?.id ?? null;
-  const activeService = family.services.find(s => s.id === activeServiceId) ?? family.services[0];
+  const activeService = family.services.find(service => service.id === activeServiceId) ?? family.services[0];
 
-  // Tools for this family (all services within family)
-  const familyServiceIds = useMemo(() => new Set(family.services.map(s => s.id)), [family]);
+  const familyServiceIds = useMemo(() => new Set(family.services.map(service => service.id)), [family.services]);
   const familyTools = useMemo(
-    () => tools.filter(t => familyServiceIds.has(t.Category as ServiceId)),
+    () => tools.filter(tool => familyServiceIds.has(tool.Category as ServiceId)),
     [tools, familyServiceIds]
   );
-
-  // Tools for selected service
   const serviceTools = useMemo(
-    () => familyTools.filter(t => t.Category === activeServiceId),
+    () => activeServiceId ? familyTools.filter(tool => tool.Category === activeServiceId) : [],
     [familyTools, activeServiceId]
   );
-
-  // Selected tool object
   const selectedTool = useMemo(
-    () => selectedToolId ? serviceTools.find(t => t.ToolId === selectedToolId) ?? null : null,
-    [selectedToolId, serviceTools]
+    () => selectedToolId ? familyTools.find(tool => tool.ToolId === selectedToolId) ?? null : null,
+    [selectedToolId, familyTools]
+  );
+  const selectedToolService = useMemo(
+    () => selectedTool
+      ? family.services.find(service => service.id === selectedTool.Category) ?? activeService
+      : activeService,
+    [selectedTool, family.services, activeService]
   );
 
-  // If a tool is selected, render the dedicated Universal Tool Workspace matching P0-10
-  if (selectedTool && activeService) {
-    return (
-      <ToolWorkspace
-        tool={selectedTool}
-        family={family}
-        service={activeService}
-        lang={lang}
-        bridgeElevated={bridgeElevated}
-        toolStatus={toolStatuses[selectedTool.ToolId] ?? 'idle'}
-        onRun={(mode) => onRunTool(selectedTool, mode)}
-        onCancel={onCancelTool}
-        consoleEntries={consoleEntries}
-        activeToolId={activeToolId}
-        onBack={() => onSelectTool(null)}
-      />
-    );
-  }
+  if (!activeService || !selectedToolService) return null;
+
+  const selectService = (serviceId: ServiceId) => {
+    onSelectService(serviceId);
+    onSelectTool(null);
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Hero */}
+    <div className="knoux-family-page">
       <HeroSection
         family={family}
         totalTools={familyTools.length}
         lang={lang}
         systemSnapshot={systemSnapshot}
         onExplore={() => {
-          const el = document.getElementById('family-tool-catalog');
-          if (el) el.scrollIntoView({ behavior: 'smooth' });
+          const el = document.getElementById('family-services');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }}
       />
 
-      {/* Service selector */}
-      <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'thin' }}>
-        {family.services.map(service => {
-          const count = tools.filter(t => t.Category === service.id).length;
-          return (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              toolCount={count}
-              active={activeServiceId === service.id}
-              onClick={() => {
-                onSelectService(service.id);
-                onSelectTool(null);
-              }}
-              lang={lang}
-              accentColor={`var(${family.accentVar})`}
-            />
-          );
-        })}
-      </div>
+      <FamilyLiveStage
+        family={family}
+        service={selectedTool ? selectedToolService : activeService}
+        selectedTool={selectedTool}
+        familyTools={familyTools}
+        serviceTools={selectedTool ? familyTools.filter(tool => tool.Category === selectedToolService.id) : serviceTools}
+        lang={lang}
+        bridgeOnline={bridgeOnline}
+        bridgeElevated={bridgeElevated}
+        toolStatuses={toolStatuses}
+        onRunTool={onRunTool}
+        onCancelTool={onCancelTool}
+        onClearTool={() => onSelectTool(null)}
+        onSelectService={selectService}
+        consoleEntries={consoleEntries}
+        activeToolId={activeToolId}
+      />
 
-      {/* Tool catalog */}
-      <div id="family-tool-catalog" className="knoux-glass" style={{ padding: 0 }}>
-        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--knoux-border)' }}>
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--knoux-text-secondary)' }}>
-            {activeService ? (lang === 'ar' ? activeService.name.ar : activeService.name.en) : ''}
-          </h3>
-          <span className="text-xs" style={{ color: 'var(--knoux-text-faint)' }}>
-            {serviceTools.length} {lang === 'ar' ? 'أداة' : 'tools'}
-          </span>
+      <section id="family-services" className="knoux-family-catalog" aria-label={lang === 'ar' ? 'الخدمات والأدوات' : 'Services and tools'}>
+        <div className="knoux-section-heading">
+          <div>
+            <span>{lang === 'ar' ? 'الخدمات' : 'SERVICE FAMILIES'}</span>
+            <h2>{lang === 'ar' ? 'اختر الخدمة، ثم الأداة' : 'Choose a service, then a tool'}</h2>
+          </div>
+          <p>
+            {lang === 'ar'
+              ? 'يظهر محتوى خدمة واحدة فقط في كل مرة. اختيار الأداة يحول منصة العمل الحية بالأعلى إلى واجهتها الفعلية.'
+              : 'Only one service is expanded at a time. Selecting a tool transforms the live stage above into its real workspace.'}
+          </p>
         </div>
 
-        {bridgeOnline === false ? (
-          <div className="p-8 text-center">
-            <p className="text-sm mb-3" style={{ color: 'var(--knoux-text-muted)' }}>
-              {lang === 'ar' ? 'الجسر غير متصل — لا يمكن تحميل الأدوات' : 'Bridge offline — cannot load tools'}
-            </p>
-            <button type="button" className="knoux-btn knoux-btn-secondary" onClick={onRetryBridge}>
-              {lang === 'ar' ? 'إعادة المحاولة' : 'Retry Connection'}
-            </button>
-          </div>
-        ) : serviceTools.length === 0 ? (
-          <div className="p-8 text-center">
-            <p className="text-sm" style={{ color: 'var(--knoux-text-muted)' }}>
-              {bridgeOnline === null
-                ? (lang === 'ar' ? 'جارٍ التحميل...' : 'Loading tools...')
-                : (lang === 'ar' ? 'لا توجد أدوات متاحة لهذه الخدمة' : 'No tools available for this service')}
-            </p>
-          </div>
-        ) : (
-          <div>
-            {serviceTools.map(tool => (
-              <ToolRow
-                key={tool.ToolId}
-                tool={tool}
-                active={selectedToolId === tool.ToolId}
-                status={toolStatuses[tool.ToolId] ?? 'idle'}
-                onClick={() => onSelectTool(selectedToolId === tool.ToolId ? null : tool.ToolId)}
+        <div className="knoux-service-grid">
+          {family.services.map(service => {
+            const count = tools.filter(tool => tool.Category === service.id).length;
+            return (
+              <ServiceCard
+                key={service.id}
+                service={service}
+                toolCount={count}
+                active={activeServiceId === service.id}
+                onClick={() => selectService(service.id)}
                 lang={lang}
+                accentColor={`var(${family.accentVar})`}
               />
-            ))}
-          </div>
-        )}
-      </div>
+            );
+          })}
+        </div>
 
-      {/* Expanded tool workspace */}
-      <AnimatePresence>
-        {selectedTool && activeService && (
-          <motion.div
-            key={selectedTool.ToolId}
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25 }}
-          >
-            <ToolWorkspace
-              tool={selectedTool}
-              family={family}
-              service={activeService}
-              lang={lang}
-              bridgeElevated={bridgeElevated}
-              toolStatus={toolStatuses[selectedTool.ToolId] ?? 'idle'}
-              onRun={(mode) => onRunTool(selectedTool, mode)}
-              onCancel={onCancelTool}
-              consoleEntries={consoleEntries}
-              activeToolId={activeToolId}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <div className="knoux-active-service-panel">
+          <div className="knoux-active-service-head">
+            <div>
+              <span className="knoux-active-service-kicker">{lang === 'ar' ? 'الخدمة النشطة' : 'ACTIVE SERVICE'}</span>
+              <h3>{lang === 'ar' ? activeService.name.ar : activeService.name.en}</h3>
+              <p>{lang === 'ar' ? activeService.purpose.ar : activeService.purpose.en}</p>
+            </div>
+            <div className="knoux-active-service-count">
+              <strong>{serviceTools.length}</strong>
+              <span>{lang === 'ar' ? 'أداة' : 'tools'}</span>
+            </div>
+          </div>
+
+          {bridgeOnline === false ? (
+            <div className="knoux-tool-empty-state">
+              <p>{lang === 'ar' ? 'الجسر غير متصل، لذلك لا يمكن تحميل عقود الأدوات الحالية.' : 'Bridge offline, so the current tool contracts cannot be loaded.'}</p>
+              <button type="button" className="knoux-btn knoux-btn-secondary" onClick={onRetryBridge}>
+                {lang === 'ar' ? 'إعادة المحاولة' : 'Retry Connection'}
+              </button>
+            </div>
+          ) : serviceTools.length === 0 ? (
+            <div className="knoux-tool-empty-state">
+              <p>{bridgeOnline === null
+                ? (lang === 'ar' ? 'جارٍ تحميل عقود الأدوات...' : 'Loading tool contracts...')
+                : (lang === 'ar' ? 'لا توجد أدوات محمّلة لهذه الخدمة.' : 'No loaded tools are available for this service.')}
+              </p>
+            </div>
+          ) : (
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={activeService.id}
+                className="knoux-tool-card-grid"
+                initial={{ opacity: 0, x: lang === 'ar' ? -18 : 18 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: lang === 'ar' ? 18 : -18 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+              >
+                {serviceTools.map(tool => (
+                  <ToolCard
+                    key={tool.ToolId}
+                    tool={tool}
+                    serviceIcon={activeService.icon}
+                    active={selectedToolId === tool.ToolId}
+                    status={toolStatuses[tool.ToolId] ?? 'idle'}
+                    bridgeOnline={bridgeOnline}
+                    onClick={() => {
+                      onSelectTool(tool.ToolId);
+                      const stage = document.querySelector('.knoux-live-stage');
+                      if (stage) stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    lang={lang}
+                  />
+                ))}
+              </motion.div>
+            </AnimatePresence>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
