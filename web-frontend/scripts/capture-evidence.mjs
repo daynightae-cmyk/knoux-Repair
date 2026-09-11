@@ -51,6 +51,7 @@ const targets = [
     query: '&account=1',
     width: 1440,
     height: 900,
+    lang: 'en',
     requireAccount: true,
   },
 ];
@@ -125,6 +126,7 @@ async function inspectPage(page, target) {
   if (target.requireWorkspace && !selectors.workspace) throw new Error(`${target.name}: selected tool did not transform the live stage into ToolWorkspace`);
   if (target.requireAccount && !selectors.accountCenter) throw new Error(`${target.name}: account center did not render`);
   if (target.lang === 'ar' && selectors.direction !== 'rtl') throw new Error(`${target.name}: Arabic capture did not render RTL`);
+  if (target.lang === 'en' && selectors.direction !== 'ltr') throw new Error(`${target.name}: English capture did not render LTR`);
   return selectors;
 }
 
@@ -144,13 +146,13 @@ async function main() {
       page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
       page.on('pageerror', error => pageErrors.push(error.message));
       await page.setViewport({ width: target.width, height: target.height, deviceScaleFactor: 1 });
+      if (target.lang) {
+        await page.evaluateOnNewDocument(nextLang => {
+          try { localStorage.setItem('knoux-lang', nextLang); } catch { /* origin initializes on navigation */ }
+        }, target.lang);
+      }
       const url = `${ORIGIN}/?view=${target.view}&nosplash=1${target.query || ''}`;
       await page.goto(url, { waitUntil: 'networkidle0', timeout: 45_000 });
-
-      if (target.lang === 'ar') {
-        await page.evaluate(() => localStorage.setItem('knoux-lang', 'ar'));
-        await page.reload({ waitUntil: 'networkidle0', timeout: 45_000 });
-      }
 
       if (target.requireWorkspace) {
         let workspace = await page.waitForSelector('.knoux-tool-workspace', { timeout: 8_000 }).catch(() => null);
