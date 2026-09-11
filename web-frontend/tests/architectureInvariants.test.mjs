@@ -148,3 +148,12 @@ test('Visual System: Design tokens and premium shell styles are defined and inte
   assert.match(shell, /\.knoux-sentinel/, 'Premium shell must define .knoux-sentinel class');
   assert.match(shell, /\.knoux-workspace/, 'Premium shell must define .knoux-workspace class');
 });
+
+test('Safety: Family live workspace routes confirmation-required tools through ExecutionConfirmDialog', () => {
+  const stageSource = readWeb('src/components/premium/FamilyLiveStage.tsx');
+
+  assert.match(stageSource, /ExecutionConfirmDialog/, 'Family live stage must render the shared execution confirmation dialog');
+  assert.match(stageSource, /selectedTool\.RequiresConfirmation/, 'Family live stage must branch on the canonical RequiresConfirmation contract');
+  assert.match(stageSource, /setPendingExecution\(\{\s*toolId:\s*selectedTool\.ToolId,\s*mode\s*\}\)/, 'Confirmation-required requests must be held pending before execution');
+  assert.match(stageSource, /onRunTool\(pendingTool,\s*mode,\s*options,\s*confirmation\)/, 'Confirmed execution must forward immutable options and confirmation evidence to the bridge pipeline');
+});
