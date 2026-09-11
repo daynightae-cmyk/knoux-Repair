@@ -1,8 +1,7 @@
 import {
-  Laptop, CheckCircle2, Shield, Database,
-  FileText, Image, Wifi, Lock, Server, Globe,
-  Package, Code2, Layers, Terminal, Activity,
-  Cpu, Radio, Monitor
+  Cpu, Layers, Shield, Wifi,
+  FileText, Database, Globe,
+  Terminal, Activity, Radio, Code2
 } from 'lucide-react';
 import type { SystemSnapshot } from '../../lib/api';
 
@@ -12,563 +11,736 @@ interface FamilyHeroVisualProps {
 }
 
 /**
- * 1. SYSTEM VITALITY HERO VISUAL (P0-03)
- * - Concentric glowing health ring with cyan/violet gradient
- * - Central laptop / health badge & calculated readiness score
- * - 3 live metric pill cards (CPU, RAM, Boot Time) with mini bar charts
- * - Animated ECG / heartbeat rhythm line: "SYSTEM HEARTBEAT • Stable"
+ * 1. SYSTEM VITALITY HERO SCENE (P0-03 & P1-02)
+ * - 420x260 Cinematic Holographic Scene vector-locked to the hero banner
+ * - 3D perspective floor grid receding to a glowing horizon line
+ * - Concentric vital aura resonance rings with radial calibration tick marks
+ * - Dynamic sweeping neon cardiogram heartbeat waveform spanning the lower midground
+ * - Right-side uppercase slogan: REAL-TIME / HEALTH / LASTING / PERFORMANCE
+ * - Truthful telemetry from systemSnapshot (CPU, RAM) or "Unavailable" (NEVER fake)
  */
 export function VitalityHoloVisual({ lang, systemSnapshot }: FamilyHeroVisualProps) {
   const isRtl = lang === 'ar';
-  const cpuLoad = systemSnapshot?.CpuLoad ?? 12;
-  const totalRam = systemSnapshot?.TotalRamGB ? Math.round(systemSnapshot.TotalRamGB) : 16;
-  const freeRam = systemSnapshot?.FreeRamGB ?? 8.6;
-  const usedRam = Math.max(0, +(totalRam - freeRam).toFixed(1));
-  const ramPct = Math.round((usedRam / totalRam) * 100) || 46;
+
+  const cpuDisplay = typeof systemSnapshot?.CpuLoad === 'number'
+    ? `${systemSnapshot.CpuLoad}%`
+    : (isRtl ? 'غير متوفر' : 'Unavailable');
+
+  const hasRam = typeof systemSnapshot?.TotalRamGB === 'number' &&
+    typeof systemSnapshot?.FreeRamGB === 'number' &&
+    systemSnapshot.TotalRamGB > 0;
+
+  const ramPct = hasRam
+    ? Math.round(((systemSnapshot!.TotalRamGB - systemSnapshot!.FreeRamGB!) / systemSnapshot!.TotalRamGB) * 100)
+    : null;
+
+  const ramDisplay = ramPct !== null
+    ? `${ramPct}%`
+    : (isRtl ? 'غير متوفر' : 'Unavailable');
 
   return (
-    <div className="relative flex flex-col items-center justify-center p-2 select-none" dir={isRtl ? 'rtl' : 'ltr'}>
-      {/* Upper Area: Health Ring Gauge + Metric Pills */}
-      <div className="flex items-center justify-center gap-6 w-full">
-        {/* Glowing Circular Health Gauge */}
-        <div className="relative w-44 h-44 flex items-center justify-center flex-shrink-0">
-          {/* Radial Ambient Glow */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 via-violet-500/30 to-fuchsia-500/20 rounded-full blur-2xl animate-pulse" />
+    <div className="relative w-full max-w-[420px] h-[260px] flex items-center justify-center select-none overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
+      {/* Volumetric Radial Glows */}
+      <div className="absolute top-1/2 left-1/3 -translate-x-1/2 -translate-y-1/2 w-72 h-56 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 right-1/4 -translate-x-1/2 -translate-y-1/2 w-64 h-48 bg-violet-600/25 rounded-full blur-3xl pointer-events-none" />
 
-          {/* SVG Multi-Ring Gauge */}
-          <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 160 160">
-            <defs>
-              <linearGradient id="vitalityRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#22D3EE" />
-                <stop offset="50%" stopColor="#818CF8" />
-                <stop offset="100%" stopColor="#C084FC" />
-              </linearGradient>
-              <filter id="vitalityGlow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-            </defs>
+      <svg className="w-full h-full" viewBox="0 0 420 260" fill="none">
+        <defs>
+          <linearGradient id="vitHeartbeatGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="rgba(34,211,238,0.15)" />
+            <stop offset="25%" stopColor="#22D3EE" />
+            <stop offset="55%" stopColor="#818CF8" />
+            <stop offset="75%" stopColor="#C084FC" />
+            <stop offset="100%" stopColor="rgba(34,211,238,0.15)" />
+          </linearGradient>
+          <linearGradient id="vitRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#22D3EE" />
+            <stop offset="50%" stopColor="#818CF8" />
+            <stop offset="100%" stopColor="#A855F7" />
+          </linearGradient>
+          <filter id="vitGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3.5" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
 
-            {/* Background Track */}
-            <circle cx="80" cy="80" r="68" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+        {/* ── Background: 3D Perspective Grid Floor ── */}
+        <g opacity="0.32" stroke="rgba(34,211,238,0.25)" strokeWidth="0.8">
+          <line x1="15" y1="205" x2="405" y2="205" />
+          <line x1="10" y1="222" x2="410" y2="222" />
+          <line x1="5" y1="242" x2="415" y2="242" />
+          {/* Perspective Vanishing Rays */}
+          <line x1="155" y1="170" x2="15" y2="255" strokeDasharray="3 3" />
+          <line x1="155" y1="170" x2="85" y2="255" strokeDasharray="3 3" />
+          <line x1="155" y1="170" x2="155" y2="255" />
+          <line x1="155" y1="170" x2="235" y2="255" strokeDasharray="3 3" />
+          <line x1="155" y1="170" x2="315" y2="255" strokeDasharray="3 3" />
+          <line x1="155" y1="170" x2="405" y2="255" strokeDasharray="3 3" />
+        </g>
 
-            {/* Main Glowing Progress Arc (92%) */}
-            <circle
-              cx="80"
-              cy="80"
-              r="68"
-              fill="none"
-              stroke="url(#vitalityRingGrad)"
-              strokeWidth="6"
-              strokeLinecap="round"
-              strokeDasharray="427"
-              strokeDashoffset="34"
-              filter="url(#vitalityGlow)"
-            />
+        {/* ── Midground: Concentric Vital Resonance Rings ── */}
+        <g transform="translate(155, 105)">
+          {/* Calibration Ring with Tick Marks */}
+          <circle cx="0" cy="0" r="70" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+          {[...Array(24)].map((_, i) => {
+            const angle = (i * 15 * Math.PI) / 180;
+            const x1 = Math.cos(angle) * 67;
+            const y1 = Math.sin(angle) * 67;
+            const x2 = Math.cos(angle) * 72;
+            const y2 = Math.sin(angle) * 72;
+            return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={i % 3 === 0 ? '#22D3EE' : 'rgba(255,255,255,0.18)'} strokeWidth={i % 3 === 0 ? 1.5 : 0.8} />;
+          })}
 
-            {/* Orbiting particle ring */}
-            <circle
-              cx="80"
-              cy="80"
-              r="58"
-              fill="none"
-              stroke="rgba(34,211,238,0.25)"
-              strokeWidth="1"
-              strokeDasharray="4 8"
-            />
-          </svg>
+          {/* Main Luminous Vital Ring */}
+          <circle cx="0" cy="0" r="58" stroke="url(#vitRingGrad)" strokeWidth="2.8" filter="url(#vitGlow)" />
+          <circle cx="0" cy="0" r="48" stroke="rgba(34,211,238,0.35)" strokeWidth="1.2" strokeDasharray="4 6" />
+          <circle cx="0" cy="0" r="38" fill="rgba(8,14,35,0.88)" stroke="rgba(34,211,238,0.5)" strokeWidth="1.4" />
 
-          {/* Inner Gauge Center Badge */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-3">
-            <div className="w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-400/30 flex items-center justify-center mb-1 shadow-[0_0_12px_rgba(34,211,238,0.3)]">
-              <Laptop size={16} className="text-cyan-400" />
-            </div>
-            <span className="text-[11px] font-semibold text-emerald-400 flex items-center gap-1">
-              <CheckCircle2 size={10} />
-              {isRtl ? 'حالة ممتازة' : 'Good Health'}
-            </span>
-            <span className="text-2xl font-black text-white tracking-tight mt-0.5 font-display">
-              92%
-            </span>
-            <span className="text-[9px] text-slate-400 tracking-wider uppercase">
-              {isRtl ? 'جاهزية النظام' : 'Readiness'}
-            </span>
+          {/* Center Vital Resonance Symbol */}
+          <path
+            d="M -20,0 L -10,0 L -5,-14 L 0,14 L 5,-8 L 10,0 L 20,0"
+            stroke="#22D3EE"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            filter="url(#vitGlow)"
+          />
+        </g>
+
+        {/* ── Sweeping Neon Cardiogram Wave Across Lower Ground ── */}
+        <g transform="translate(0, 5)">
+          <path
+            d="M 15,185 L 75,185 L 86,168 L 96,204 L 106,155 L 116,202 L 126,185 L 180,185 L 190,168 L 200,208 L 210,150 L 220,204 L 230,185 L 290,185 L 300,168 L 310,204 L 320,155 L 330,202 L 340,185 L 405,185"
+            stroke="rgba(34,211,238,0.38)"
+            strokeWidth="5"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            filter="url(#vitGlow)"
+          />
+          <path
+            d="M 15,185 L 75,185 L 86,168 L 96,204 L 106,155 L 116,202 L 126,185 L 180,185 L 190,168 L 200,208 L 210,150 L 220,204 L 230,185 L 290,185 L 300,168 L 310,204 L 320,155 L 330,202 L 340,185 L 405,185"
+            stroke="url(#vitHeartbeatGrad)"
+            strokeWidth="2.2"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </g>
+      </svg>
+
+      {/* Floating Telemetry Chips (Factual / Truthful Only) */}
+      <div className="absolute top-4 left-3 flex flex-col gap-1.5 z-10 w-[125px]">
+        {/* CPU Chip */}
+        <div className="px-2.5 py-1.5 rounded-xl bg-slate-900/85 border border-cyan-500/30 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs text-slate-300 font-semibold">
+            <Cpu size={12} className="text-cyan-400" />
+            <span>CPU</span>
           </div>
+          <span className="text-xs font-mono font-bold text-cyan-300">{cpuDisplay}</span>
         </div>
 
-        {/* 3 Metric Pills with Mini Bar Indicators */}
-        <div className="flex flex-col gap-2 flex-shrink-0">
-          {/* CPU Load Pill */}
-          <div className="px-3.5 py-2 rounded-xl bg-slate-900/80 border border-white/10 flex items-center gap-3 backdrop-blur-md shadow-lg min-w-[140px]">
-            <div className="w-7 h-7 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-              <Cpu size={14} />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="font-semibold text-white">CPU</span>
-                <span className="font-mono text-cyan-300 font-bold">{cpuLoad}%</span>
-              </div>
-              <div className="flex items-end gap-0.5 h-3 mt-1">
-                {[40, 65, 30, 85, 45].map((h, i) => (
-                  <div key={i} className="w-1.5 rounded-sm bg-cyan-400/80" style={{ height: `${h}%` }} />
-                ))}
-              </div>
-            </div>
+        {/* RAM Chip */}
+        <div className="px-2.5 py-1.5 rounded-xl bg-slate-900/85 border border-violet-500/30 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs text-slate-300 font-semibold">
+            <Layers size={12} className="text-violet-400" />
+            <span>RAM</span>
           </div>
-
-          {/* RAM Usage Pill */}
-          <div className="px-3.5 py-2 rounded-xl bg-slate-900/80 border border-white/10 flex items-center gap-3 backdrop-blur-md shadow-lg min-w-[140px]">
-            <div className="w-7 h-7 rounded-lg bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-violet-400">
-              <Layers size={14} />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="font-semibold text-white">RAM</span>
-                <span className="font-mono text-violet-300 font-bold">{ramPct}%</span>
-              </div>
-              <div className="flex items-end gap-0.5 h-3 mt-1">
-                {[50, 70, 60, 45, 80].map((h, i) => (
-                  <div key={i} className="w-1.5 rounded-sm bg-violet-400/80" style={{ height: `${h}%` }} />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Boot Time Pill */}
-          <div className="px-3.5 py-2 rounded-xl bg-slate-900/80 border border-white/10 flex items-center gap-3 backdrop-blur-md shadow-lg min-w-[140px]">
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-              <Activity size={14} />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="font-semibold text-white">{isRtl ? 'الإقلاع' : 'Boot'}</span>
-                <span className="font-mono text-emerald-300 font-bold">12s</span>
-              </div>
-              <div className="flex items-end gap-0.5 h-3 mt-1">
-                {[30, 40, 25, 35, 30].map((h, i) => (
-                  <div key={i} className="w-1.5 rounded-sm bg-emerald-400/80" style={{ height: `${h}%` }} />
-                ))}
-              </div>
-            </div>
-          </div>
+          <span className="text-xs font-mono font-bold text-violet-300">{ramDisplay}</span>
         </div>
       </div>
 
-      {/* Lower Area: Animated ECG Waveform Heartbeat */}
-      <div className="w-full mt-3 pt-2 border-t border-white/10 flex items-center justify-between px-2 text-[10px] text-slate-400">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-          <span className="font-semibold tracking-wider text-slate-300 uppercase">
-            {isRtl ? 'نبض النظام • مستقر' : 'System Heartbeat • Stable'}
-          </span>
+      {/* Right Column: Slogan Language Pack (From P1-02) */}
+      <div className="absolute top-6 right-3 flex flex-col items-end text-right z-10 select-none">
+        <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
+          {isRtl ? 'في الوقت الفعلي' : 'REAL-TIME'}
         </div>
+        <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
+          {isRtl ? 'صحة النظام' : 'HEALTH'}
+        </div>
+        <div className="text-[10px] font-mono font-black tracking-widest text-violet-400/90 leading-tight uppercase mt-0.5">
+          {isRtl ? 'كفاءة دائمة' : 'LASTING'}
+        </div>
+        <div className="text-[10px] font-mono font-black tracking-widest text-violet-400/90 leading-tight uppercase">
+          {isRtl ? 'أداء متفوق' : 'PERFORMANCE'}
+        </div>
+      </div>
 
-        {/* Animated ECG SVG path */}
-        <div className="w-48 h-5 relative overflow-hidden">
-          <svg className="w-full h-full" viewBox="0 0 190 20" fill="none">
-            <path
-              d="M0,10 L30,10 L40,3 L48,17 L55,2 L62,15 L68,10 L100,10 L110,3 L118,17 L125,2 L132,15 L138,10 L190,10"
-              stroke="#22D3EE"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="opacity-80"
-            />
-          </svg>
-        </div>
+      {/* Bottom Conceptual Ground Tag */}
+      <div className="absolute bottom-1 w-full text-center text-[9px] font-mono font-bold tracking-widest text-cyan-300/70 uppercase">
+        {isRtl ? 'مراقبة صحة النظام • تشخيص فوري' : 'VITALITY TELEMETRY • ACTIVE MONITOR'}
       </div>
     </div>
   );
 }
 
 /**
- * 2. RECOVERY & STORAGE HERO VISUAL (P0-04)
- * - 3D cylindrical database stack with glowing cyan neon rings
- * - Floating neon shield with checkmark
- * - Orbiting holographic glass tiles (Document, Photo, Video)
- * - Radial laser energy field & text tags
+ * 2. RECOVERY & STORAGE HERO SCENE (P0-04 & P1-02)
+ * - 420x260 Cinematic Holographic Scene vector-locked to the hero banner
+ * - Large 4-tier 3D cylindrical storage disk stack with glowing platters and laser bus lines
+ * - Base concentric ground ripples with radial tick tracks
+ * - Translucent floating data cards (Partition Architecture, Volume Shadow)
+ * - Right-side uppercase slogan: SAFE / RECOVERY / BRIGHTER / TOMORROWS
+ * - Purely architectural conceptual labels, ZERO fabricated numbers
  */
 export function RecoveryHoloVisual({ lang }: FamilyHeroVisualProps) {
   const isRtl = lang === 'ar';
 
   return (
-    <div className="relative flex flex-col items-center justify-center p-3 select-none" dir={isRtl ? 'rtl' : 'ltr'}>
-      {/* Background Ambient Glow */}
-      <div className="absolute inset-0 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
+    <div className="relative w-full max-w-[420px] h-[260px] flex items-center justify-center select-none overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
+      {/* Volumetric Radial Bloom */}
+      <div className="absolute top-1/2 left-1/3 -translate-x-1/2 -translate-y-1/2 w-72 h-56 bg-cyan-500/25 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 right-1/4 -translate-x-1/2 -translate-y-1/2 w-64 h-48 bg-sky-600/20 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Main 3D Cylinder Stack Illustration with Holographic Tiles */}
-      <div className="relative w-72 h-44 flex items-center justify-center">
-        {/* SVG Isometric Database Cylinders */}
-        <svg className="w-60 h-44 drop-shadow-[0_0_20px_rgba(6,182,212,0.4)]" viewBox="0 0 240 180" fill="none">
-          <defs>
-            <linearGradient id="diskTopGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#22D3EE" />
-              <stop offset="100%" stopColor="#0284C7" />
-            </linearGradient>
-            <linearGradient id="diskBodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#083344" />
-              <stop offset="50%" stopColor="#0E7490" />
-              <stop offset="100%" stopColor="#082F49" />
-            </linearGradient>
-            <linearGradient id="neonRingGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#00F2FE" />
-              <stop offset="50%" stopColor="#4FACFE" />
-              <stop offset="100%" stopColor="#00F2FE" />
-            </linearGradient>
-          </defs>
+      <svg className="w-full h-full" viewBox="0 0 420 260" fill="none">
+        <defs>
+          <linearGradient id="recCylTopGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#22D3EE" />
+            <stop offset="100%" stopColor="#0369A1" />
+          </linearGradient>
+          <linearGradient id="recCylBodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#082F49" />
+            <stop offset="50%" stopColor="#0E7490" />
+            <stop offset="100%" stopColor="#083344" />
+          </linearGradient>
+          <linearGradient id="recRingGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#00F2FE" />
+            <stop offset="50%" stopColor="#38BDF8" />
+            <stop offset="100%" stopColor="#00F2FE" />
+          </linearGradient>
+          <filter id="recGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
 
-          {/* Base Energy Platform Rings */}
-          <ellipse cx="120" cy="155" rx="90" ry="18" fill="rgba(6,182,212,0.06)" stroke="rgba(34,211,238,0.3)" strokeWidth="1.2" strokeDasharray="6 4" />
-          <ellipse cx="120" cy="155" rx="70" ry="14" fill="none" stroke="rgba(34,211,238,0.5)" strokeWidth="1" />
+        {/* ── Background: Elliptical Recovery Orbit Field ── */}
+        <g opacity="0.35" stroke="rgba(34,211,238,0.4)" strokeWidth="1.1">
+          <ellipse cx="185" cy="130" rx="170" ry="60" fill="none" strokeDasharray="6 6" />
+          <ellipse cx="185" cy="130" rx="130" ry="44" fill="none" stroke="rgba(56,189,248,0.3)" />
+        </g>
 
-          {/* Cylinder 1 (Bottom Tier) */}
-          <path d="M70,110 C70,122 170,122 170,110 L170,135 C170,147 70,147 70,135 Z" fill="url(#diskBodyGrad)" stroke="#0284C7" strokeWidth="1.2" />
-          <ellipse cx="120" cy="110" rx="50" ry="12" fill="url(#diskTopGrad)" fillOpacity="0.4" stroke="url(#neonRingGrad)" strokeWidth="1.5" />
-          <ellipse cx="120" cy="122" rx="50" ry="12" fill="none" stroke="#22D3EE" strokeWidth="1.5" strokeOpacity="0.8" />
+        {/* ── Base Concentric Ground Stage ── */}
+        <ellipse cx="185" cy="205" rx="125" ry="26" fill="rgba(6,182,212,0.06)" stroke="rgba(34,211,238,0.4)" strokeWidth="1.4" strokeDasharray="8 6" />
+        <ellipse cx="185" cy="205" rx="90" ry="18" fill="none" stroke="#22D3EE" strokeWidth="1" opacity="0.6" />
 
-          {/* Cylinder 2 (Middle Tier) */}
-          <path d="M70,75 C70,87 170,87 170,75 L170,100 C170,112 70,112 70,100 Z" fill="url(#diskBodyGrad)" stroke="#0284C7" strokeWidth="1.2" />
-          <ellipse cx="120" cy="75" rx="50" ry="12" fill="url(#diskTopGrad)" fillOpacity="0.5" stroke="url(#neonRingGrad)" strokeWidth="1.5" />
-          <ellipse cx="120" cy="87" rx="50" ry="12" fill="none" stroke="#22D3EE" strokeWidth="1.5" strokeOpacity="0.8" />
+        {/* ── Midground: 4-Tier 3D Cylindrical Storage Stack ── */}
+        <g transform="translate(185, 115)">
+          {/* Tier 1 (Bottom Platter) */}
+          <path d="M -58,38 C -58,52 58,52 58,38 L 58,62 C 58,76 -58,76 -58,62 Z" fill="url(#recCylBodyGrad)" stroke="#0284C7" strokeWidth="1.4" />
+          <ellipse cx="0" cy="38" rx="58" ry="14" fill="url(#recCylTopGrad)" fillOpacity="0.45" stroke="url(#recRingGrad)" strokeWidth="1.8" />
+          <ellipse cx="0" cy="50" rx="58" ry="14" fill="none" stroke="#22D3EE" strokeWidth="1.4" opacity="0.7" />
 
-          {/* Cylinder 3 (Top Tier) */}
-          <path d="M70,40 C70,52 170,52 170,40 L170,65 C170,77 70,77 70,65 Z" fill="url(#diskBodyGrad)" stroke="#0284C7" strokeWidth="1.2" />
-          <ellipse cx="120" cy="40" rx="50" ry="12" fill="url(#diskTopGrad)" fillOpacity="0.7" stroke="url(#neonRingGrad)" strokeWidth="2" />
-          <ellipse cx="120" cy="52" rx="50" ry="12" fill="none" stroke="#22D3EE" strokeWidth="1.5" strokeOpacity="0.8" />
-        </svg>
+          {/* Tier 2 (Lower-Middle Platter) */}
+          <path d="M -58,8 C -58,22 58,22 58,8 L 58,32 C 58,46 -58,46 -58,32 Z" fill="url(#recCylBodyGrad)" stroke="#0284C7" strokeWidth="1.4" />
+          <ellipse cx="0" cy="8" rx="58" ry="14" fill="url(#recCylTopGrad)" fillOpacity="0.55" stroke="url(#recRingGrad)" strokeWidth="1.8" />
+          <ellipse cx="0" cy="20" rx="58" ry="14" fill="none" stroke="#22D3EE" strokeWidth="1.4" opacity="0.7" />
 
-        {/* Central Floating Neon Shield */}
-        <div className="absolute z-10 w-12 h-14 rounded-xl bg-gradient-to-b from-cyan-400 to-blue-600 p-0.5 shadow-[0_0_20px_rgba(34,211,238,0.7)] flex items-center justify-center">
-          <div className="w-full h-full bg-slate-950/90 rounded-[10px] flex items-center justify-center">
-            <Shield size={22} className="text-cyan-300" />
-          </div>
+          {/* Tier 3 (Upper-Middle Platter) */}
+          <path d="M -58,-22 C -58,-8 58,-8 58,-22 L 58,2 C 58,16 -58,16 -58,2 Z" fill="url(#recCylBodyGrad)" stroke="#0284C7" strokeWidth="1.4" />
+          <ellipse cx="0" cy="-22" rx="58" ry="14" fill="url(#recCylTopGrad)" fillOpacity="0.65" stroke="url(#recRingGrad)" strokeWidth="1.8" />
+          <ellipse cx="0" cy="-10" rx="58" ry="14" fill="none" stroke="#22D3EE" strokeWidth="1.4" opacity="0.7" />
+
+          {/* Tier 4 (Top Platter) */}
+          <path d="M -58,-52 C -58,-38 58,-38 58,-52 L 58,-28 C 58,-14 -58,-14 -58,-28 Z" fill="url(#recCylBodyGrad)" stroke="#0284C7" strokeWidth="1.4" />
+          <ellipse cx="0" cy="-52" rx="58" ry="14" fill="url(#recCylTopGrad)" fillOpacity="0.85" stroke="url(#recRingGrad)" strokeWidth="2.2" filter="url(#recGlow)" />
+          <ellipse cx="0" cy="-40" rx="58" ry="14" fill="none" stroke="#22D3EE" strokeWidth="1.6" opacity="0.8" />
+
+          {/* Vertical Bus Rays */}
+          <line x1="-52" y1="-46" x2="-52" y2="60" stroke="#38BDF8" strokeWidth="1.4" opacity="0.7" strokeDasharray="3 3" />
+          <line x1="52" y1="-46" x2="52" y2="60" stroke="#38BDF8" strokeWidth="1.4" opacity="0.7" strokeDasharray="3 3" />
+          <line x1="0" y1="-46" x2="0" y2="60" stroke="#22D3EE" strokeWidth="1.8" opacity="0.8" />
+        </g>
+
+        {/* Floating Restore Shield Core at Tower Center */}
+        <g transform="translate(185, 115)">
+          <circle cx="0" cy="0" r="19" fill="rgba(8,14,35,0.9)" stroke="#22D3EE" strokeWidth="1.8" filter="url(#recGlow)" />
+          <path d="M 0,-10 L 8,-4 L 7,5 C 5,10 0,13 0,13 C 0,13 -5,10 -7,5 L -8,-4 Z" fill="rgba(34,211,238,0.3)" stroke="#38BDF8" strokeWidth="1.4" />
+        </g>
+      </svg>
+
+      {/* Floating Glass Data Cards (Conceptual / No Fabricated Telemetry) */}
+      <div className="absolute top-4 left-3 px-2.5 py-1.5 rounded-xl bg-slate-900/85 border border-cyan-400/40 backdrop-blur-md shadow-[0_0_18px_rgba(34,211,238,0.25)] flex items-center gap-2 z-10 transform -rotate-2">
+        <FileText size={13} className="text-cyan-400" />
+        <span className="text-[11px] font-bold text-white">{isRtl ? 'بنية التقسيم' : 'Partition Map'}</span>
+      </div>
+
+      <div className="absolute bottom-7 left-4 px-2.5 py-1.5 rounded-xl bg-slate-900/85 border border-cyan-400/40 backdrop-blur-md shadow-[0_0_18px_rgba(34,211,238,0.25)] flex items-center gap-2 z-10 transform rotate-2">
+        <Database size={13} className="text-sky-400" />
+        <span className="text-[11px] font-bold text-white">{isRtl ? 'نسخ الظل' : 'Volume Shadow'}</span>
+      </div>
+
+      {/* Right Column: Slogan Language Pack (From P1-02) */}
+      <div className="absolute top-6 right-3 flex flex-col items-end text-right z-10 select-none">
+        <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
+          {isRtl ? 'استعادة' : 'SAFE'}
         </div>
-
-        {/* Orbiting Holographic Glass Tile 1: Document */}
-        <div className="absolute top-4 left-2 w-10 h-10 rounded-xl bg-slate-900/80 border border-cyan-400/40 backdrop-blur-md shadow-[0_0_15px_rgba(34,211,238,0.25)] flex items-center justify-center transform -rotate-6">
-          <FileText size={18} className="text-cyan-400" />
+        <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
+          {isRtl ? 'آمنة' : 'RECOVERY'}
         </div>
-
-        {/* Orbiting Holographic Glass Tile 2: Media / Photo */}
-        <div className="absolute bottom-6 left-0 w-10 h-10 rounded-xl bg-slate-900/80 border border-cyan-400/40 backdrop-blur-md shadow-[0_0_15px_rgba(34,211,238,0.25)] flex items-center justify-center transform rotate-6">
-          <Image size={18} className="text-cyan-300" />
+        <div className="text-[10px] font-mono font-black tracking-widest text-sky-400/90 leading-tight uppercase mt-0.5">
+          {isRtl ? 'مستقبل' : 'BRIGHTER'}
         </div>
-
-        {/* Orbiting Holographic Glass Tile 3: Database */}
-        <div className="absolute top-8 right-2 w-10 h-10 rounded-xl bg-slate-900/80 border border-cyan-400/40 backdrop-blur-md shadow-[0_0_15px_rgba(34,211,238,0.25)] flex items-center justify-center transform rotate-12">
-          <Database size={18} className="text-cyan-300" />
+        <div className="text-[10px] font-mono font-black tracking-widest text-sky-400/90 leading-tight uppercase">
+          {isRtl ? 'أفضل' : 'TOMORROWS'}
         </div>
       </div>
 
-      {/* Footer Tagline */}
-      <div className="mt-1 text-[10px] tracking-widest text-cyan-400/90 font-mono uppercase text-center">
-        {isRtl ? 'حماية شاملة • استعادة سريعة • سلامة البيانات' : 'RECOVER TODAY • A BRIGHTER TOMORROW'}
+      {/* Bottom Ground Tag */}
+      <div className="absolute bottom-1 w-full text-center text-[9px] font-mono font-bold tracking-widest text-cyan-300/70 uppercase">
+        {isRtl ? 'استعادة البيانات • حماية ما يهمك' : 'RECOVER MORE • LOSE LESS'}
       </div>
     </div>
   );
 }
 
 /**
- * 3. ASSURANCE HERO VISUAL (P0-05)
- * - Multi-tier glowing illuminated podium with radial lines
- * - Central illuminated shield with checkmark
- * - Connected peripheral nodes: Laptop, Router, Cloud, Server
- * - Animated circuit lines & status chips: "NETWORK STABLE", "PRIVACY CONTROLLED"
+ * 3. ASSURANCE HERO SCENE (P0-05 & P1-02)
+ * - 420x260 Cinematic Holographic Scene vector-locked to the hero banner
+ * - Large 3D faceted crystal security shield (140px) standing on concentric base pedestal
+ * - Perimeter cyber topology traces connecting satellite security nodes
+ * - Right-side uppercase slogan: PROTECTION / YOU CAN TRUST / TODAY / TOMORROW / ALWAYS
+ * - Uses real Defender state from systemSnapshot or "Evidence Unavailable", NO fake statuses
  */
-export function AssuranceHoloVisual({ lang }: FamilyHeroVisualProps) {
+export function AssuranceHoloVisual({ lang, systemSnapshot }: FamilyHeroVisualProps) {
   const isRtl = lang === 'ar';
 
+  const defenderStatus = systemSnapshot?.DefenderRealtime === true
+    ? (isRtl ? 'نشط' : 'Active')
+    : systemSnapshot?.DefenderRealtime === false
+      ? (isRtl ? 'معطل' : 'Inactive')
+      : (isRtl ? 'غير متوفر' : 'Unavailable');
+
   return (
-    <div className="relative flex flex-col items-center justify-center p-3 select-none" dir={isRtl ? 'rtl' : 'ltr'}>
-      {/* Ambient Radial Lighting */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/15 via-cyan-500/20 to-blue-500/15 rounded-full blur-3xl pointer-events-none" />
+    <div className="relative w-full max-w-[420px] h-[260px] flex items-center justify-center select-none overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
+      {/* Volumetric Radial Bloom */}
+      <div className="absolute top-1/2 left-1/3 -translate-x-1/2 -translate-y-1/2 w-72 h-56 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 right-1/4 -translate-x-1/2 -translate-y-1/2 w-64 h-48 bg-cyan-600/20 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Central Interactive Network & Shield Topology */}
-      <div className="relative w-80 h-44 flex items-center justify-center">
-        {/* SVG Circuit Grid & Trace Lines */}
-        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 320 180" fill="none">
-          <defs>
-            <radialGradient id="assurancePodiumGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#10B981" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
-            </radialGradient>
-          </defs>
+      <svg className="w-full h-full" viewBox="0 0 420 260" fill="none">
+        <defs>
+          <linearGradient id="assShieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#34D399" />
+            <stop offset="45%" stopColor="#06B6FF" />
+            <stop offset="100%" stopColor="#6366F1" />
+          </linearGradient>
+          <filter id="assGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
 
-          {/* Stepped Podium Base */}
-          <ellipse cx="160" cy="140" rx="90" ry="24" fill="url(#assurancePodiumGlow)" stroke="#10B981" strokeWidth="1" strokeDasharray="4 4" />
-          <ellipse cx="160" cy="140" rx="60" ry="16" fill="rgba(16,185,129,0.08)" stroke="#22D3EE" strokeWidth="1.2" />
+        {/* ── Background: Cyber Security Grid & Perimeter Rings ── */}
+        <g opacity="0.32" stroke="rgba(52,211,153,0.35)" strokeWidth="0.9">
+          <ellipse cx="180" cy="130" rx="165" ry="62" fill="none" strokeDasharray="6 6" />
+          <ellipse cx="180" cy="130" rx="125" ry="44" fill="none" stroke="rgba(34,211,238,0.3)" />
+        </g>
 
-          {/* Radiating Circuit Traces from Central Shield (160, 80) to Nodes */}
-          {/* To Left: Laptop (40, 80) */}
-          <path d="M130,80 L80,80" stroke="#22D3EE" strokeWidth="1.5" strokeDasharray="4 2" />
-          {/* To Top Left: Router (60, 30) */}
-          <path d="M140,65 L90,30" stroke="#10B981" strokeWidth="1.5" strokeDasharray="4 2" />
-          {/* To Top Right: Cloud (250, 30) */}
-          <path d="M180,65 L230,30" stroke="#10B981" strokeWidth="1.5" strokeDasharray="4 2" />
-          {/* To Right: Server (270, 85) */}
-          <path d="M190,80 L240,85" stroke="#22D3EE" strokeWidth="1.5" strokeDasharray="4 2" />
-        </svg>
+        {/* Base Stage Pedestal */}
+        <ellipse cx="180" cy="205" rx="115" ry="24" fill="rgba(16,185,129,0.08)" stroke="#10B981" strokeWidth="1.4" strokeDasharray="6 4" />
+        <ellipse cx="180" cy="205" rx="80" ry="16" fill="none" stroke="#22D3EE" strokeWidth="1" opacity="0.7" />
 
-        {/* Central Shield on Elevated Holographic Base */}
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="w-16 h-18 rounded-2xl bg-gradient-to-b from-cyan-400 via-emerald-400 to-blue-600 p-0.5 shadow-[0_0_25px_rgba(16,185,129,0.5)] flex items-center justify-center">
-            <div className="w-full h-full bg-slate-950/90 rounded-[14px] flex items-center justify-center p-2.5">
-              <Shield size={32} className="text-emerald-400" />
-            </div>
-          </div>
-          <span className="mt-1.5 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-[9px] font-bold text-emerald-300 uppercase tracking-wider">
-            {isRtl ? 'محمي بالكامل' : "YOU'RE PROTECTED"}
-          </span>
-        </div>
+        {/* Connecting Topology Bus Lines */}
+        <g stroke="rgba(34,211,238,0.45)" strokeWidth="1.2" strokeDasharray="4 4">
+          <line x1="85" y1="65" x2="145" y2="105" />
+          <line x1="80" y1="175" x2="145" y2="145" />
+          <line x1="275" y1="65" x2="215" y2="105" />
+        </g>
 
-        {/* Peripheral Node 1: Laptop (Left) */}
-        <div className="absolute left-2 top-14 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-900/80 border border-cyan-400/30 shadow-md">
-          <Laptop size={14} className="text-cyan-400" />
-          <span className="text-[9px] font-mono text-cyan-200">PC Node</span>
-        </div>
+        {/* ── Midground: Majestic Faceted 3D Security Shield ── */}
+        <g transform="translate(180, 110)">
+          <path
+            d="M 0,-64 L 48,-38 L 40,20 C 33,50 0,68 0,68 C 0,68 -33,50 -40,20 L -48,-38 Z"
+            fill="url(#assShieldGrad)"
+            fillOpacity="0.25"
+            stroke="url(#assShieldGrad)"
+            strokeWidth="2.5"
+            filter="url(#assGlow)"
+          />
+          <path
+            d="M 0,-64 L 0,68 M 0,-64 L 40,20 M 0,-64 L -40,20"
+            stroke="rgba(255,255,255,0.45)"
+            strokeWidth="1.2"
+          />
+          <path
+            d="M -18,-5 L -5,9 L 20,-17"
+            stroke="#22D3EE"
+            strokeWidth="3.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            filter="url(#assGlow)"
+          />
+        </g>
+      </svg>
 
-        {/* Peripheral Node 2: Router (Top Left) */}
-        <div className="absolute left-6 top-1 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-900/80 border border-emerald-400/30 shadow-md">
-          <Wifi size={14} className="text-emerald-400" />
-          <span className="text-[9px] font-mono text-emerald-200">{isRtl ? 'الشبكة مستقرة' : 'Net Stable'}</span>
-        </div>
+      {/* Floating Topology Nodes (Conceptual + Factual Defender State) */}
+      <div className="absolute top-4 left-3 px-2.5 py-1.5 rounded-xl bg-slate-900/85 border border-cyan-400/40 backdrop-blur-md shadow-[0_0_15px_rgba(34,211,238,0.25)] flex items-center gap-1.5 z-10">
+        <Wifi size={12} className="text-cyan-400" />
+        <span className="text-[11px] font-bold text-white">{isRtl ? 'جدار الحماية' : 'Firewall Bus'}</span>
+      </div>
 
-        {/* Peripheral Node 3: Cloud (Top Right) */}
-        <div className="absolute right-6 top-1 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-900/80 border border-violet-400/30 shadow-md">
-          <Lock size={14} className="text-violet-400" />
-          <span className="text-[9px] font-mono text-violet-200">{isRtl ? 'الخصوصية' : 'Privacy'}</span>
-        </div>
-
-        {/* Peripheral Node 4: Server Tower (Right) */}
-        <div className="absolute right-2 top-14 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-900/80 border border-cyan-400/30 shadow-md">
-          <Server size={14} className="text-cyan-400" />
-          <span className="text-[9px] font-mono text-cyan-200">{isRtl ? 'التعريفات' : 'Drivers'}</span>
+      <div className="absolute bottom-7 left-4 px-2.5 py-1.5 rounded-xl bg-slate-900/85 border border-emerald-400/40 backdrop-blur-md shadow-[0_0_15px_rgba(16,185,129,0.25)] flex items-center gap-1.5 z-10">
+        <Shield size={12} className="text-emerald-400" />
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold text-white">{isRtl ? 'ديفندر' : 'Defender'}</span>
+          <span className="text-[9px] font-mono text-emerald-300">{defenderStatus}</span>
         </div>
       </div>
 
-      {/* Footer Tagline */}
-      <div className="mt-1 text-[10px] tracking-widest text-emerald-400/90 font-mono uppercase text-center">
-        {isRtl ? 'بيئة آمنة • اتصالات مشفرة • أمان مستمر' : 'A MORE SECURE TOMORROW'}
+      {/* Right Column: Slogan Language Pack (From P1-02) */}
+      <div className="absolute top-6 right-3 flex flex-col items-end text-right z-10 select-none">
+        <div className="text-[10px] font-mono font-black tracking-widest text-emerald-400/90 leading-tight uppercase">
+          {isRtl ? 'حماية' : 'PROTECTION'}
+        </div>
+        <div className="text-[10px] font-mono font-black tracking-widest text-emerald-400/90 leading-tight uppercase">
+          {isRtl ? 'تثق بها' : 'YOU CAN TRUST'}
+        </div>
+        <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase mt-0.5">
+          {isRtl ? 'اليوم' : 'TODAY'}
+        </div>
+        <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
+          {isRtl ? 'غداً' : 'TOMORROW'}
+        </div>
+        <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
+          {isRtl ? 'ودائماً' : 'ALWAYS'}
+        </div>
+      </div>
+
+      {/* Bottom Ground Tag */}
+      <div className="absolute bottom-1 w-full text-center text-[9px] font-mono font-bold tracking-widest text-emerald-300/70 uppercase">
+        {isRtl ? 'ضمان أمان النظام • وقاية استباقية' : 'PREVENT ISSUES • STAY SECURE'}
       </div>
     </div>
   );
 }
 
 /**
- * 4. SOFTWARE LIBRARY HERO VISUAL (P0-06)
- * - Stepped illuminated circular launchpad with vertical laser columns
- * - Floating glass app tiles (Chrome, Edge, Spotify, VSCode, Office)
- * - Central glowing 3D package/cube
- * - Tags: "APPS • RUNTIMES • ESSENTIALS • SETUP • READY"
+ * 4. SOFTWARE LIBRARY HERO SCENE (P0-06 & P1-02)
+ * - 420x260 Cinematic Holographic Scene vector-locked to the hero banner
+ * - Cluster of 5 distinct 3D isometric app cubes floating in space at varied depths and elevations
+ * - Circular multi-tier luminous platform stage with projection rays
+ * - Right-side uppercase slogan: DISCOVER / INSTALL / OPTIMIZE / DO MORE
+ * - Purely conceptual software architecture, ZERO fabricated counts
  */
 export function SoftwareHoloVisual({ lang }: FamilyHeroVisualProps) {
   const isRtl = lang === 'ar';
 
   return (
-    <div className="relative flex flex-col items-center justify-center p-3 select-none" dir={isRtl ? 'rtl' : 'ltr'}>
-      {/* Background Neon Ambient Glow */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/20 via-pink-500/15 to-violet-600/20 rounded-full blur-3xl pointer-events-none" />
+    <div className="relative w-full max-w-[420px] h-[260px] flex items-center justify-center select-none overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
+      {/* Volumetric Radial Bloom */}
+      <div className="absolute top-1/2 left-1/3 -translate-x-1/2 -translate-y-1/2 w-72 h-56 bg-purple-500/25 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 right-1/4 -translate-x-1/2 -translate-y-1/2 w-64 h-48 bg-cyan-600/15 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Launchpad & Floating Holographic Apps */}
-      <div className="relative w-80 h-44 flex items-center justify-center">
-        {/* SVG Podium & Vertical Beams */}
-        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 320 180" fill="none">
-          <defs>
-            <linearGradient id="beamGrad" x1="0%" y1="100%" x2="0%" y2="0%">
-              <stop offset="0%" stopColor="#A855F7" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#EC4899" stopOpacity="0" />
-            </linearGradient>
-          </defs>
+      <svg className="w-full h-full" viewBox="0 0 420 260" fill="none">
+        <defs>
+          <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3.5" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
 
-          {/* Stepped Concentric Podium */}
-          <ellipse cx="160" cy="145" rx="85" ry="22" fill="rgba(168,85,247,0.08)" stroke="#A855F7" strokeWidth="1.2" />
-          <ellipse cx="160" cy="140" rx="65" ry="17" fill="rgba(236,72,153,0.08)" stroke="#EC4899" strokeWidth="1" />
-          <ellipse cx="160" cy="135" rx="45" ry="12" fill="rgba(168,85,247,0.15)" stroke="#C084FC" strokeWidth="1.5" />
+        {/* ── Background: Radial Platform Rings ── */}
+        <g opacity="0.35" stroke="rgba(192,132,252,0.4)" strokeWidth="1.1">
+          <ellipse cx="180" cy="130" rx="170" ry="60" fill="none" strokeDasharray="6 6" />
+          <ellipse cx="180" cy="130" rx="130" ry="44" fill="none" stroke="rgba(56,189,248,0.3)" />
+        </g>
 
-          {/* Vertical Light Columns */}
-          <rect x="156" y="20" width="8" height="115" fill="url(#beamGrad)" />
-          <line x1="120" y1="140" x2="120" y2="40" stroke="rgba(168,85,247,0.2)" strokeWidth="1" strokeDasharray="2 4" />
-          <line x1="200" y1="140" x2="200" y2="40" stroke="rgba(168,85,247,0.2)" strokeWidth="1" strokeDasharray="2 4" />
-        </svg>
+        {/* Base Stage */}
+        <ellipse cx="180" cy="205" rx="120" ry="26" fill="rgba(168,85,247,0.08)" stroke="#A855F7" strokeWidth="1.4" strokeDasharray="6 4" />
+        <ellipse cx="180" cy="205" rx="85" ry="17" fill="none" stroke="#22D3EE" strokeWidth="1" opacity="0.7" />
 
-        {/* Central 3D Runtime Cube */}
-        <div className="relative z-10 w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-600 via-pink-500 to-indigo-500 p-0.5 shadow-[0_0_25px_rgba(168,85,247,0.6)] flex items-center justify-center animate-bounce" style={{ animationDuration: '4s' }}>
-          <div className="w-full h-full bg-slate-950/90 rounded-[14px] flex items-center justify-center">
-            <Package size={26} className="text-pink-400" />
-          </div>
+        {/* Laser Projection Rays from Stage to Cubes */}
+        <g stroke="rgba(192,132,252,0.35)" strokeWidth="1.1" strokeDasharray="3 3">
+          <line x1="180" y1="205" x2="180" y2="110" />
+          <line x1="180" y1="205" x2="105" y2="75" />
+          <line x1="180" y1="205" x2="255" y2="75" />
+          <line x1="180" y1="205" x2="90" y2="155" />
+          <line x1="180" y1="205" x2="265" y2="155" />
+        </g>
+
+        {/* ── Cube 1: Central Hero App Cube (Center) ── */}
+        <g transform="translate(180, 110)">
+          <polygon points="0,-32 28,-16 0,0 -28,-16" fill="rgba(192,132,252,0.45)" stroke="#C084FC" strokeWidth="1.5" filter="url(#softGlow)" />
+          <polygon points="-28,-16 0,0 0,32 -28,16" fill="rgba(147,51,234,0.35)" stroke="#A855F7" strokeWidth="1.5" />
+          <polygon points="0,0 28,-16 28,16 0,32" fill="rgba(59,130,246,0.3)" stroke="#38BDF8" strokeWidth="1.5" />
+          <line x1="-10" y1="16" x2="10" y2="16" stroke="#22D3EE" strokeWidth="2.2" strokeLinecap="round" filter="url(#softGlow)" />
+          <line x1="0" y1="6" x2="0" y2="26" stroke="#22D3EE" strokeWidth="2.2" strokeLinecap="round" filter="url(#softGlow)" />
+        </g>
+
+        {/* ── Cube 2: Web & Browser Cube (Upper-Left) ── */}
+        <g transform="translate(105, 75)">
+          <polygon points="0,-20 18,-10 0,0 -18,-10" fill="rgba(34,211,238,0.4)" stroke="#22D3EE" strokeWidth="1.3" />
+          <polygon points="-18,-10 0,0 0,20 -18,10" fill="rgba(14,165,233,0.3)" stroke="#0284C7" strokeWidth="1.3" />
+          <polygon points="0,0 18,-10 18,10 0,20" fill="rgba(99,102,241,0.3)" stroke="#6366F1" strokeWidth="1.3" />
+        </g>
+
+        {/* ── Cube 3: Dev & Code Cube (Upper-Right) ── */}
+        <g transform="translate(255, 75)">
+          <polygon points="0,-20 18,-10 0,0 -18,-10" fill="rgba(168,85,247,0.4)" stroke="#A855F7" strokeWidth="1.3" />
+          <polygon points="-18,-10 0,0 0,20 -18,10" fill="rgba(124,58,237,0.3)" stroke="#7C3AED" strokeWidth="1.3" />
+          <polygon points="0,0 18,-10 18,10 0,20" fill="rgba(236,72,153,0.3)" stroke="#EC4899" strokeWidth="1.3" />
+        </g>
+
+        {/* ── Cube 4: Terminal / CLI Cube (Lower-Left) ── */}
+        <g transform="translate(90, 155)">
+          <polygon points="0,-16 15,-8 0,0 -15,-8" fill="rgba(129,140,248,0.4)" stroke="#818CF8" strokeWidth="1.1" />
+          <polygon points="-15,-8 0,0 0,16 -15,8" fill="rgba(99,102,241,0.3)" stroke="#6366F1" strokeWidth="1.1" />
+          <polygon points="0,0 15,-8 15,8 0,16" fill="rgba(34,211,238,0.3)" stroke="#22D3EE" strokeWidth="1.1" />
+        </g>
+
+        {/* ── Cube 5: Packages & Frameworks Cube (Lower-Right) ── */}
+        <g transform="translate(265, 155)">
+          <polygon points="0,-16 15,-8 0,0 -15,-8" fill="rgba(236,72,153,0.4)" stroke="#EC4899" strokeWidth="1.1" />
+          <polygon points="-15,-8 0,0 0,16 -15,8" fill="rgba(217,70,239,0.3)" stroke="#D946EF" strokeWidth="1.1" />
+          <polygon points="0,0 15,-8 15,8 0,16" fill="rgba(168,85,247,0.3)" stroke="#A855F7" strokeWidth="1.1" />
+        </g>
+      </svg>
+
+      {/* Floating Module Labels (Conceptual Only) */}
+      <div className="absolute top-4 left-3 px-2 py-1.5 rounded-xl bg-slate-900/85 border border-cyan-400/40 backdrop-blur-md shadow-[0_0_15px_rgba(34,211,238,0.25)] flex items-center gap-1.5 z-10 transform -rotate-2">
+        <Globe size={12} className="text-cyan-300" />
+        <span className="text-[10px] font-bold text-white">{isRtl ? 'المتصفحات' : 'Web Hub'}</span>
+      </div>
+
+      <div className="absolute bottom-7 left-4 px-2 py-1.5 rounded-xl bg-slate-900/85 border border-purple-400/40 backdrop-blur-md shadow-[0_0_15px_rgba(168,85,247,0.25)] flex items-center gap-1.5 z-10 transform rotate-2">
+        <Terminal size={12} className="text-purple-300" />
+        <span className="text-[10px] font-bold text-white">{isRtl ? 'بيئات التطوير' : 'Dev Runtimes'}</span>
+      </div>
+
+      {/* Right Column: Slogan Language Pack (From P1-02) */}
+      <div className="absolute top-6 right-3 flex flex-col items-end text-right z-10 select-none">
+        <div className="text-[10px] font-mono font-black tracking-widest text-purple-400/90 leading-tight uppercase">
+          {isRtl ? 'اكتشف' : 'DISCOVER'}
         </div>
-
-        {/* Floating App Badge 1: Web Browser (Left Top) */}
-        <div className="absolute left-6 top-3 w-9 h-9 rounded-xl bg-slate-900/85 border border-cyan-400/40 shadow-lg flex items-center justify-center transform -rotate-12">
-          <Globe size={18} className="text-cyan-400" />
+        <div className="text-[10px] font-mono font-black tracking-widest text-purple-400/90 leading-tight uppercase">
+          {isRtl ? 'تثبيت' : 'INSTALL'}
         </div>
-
-        {/* Floating App Badge 2: Code Editor (Right Top) */}
-        <div className="absolute right-6 top-3 w-9 h-9 rounded-xl bg-slate-900/85 border border-blue-400/40 shadow-lg flex items-center justify-center transform rotate-12">
-          <Code2 size={18} className="text-blue-400" />
+        <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase mt-0.5">
+          {isRtl ? 'تحسين' : 'OPTIMIZE'}
         </div>
-
-        {/* Floating App Badge 3: Runtime Terminal (Left Bottom) */}
-        <div className="absolute left-3 bottom-8 w-9 h-9 rounded-xl bg-slate-900/85 border border-purple-400/40 shadow-lg flex items-center justify-center transform rotate-6">
-          <Terminal size={18} className="text-purple-400" />
-        </div>
-
-        {/* Floating App Badge 4: Software Stack (Right Bottom) */}
-        <div className="absolute right-3 bottom-8 w-9 h-9 rounded-xl bg-slate-900/85 border border-pink-400/40 shadow-lg flex items-center justify-center transform -rotate-6">
-          <Layers size={18} className="text-pink-400" />
+        <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
+          {isRtl ? 'المزيد' : 'DO MORE'}
         </div>
       </div>
 
-      {/* Footer Tagline */}
-      <div className="mt-1 text-[10px] tracking-widest text-purple-300/90 font-mono uppercase text-center">
-        {isRtl ? 'تطبيقات • بيئات عمل • إعداد متكامل' : 'EVERYTHING YOU NEED • RIGHT HERE'}
+      {/* Bottom Ground Tag */}
+      <div className="absolute bottom-1 w-full text-center text-[9px] font-mono font-bold tracking-widest text-purple-300/70 uppercase">
+        {isRtl ? 'جميع البرامج في مكان واحد' : 'ALL THE TOOLS • A BRIGHTER PC'}
       </div>
     </div>
   );
 }
 
 /**
- * 5. ENGINEERING WORKBENCH HERO VISUAL (P0-07)
- * - 3D perspective grid matrix fading into violet dark space
- * - Stacked isometric 3D code & service layers
- * - Floating tech badges (React, Node, Python, Docker, TS)
- * - Connecting vector bus lines & telemetry tags
+ * 5. ENGINEERING WORKBENCH HERO SCENE (P0-07 & P1-02)
+ * - 420x260 Cinematic Holographic Scene vector-locked to the hero banner
+ * - 3-tier stacked isometric glass architecture planes (Presentation, API, Core Runtime)
+ * - Vertical interconnect conduits and neon corner pillars
+ * - Floating framework runtime chips (React, Node.js, Python, Docker)
+ * - Right-side uppercase slogan: DEEP INSIGHTS / REAL-TIME DATA / PRODUCTION / READY
+ * - Purely architectural conceptual syntax, ZERO fabricated telemetry
  */
 export function WorkbenchHoloVisual({ lang }: FamilyHeroVisualProps) {
   const isRtl = lang === 'ar';
 
   return (
-    <div className="relative flex flex-col items-center justify-center p-3 select-none" dir={isRtl ? 'rtl' : 'ltr'}>
-      {/* Ambient Lighting */}
-      <div className="absolute inset-0 bg-violet-600/15 rounded-full blur-3xl pointer-events-none" />
+    <div className="relative w-full max-w-[420px] h-[260px] flex items-center justify-center select-none overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
+      {/* Volumetric Radial Bloom */}
+      <div className="absolute top-1/2 left-1/3 -translate-x-1/2 -translate-y-1/2 w-72 h-56 bg-violet-500/25 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 right-1/4 -translate-x-1/2 -translate-y-1/2 w-64 h-48 bg-cyan-600/15 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Isometric 3D Architecture Matrix */}
-      <div className="relative w-80 h-44 flex items-center justify-center">
-        {/* SVG Isometric Grid & Slabs */}
-        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 320 180" fill="none">
-          <defs>
-            <linearGradient id="slabGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#3B82F6" />
-              <stop offset="100%" stopColor="#8B5CF6" />
-            </linearGradient>
-            <linearGradient id="slabGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#22D3EE" />
-              <stop offset="100%" stopColor="#3B82F6" />
-            </linearGradient>
-          </defs>
+      <svg className="w-full h-full" viewBox="0 0 420 260" fill="none">
+        <defs>
+          <linearGradient id="wbPlane1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="rgba(34,211,238,0.5)" />
+            <stop offset="100%" stopColor="rgba(14,165,233,0.15)" />
+          </linearGradient>
+          <linearGradient id="wbPlane2" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="rgba(129,140,248,0.5)" />
+            <stop offset="100%" stopColor="rgba(99,102,241,0.15)" />
+          </linearGradient>
+          <linearGradient id="wbPlane3" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="rgba(192,132,252,0.5)" />
+            <stop offset="100%" stopColor="rgba(168,85,247,0.15)" />
+          </linearGradient>
+          <filter id="wbGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3.5" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
 
-          {/* Perspective Matrix Grid Lines */}
-          <path d="M20,160 L160,110 L300,160" stroke="rgba(139,92,246,0.2)" strokeWidth="1" />
-          <path d="M40,170 L160,120 L280,170" stroke="rgba(139,92,246,0.15)" strokeWidth="1" />
-          <line x1="160" y1="110" x2="160" y2="20" stroke="rgba(34,211,238,0.25)" strokeDasharray="3 3" />
+        {/* ── Background: Blueprint Technical Grid ── */}
+        <g opacity="0.28" stroke="rgba(129,140,248,0.3)" strokeWidth="0.8">
+          <line x1="15" y1="200" x2="405" y2="200" />
+          <line x1="30" y1="220" x2="390" y2="220" />
+          <line x1="180" y1="25" x2="180" y2="245" strokeDasharray="3 3" />
+        </g>
 
-          {/* Isometric Layer 1 (Bottom) */}
-          <polygon points="160,120 210,95 160,70 110,95" fill="url(#slabGrad1)" fillOpacity="0.3" stroke="#8B5CF6" strokeWidth="1.2" />
-          {/* Isometric Layer 2 (Middle) */}
-          <polygon points="160,95 210,70 160,45 110,70" fill="url(#slabGrad2)" fillOpacity="0.4" stroke="#3B82F6" strokeWidth="1.2" />
-          {/* Isometric Layer 3 (Top) */}
-          <polygon points="160,70 210,45 160,20 110,45" fill="#22D3EE" fillOpacity="0.5" stroke="#22D3EE" strokeWidth="1.5" />
-        </svg>
+        {/* ── 3-Tier Stacked Isometric Architecture Planes ── */}
+        <g transform="translate(180, 110)">
+          {/* Bottom Layer: Core & Storage */}
+          <polygon points="0,52 65,20 0,-12 -65,20" fill="url(#wbPlane3)" stroke="#A855F7" strokeWidth="1.5" />
+          {/* Middle Layer: Services & API */}
+          <polygon points="0,20 65,-12 0,-44 -65,-12" fill="url(#wbPlane2)" stroke="#818CF8" strokeWidth="1.5" />
+          {/* Top Layer: Presentation & UI */}
+          <polygon points="0,-12 65,-44 0,-76 -65,-44" fill="url(#wbPlane1)" stroke="#22D3EE" strokeWidth="1.8" filter="url(#wbGlow)" />
 
-        {/* Floating Runtime Technology Badges */}
-        <div className="absolute left-4 top-4 px-2.5 py-1 rounded-md bg-slate-900/90 border border-blue-500/40 shadow-md text-[10px] font-mono font-bold text-blue-300 flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-          React
+          {/* Vertical Interconnect Conduits */}
+          <line x1="0" y1="-76" x2="0" y2="52" stroke="#22D3EE" strokeWidth="1.6" strokeDasharray="4 3" />
+          <line x1="-65" y1="-44" x2="-65" y2="20" stroke="#818CF8" strokeWidth="1.1" opacity="0.7" />
+          <line x1="65" y1="-44" x2="65" y2="20" stroke="#818CF8" strokeWidth="1.1" opacity="0.7" />
+        </g>
+
+        {/* Connecting Traces to Floating Framework Chips */}
+        <g stroke="rgba(34,211,238,0.4)" strokeWidth="1.1" strokeDasharray="3 3">
+          <line x1="85" y1="65" x2="140" y2="80" />
+          <line x1="85" y1="170" x2="140" y2="145" />
+          <line x1="275" y1="65" x2="220" y2="80" />
+        </g>
+      </svg>
+
+      {/* Floating Runtime Chips (Conceptual Architecture Tags) */}
+      <div className="absolute top-4 left-3 px-2 py-1 rounded-xl bg-slate-900/90 border border-cyan-400/50 shadow-[0_0_15px_rgba(34,211,238,0.3)] flex items-center gap-1.5 z-10">
+        <Code2 size={11} className="text-cyan-400" />
+        <span className="text-[10px] font-bold font-mono text-cyan-300">React • Node.js</span>
+      </div>
+
+      <div className="absolute bottom-7 left-4 px-2 py-1 rounded-xl bg-slate-900/90 border border-emerald-400/50 shadow-[0_0_15px_rgba(16,185,129,0.3)] flex items-center gap-1.5 z-10">
+        <Terminal size={11} className="text-emerald-400" />
+        <span className="text-[10px] font-bold font-mono text-emerald-300">Python • Docker</span>
+      </div>
+
+      {/* Right Column: Slogan Language Pack (From P1-02) */}
+      <div className="absolute top-6 right-3 flex flex-col items-end text-right z-10 select-none">
+        <div className="text-[10px] font-mono font-black tracking-widest text-indigo-400/90 leading-tight uppercase">
+          {isRtl ? 'رؤى عميقة' : 'DEEP INSIGHTS'}
         </div>
-
-        <div className="absolute left-2 bottom-8 px-2.5 py-1 rounded-md bg-slate-900/90 border border-emerald-500/40 shadow-md text-[10px] font-mono font-bold text-emerald-300 flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          Node.js
+        <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
+          {isRtl ? 'بيانات لحظية' : 'REAL-TIME DATA'}
         </div>
-
-        <div className="absolute right-4 top-4 px-2.5 py-1 rounded-md bg-slate-900/90 border border-amber-500/40 shadow-md text-[10px] font-mono font-bold text-amber-300 flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-          Python
+        <div className="text-[10px] font-mono font-black tracking-widest text-violet-400/90 leading-tight uppercase mt-0.5">
+          {isRtl ? 'جاهزية كاملة' : 'PRODUCTION'}
         </div>
-
-        <div className="absolute right-2 bottom-8 px-2.5 py-1 rounded-md bg-slate-900/90 border border-cyan-500/40 shadow-md text-[10px] font-mono font-bold text-cyan-300 flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-          Docker
+        <div className="text-[10px] font-mono font-black tracking-widest text-violet-400/90 leading-tight uppercase">
+          {isRtl ? 'للإنتاج' : 'READY'}
         </div>
       </div>
 
-      {/* Footer Tagline */}
-      <div className="mt-1 text-[10px] tracking-widest text-violet-300/90 font-mono uppercase text-center">
-        {isRtl ? 'أدوات المطور • فحص المشاريع • تشخيص متقدم' : 'CODE • ANALYZE • OPTIMIZE • DELIVER'}
+      {/* Bottom Ground Tag */}
+      <div className="absolute bottom-1 w-full text-center text-[9px] font-mono font-bold tracking-widest text-indigo-300/70 uppercase">
+        {isRtl ? 'بناء أذكى • نشر أكثر أماناً' : 'BUILD SMARTER • SHIP SAFER'}
       </div>
     </div>
   );
 }
 
 /**
- * 6. INVESTIGATION HERO VISUAL (P0-08)
- * - Multi-monitor command deck observatory
- * - Holographic celestial/digital radar globe with rotating sweep
- * - Telemetry waveform activity streams
- * - Diagnostic targeting coordinates: "OBSERVE • ANALYZE • TRACE • RESOLVE"
+ * 6. INVESTIGATION HERO SCENE (P0-08 & P1-02)
+ * - 420x260 Cinematic Holographic Scene vector-locked to the hero banner
+ * - Large holographic forensic optical lens (155px) with targeting reticle and radar sweep beam
+ * - Polar coordinate radar grid with 360° degree markers and range circles
+ * - Floating HUD telemetry panes using real Processes from systemSnapshot or "Evidence Unavailable"
+ * - Right-side uppercase slogan: DEEPER / INSIGHTS / CLEARER / ANSWERS
+ * - ZERO fabricated error/warning counts or fake health statuses
  */
-export function InvestigationHoloVisual({ lang }: FamilyHeroVisualProps) {
+export function InvestigationHoloVisual({ lang, systemSnapshot }: FamilyHeroVisualProps) {
   const isRtl = lang === 'ar';
 
+  const processDisplay = typeof systemSnapshot?.Processes === 'number'
+    ? `${systemSnapshot.Processes} Processes`
+    : (isRtl ? 'غير متوفر' : 'Unavailable');
+
   return (
-    <div className="relative flex flex-col items-center justify-center p-3 select-none" dir={isRtl ? 'rtl' : 'ltr'}>
-      {/* Background Radar Lighting */}
-      <div className="absolute inset-0 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+    <div className="relative w-full max-w-[420px] h-[260px] flex items-center justify-center select-none overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
+      {/* Volumetric Radial Bloom */}
+      <div className="absolute top-1/2 left-1/3 -translate-x-1/2 -translate-y-1/2 w-72 h-56 bg-blue-500/25 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 right-1/4 -translate-x-1/2 -translate-y-1/2 w-64 h-48 bg-cyan-600/20 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Radar & Observatory Monitor Composition */}
-      <div className="relative w-80 h-44 flex items-center justify-center">
-        {/* SVG Digital Earth Radar Grid & Rotating Beam */}
-        <svg className="w-48 h-44" viewBox="0 0 160 160" fill="none">
-          <defs>
-            <radialGradient id="radarSweepGrad" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#22D3EE" stopOpacity="0" />
-            </radialGradient>
-          </defs>
+      <svg className="w-full h-full" viewBox="0 0 420 260" fill="none">
+        <defs>
+          <linearGradient id="invRadarBeam" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="rgba(34,211,238,0.65)" />
+            <stop offset="60%" stopColor="rgba(6,182,212,0.18)" />
+            <stop offset="100%" stopColor="transparent" />
+          </linearGradient>
+          <filter id="invGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3.5" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
 
-          {/* Concentric Radar Rings */}
-          <circle cx="80" cy="80" r="70" stroke="rgba(59,130,246,0.25)" strokeWidth="1" />
-          <circle cx="80" cy="80" r="50" stroke="rgba(59,130,246,0.35)" strokeWidth="1" strokeDasharray="4 4" />
-          <circle cx="80" cy="80" r="30" stroke="rgba(34,211,238,0.5)" strokeWidth="1" />
-          <circle cx="80" cy="80" r="10" fill="rgba(34,211,238,0.3)" />
-
+        {/* ── Background: Polar Radar Coordinates ── */}
+        <g opacity="0.32" stroke="rgba(34,211,238,0.35)" strokeWidth="0.8">
+          <circle cx="180" cy="110" r="90" fill="none" />
+          <circle cx="180" cy="110" r="68" fill="none" strokeDasharray="4 4" />
+          <circle cx="180" cy="110" r="45" fill="none" />
+          <circle cx="180" cy="110" r="22" fill="none" />
           {/* Crosshair Axes */}
-          <line x1="80" y1="5" x2="80" y2="155" stroke="rgba(59,130,246,0.3)" strokeWidth="1" />
-          <line x1="5" y1="80" x2="155" y2="80" stroke="rgba(59,130,246,0.3)" strokeWidth="1" />
+          <line x1="75" y1="110" x2="285" y2="110" strokeDasharray="3 3" />
+          <line x1="180" y1="15" x2="180" y2="205" strokeDasharray="3 3" />
+        </g>
 
-          {/* Rotating Radar Sweep Line */}
-          <line x1="80" y1="80" x2="145" y2="45" stroke="#22D3EE" strokeWidth="2" strokeLinecap="round" />
-          <path d="M80,80 L145,45 A70,70 0 0,0 120,20 Z" fill="url(#radarSweepGrad)" />
-        </svg>
+        {/* Rotating Radar Sweep Sector */}
+        <path
+          d="M 180,110 L 245,45 A 90 90 0 0 1 270,110 Z"
+          fill="url(#invRadarBeam)"
+          filter="url(#invGlow)"
+        />
 
-        {/* Observatory Multi-Monitor Left Widget */}
-        <div className="absolute left-2 top-8 px-2.5 py-1.5 rounded-lg bg-slate-900/90 border border-blue-500/40 shadow-lg text-[10px]">
-          <div className="flex items-center gap-1.5 text-blue-400 font-semibold mb-1">
-            <Radio size={12} className="animate-pulse" />
-            <span>Telemetry</span>
-          </div>
-          <div className="font-mono text-[9px] text-slate-400">
-            <div>ERR: 0</div>
-            <div>WARN: 2</div>
-          </div>
-        </div>
+        {/* ── Midground: 3D Holographic Forensic Magnifying Lens ── */}
+        <g transform="translate(180, 110)">
+          {/* Outer Lens Metallic Rim with Glow */}
+          <circle cx="0" cy="0" r="70" stroke="#22D3EE" strokeWidth="2.8" fill="none" filter="url(#invGlow)" />
+          <circle cx="0" cy="0" r="66" stroke="rgba(255,255,255,0.4)" strokeWidth="1" fill="none" />
 
-        {/* Observatory Multi-Monitor Right Widget */}
-        <div className="absolute right-2 top-8 px-2.5 py-1.5 rounded-lg bg-slate-900/90 border border-cyan-500/40 shadow-lg text-[10px]">
-          <div className="flex items-center gap-1.5 text-cyan-400 font-semibold mb-1">
-            <Monitor size={12} />
-            <span>Process HUD</span>
-          </div>
-          <div className="font-mono text-[9px] text-slate-400">
-            <div>252 Active</div>
-            <div>0 Hung</div>
-          </div>
+          {/* Lens Handle */}
+          <path d="M 50,50 L 92,92 L 84,100 L 42,58 Z" fill="url(#invRadarBeam)" stroke="#22D3EE" strokeWidth="1.6" />
+
+          {/* Focal Crosshair & Reticle */}
+          <circle cx="0" cy="0" r="5" fill="#22D3EE" filter="url(#invGlow)" />
+          <circle cx="0" cy="0" r="12" stroke="#22D3EE" strokeWidth="1.4" fill="none" />
+
+          {/* Target Lock Brackets around Focus */}
+          <path d="M -18,-10 L -18,-18 L -10,-18" stroke="#22D3EE" strokeWidth="1.8" fill="none" />
+          <path d="M 18,-10 L 18,-18 L 10,-18" stroke="#22D3EE" strokeWidth="1.8" fill="none" />
+          <path d="M -18,10 L -18,18 L -10,18" stroke="#22D3EE" strokeWidth="1.8" fill="none" />
+          <path d="M 18,10 L 18,18 L 10,18" stroke="#22D3EE" strokeWidth="1.8" fill="none" />
+        </g>
+      </svg>
+
+      {/* Floating HUD Telemetry Panes (Truthful Only) */}
+      <div className="absolute top-4 left-3 px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-cyan-400/40 backdrop-blur-md shadow-[0_0_15px_rgba(34,211,238,0.25)] flex items-center gap-1.5 z-10">
+        <Radio size={12} className="text-cyan-400 animate-pulse" />
+        <span className="text-[11px] font-bold text-white">{isRtl ? 'تدفق الأحداث' : 'Event Stream'}</span>
+      </div>
+
+      <div className="absolute bottom-7 left-4 px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-blue-400/40 backdrop-blur-md shadow-[0_0_15px_rgba(59,130,246,0.25)] flex items-center gap-1.5 z-10">
+        <Activity size={12} className="text-sky-400" />
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold text-white">{isRtl ? 'العمليات' : 'Processes'}</span>
+          <span className="text-[9px] font-mono text-sky-300">{processDisplay}</span>
         </div>
       </div>
 
-      {/* Footer Tagline */}
-      <div className="mt-1 text-[10px] tracking-widest text-blue-300/90 font-mono uppercase text-center">
-        {isRtl ? 'مراقبة • تحليل • تتبع • استجابة' : 'OBSERVE • ANALYZE • TRACE • RESOLVE'}
+      {/* Right Column: Slogan Language Pack (From P1-02) */}
+      <div className="absolute top-6 right-3 flex flex-col items-end text-right z-10 select-none">
+        <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
+          {isRtl ? 'رؤى' : 'DEEPER'}
+        </div>
+        <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
+          {isRtl ? 'أعمق' : 'INSIGHTS'}
+        </div>
+        <div className="text-[10px] font-mono font-black tracking-widest text-sky-400/90 leading-tight uppercase mt-0.5">
+          {isRtl ? 'إجابات' : 'CLEARER'}
+        </div>
+        <div className="text-[10px] font-mono font-black tracking-widest text-sky-400/90 leading-tight uppercase">
+          {isRtl ? 'أوضح' : 'ANSWERS'}
+        </div>
+      </div>
+
+      {/* Bottom Ground Tag */}
+      <div className="absolute bottom-1 w-full text-center text-[9px] font-mono font-bold tracking-widest text-cyan-300/70 uppercase">
+        {isRtl ? 'اكتشف ما يحدث • كشف الحقائق' : 'FIND ANSWERS • MOVE FORWARD'}
       </div>
     </div>
   );

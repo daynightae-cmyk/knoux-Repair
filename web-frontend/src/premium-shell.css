@@ -239,20 +239,21 @@
 /* ── Hero Section ── */
 .knoux-hero {
   position: relative;
-  padding: var(--knoux-space-8) var(--knoux-space-6);
+  padding: var(--knoux-space-6) var(--knoux-space-6);
   border-radius: var(--knoux-radius-xl);
   overflow: hidden;
   margin-bottom: var(--knoux-space-6);
+  background-color: #070b1e;
+  border: 1px solid var(--knoux-border);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .knoux-hero::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: var(--knoux-surface);
-  backdrop-filter: blur(var(--knoux-glass-blur-heavy));
-  -webkit-backdrop-filter: blur(var(--knoux-glass-blur-heavy));
-  border: var(--knoux-glass-border);
+  background: transparent;
+  pointer-events: none;
   border-radius: inherit;
   z-index: 0;
 }

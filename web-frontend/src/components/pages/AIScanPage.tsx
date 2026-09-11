@@ -53,7 +53,6 @@ export default function AIScanPage({
 
   const [scanning, setScanning] = useState(false);
   const [scanStage, setScanStage] = useState<string>('');
-  const [progressPercent, setProgressPercent] = useState<number>(0);
   const [findings, setFindings] = useState<ScanFinding[] | null>(null);
   const [scanTimestamp, setScanTimestamp] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,7 +60,6 @@ export default function AIScanPage({
   const runDiagnosticScan = useCallback(async () => {
     if (!bridgeOnline) return;
     setScanning(true);
-    setProgressPercent(10);
     setScanStage(isRtl ? 'فحص مقاييس الحيوية والأداء...' : 'Inspecting system vitals & memory pressure...');
 
     const discoveredFindings: ScanFinding[] = [];
@@ -69,7 +67,6 @@ export default function AIScanPage({
     try {
       // Step 1: System snapshot
       const sysRes = await api.system().catch(() => null);
-      setProgressPercent(35);
       setScanStage(isRtl ? 'فحص سعة الأقراص والنظافة العامة...' : 'Evaluating disk capacity & hygiene...');
 
       if (sysRes?.system) {
@@ -132,7 +129,6 @@ export default function AIScanPage({
       }
 
       // Step 2: Cleanup preview
-      setProgressPercent(60);
       setScanStage(isRtl ? 'تحليل مخلفات النظام المؤكدة...' : 'Analyzing reclaimable temporary files...');
       const cleanRes = await api.cleanupPreview().catch(() => null);
 
@@ -157,7 +153,6 @@ export default function AIScanPage({
       }
 
       // Step 3: Drivers preview
-      setProgressPercent(85);
       setScanStage(isRtl ? 'فحص سلامة التعريفات وتوقيعات العتاد...' : 'Verifying driver signatures & hardware stability...');
       const driverRes = await api.driversPreview().catch(() => null);
 
@@ -179,7 +174,6 @@ export default function AIScanPage({
         }
       }
 
-      setProgressPercent(100);
       setScanStage(isRtl ? 'اكتمل الفحص بنجاح' : 'Diagnostic scan complete');
       setFindings(discoveredFindings);
       setScanTimestamp(new Date().toLocaleTimeString());
@@ -318,57 +312,84 @@ export default function AIScanPage({
             </div>
           </div>
 
-          {/* Right Column: Holographic Orbital Sphere with Faceted "K" Monogram */}
-          <div className="relative flex items-center justify-center p-4">
-            <div className="relative w-64 h-64 flex items-center justify-center">
-              {/* Radial Energy Glow */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 via-violet-600/30 to-fuchsia-500/20 rounded-full blur-2xl animate-pulse" />
+          {/* Right Column: Large Intelligent Diagnostic Core with Orbital Rings and Data Traces */}
+          <div className="relative flex items-center justify-center p-2 lg:p-4 overflow-visible">
+            <div className="relative w-72 h-72 md:w-80 md:h-80 flex items-center justify-center">
+              {/* Volumetric Radial Energy Glow */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/25 via-violet-600/35 to-fuchsia-500/25 rounded-full blur-3xl animate-pulse" />
 
               {/* Orbital Scanner Rings SVG */}
-              <svg className="w-full h-full" viewBox="0 0 240 240" fill="none">
+              <svg className="w-full h-full overflow-visible" viewBox="0 0 280 280" fill="none">
                 <defs>
                   <linearGradient id="orbRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="#22D3EE" />
                     <stop offset="50%" stopColor="#818CF8" />
                     <stop offset="100%" stopColor="#C084FC" />
                   </linearGradient>
+                  <linearGradient id="orbPulseBeam" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="transparent" />
+                    <stop offset="50%" stopColor="#22D3EE" />
+                    <stop offset="100%" stopColor="transparent" />
+                  </linearGradient>
+                  <filter id="orbGlow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="4" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
                 </defs>
 
-                {/* Outer Concentric Static Rings */}
-                <circle cx="120" cy="120" r="100" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-                <circle cx="120" cy="120" r="85" stroke="rgba(34,211,238,0.15)" strokeWidth="1" strokeDasharray="6 6" />
-                <circle cx="120" cy="120" r="70" stroke="rgba(129,140,248,0.2)" strokeWidth="1.5" />
+                {/* Outer Concentric Static Calibration Rings */}
+                <circle cx="140" cy="140" r="125" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+                <circle cx="140" cy="140" r="110" stroke="rgba(34,211,238,0.2)" strokeWidth="1.2" strokeDasharray="6 6" />
+                <circle cx="140" cy="140" r="95" stroke="rgba(129,140,248,0.25)" strokeWidth="1.5" />
+
+                {/* Radar/Scan Coordinate Axes */}
+                <line x1="20" y1="140" x2="260" y2="140" stroke="rgba(34,211,238,0.15)" strokeDasharray="3 3" />
+                <line x1="140" y1="20" x2="140" y2="260" stroke="rgba(34,211,238,0.15)" strokeDasharray="3 3" />
+
+                {/* Inflowing Data Stream Rays */}
+                <line x1="30" y1="60" x2="110" y2="120" stroke="rgba(34,211,238,0.3)" strokeWidth="1.2" strokeDasharray="4 4" />
+                <line x1="250" y1="60" x2="170" y2="120" stroke="rgba(192,132,252,0.3)" strokeWidth="1.2" strokeDasharray="4 4" />
+                <line x1="40" y1="220" x2="110" y2="160" stroke="rgba(34,211,238,0.3)" strokeWidth="1.2" strokeDasharray="4 4" />
+                <line x1="240" y1="220" x2="170" y2="160" stroke="rgba(192,132,252,0.3)" strokeWidth="1.2" strokeDasharray="4 4" />
 
                 {/* Tilted Elliptical Orbital Rings (Saturn Style) */}
                 <ellipse
-                  cx="120"
-                  cy="120"
-                  rx="105"
-                  ry="40"
+                  cx="140"
+                  cy="140"
+                  rx="130"
+                  ry="48"
                   stroke="url(#orbRingGrad)"
-                  strokeWidth="2"
-                  transform="rotate(-25 120 120)"
-                  className="opacity-80 drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]"
+                  strokeWidth="2.5"
+                  transform="rotate(-25 140 140)"
+                  filter="url(#orbGlow)"
+                  className="opacity-90"
                 />
                 <ellipse
-                  cx="120"
-                  cy="120"
-                  rx="95"
-                  ry="30"
+                  cx="140"
+                  cy="140"
+                  rx="115"
+                  ry="36"
                   stroke="#22D3EE"
-                  strokeWidth="1.2"
-                  strokeDasharray="4 8"
-                  transform="rotate(35 120 120)"
-                  className="opacity-70"
+                  strokeWidth="1.5"
+                  strokeDasharray="6 8"
+                  transform="rotate(35 140 140)"
+                  className="opacity-75"
                 />
 
                 {/* Pulsing Energy Core */}
-                <circle cx="120" cy="120" r="50" fill="rgba(11,16,38,0.9)" stroke="rgba(34,211,238,0.4)" strokeWidth="1.5" />
+                <circle cx="140" cy="140" r="64" fill="rgba(11,16,38,0.92)" stroke="rgba(34,211,238,0.5)" strokeWidth="1.8" />
+                <circle cx="140" cy="140" r="54" fill="none" stroke="rgba(129,140,248,0.4)" strokeWidth="1" strokeDasharray="4 4" />
+
+                {/* Target Lock Brackets */}
+                <path d="M 115,115 L 115,105 L 125,105" stroke="#22D3EE" strokeWidth="2" fill="none" />
+                <path d="M 165,115 L 165,105 L 155,105" stroke="#22D3EE" strokeWidth="2" fill="none" />
+                <path d="M 115,165 L 115,175 L 125,175" stroke="#22D3EE" strokeWidth="2" fill="none" />
+                <path d="M 165,165 L 165,175 L 155,175" stroke="#22D3EE" strokeWidth="2" fill="none" />
               </svg>
 
               {/* Central Faceted "K" Monogram */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <svg className="w-20 h-20 drop-shadow-[0_0_20px_rgba(129,140,248,0.9)]" viewBox="0 0 100 100" fill="none">
+                <svg className="w-24 h-24 drop-shadow-[0_0_24px_rgba(129,140,248,0.95)]" viewBox="0 0 100 100" fill="none">
                   <defs>
                     <linearGradient id="kStemLeft" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" stopColor="#7C3AED" />
@@ -402,19 +423,19 @@ export default function AIScanPage({
                 </svg>
               </div>
 
-              {/* Vertical Typography: SCAN ANALYZE UNDERSTAND REPAIR TOGETHER */}
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-col gap-1 text-[8px] font-mono tracking-widest text-slate-400 uppercase select-none opacity-60">
-                <span>SCAN</span>
-                <span>ANALYZE</span>
-                <span>UNDERSTAND</span>
-                <span>REPAIR</span>
-                <span>TOGETHER</span>
+              {/* Vertical Workflow Labels: SCAN • ANALYZE • UNDERSTAND • REPAIR • TOGETHER */}
+              <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 flex flex-col gap-1.5 text-[8px] font-mono tracking-widest text-cyan-300/80 uppercase select-none font-bold">
+                <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-cyan-400" />SCAN</span>
+                <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-indigo-400" />ANALYZE</span>
+                <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-violet-400" />UNDERSTAND</span>
+                <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-purple-400" />REPAIR</span>
+                <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-pink-400" />TOGETHER</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Scan Progress Bar (if active) */}
+        {/* Scan Progress Bar (Indeterminate) */}
         {scanning && (
           <div className="w-full mt-6 space-y-2 border-t border-white/10 pt-4">
             <div className="flex items-center justify-between text-xs text-slate-300">
@@ -422,12 +443,16 @@ export default function AIScanPage({
                 <Loader2 size={14} className="animate-spin text-cyan-400" />
                 {scanStage}
               </span>
-              <span className="font-mono font-bold text-cyan-400">{progressPercent}%</span>
+              <span className="font-mono text-cyan-400 text-[11px] tracking-wider uppercase animate-pulse">
+                {isRtl ? 'جارٍ التشخيص...' : 'DIAGNOSING...'}
+              </span>
             </div>
-            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+            <div className="relative w-full h-2 bg-white/10 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-cyan-500 via-violet-500 to-pink-500 transition-all duration-300 rounded-full"
-                style={{ width: `${progressPercent}%` }}
+                className="h-full w-full bg-gradient-to-r from-cyan-500 via-violet-500 to-cyan-500 rounded-full animate-pulse"
+                style={{
+                  backgroundSize: '200% 100%',
+                }}
               />
             </div>
           </div>

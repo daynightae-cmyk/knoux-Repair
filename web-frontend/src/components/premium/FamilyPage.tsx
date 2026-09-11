@@ -79,7 +79,16 @@ export default function FamilyPage({
   return (
     <div className="space-y-6">
       {/* Hero */}
-      <HeroSection family={family} totalTools={familyTools.length} lang={lang} systemSnapshot={systemSnapshot} />
+      <HeroSection
+        family={family}
+        totalTools={familyTools.length}
+        lang={lang}
+        systemSnapshot={systemSnapshot}
+        onExplore={() => {
+          const el = document.getElementById('family-tool-catalog');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }}
+      />
 
       {/* Service selector */}
       <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'thin' }}>
@@ -103,7 +112,7 @@ export default function FamilyPage({
       </div>
 
       {/* Tool catalog */}
-      <div className="knoux-glass" style={{ padding: 0 }}>
+      <div id="family-tool-catalog" className="knoux-glass" style={{ padding: 0 }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--knoux-border)' }}>
           <h3 className="text-sm font-semibold" style={{ color: 'var(--knoux-text-secondary)' }}>
             {activeService ? (lang === 'ar' ? activeService.name.ar : activeService.name.en) : ''}
