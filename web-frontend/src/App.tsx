@@ -1,10 +1,6 @@
 /**
  * KNOUX Repair — Master Premium Application
- *
- * ABSOLUTE PREMIUM UI RECONSTRUCTION
  * Unified Desktop Workstation Shell
- * Left Rail: AI Scan → 6 Families → Action Center → Settings
- * One Canonical Tool Workspace • Contextual Sentinel • Truthful Telemetry
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
@@ -31,9 +27,12 @@ import DiagnosticConsole from './components/DiagnosticConsole';
 import SettingsCenter from './components/SettingsCenter';
 import NexusSplash from './components/NexusSplash';
 import AuthGate from './components/AuthGate';
+import AccountCenter from './components/AccountCenter';
+import './account-shell.css';
 
 type ActiveView = FamilyId | 'ai-scan' | 'action-center' | 'settings' | 'navigator';
 type AuthenticationProviderId = 'google' | 'github' | 'entra';
+type AuthUserSummary = { provider?: string; name?: string; handle?: string };
 
 const AUTH_BRIDGE_ORIGIN = 'http://127.0.0.1:8787';
 const AUTH_HANDOFF_TIMEOUT_MS = 2 * 60 * 1000;
@@ -72,6 +71,7 @@ function MasterWorkstation() {
   const initialService = (searchParams.get('service') as ServiceId) || null;
   const initialTool = searchParams.get('tool') || null;
   const initialSplash = searchParams.get('nosplash') !== '1';
+  const initialAccount = searchParams.get('account') === '1';
 
   const [activeView, setActiveView] = useState<ActiveView>(initialView);
   const [selectedService, setSelectedService] = useState<ServiceId | null>(initialService);
@@ -95,12 +95,14 @@ function MasterWorkstation() {
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(initialAccount);
   const [splashVisible, setSplashVisible] = useState(initialSplash);
 
   const [authStatus, setAuthStatus] = useState<BridgeAuthStatus | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState('');
   const [authPendingProvider, setAuthPendingProvider] = useState<AuthenticationProviderId | null>(null);
+  const [localModeActive, setLocalModeActive] = useState(false);
 
   const currentRunId = useRef<string | null>(null);
   const pollTimer = useRef<number | null>(null);
@@ -155,6 +157,7 @@ function MasterWorkstation() {
 
     const auth = await api.authStatus().catch(() => null);
     setAuthStatus(auth);
+    if (auth?.authenticated) setLocalModeActive(false);
     setAuthError(auth ? '' : 'Local OAuth routes are not available until bridge is restarted.');
     setBridgeOnline(true);
   }, []);
@@ -170,9 +173,15 @@ function MasterWorkstation() {
   const refreshAuth = useCallback(async () => {
     setAuthLoading(true);
     setAuthError('');
-    try { setAuthStatus(await api.authStatus()); }
-    catch (e: unknown) { setAuthError(e instanceof Error ? e.message : String(e)); }
-    finally { setAuthLoading(false); }
+    try {
+      const next = await api.authStatus();
+      setAuthStatus(next);
+      if (next.authenticated) setLocalModeActive(false);
+    } catch (e: unknown) {
+      setAuthError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAuthLoading(false);
+    }
   }, []);
 
   const stopAuthPolling = useCallback(() => {
@@ -238,6 +247,14 @@ function MasterWorkstation() {
     authPollTimer.current = window.setTimeout(poll, 700);
   }, [lang, refreshAuth, stopAuthPolling]);
 
+  const logout = useCallback(async () => {
+    stopAuthPolling();
+    setAccountOpen(false);
+    setLocalModeActive(false);
+    try { await api.logout(); }
+    finally { await refreshAuth(); }
+  }, [refreshAuth, stopAuthPolling]);
+
   const finishRun = useCallback((run: BridgeRun) => {
     const status: ToolStatus = run.status === 'success' ? 'success' : run.status === 'inconclusive' ? 'inconclusive' : run.status === 'error' ? 'error' : 'cancelled';
     setToolStatuses(prev => ({ ...prev, [run.toolId]: status }));
@@ -281,12 +298,17 @@ function MasterWorkstation() {
       setActiveTasks(prev => [...prev.filter(t => t.tool.ToolId !== tool.ToolId), { runId, tool, mode, status: 'running' }]);
       pollRun(runId, tool);
     } catch (e: unknown) {
+      if (e instanceof BridgeError && e.code === 'AUTH_REQUIRED') {
+        setLocalModeActive(false);
+        setAccountOpen(false);
+        setAuthError(lang === 'ar' ? 'يتطلب هذا الإجراء تسجيل الدخول قبل التنفيذ المحمي.' : 'This action requires sign-in before protected execution.');
+      }
       const msg = e instanceof BridgeError ? e.message : e instanceof Error ? e.message : String(e);
       setConsoleEntries([{ id: Date.now() + (entryCounter += 1), text: `[ERR!] ${msg}`, type: 'error', timestamp: new Date().toLocaleTimeString() }]);
       setConsoleStatus('error');
       setToolStatuses(prev => ({ ...prev, [tool.ToolId]: 'error' }));
     }
-  }, [pollRun]);
+  }, [lang, pollRun]);
 
   const cancelRun = useCallback(async () => {
     if (currentRunId.current) try { await api.cancelRun(currentRunId.current); } catch { /* next poll settles */ }
@@ -309,7 +331,7 @@ function MasterWorkstation() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setSearchOpen(prev => !prev); }
-      if (e.key === 'Escape') setSearchOpen(false);
+      if (e.key === 'Escape') { setSearchOpen(false); setAccountOpen(false); }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -321,11 +343,18 @@ function MasterWorkstation() {
     return FAMILIES.find((f: FamilyDefinition) => f.id === activeView) ?? null;
   }, [activeView]);
 
+  const authUser = authStatus?.user as AuthUserSummary | null | undefined;
+  const accountConnected = Boolean(authStatus?.authenticated && authUser);
+  const accountLabel = accountConnected
+    ? (authUser?.name || authUser?.handle || (lang === 'ar' ? 'حساب' : 'Account'))
+    : (lang === 'ar' ? 'محلي' : 'Local');
+  const showAuthGate = Boolean(authStatus?.required && !authStatus.authenticated && !localModeActive);
+
   return (
     <div className="knoux-shell flex flex-col h-screen w-screen bg-[#050714] text-white overflow-hidden relative" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-violet-600/10 rounded-full blur-[140px] -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-cyan-600/10 rounded-full blur-[140px] translate-x-1/2 translate-y-1/2 pointer-events-none" />
-      <TopBar lang={lang} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} onSearchOpen={() => setSearchOpen(true)} onSettingsOpen={() => setSettingsOpen(true)} />
+      <TopBar lang={lang} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} accountLabel={accountLabel} accountConnected={accountConnected} onSearchOpen={() => setSearchOpen(true)} onSettingsOpen={() => setSettingsOpen(true)} onAccountOpen={() => setAccountOpen(true)} />
       <div className="knoux-body flex flex-1 min-h-0 relative z-10">
         <LeftRail activeView={activeView} onSelect={handleRailSelect} lang={lang} bridgeOnline={bridgeOnline} />
         <main className="knoux-workspace flex-1 overflow-y-auto px-6 py-6" role="main">
@@ -333,7 +362,7 @@ function MasterWorkstation() {
             {activeView === 'ai-scan' ? <motion.div key="ai-scan" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><AIScanPage lang={lang} bridgeOnline={bridgeOnline} toolCount={bridgeToolCount} onNavigate={navigateTo} /></motion.div>
             : activeView === 'navigator' ? <motion.div key="navigator" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><AllServicesNavigator lang={lang} onNavigate={navigateTo} /></motion.div>
             : activeView === 'action-center' ? <motion.div key="action-center" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><ActionCenterPage lang={lang} activeTasks={activeTasks} toolStatuses={toolStatuses} onNavigate={navigateTo} /></motion.div>
-            : activeView === 'settings' ? <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><SettingsCenter open={true} onClose={() => setActiveView('ai-scan')} lang={lang} setLang={setLang} theme={theme} setTheme={setTheme} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} toolCount={bridgeToolCount ?? allTools.length} onReplaySplash={() => setSplashVisible(true)} auth={authStatus} onSignIn={startSignIn} onLogout={() => { void api.logout().finally(() => { void refreshAuth(); }); }} /></motion.div>
+            : activeView === 'settings' ? <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><SettingsCenter open={true} onClose={() => setActiveView('ai-scan')} lang={lang} setLang={setLang} theme={theme} setTheme={setTheme} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} toolCount={bridgeToolCount ?? allTools.length} onReplaySplash={() => setSplashVisible(true)} auth={authStatus} onSignIn={startSignIn} onLogout={() => { void logout(); }} /></motion.div>
             : activeFamily ? <motion.div key={`family-${activeFamily.id}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><FamilyPage family={activeFamily} tools={allTools} lang={lang} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} toolStatuses={toolStatuses} onRunTool={runTool} onCancelTool={cancelRun} selectedService={selectedService} onSelectService={setSelectedService} selectedToolId={selectedToolId} onSelectTool={setSelectedToolId} onRetryBridge={() => { void connectBridge(); }} systemSnapshot={systemSnapshot} consoleEntries={consoleEntries} activeToolId={activeTool?.ToolId ?? null} /></motion.div>
             : null}
           </AnimatePresence>
@@ -343,8 +372,9 @@ function MasterWorkstation() {
       <footer className="knoux-footer flex items-center justify-between h-7 px-4 bg-slate-950/90 border-t border-white/[0.08] text-[11px] font-mono text-slate-400 z-20"><div className="flex items-center gap-3"><span className="font-bold tracking-wider text-slate-300">KNOUX Repair</span><span className="text-slate-600">|</span><span>v2.0.2 Local Workstation</span></div><div className="flex items-center gap-2"><span>{bridgeOnline === true ? `${lang === 'ar' ? 'الجسر متصل' : 'Bridge Online'} • ${bridgeToolCount ?? 0} ${lang === 'ar' ? 'أداة جاهزة' : 'tools ready'}` : bridgeOnline === false ? (lang === 'ar' ? 'غير متاح — الجسر مفصول' : 'UNAVAILABLE — bridge offline') : (lang === 'ar' ? 'جارٍ الاتصال...' : 'Connecting to bridge...')}</span></div></footer>
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} tools={allTools} lang={lang} onNavigate={(dest: NavDestination) => { navigateTo(dest); setSearchOpen(false); }} />
       <DiagnosticConsole visible={consoleVisible} onClose={() => setConsoleVisible(false)} activeTool={activeTool} entries={consoleEntries} status={consoleStatus} onRetry={handleRetry} onCancel={cancelRun} lang={lang} />
-      {authStatus?.required && !authStatus.authenticated && <AuthGate lang={lang} status={authStatus} loading={authLoading} error={authError} pendingProvider={authPendingProvider} onRetry={refreshAuth} onSignIn={startSignIn} onCancel={cancelSignIn} />}
-      <SettingsCenter open={settingsOpen} onClose={() => setSettingsOpen(false)} lang={lang} setLang={setLang} theme={theme} setTheme={setTheme} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} toolCount={bridgeToolCount ?? allTools.length} onReplaySplash={() => { setSettingsOpen(false); setSplashVisible(true); }} auth={authStatus} onSignIn={startSignIn} onLogout={() => { void api.logout().finally(() => { void refreshAuth(); }); }} />
+      {showAuthGate && <AuthGate lang={lang} status={authStatus} loading={authLoading} error={authError} pendingProvider={authPendingProvider} onRetry={refreshAuth} onSignIn={startSignIn} onCancel={cancelSignIn} onLocalMode={() => { setAuthError(''); setLocalModeActive(true); }} />}
+      <AccountCenter open={accountOpen} onClose={() => setAccountOpen(false)} lang={lang} auth={authStatus} localModeActive={localModeActive} bridgeOnline={bridgeOnline} pendingProvider={authPendingProvider} onSignIn={startSignIn} onLogout={() => { void logout(); }} onRefresh={() => { void refreshAuth(); }} />
+      <SettingsCenter open={settingsOpen} onClose={() => setSettingsOpen(false)} lang={lang} setLang={setLang} theme={theme} setTheme={setTheme} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} toolCount={bridgeToolCount ?? allTools.length} onReplaySplash={() => { setSettingsOpen(false); setSplashVisible(true); }} auth={authStatus} onSignIn={startSignIn} onLogout={() => { void logout(); }} />
       <NexusSplash visible={splashVisible} onDone={() => setSplashVisible(false)} lang={lang} bridgeOnline={bridgeOnline} toolCount={bridgeToolCount ?? allTools.length} />
     </div>
   );

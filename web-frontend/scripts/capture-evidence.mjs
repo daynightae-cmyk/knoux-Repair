@@ -45,6 +45,14 @@ const targets = [
   },
   { name: 'P0-11_RECOVERY-WIDE-1920.png', view: 'recovery', width: 1920, height: 1080 },
   { name: 'P0-12_RECOVERY-RTL.png', view: 'recovery', width: 1280, height: 800, lang: 'ar' },
+  {
+    name: 'MISSION-01_ACCOUNT-CENTER.png',
+    view: 'ai-scan',
+    query: '&account=1',
+    width: 1440,
+    height: 900,
+    requireAccount: true,
+  },
 ];
 
 async function waitForGateway(timeoutMs = 45_000) {
@@ -68,17 +76,11 @@ function launchGateway() {
     cwd: process.cwd(),
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: {
-      ...process.env,
-      PORT: String(PORT),
-      KNOUX_AUTH_REQUIRED: '0',
-    },
+    env: { ...process.env, PORT: String(PORT), KNOUX_AUTH_REQUIRED: '0' },
   };
-
   const child = process.platform === 'win32'
     ? spawn(process.env.ComSpec || 'C:\\Windows\\System32\\cmd.exe', ['/d', '/s', '/c', 'npm run dev'], common)
     : spawn('npm', ['run', 'dev'], common);
-
   child.stdout?.on('data', chunk => process.stdout.write(`[gateway] ${chunk}`));
   child.stderr?.on('data', chunk => process.stderr.write(`[gateway] ${chunk}`));
   return child;
@@ -110,6 +112,7 @@ async function inspectPage(page, target) {
     serviceCards: document.querySelectorAll('.knoux-service-card').length,
     toolCards: document.querySelectorAll('.knoux-tool-card').length,
     workspace: Boolean(document.querySelector('.knoux-tool-workspace')),
+    accountCenter: Boolean(document.querySelector('.knoux-account-center')),
     direction: document.querySelector('.knoux-shell')?.getAttribute('dir') || document.documentElement.getAttribute('dir') || document.body.getAttribute('dir') || '',
   }));
 
@@ -119,15 +122,9 @@ async function inspectPage(page, target) {
     if (selectors.serviceCards < 1) throw new Error(`${target.name}: service selector cards are missing`);
     if (!target.requireWorkspace && selectors.toolCards < 1) throw new Error(`${target.name}: selected service tool cards are missing`);
   }
-
-  if (target.requireWorkspace && !selectors.workspace) {
-    throw new Error(`${target.name}: selected tool did not transform the live stage into ToolWorkspace`);
-  }
-
-  if (target.lang === 'ar' && selectors.direction !== 'rtl') {
-    throw new Error(`${target.name}: Arabic capture did not render RTL`);
-  }
-
+  if (target.requireWorkspace && !selectors.workspace) throw new Error(`${target.name}: selected tool did not transform the live stage into ToolWorkspace`);
+  if (target.requireAccount && !selectors.accountCenter) throw new Error(`${target.name}: account center did not render`);
+  if (target.lang === 'ar' && selectors.direction !== 'rtl') throw new Error(`${target.name}: Arabic capture did not render RTL`);
   return selectors;
 }
 
@@ -135,26 +132,17 @@ async function main() {
   const gateway = launchGateway();
   let browser;
   const evidence = [];
-
   try {
     await waitForGateway();
     console.log(`Gateway ready at ${ORIGIN}`);
-
-    browser = await puppeteer.launch({
-      executablePath: findEdge(),
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
-    });
+    browser = await puppeteer.launch({ executablePath: findEdge(), headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'] });
 
     for (const target of targets) {
       const page = await browser.newPage();
       const consoleErrors = [];
       const pageErrors = [];
-      page.on('console', message => {
-        if (message.type() === 'error') consoleErrors.push(message.text());
-      });
+      page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
       page.on('pageerror', error => pageErrors.push(error.message));
-
       await page.setViewport({ width: target.width, height: target.height, deviceScaleFactor: 1 });
       const url = `${ORIGIN}/?view=${target.view}&nosplash=1${target.query || ''}`;
       await page.goto(url, { waitUntil: 'networkidle0', timeout: 45_000 });
@@ -175,49 +163,31 @@ async function main() {
         }
       }
 
+      if (target.requireAccount) await page.waitForSelector('.knoux-account-center', { timeout: 8_000 });
       await new Promise(resolve => setTimeout(resolve, 900));
       const selectors = await inspectPage(page, target);
 
       if (target.scrollSelector) {
-        await page.evaluate(selector => {
-          document.querySelector(selector)?.scrollIntoView({ block: 'start', behavior: 'instant' });
-        }, target.scrollSelector);
+        await page.evaluate(selector => document.querySelector(selector)?.scrollIntoView({ block: 'start', behavior: 'instant' }), target.scrollSelector);
         await new Promise(resolve => setTimeout(resolve, 300));
       }
 
       const destination = path.join(OUT_DIR, target.name);
       await page.screenshot({ path: destination, fullPage: false });
       const stat = fs.statSync(destination);
-
-      evidence.push({
-        name: target.name,
-        url,
-        viewport: { width: target.width, height: target.height },
-        lang: target.lang || 'en',
-        scrollSelector: target.scrollSelector || null,
-        selectors,
-        consoleErrors,
-        pageErrors,
-        bytes: stat.size,
-      });
+      evidence.push({ name: target.name, url, viewport: { width: target.width, height: target.height }, lang: target.lang || 'en', scrollSelector: target.scrollSelector || null, selectors, consoleErrors, pageErrors, bytes: stat.size });
       console.log(`Captured ${target.name} (${stat.size} bytes, console errors=${consoleErrors.length}, page errors=${pageErrors.length})`);
       await page.close();
     }
 
     const reportPath = path.join(OUT_DIR, 'visual-evidence.json');
     fs.writeFileSync(reportPath, JSON.stringify({ generatedAt: new Date().toISOString(), origin: ORIGIN, evidence }, null, 2));
-
     const pageErrorCount = evidence.reduce((sum, item) => sum + item.pageErrors.length, 0);
-    if (pageErrorCount > 0) {
-      throw new Error(`Rendered preview produced ${pageErrorCount} page error(s). See visual-evidence.json.`);
-    }
+    if (pageErrorCount > 0) throw new Error(`Rendered preview produced ${pageErrorCount} page error(s). See visual-evidence.json.`);
   } finally {
     if (browser) await browser.close().catch(() => {});
     await stopGateway(gateway);
   }
 }
 
-main().catch(error => {
-  console.error('Fatal visual evidence error:', error);
-  process.exit(1);
-});
+main().catch(error => { console.error('Fatal visual evidence error:', error); process.exit(1); });

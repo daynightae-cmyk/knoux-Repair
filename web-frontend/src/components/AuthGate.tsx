@@ -1,15 +1,129 @@
-import { Github, LoaderCircle, RefreshCw, ShieldCheck, ShieldX, UserRound, X } from 'lucide-react';
+import { Github, LoaderCircle, RefreshCw, ShieldCheck, ShieldX, Sparkles, UserRound, X } from 'lucide-react';
 import type { BridgeAuthStatus } from '../lib/api';
 import type { Lang } from '../lib/i18n';
 
 type AuthenticationProviderId = 'google' | 'github' | 'entra';
 type ProviderStatus = { label: string; configured: boolean };
 
-const COPY={en:{eyebrow:'Local access control',title:'Sign in to the repair station',body:'Protected mode is enabled. Complete authentication in your system browser before running any repair service.',refresh:'Refresh status',unavailable:'Not configured in the local bridge',setup:'The provider controls are disabled until its local environment variables are configured.',google:'Continue with Google',github:'Continue with GitHub',entra:'Continue with Microsoft',safety:'Authorization Code + PKCE runs through the local bridge. Provider tokens are discarded after identity lookup; the app keeps only an HttpOnly local session.',waiting:'Waiting for system-browser sign-in…',cancel:'Cancel sign-in'},ar:{eyebrow:'التحكم بالوصول المحلي',title:'سجّل الدخول إلى محطة الإصلاح',body:'وضع الحماية مفعل. أكمل المصادقة في متصفح النظام قبل تشغيل أي خدمة إصلاح.',refresh:'تحديث الحالة',unavailable:'غير مهيأ في الجسر المحلي',setup:'تبقى عناصر المزوّد معطلة حتى تهيئة متغيرات البيئة المحلية الخاصة به.',google:'المتابعة باستخدام Google',github:'المتابعة باستخدام GitHub',entra:'المتابعة باستخدام Microsoft',safety:'يعمل Authorization Code + PKCE عبر الجسر المحلي. يتم التخلص من رمز المزوّد بعد جلب الهوية، ويحتفظ التطبيق فقط بجلسة محلية HttpOnly.',waiting:'في انتظار تسجيل الدخول من متصفح النظام…',cancel:'إلغاء تسجيل الدخول'}};
+const COPY = {
+  en: {
+    eyebrow: 'KNOUX IDENTITY',
+    title: 'Your repair workstation, your choice of access.',
+    body: 'Sign in for protected execution and account identity, or continue locally. Local Mode never bypasses bridge-side authorization.',
+    google: 'Continue with Google',
+    github: 'GitHub',
+    entra: 'Microsoft',
+    secondary: 'Or use another provider',
+    local: 'Continue in Local Mode',
+    localHint: 'Open the workstation without a provider account. Protected actions can still require sign-in.',
+    configured: 'System Browser • PKCE',
+    unavailable: 'Not configured locally',
+    waiting: 'Waiting for system browser…',
+    cancel: 'Cancel sign-in',
+    retry: 'Refresh provider status',
+    setup: 'No provider is configured on this workstation yet. Local Mode remains available.',
+    safety: 'OAuth secrets and provider tokens never enter the React bundle. The local bridge owns the session boundary.',
+  },
+  ar: {
+    eyebrow: 'هوية KNOUX',
+    title: 'محطة الإصلاح الخاصة بك، وطريقة الدخول باختيارك.',
+    body: 'سجّل الدخول للتنفيذ المحمي وهوية الحساب، أو تابع محليًا. الوضع المحلي لا يتجاوز تفويض الجسر من الخلفية.',
+    google: 'المتابعة باستخدام Google',
+    github: 'GitHub',
+    entra: 'Microsoft',
+    secondary: 'أو استخدم مزودًا آخر',
+    local: 'المتابعة بالوضع المحلي',
+    localHint: 'افتح محطة العمل دون حساب مزود. قد تظل الإجراءات المحمية بحاجة إلى تسجيل الدخول.',
+    configured: 'متصفح النظام • PKCE',
+    unavailable: 'غير مهيأ محليًا',
+    waiting: 'في انتظار متصفح النظام…',
+    cancel: 'إلغاء تسجيل الدخول',
+    retry: 'تحديث حالة المزودين',
+    setup: 'لا يوجد مزود مهيأ على هذا الجهاز حتى الآن. الوضع المحلي يظل متاحًا.',
+    safety: 'لا تدخل أسرار OAuth أو رموز المزود إلى حزمة React. الجسر المحلي هو صاحب حد الجلسة.',
+  },
+};
 
-export default function AuthGate({lang,status,loading,error,pendingProvider,onRetry,onSignIn,onCancel}:{lang:Lang;status:BridgeAuthStatus|null;loading:boolean;error:string;pendingProvider:AuthenticationProviderId|null;onRetry:()=>void;onSignIn:(provider:AuthenticationProviderId)=>void;onCancel:()=>void}){
-  const c=COPY[lang];
-  const providers=(status?.providers||{}) as Record<string,ProviderStatus>;
-  const ids:AuthenticationProviderId[]=['google','github','entra'];
-  return <div className="auth-gate"><div className="auth-gate-grid"/><main><div className="auth-gate-mark"><ShieldCheck size={25}/></div><p className="eyebrow">{c.eyebrow}</p><h1>{c.title}</h1><p className="auth-gate-body">{c.body}</p>{error&&<p className="auth-gate-error"><ShieldX size={15}/>{error}</p>}{loading?<div className="auth-gate-loading"><LoaderCircle size={17} className="is-spinning"/>{c.refresh}</div>:<div className="auth-provider-list">{ids.map(provider=>{const item=providers[provider];const Icon=provider==='github'?Github:UserRound;const pending=pendingProvider===provider;return <article key={provider} className={!item?.configured?'is-disabled':''}><span><Icon size={18}/></span><div><b>{provider==='google'?c.google:provider==='github'?c.github:c.entra}</b><small>{item?.configured?'OAuth 2.0 + PKCE • System Browser':c.unavailable}</small></div><button type="button" disabled={!item?.configured||Boolean(pendingProvider)} onClick={()=>onSignIn(provider)}>{pending?<><LoaderCircle size={13} className="is-spinning"/>{c.waiting}</>:(item?.configured?(lang==='ar'?'دخول':'Sign in'):c.unavailable)}</button></article>})}</div>}{pendingProvider&&<button type="button" className="auth-gate-refresh" onClick={onCancel}><X size={14}/>{c.cancel}</button>}<div className="auth-gate-safety"><ShieldCheck size={14}/>{c.safety}</div>{status&&!Object.values(providers).some(provider=>provider.configured)&&<p className="auth-gate-setup">{c.setup}</p>}<button type="button" className="auth-gate-refresh" onClick={onRetry} disabled={Boolean(pendingProvider)}><RefreshCw size={14}/>{c.refresh}</button></main></div>
+export default function AuthGate({
+  lang,
+  status,
+  loading,
+  error,
+  pendingProvider,
+  onRetry,
+  onSignIn,
+  onCancel,
+  onLocalMode,
+}: {
+  lang: Lang;
+  status: BridgeAuthStatus | null;
+  loading: boolean;
+  error: string;
+  pendingProvider: AuthenticationProviderId | null;
+  onRetry: () => void;
+  onSignIn: (provider: AuthenticationProviderId) => void;
+  onCancel: () => void;
+  onLocalMode: () => void;
+}) {
+  const c = COPY[lang];
+  const providers = (status?.providers || {}) as Record<string, ProviderStatus>;
+  const google = providers.google;
+  const secondary: AuthenticationProviderId[] = ['entra', 'github'];
+  const anyConfigured = Object.values(providers).some(provider => provider.configured);
+
+  return (
+    <div className="knoux-login-shell" role="dialog" aria-modal="true" aria-label={c.title}>
+      <div className="knoux-login-atmosphere" />
+      <section className="knoux-login-story">
+        <div className="knoux-login-brand"><span>KNOUX</span><b>Repair</b></div>
+        <div className="knoux-login-orbit" aria-hidden="true"><div /><div /><div /><ShieldCheck size={34} /></div>
+        <p className="eyebrow">{c.eyebrow}</p>
+        <h1>{c.title}</h1>
+        <p>{c.body}</p>
+        <div className="knoux-login-trust"><ShieldCheck size={16}/><span>{c.safety}</span></div>
+      </section>
+
+      <main className="knoux-login-card">
+        <div className="knoux-login-card-head"><Sparkles size={18}/><span>{lang === 'ar' ? 'دخول آمن' : 'Secure access'}</span></div>
+        {error && <div className="knoux-login-error"><ShieldX size={16}/><span>{error}</span></div>}
+
+        <button
+          type="button"
+          className="knoux-login-google"
+          disabled={!google?.configured || Boolean(pendingProvider)}
+          onClick={() => onSignIn('google')}
+        >
+          <span className="knoux-provider-glyph">G</span>
+          <span><b>{c.google}</b><small>{google?.configured ? c.configured : c.unavailable}</small></span>
+          {pendingProvider === 'google' ? <LoaderCircle size={17} className="is-spinning"/> : <UserRound size={17}/>} 
+        </button>
+
+        <div className="knoux-login-divider"><span>{c.secondary}</span></div>
+        <div className="knoux-login-secondary">
+          {secondary.map(provider => {
+            const item = providers[provider];
+            const pending = pendingProvider === provider;
+            return (
+              <button key={provider} type="button" disabled={!item?.configured || Boolean(pendingProvider)} onClick={() => onSignIn(provider)}>
+                <span className="knoux-provider-glyph">{provider === 'github' ? <Github size={17}/> : 'M'}</span>
+                <span><b>{provider === 'github' ? c.github : c.entra}</b><small>{item?.configured ? c.configured : c.unavailable}</small></span>
+                {pending && <LoaderCircle size={15} className="is-spinning"/>}
+              </button>
+            );
+          })}
+        </div>
+
+        {pendingProvider && <button type="button" className="knoux-login-cancel" onClick={onCancel}><X size={14}/>{c.cancel}</button>}
+
+        <button type="button" className="knoux-login-local" onClick={onLocalMode} disabled={loading || Boolean(pendingProvider)}>
+          <ShieldCheck size={17}/><span><b>{c.local}</b><small>{c.localHint}</small></span>
+        </button>
+
+        {!anyConfigured && status && <p className="knoux-login-setup">{c.setup}</p>}
+        <button type="button" className="knoux-login-refresh" onClick={onRetry} disabled={Boolean(pendingProvider)}>
+          {loading ? <LoaderCircle size={14} className="is-spinning"/> : <RefreshCw size={14}/>} {c.retry}
+        </button>
+      </main>
+    </div>
+  );
 }
