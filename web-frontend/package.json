@@ -2,7 +2,7 @@
   "name": "knoux-repair-nexus",
   "private": true,
   "version": "2.0.2",
-  "description": "KNOUX Repair Glass Nexus local Windows repair workstation",
+  "description": "KNOUX Repair — local Windows repair workstation",
   "author": "KNOUX",
   "repository": "https://github.com/daynightae-cmyk/knoux-Repair.git",
   "type": "module",
@@ -53,10 +53,10 @@
   },
   "build": {
     "appId": "com.knoux.repair.glassnexus",
-    "productName": "KNOUX Repair Glass Nexus",
-    "artifactName": "KNOUX-Repair-Glass-Nexus-Setup-${version}.${ext}",
+    "productName": "KNOUX Repair",
+    "artifactName": "KNOUX-Repair-Setup-${version}.${ext}",
     "directories": {
-      "output": "../Release/Glass-Nexus"
+      "output": "../Release/KNOUX-Repair"
     },
     "files": [
       "dist/**/*",
@@ -234,7 +234,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "KNOUX Repair Glass Nexus"
+      "shortcutName": "KNOUX Repair"
     }
   }
 }

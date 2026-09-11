@@ -74,7 +74,7 @@ function frontendSecurityHeaders(target) {
 
 function startFrontendServer() {
   const root = frontendRoot();
-  if (!fs.existsSync(path.join(root, 'index.html'))) throw new Error(`Glass Nexus build is missing: ${root}`);
+  if (!fs.existsSync(path.join(root, 'index.html'))) throw new Error(`KNOUX Repair build is missing: ${root}`);
   frontendServer = http.createServer((request, response) => {
     if (isMalformedAssetUrl(request.url)) {
       response.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -192,7 +192,7 @@ function startBridge(runtimeRoot, frontendOrigin) {
       KNOUX_AUTH_FRONTEND_ORIGIN: frontendOrigin,
     },
   });
-  bridgeProcess.once('error', () => { /* The Glass Nexus UI stays responsive and displays bridge-offline state. */ });
+  bridgeProcess.once('error', () => { /* The KNOUX Repair UI stays responsive and displays bridge-offline state. */ });
 }
 
 function openExternalSafe(targetUrl) {
@@ -208,7 +208,7 @@ function createWindow(frontendOrigin, bridgeState) {
     minHeight: 720,
     show: false,
     autoHideMenuBar: true,
-    title: 'KNOUX Repair — Glass Nexus',
+    title: 'KNOUX Repair',
     icon: fs.existsSync(path.join(sourceRuntimeRoot(), 'Assets', 'KnouxOfficialLogo.ico'))
       ? path.join(sourceRuntimeRoot(), 'Assets', 'KnouxOfficialLogo.ico')
       : path.join(__dirname, '..', 'public', 'brand', 'knoux-repair-logo.png'),
@@ -221,7 +221,7 @@ function createWindow(frontendOrigin, bridgeState) {
     if (!isAllowedNavigation(url, frontendOrigin)) { event.preventDefault(); openExternalSafe(url); }
   });
   window.webContents.on('render-process-gone', () => {
-    if (!quitting) dialog.showErrorBox('KNOUX Repair', 'Glass Nexus stopped unexpectedly. Please reopen the application.');
+    if (!quitting) dialog.showErrorBox('KNOUX Repair', 'The application stopped unexpectedly. Please reopen KNOUX Repair.');
   });
   const launchUrl = new URL(frontendOrigin);
   launchUrl.searchParams.set('bridgeToken', bridgeToken);

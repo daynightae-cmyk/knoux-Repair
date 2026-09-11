@@ -1,4 +1,4 @@
-# KNOUX Repair — Glass Nexus Web Frontend
+# KNOUX Repair — Web Frontend
 
 React 18 + TypeScript + Vite frontend for the KNOUX Repair local Windows maintenance workstation.
 

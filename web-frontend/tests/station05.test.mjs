@@ -224,7 +224,7 @@ test('Station 05: DuplicateHeroVisual provides original vector storage core and 
   assert.match(heroSource, /quarantine/, 'Supports quarantine visual state');
 });
 
-test('Station 05: service-apps.css includes complete Glass Nexus styles and keyframes', () => {
+test('Station 05: service-apps.css includes complete KNOUX Repair styles and keyframes', () => {
   const cssSource = readWeb('src/service-apps.css');
 
   assert.match(cssSource, /\.duplicate-studio-root/, 'Defines .duplicate-studio-root');

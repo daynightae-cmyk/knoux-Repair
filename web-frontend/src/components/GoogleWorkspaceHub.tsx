@@ -78,7 +78,7 @@ export default function GoogleWorkspaceHub({ lang, bridgeElevated }: GoogleWorks
   const [gmailRecipient, setGmailRecipient] = useState('');
   const [gmailSubject, setGmailSubject] = useState('KNOUX Repair — System Health Alert');
   const [gmailBody, setGmailBody] = useState(
-    'KNOUX Repair Nexus Workstation Report\nStatus: Not verified in this session — open the Action Center assessment for live evidence.\nUptime: Not verified.'
+    'KNOUX Repair — System Health Report\nStatus: Not verified in this session — open the Action Center assessment for live evidence.\nUptime: Not verified.'
   );
 
   const [tasks, setTasks] = useState<TaskItem[]>([]);
@@ -222,7 +222,7 @@ export default function GoogleWorkspaceHub({ lang, bridgeElevated }: GoogleWorks
       onConfirm: async () => {
         setIsProcessing(true);
         try {
-          const reportContent = `KNOUX Repair Nexus — Diagnostic Audit\nTimestamp: ${new Date().toISOString()}\nElevation: ${bridgeElevated ? 'Administrator' : 'Standard user'}\nCPU: Not verified in this session\nDefender Status: Not verified in this session\nFirewall: Not verified in this session\nCloud SQL: ${cloudSqlStatus?.configured ? `Configured (${cloudSqlStatus.database})` : 'Not configured'}\nNote: Open the Action Center assessment for live measured evidence.`;
+          const reportContent = `KNOUX Repair — Diagnostic Audit\nTimestamp: ${new Date().toISOString()}\nElevation: ${bridgeElevated ? 'Administrator' : 'Standard user'}\nCPU: Not verified in this session\nDefender Status: Not verified in this session\nFirewall: Not verified in this session\nCloud SQL: ${cloudSqlStatus?.configured ? `Configured (${cloudSqlStatus.database})` : 'Not configured'}\nNote: Open the Action Center assessment for live measured evidence.`;
           const result = await uploadToDrive(
             accessToken,
             `KNOUX_Diagnostic_Audit_${Date.now()}.txt`,
@@ -612,7 +612,7 @@ Cloud SQL: ${cloudSqlStatus?.configured ? `Configured (${cloudSqlStatus.database
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg md:text-xl font-bold font-display text-white">
-                  {lang === 'ar' ? 'مركز الخدمات السحابية و Google Workspace' : 'Google Workspace & Cloud Nexus Hub'}
+                  {lang === 'ar' ? 'مركز الخدمات السحابية و Google Workspace' : 'Google Workspace & Cloud Hub'}
                 </h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   Active

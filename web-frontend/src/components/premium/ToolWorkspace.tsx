@@ -268,8 +268,8 @@ export default function ToolWorkspace({
             <p className="text-xs text-cyan-300 font-medium">
               {lang === 'ar' ? 'جارٍ التنفيذ عبر الجسر المحلي...' : 'Executing via local bridge...'}
             </p>
-            <div className="knoux-progress w-48 mt-2.5 h-1.5 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full bg-cyan-400 rounded-full animate-pulse" style={{ width: '75%' }} />
+            <div className="w-48 mt-2.5 h-1.5 bg-white/10 rounded-full overflow-hidden relative">
+              <div className="absolute inset-y-0 left-0 w-1/2 bg-cyan-400 rounded-full animate-slide-indeterminate" />
             </div>
           </div>
         )}

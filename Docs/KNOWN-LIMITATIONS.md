@@ -7,7 +7,7 @@ This file describes the **current repository**, not only the original 100-tool c
 The repository now contains 18 service categories and 158 registered tools/scripts, plus multiple product surfaces:
 
 - PowerShell console (`Menu.ps1` / `START-KNOUX-REPAIR.cmd`),
-- React + TypeScript Glass Nexus UI,
+- React + TypeScript web UI (KNOUX Repair),
 - Electron desktop packaging,
 - WPF/.NET desktop project,
 - localhost execution bridge (`web-frontend/server/bridge.mjs`).

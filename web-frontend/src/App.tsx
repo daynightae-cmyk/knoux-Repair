@@ -436,7 +436,7 @@ function MasterWorkstation() {
         <div className="flex items-center gap-3">
           <span className="font-bold tracking-wider text-slate-300">KNOUX Repair</span>
           <span className="text-slate-600">|</span>
-          <span>v2.0.2 Glass Workstation</span>
+          <span>v2.0.2 Local Workstation</span>
         </div>
         <div className="flex items-center gap-2">
           <span>

@@ -16,6 +16,16 @@ export default {
           900: '#083344',
         },
       },
+      keyframes: {
+        'slide-indeterminate': {
+          '0%':   { transform: 'translateX(-100%)' },
+          '50%':  { transform: 'translateX(100%)' },
+          '100%': { transform: 'translateX(-100%)' },
+        },
+      },
+      animation: {
+        'slide-indeterminate': 'slide-indeterminate 1.4s ease-in-out infinite',
+      },
     },
   },
   plugins: [],

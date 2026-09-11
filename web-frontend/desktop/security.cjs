@@ -1,5 +1,5 @@
 /**
- * KNOUX Repair Glass Nexus — Electron security helpers (pure Node, no Electron dep).
+ * KNOUX Repair — Electron security helpers (pure Node, no Electron dep).
  *
  * Kept dependency-free so the rules can be unit-tested outside Electron.
  * main.cjs is the only consumer in production.
