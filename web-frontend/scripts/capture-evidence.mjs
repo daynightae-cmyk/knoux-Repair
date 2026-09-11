@@ -34,16 +34,20 @@ const targets = [
     width: 1280,
     height: 800,
     requireWorkspace: true,
+    scrollSelector: '.knoux-live-stage',
+  },
+  {
+    name: 'P0-10B_RECOVERY-SERVICE-TOOLS.png',
+    view: 'recovery',
+    width: 1280,
+    height: 800,
+    scrollSelector: '#family-services',
   },
   { name: 'P0-11_RECOVERY-WIDE-1920.png', view: 'recovery', width: 1920, height: 1080 },
   { name: 'P0-12_RECOVERY-RTL.png', view: 'recovery', width: 1280, height: 800, lang: 'ar' },
 ];
 
-function npmCommand() {
-  return process.platform === 'win32' ? 'npm.cmd' : 'npm';
-}
-
-async function waitForGateway(timeoutMs = 30_000) {
+async function waitForGateway(timeoutMs = 45_000) {
   const deadline = Date.now() + timeoutMs;
   let lastError = '';
   while (Date.now() < deadline) {
@@ -60,7 +64,7 @@ async function waitForGateway(timeoutMs = 30_000) {
 }
 
 function launchGateway() {
-  const child = spawn(npmCommand(), ['run', 'dev'], {
+  const common = {
     cwd: process.cwd(),
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -69,7 +73,11 @@ function launchGateway() {
       PORT: String(PORT),
       KNOUX_AUTH_REQUIRED: '0',
     },
-  });
+  };
+
+  const child = process.platform === 'win32'
+    ? spawn(process.env.ComSpec || 'C:\\Windows\\System32\\cmd.exe', ['/d', '/s', '/c', 'npm run dev'], common)
+    : spawn('npm', ['run', 'dev'], common);
 
   child.stdout?.on('data', chunk => process.stdout.write(`[gateway] ${chunk}`));
   child.stderr?.on('data', chunk => process.stderr.write(`[gateway] ${chunk}`));
@@ -167,8 +175,16 @@ async function main() {
         }
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1200));
+      await new Promise(resolve => setTimeout(resolve, 900));
       const selectors = await inspectPage(page, target);
+
+      if (target.scrollSelector) {
+        await page.evaluate(selector => {
+          document.querySelector(selector)?.scrollIntoView({ block: 'start', behavior: 'instant' });
+        }, target.scrollSelector);
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
       const destination = path.join(OUT_DIR, target.name);
       await page.screenshot({ path: destination, fullPage: false });
       const stat = fs.statSync(destination);
@@ -178,6 +194,7 @@ async function main() {
         url,
         viewport: { width: target.width, height: target.height },
         lang: target.lang || 'en',
+        scrollSelector: target.scrollSelector || null,
         selectors,
         consoleErrors,
         pageErrors,
