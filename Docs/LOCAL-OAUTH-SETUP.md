@@ -1,61 +1,118 @@
-# Knoux Repair — Local OAuth setup
+# KNOUX Repair — Local OAuth setup
 
-## Purpose
+## Mission 00 contract
 
-Knoux Repair authenticates through the **local execution bridge**. The React interface never receives a provider token, client secret, refresh token, or API key. After a successful callback, the bridge stores the provider token only in memory and gives the browser a short-lived `HttpOnly` loopback session cookie.
+KNOUX Repair supports four authentication states:
 
-> OAuth is **optional by default**. Services remain protected by their mandatory execution-confirmation workflow. Set `KNOUX_AUTH_REQUIRED=true` only after verifying one or both providers below.
+- **Local Mode**: `KNOUX_AUTH_REQUIRED=false`; provider sign-in is optional.
+- **Google**: Authorization Code + PKCE through the system browser.
+- **GitHub**: Authorization Code + PKCE through the system browser.
+- **Microsoft Entra ID**: Authorization Code + PKCE through the system browser.
 
-| Provider | Callback URL to register | Required local variables | Minimal requested identity access |
-|---|---|---|---|
-| GitHub OAuth App | `http://127.0.0.1:8787/api/auth/callback/github` | `KNOUX_GITHUB_CLIENT_ID`, `KNOUX_GITHUB_CLIENT_SECRET` | `read:user` |
-| Microsoft Entra ID | `http://127.0.0.1:8787/api/auth/callback/entra` | `KNOUX_ENTRA_CLIENT_ID`, optional `KNOUX_ENTRA_CLIENT_SECRET`, `KNOUX_ENTRA_TENANT_ID` | `openid profile email User.Read` |
+The React renderer never receives provider access tokens, refresh tokens, client secrets, or API keys. Provider access tokens exist only long enough inside the local bridge to resolve the authenticated account profile, then they are discarded. The application session contains account metadata only.
+
+## Exact callbacks
+
+| Flow | Exact URI / origin |
+|---|---|
+| Frontend origin | `http://127.0.0.1:3000` |
+| Google callback | `http://127.0.0.1:8787/api/auth/callback/google` |
+| GitHub callback | `http://127.0.0.1:8787/api/auth/callback/github` |
+| Microsoft Entra callback | `http://localhost:8787/api/auth/callback/entra` |
+| Local bridge | `http://127.0.0.1:8787` |
+
+Electron overrides `KNOUX_AUTH_FRONTEND_ORIGIN` with its actual loopback frontend origin at runtime. The OAuth callback authority remains fixed as shown above.
 
 ## Local configuration
 
-Copy `web-frontend/.env.example` to `web-frontend/.env.local` and set only the values issued by the identity provider. Leave this file untracked. The bridge reads `.env.local` at startup, so restart it after changing configuration.
+Copy `web-frontend/.env.example` to the ignored `web-frontend/.env.local` and set only variables issued by the providers you intend to enable.
 
 ```powershell
-cd D:\Knoux-Repair-v2.0.2\web-frontend
+Set-Location 'D:\Knoux-repair\web-frontend'
 Copy-Item .env.example .env.local
-# Edit .env.local privately, then restart the bridge.
-node server\bridge.mjs
+# Edit .env.local privately, then restart KNOUX Repair / the bridge.
 ```
 
-Use `http://127.0.0.1:5173` as `KNOUX_AUTH_FRONTEND_ORIGIN` for the authenticated local Vite session. This ensures the callback and session cookie remain on the loopback host. The bridge refuses non-loopback callback destinations.
+Do not paste secret values into source code, reports, screenshots, logs, GitHub issues, or CI output.
 
-## GitHub OAuth App
+### Google
 
-Create an **OAuth App** in GitHub developer settings. Set the authorization callback exactly to `http://127.0.0.1:8787/api/auth/callback/github`, then copy the generated client ID and client secret into `.env.local`. The bridge creates an unguessable `state` value and PKCE verifier per sign-in, validates the returned `state`, and exchanges the code server-side. GitHub’s documented web flow recommends both `state` and PKCE; the returned token is revalidated through `/user` before the session is created.[1]
+Register the exact callback:
 
-## Microsoft Entra ID
+`http://127.0.0.1:8787/api/auth/callback/google`
 
-Create an app registration that accepts the intended account type. For developer work and school identities, `organizations` is the default tenant selector. Register the redirect URI exactly as `http://127.0.0.1:8787/api/auth/callback/entra`; because this uses an HTTP loopback address, it may need to be added through the app registration manifest as described by Microsoft. Use Authorization Code Flow with PKCE. The bridge requests only basic OIDC identity scopes plus Microsoft Graph `User.Read` to identify the signed-in account.[2] [3]
+Variables:
 
-## Enforcing sign-in
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET` only when the selected Google client type requires a confidential-client secret
 
-After at least one provider succeeds in local testing, set:
+The bridge requests only Google profile/email identity access. It validates the one-time OAuth `state`, uses a per-attempt PKCE verifier/challenge (`S256`), exchanges the authorization code locally, reads the user profile, then discards the provider token.
 
-```ini
-KNOUX_AUTH_REQUIRED=true
-```
+### GitHub
 
-With this flag enabled, the bridge rejects new repair runs until an authenticated session exists. Existing mandatory confirmation dialogs and safety delays remain unchanged. Restarting the bridge intentionally invalidates all local in-memory OAuth sessions.
+Register the exact callback:
+
+`http://127.0.0.1:8787/api/auth/callback/github`
+
+Variables:
+
+- `KNOUX_GITHUB_CLIENT_ID`
+- `KNOUX_GITHUB_CLIENT_SECRET`
+
+The flow uses a one-time `state`, PKCE `S256`, and server-side token exchange. The token is used only to resolve the GitHub profile and is not stored in the renderer or persisted session.
+
+### Microsoft Entra ID
+
+Register the exact callback:
+
+`http://localhost:8787/api/auth/callback/entra`
+
+Variables:
+
+- `KNOUX_ENTRA_CLIENT_ID`
+- `KNOUX_ENTRA_TENANT_ID` (defaults to `organizations`)
+- `KNOUX_ENTRA_CLIENT_SECRET` only when required by the registration type
+
+The bridge requests Microsoft Graph `User.Read`, validates the one-time `state`, uses PKCE `S256`, resolves `/me`, then discards the provider token.
+
+## System-browser handoff
+
+The renderer generates a cryptographically random one-time handoff identifier and opens only this strict loopback shape externally:
+
+`http://127.0.0.1:8787/api/auth/start/<provider>?handoff=<random-id>`
+
+Electron rejects arbitrary HTTP URLs. The local start route immediately redirects the **system browser** to the provider. The provider callback completes inside the loopback bridge and records only a short-lived one-time handoff result. The Electron renderer claims that result with the per-launch `X-Knoux-Bridge-Token`; only then does the bridge issue the Electron `HttpOnly` session cookie.
+
+This avoids incorrectly assuming that a cookie written in Chrome/Edge/Safari belongs to Electron's separate cookie jar.
+
+## Session restore and logout
+
+The local session cookie contains only an opaque random session id. The corresponding session record contains provider/account metadata and expiry; it does **not** contain provider access or refresh tokens.
+
+On Windows, the session record is persisted using Windows DPAPI with `CurrentUser` scope. There is no plaintext persistence fallback on non-Windows systems. Expired records are rejected and removed. Logout deletes the local session and expires the cookie.
+
+Default session lifetime: eight hours.
+
+## Cancel / failure handling
+
+- Provider cancellation (`access_denied` / equivalent) completes the handoff as `AUTH_CANCELLED` and creates no session.
+- The app exposes explicit cancellation while waiting for the system browser.
+- Renderer polling has a bounded timeout and cancels stale handoffs.
+- State mismatch, replay, expired transaction, missing code, provider exchange failure, and missing provider configuration fail closed.
+- Callback pages contain no provider token, bridge token, client secret, or account credential.
 
 ## Security boundaries
 
 | Boundary | Behavior |
 |---|---|
-| Token storage | In-memory inside the loopback bridge only; never returned by `/api/auth/status`. |
-| Browser session | `HttpOnly`, `SameSite=Lax`, loopback-scoped cookie with an eight-hour maximum lifetime. |
-| OAuth transaction | One-time `state` plus PKCE verifier; expires after ten minutes. |
-| Callback target | Fixed local bridge callback and fixed loopback frontend origin; no dynamic redirect URL. |
-| Repository safety | `.env.local` must remain ignored; `.env.example` has empty values only. |
+| Provider token | Bridge memory only during identity lookup, then discarded. |
+| Persisted session | Account metadata + opaque session id, protected by Windows DPAPI CurrentUser. |
+| Browser session | `HttpOnly`, `SameSite=Strict`, loopback-scoped cookie. |
+| OAuth transaction | One-time state + per-attempt PKCE verifier, bounded lifetime. |
+| System browser | Exact loopback auth-start exception only; arbitrary HTTP remains blocked. |
+| Renderer | No OAuth client secret/access token/refresh token. |
+| Repository | `.env.local` ignored; examples contain variable names only. |
 
-## References
+## Verification boundary
 
-[1] [GitHub Docs — Authorizing OAuth apps](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps)
-
-[2] [Microsoft Learn — OAuth 2.0 authorization code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow)
-
-[3] [Microsoft Learn — Redirect URI restrictions and localhost guidance](https://learn.microsoft.com/en-us/entra/identity-platform/reply-url)
+Automated tests can prove callback constants, PKCE construction, state replay rejection, handoff capability enforcement, cancellation, Local Mode, logout, protected-run gating, and Windows DPAPI round-trip behavior. A final provider PASS still requires real interactive sign-in against the configured Google, GitHub, and Entra registrations on Windows; CI must not fabricate that evidence.

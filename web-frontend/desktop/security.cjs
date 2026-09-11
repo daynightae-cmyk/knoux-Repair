@@ -9,6 +9,7 @@
 const path = require('node:path');
 
 const EXTERNAL_PROTOCOL_ALLOWLIST = new Set(['https:', 'mailto:']);
+const AUTH_START_PROVIDERS = new Set(['google', 'github', 'entra']);
 
 /**
  * Strict navigation check: the target must share protocol, hostname AND port
@@ -29,15 +30,32 @@ function isAllowedNavigation(targetUrl, frontendOrigin) {
 }
 
 /**
- * External URL gate for shell.openExternal: only explicitly allow-listed
- * protocols may leave the app. Rejects file:, javascript:, data: and any
- * custom/untrusted scheme. Returns the URL when allowed, otherwise null.
+ * System-browser OAuth begins at one exact loopback bridge route. HTTP remains
+ * forbidden everywhere else. The renderer sends only a random handoff id; no
+ * OAuth secret or bridge capability token is placed in the URL.
+ */
+function isAllowedOAuthStartUrl(parsed) {
+  if (parsed.protocol !== 'http:' || parsed.hostname !== '127.0.0.1' || parsed.port !== '8787') return false;
+  if (parsed.username || parsed.password || parsed.hash) return false;
+  const match = parsed.pathname.match(/^\/api\/auth\/start\/([^/]+)$/);
+  if (!match || !AUTH_START_PROVIDERS.has(match[1])) return false;
+  const handoff = parsed.searchParams.get('handoff') || '';
+  if (!/^[A-Za-z0-9_-]{24,128}$/.test(handoff)) return false;
+  for (const key of parsed.searchParams.keys()) if (key !== 'handoff') return false;
+  return true;
+}
+
+/**
+ * External URL gate for shell.openExternal. General external navigation allows
+ * only https/mailto. The sole HTTP exception is the exact loopback OAuth start
+ * route above, which immediately redirects in the system browser to a provider.
  */
 function filterExternalUrl(targetUrl) {
   try {
     const parsed = new URL(targetUrl);
-    if (!EXTERNAL_PROTOCOL_ALLOWLIST.has(parsed.protocol)) return null;
-    return targetUrl;
+    if (EXTERNAL_PROTOCOL_ALLOWLIST.has(parsed.protocol)) return targetUrl;
+    if (isAllowedOAuthStartUrl(parsed)) return targetUrl;
+    return null;
   } catch {
     return null;
   }
@@ -67,7 +85,9 @@ function resolveAssetPath(root, requestPath) {
 
 module.exports = {
   EXTERNAL_PROTOCOL_ALLOWLIST,
+  AUTH_START_PROVIDERS,
   isAllowedNavigation,
+  isAllowedOAuthStartUrl,
   filterExternalUrl,
   resolveAssetPath,
 };
