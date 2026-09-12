@@ -1,17 +1,17 @@
 import type { Lang } from '../lib/i18n';
 
 export const SPLASH_TIMING = {
-  minimumVisualMs: 900,
-  unresolvedBridgeTimeoutMs: 2200,
-  completionHoldMs: 180,
-  exitMs: 560,
+  minimumVisualMs: 1300,
+  unresolvedBridgeTimeoutMs: 3000,
+  completionHoldMs: 300,
+  exitMs: 720,
 } as const;
 
 export const SPLASH_PROGRESS_STEPS = [
-  { at: 120, value: 22 },
-  { at: 340, value: 48 },
-  { at: 580, value: 72 },
-  { at: 800, value: 90 },
+  { at: 180, value: 22 },
+  { at: 480, value: 48 },
+  { at: 820, value: 72 },
+  { at: 1120, value: 90 },
 ] as const;
 
 export type SplashStage = 'preparing' | 'connecting' | 'ready' | 'offline' | 'continuing';

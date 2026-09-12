@@ -1,4 +1,4 @@
-import { Github, LoaderCircle, RefreshCw, ShieldCheck, ShieldX, Sparkles, UserRound, X } from 'lucide-react';
+import { Fingerprint, Github, LoaderCircle, RefreshCw, ShieldCheck, ShieldX, Sparkles, UserRound, X } from 'lucide-react';
 import type { BridgeAuthStatus } from '../lib/api';
 import type { Lang } from '../lib/i18n';
 
@@ -21,6 +21,8 @@ const COPY = {
     waiting: 'Waiting for system browser…',
     cancel: 'Cancel sign-in',
     retry: 'Refresh provider status',
+    passkey: 'Windows Hello / Passkey',
+    passkeyHint: 'Device sign-in is not configured in this bridge',
     setup: 'No provider is configured on this workstation yet. Local Mode remains available.',
     safety: 'OAuth secrets and provider tokens never enter the React bundle. The local bridge owns the session boundary.',
   },
@@ -39,6 +41,8 @@ const COPY = {
     waiting: 'في انتظار متصفح النظام…',
     cancel: 'إلغاء تسجيل الدخول',
     retry: 'تحديث حالة المزودين',
+    passkey: 'Windows Hello / Passkey',
+    passkeyHint: 'تسجيل دخول الجهاز غير مهيأ في هذا الجسر',
     setup: 'لا يوجد مزود مهيأ على هذا الجهاز حتى الآن. الوضع المحلي يظل متاحًا.',
     safety: 'لا تدخل أسرار OAuth أو رموز المزود إلى حزمة React. الجسر المحلي هو صاحب حد الجلسة.',
   },
@@ -117,6 +121,12 @@ export default function AuthGate({
             );
           })}
         </div>
+
+        <button type="button" className="knoux-login-passkey" disabled title={c.passkeyHint}>
+          <Fingerprint size={17} />
+          <span><b>{c.passkey}</b><small>{c.passkeyHint}</small></span>
+          <span className="knoux-login-unavailable">{c.unavailable}</span>
+        </button>
 
         {pendingProvider && <button type="button" className="knoux-login-cancel" onClick={onCancel}><X size={14}/>{c.cancel}</button>}
 

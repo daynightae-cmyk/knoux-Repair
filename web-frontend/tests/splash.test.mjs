@@ -23,8 +23,8 @@ test('boot progress is deterministic and bounded', () => {
   assert.ok(SPLASH_PROGRESS_STEPS.every(({ value }) => value > 0 && value < 100));
   assert.equal(componentSource.includes('Math.random'), false);
   assert.equal(legacySource.includes('Math.random'), false);
-  assert.equal(SPLASH_TIMING.minimumVisualMs, 900);
-  assert.ok(SPLASH_TIMING.exitMs >= 450 && SPLASH_TIMING.exitMs <= 650);
+  assert.equal(SPLASH_TIMING.minimumVisualMs, 1300);
+  assert.ok(SPLASH_TIMING.exitMs >= 650 && SPLASH_TIMING.exitMs <= 800);
 });
 
 test('bridge online reaches real ready state and reports tool count', () => {

@@ -127,3 +127,70 @@
     transition-duration: 1ms !important;
   }
 }
+
+.knoux-login-shell {
+  grid-template-columns: minmax(0, 1.08fr) minmax(390px, 0.74fr);
+  gap: clamp(28px, 5vw, 76px);
+}
+
+.knoux-login-card {
+  max-width: 540px;
+  padding: clamp(24px, 3vw, 34px);
+  border-color: rgba(103, 232, 249, 0.16);
+}
+
+.knoux-login-google,
+.knoux-login-secondary button,
+.knoux-login-local,
+.knoux-login-passkey {
+  min-height: 58px;
+}
+
+.knoux-login-google:focus-visible,
+.knoux-login-secondary button:focus-visible,
+.knoux-login-local:focus-visible,
+.knoux-login-passkey:focus-visible,
+.knoux-login-refresh:focus-visible,
+.knoux-login-cancel:focus-visible {
+  outline: 2px solid #6ee7b7;
+  outline-offset: 3px;
+}
+
+.knoux-login-passkey {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px dashed rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  color: #94a3b8;
+  background: rgba(15, 23, 42, 0.32);
+  text-align: start;
+}
+
+.knoux-login-passkey > svg { color: #67e8f9; }
+.knoux-login-passkey > span:nth-child(2) { display: grid; flex: 1; gap: 2px; }
+.knoux-login-passkey b { color: #cbd5e1; font-size: 12px; }
+.knoux-login-passkey small,
+.knoux-login-unavailable { color: #718096; font-size: 9px; }
+.knoux-login-unavailable { white-space: nowrap; }
+
+.knoux-command-center {
+  --command-rail-width: clamp(224px, 18vw, 276px);
+  --command-tool-width: clamp(264px, 22vw, 344px);
+  gap: 14px !important;
+}
+
+.knoux-command-rail {
+  border-color: rgba(103, 232, 249, 0.13);
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.3), inset 0 1px rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 860px) {
+  .knoux-login-shell { grid-template-columns: 1fr; gap: 24px; padding: 28px; }
+  .knoux-login-story,
+  .knoux-login-card { justify-self: center; width: min(100%, 560px); }
+  .knoux-login-story h1 { font-size: clamp(32px, 8vw, 52px); }
+}
