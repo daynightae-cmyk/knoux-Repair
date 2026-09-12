@@ -59,17 +59,23 @@ test('command center preserves execution results and honest runtime labels', () 
   assert.doesNotMatch(liveStage, /Math\.random/);
 });
 
-test('AI Scan exposes its four service concepts and refuses an evidence-free success state', () => {
+test('AI Scan preserves real evidence calls inside a persistent three-zone command center', () => {
   const source = read('src/components/pages/AIScanPage.tsx');
   for (const service of ['Scan', 'Analyze', 'Understand', 'Repair Together']) {
     assert.match(source, new RegExp(`titleEn: '${service}'`));
   }
+  assert.match(source, /api\.system\(\)/);
+  assert.match(source, /api\.cleanupPreview\(\)/);
+  assert.match(source, /api\.driversPreview\(\)/);
   assert.match(source, /evidenceSourceCount === 0/);
   assert.match(source, /Diagnostic result unavailable/);
-  assert.match(source, /Open recommendations/);
+  assert.match(source, /knoux-ai-workflow-rail/);
+  assert.match(source, /knoux-ai-live-column/);
+  assert.match(source, /knoux-ai-findings-rail/);
   assert.match(source, /id="ai-recommendation-workspace"/);
   assert.match(source, /data-active=\{selectedFindingId === finding\.id\}/);
   assert.match(source, /onNavigate\(selectedFinding\.dest\)/);
+  assert.doesNotMatch(source, /scrollIntoView/);
   assert.doesNotMatch(source, /toolCount \?\? 158/);
 });
 
@@ -78,6 +84,16 @@ test('command center CSS keeps rails independently scrollable and supports narro
   assert.match(source, /grid-template-columns: var\(--command-rail-width\) minmax\(0, 1fr\) var\(--command-tool-width\)/);
   assert.match(source, /\.knoux-command-rail-scroll/);
   assert.match(source, /overflow-y: auto/);
+  assert.match(source, /@container \(max-width: 1100px\)/);
+  assert.match(source, /@container \(max-width: 760px\)/);
+  assert.match(source, /@media \(prefers-reduced-motion: reduce\)/);
+});
+
+test('AI command center has independent rails, responsive fallback, and reduced motion', () => {
+  const source = read('src/ai-command-center.css');
+  assert.match(source, /\.knoux-ai-command-center/);
+  assert.match(source, /\.knoux-ai-rail-scroll/);
+  assert.match(source, /overflow:auto/);
   assert.match(source, /@container \(max-width: 1100px\)/);
   assert.match(source, /@container \(max-width: 760px\)/);
   assert.match(source, /@media \(prefers-reduced-motion: reduce\)/);
