@@ -6,6 +6,7 @@ import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions } f
 import type { FamilyDefinition, ServiceDefinition } from '../../data/family-map';
 import type { ToolStatus, ConsoleEntry } from '../../types';
 import ExecutionConfirmDialog from '../ExecutionConfirmDialog';
+import KnouxAiContextButton from '../KnouxAiContextButton';
 import ToolWorkspace from './ToolWorkspace';
 
 interface FamilyLiveStageProps {
@@ -138,6 +139,15 @@ export default function FamilyLiveStage({
           <span className="knoux-stage-separator">/</span>
           <strong>{selectedTool ? (isRtl ? selectedTool.ArabicName : selectedTool.EnglishName) : (isRtl ? service.name.ar : service.name.en)}</strong>
         </div>
+        <KnouxAiContextButton
+          lang={lang}
+          familyId={family.id}
+          familyName={isRtl ? family.name.ar : family.name.en}
+          serviceId={service.id}
+          serviceName={isRtl ? service.name.ar : service.name.en}
+          toolId={selectedTool?.ToolId ?? null}
+          toolName={selectedTool ? (isRtl ? selectedTool.ArabicName : selectedTool.EnglishName) : null}
+        />
         <div className="knoux-stage-runtime">
           <span className={bridgeOnline === true ? 'is-online' : bridgeOnline === false ? 'is-offline' : 'is-pending'} />
           {bridgeLabel}
