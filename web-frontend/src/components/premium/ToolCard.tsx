@@ -46,10 +46,10 @@ export default function ToolCard({
   const state = STATUS_META[status] ?? STATUS_META.idle;
   const Icon = (LucideIcons as unknown as Record<string, React.ElementType>)[serviceIcon] ?? LucideIcons.Wrench;
   const availability = bridgeOnline === true
-    ? (isRtl ? 'متاح عبر الجسر' : 'Bridge available')
+    ? (isRtl ? 'متاح عبر الجسر' : 'Available')
     : bridgeOnline === false
-      ? (isRtl ? 'الجسر غير متصل' : 'Bridge offline')
-      : (isRtl ? 'جارٍ التحقق' : 'Checking bridge');
+      ? (isRtl ? 'الخدمة المحلية غير متصلة' : 'Local service offline')
+      : (isRtl ? 'جارٍ التحقق' : 'Checking availability');
 
   return (
     <button
@@ -60,6 +60,7 @@ export default function ToolCard({
       data-tool-status={status}
       onClick={onClick}
       aria-pressed={active}
+      aria-label={`${name} — ${isRtl ? state.ar : state.en}`}
       dir={isRtl ? 'rtl' : 'ltr'}
     >
       <div className="knoux-tool-card-glow" aria-hidden="true" />
@@ -69,7 +70,6 @@ export default function ToolCard({
           <Icon size={21} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="knoux-tool-card-id" aria-label={`Tool ID ${tool.ToolId}`}>{tool.ToolId}</div>
           <h4 className="knoux-tool-card-title">{name}</h4>
         </div>
         <span className={clsx('knoux-tool-state', state.cls)}>
@@ -85,27 +85,27 @@ export default function ToolCard({
         </span>
         <span className="knoux-tool-chip">
           {tool.RequiresAdmin
-            ? (isRtl ? 'مسؤول' : 'Admin')
-            : (isRtl ? 'مستخدم قياسي' : 'Standard user')}
+            ? (isRtl ? 'يتطلب مسؤول' : 'Admin approval')
+            : (isRtl ? 'بدون صلاحية مسؤول' : 'Standard access')}
         </span>
         {tool.OfflineCapability && (
           <span className="knoux-tool-chip">
             {tool.OfflineCapability === 'FULL'
-              ? (isRtl ? 'محلي بالكامل' : 'Offline')
+              ? (isRtl ? 'يعمل محليًا' : 'Works offline')
               : tool.OfflineCapability === 'PARTIAL'
                 ? (isRtl ? 'محلي جزئياً' : 'Partial offline')
-                : (isRtl ? 'يتطلب شبكة' : 'Network')}
+                : (isRtl ? 'يتطلب اتصالاً' : 'Connection needed')}
           </span>
         )}
         {tool.ReportsEvidence && (
-          <span className="knoux-tool-chip">{isRtl ? 'أدلة' : 'Evidence'}</span>
+          <span className="knoux-tool-chip">{isRtl ? 'نتائج قابلة للمراجعة' : 'Reviewable results'}</span>
         )}
       </div>
 
       <div className="knoux-tool-card-foot">
         <span className={clsx('knoux-availability-dot', bridgeOnline === true && 'is-online', bridgeOnline === false && 'is-offline')} />
         <span>{availability}</span>
-        {tool.RequiresRestart && <span className="ml-auto rtl:mr-auto rtl:ml-0">{isRtl ? 'إعادة تشغيل' : 'Restart aware'}</span>}
+        {tool.RequiresRestart && <span className="ml-auto rtl:mr-auto rtl:ml-0">{isRtl ? 'قد يتطلب إعادة تشغيل' : 'Restart may be needed'}</span>}
       </div>
     </button>
   );
