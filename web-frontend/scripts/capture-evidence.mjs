@@ -34,7 +34,7 @@ const targets = [
     width: 1280,
     height: 800,
     requireWorkspace: true,
-    scrollSelector: '.knoux-live-stage',
+    scrollSelector: '.knoux-workspace-stage',
   },
   {
     name: 'P0-10B_RECOVERY-SERVICE-TOOLS.png',
@@ -108,8 +108,8 @@ function findEdge() {
 
 async function inspectPage(page, target) {
   const selectors = await page.evaluate(() => ({
-    hero: Boolean(document.querySelector('.knoux-hero')),
-    liveStage: Boolean(document.querySelector('.knoux-live-stage')),
+    hero: Boolean(document.querySelector('.knoux-preview-hero')),
+    liveStage: Boolean(document.querySelector('.knoux-workspace-stage')),
     serviceCards: document.querySelectorAll('.knoux-service-card').length,
     toolCards: document.querySelectorAll('.knoux-tool-card').length,
     workspace: Boolean(document.querySelector('.knoux-tool-workspace')),
