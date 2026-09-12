@@ -229,7 +229,7 @@ export default function NexusSplash({
             >
               <img
                 className="kr-splash__logo"
-                src="/brand/knoux-repair-logo.png"
+                src="/brand/knoux-repair-logo-round.png"
                 alt="KNOUX Repair"
                 draggable={false}
               />

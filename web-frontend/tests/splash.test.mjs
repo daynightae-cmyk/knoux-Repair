@@ -88,7 +88,7 @@ test('premium splash removes prohibited legacy visual concepts', () => {
     assert.equal(pattern.test(componentSource), false, `forbidden visual marker found: ${pattern}`);
   }
   assert.equal(componentSource.includes('<button'), false);
-  assert.match(componentSource, /\/brand\/knoux-repair-logo\.png/);
+  assert.match(componentSource, /\/brand\/knoux-repair-logo-round\.png/);
   assert.match(componentSource, /useReducedMotion/);
   assert.match(componentSource, /doneRef/);
   assert.match(componentSource, /aria-live="polite"/);

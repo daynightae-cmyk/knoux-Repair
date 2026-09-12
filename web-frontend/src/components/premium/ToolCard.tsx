@@ -67,7 +67,7 @@ export default function ToolCard({
           <Icon size={21} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="knoux-tool-card-id">{tool.ToolId}</div>
+          <div className="knoux-tool-card-id" aria-label={`Tool ID ${tool.ToolId}`}>{tool.ToolId}</div>
           <h4 className="knoux-tool-card-title">{name}</h4>
         </div>
         <span className={clsx('knoux-tool-state', state.cls)}>
@@ -78,7 +78,7 @@ export default function ToolCard({
       <p className="knoux-tool-card-purpose">{tool.Purpose}</p>
 
       <div className="knoux-tool-card-meta">
-        <span className={clsx('knoux-tool-risk', risk.cls)}>
+        <span className={clsx('knoux-tool-risk knoux-tool-chip', risk.cls)}>
           {isRtl ? risk.ar : risk.en}
         </span>
         <span className="knoux-tool-chip">

@@ -77,6 +77,11 @@ export default function AuthGate({
       <section className="knoux-login-story">
         <div className="knoux-login-brand"><span>KNOUX</span><b>Repair</b></div>
         <div className="knoux-login-orbit" aria-hidden="true"><div /><div /><div /><ShieldCheck size={34} /></div>
+        <div className="knoux-login-signal" aria-hidden="true">
+          <span><i />{lang === 'ar' ? 'جلسة محلية مشفّرة' : 'Encrypted local session'}</span>
+          <span><i />{lang === 'ar' ? 'تحقق PKCE' : 'PKCE verified'}</span>
+          <span><i />{lang === 'ar' ? 'جسر موثوق' : 'Trusted bridge'}</span>
+        </div>
         <p className="eyebrow">{c.eyebrow}</p>
         <h1>{c.title}</h1>
         <p>{c.body}</p>

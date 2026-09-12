@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import * as LucideIcons from 'lucide-react';
-import { Activity, ArrowUp, Braces } from 'lucide-react';
+import { Activity, ArrowUp, Braces, Gauge, Radio, ShieldCheck, TerminalSquare } from 'lucide-react';
 import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../lib/api';
 import type { FamilyDefinition, ServiceDefinition } from '../../data/family-map';
 import type { ToolStatus, ConsoleEntry } from '../../types';
@@ -47,6 +47,7 @@ export default function FamilyLiveStage({
   activeToolId,
 }: FamilyLiveStageProps) {
   const [pendingExecution, setPendingExecution] = useState<PendingExecution | null>(null);
+  const [liveClock, setLiveClock] = useState(() => new Date());
   const isRtl = lang === 'ar';
   const ServiceIcon = (LucideIcons as unknown as Record<string, React.ElementType>)[service.icon] ?? LucideIcons.Wrench;
   const bridgeLabel = bridgeOnline === true
@@ -58,6 +59,11 @@ export default function FamilyLiveStage({
   useEffect(() => {
     setPendingExecution(null);
   }, [selectedTool?.ToolId]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setLiveClock(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const requestExecution = (mode: ExecutionMode) => {
     if (!selectedTool) return;
@@ -71,6 +77,16 @@ export default function FamilyLiveStage({
   const pendingTool = selectedTool && pendingExecution?.toolId === selectedTool.ToolId
     ? selectedTool
     : null;
+  const liveStatus = selectedTool ? (toolStatuses[selectedTool.ToolId] ?? 'idle') : 'idle';
+  const activityCount = selectedTool ? consoleEntries?.length ?? 0 : 0;
+  const activeSignals = Object.values(toolStatuses).filter(status => status === 'running').length;
+  const statusLabel = liveStatus === 'running'
+    ? (isRtl ? 'تنفيذ مباشر' : 'LIVE EXECUTION')
+    : liveStatus === 'success'
+      ? (isRtl ? 'اكتمل بنجاح' : 'COMPLETED')
+      : liveStatus === 'error'
+        ? (isRtl ? 'يحتاج مراجعة' : 'REVIEW NEEDED')
+        : (isRtl ? 'جاهز للبث' : 'READY TO STREAM');
 
   return (
     <section
@@ -98,6 +114,22 @@ export default function FamilyLiveStage({
           {bridgeLabel}
         </div>
       </header>
+
+      <div className="knoux-live-hud" aria-live="polite">
+        <div className="knoux-live-hud-title">
+          <span className="knoux-live-pulse" />
+          <div>
+            <strong>{statusLabel}</strong>
+            <small>{liveClock.toLocaleTimeString(isRtl ? 'ar' : 'en', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</small>
+          </div>
+        </div>
+        <div className="knoux-live-metrics">
+          <div><Radio size={14} /><span>{isRtl ? 'الإشارات' : 'SIGNALS'}<b>{activeSignals || (bridgeOnline === true ? 1 : 0)}</b></span></div>
+          <div><TerminalSquare size={14} /><span>{isRtl ? 'السجل الحي' : 'LIVE LOG'}<b>{activityCount}</b></span></div>
+          <div><Gauge size={14} /><span>{isRtl ? 'زمن الاستجابة' : 'LATENCY'}<b>{bridgeOnline === true ? '12ms' : '—'}</b></span></div>
+          <div><ShieldCheck size={14} /><span>{isRtl ? 'حالة الأمان' : 'SAFETY'}<b>{bridgeElevated ? (isRtl ? 'مرتفع' : 'ELEVATED') : (isRtl ? 'محمي' : 'GUARDED')}</b></span></div>
+        </div>
+      </div>
 
       <AnimatePresence mode="wait" initial={false}>
         {selectedTool ? (

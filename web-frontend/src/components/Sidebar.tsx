@@ -121,13 +121,13 @@ export default function Sidebar({
         {/* Brand Header */}
         <div className="px-5 pt-5 pb-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl nx-brand-mark flex items-center justify-center shrink-0 overflow-hidden shadow-[0_0_15px_rgba(6,182,212,0.3)]">
-              <img src="/brand/knoux-repair-logo.png" alt="" className="w-full h-full object-contain scale-[1.22]" />
+            <div className="w-10 h-10 rounded-xl nx-brand-mark flex items-center justify-center shrink-0 overflow-hidden shadow-[0_0_18px_rgba(168,85,247,0.34)]">
+              <img src="/brand/knoux-repair-logo-round.png" alt="" className="w-full h-full object-contain scale-[1.06]" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <h1 className="font-display text-[13px] font-bold tracking-[0.12em] text-white">
-                  KNOUX <span className="text-cyan-400 font-black">REPAIR</span>
+                  KNOUX <span className="text-purple-400 font-black">REPAIR</span>
                 </h1>
                 <span className="px-1.5 py-0.2 rounded text-[8px] font-black font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                   PRO
@@ -322,4 +322,3 @@ export default function Sidebar({
     </>
   );
 }
-

@@ -27,7 +27,7 @@ export default function TopBar({
     <header className="knoux-topbar" style={{ height: '52px', WebkitAppRegion: 'drag' } as React.CSSProperties} dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="flex items-center gap-2 px-4 h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
         <span className="text-white font-bold tracking-widest text-lg">KNOUX</span>
-        <span className="text-[#22D3EE] font-light text-lg">Repair</span>
+        <span className="text-[#A855F7] font-light text-lg">Repair</span>
       </div>
 
       <div className="flex-1 flex justify-center items-center h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>

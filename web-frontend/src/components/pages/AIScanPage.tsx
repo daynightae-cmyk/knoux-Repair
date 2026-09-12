@@ -237,9 +237,9 @@ export default function AIScanPage({
         : (isRtl ? 'غير متصل' : 'Not connected');
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className="knoux-ai-scan-page max-w-6xl mx-auto space-y-8" dir={isRtl ? 'rtl' : 'ltr'}>
       {/* ── 1. Hero Card: Autonomous AI Scan Command Center (Matching P0-02) ── */}
-      <div className="relative rounded-2xl border border-white/10 p-6 md:p-8 bg-gradient-to-br from-[#0b1026]/90 via-[#070b1a]/90 to-[#0c122c]/90 backdrop-blur-xl shadow-2xl overflow-hidden">
+      <div className="knoux-ai-hero relative rounded-2xl border border-white/10 p-6 md:p-8 bg-gradient-to-br from-[#0b1026]/90 via-[#070b1a]/90 to-[#0c122c]/90 backdrop-blur-xl shadow-2xl overflow-hidden" data-state={scanning ? 'running' : bridgeOnline === true ? 'ready' : 'offline'}>
         {/* Ambient Glows */}
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 right-0 w-80 h-80 bg-violet-600/15 rounded-full blur-3xl pointer-events-none" />
@@ -380,7 +380,7 @@ export default function AIScanPage({
               <b>{previewState}</b>
               <small>{isRtl ? selectedWorkflowContent.titleAr : selectedWorkflowContent.titleEn}</small>
             </div>
-            <div className="relative w-72 h-72 md:w-80 md:h-80 flex items-center justify-center">
+            <div className="knoux-ai-live-stage relative w-72 h-72 md:w-80 md:h-80 flex items-center justify-center" data-state={scanning ? 'running' : 'idle'}>
               {/* Volumetric Radial Energy Glow */}
               <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/25 via-violet-600/35 to-fuchsia-500/25 rounded-full blur-3xl animate-pulse" />
 

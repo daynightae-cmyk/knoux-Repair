@@ -352,8 +352,8 @@ function MasterWorkstation() {
 
   return (
     <div className="knoux-shell flex flex-col h-screen w-screen bg-[#050714] text-white overflow-hidden relative" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-      <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-violet-600/10 rounded-full blur-[140px] -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-cyan-600/10 rounded-full blur-[140px] translate-x-1/2 translate-y-1/2 pointer-events-none" />
+      <div className="knoux-ambient-orb knoux-ambient-orb-violet absolute top-0 left-0 w-[600px] h-[600px] bg-violet-600/10 rounded-full blur-[140px] -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+      <div className="knoux-ambient-orb knoux-ambient-orb-cyan absolute bottom-0 right-0 w-[600px] h-[600px] bg-cyan-600/10 rounded-full blur-[140px] translate-x-1/2 translate-y-1/2 pointer-events-none" />
       <TopBar lang={lang} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} accountLabel={accountLabel} accountConnected={accountConnected} onSearchOpen={() => setSearchOpen(true)} onSettingsOpen={() => setSettingsOpen(true)} onAccountOpen={() => setAccountOpen(true)} />
       <div className="knoux-body flex flex-1 min-h-0 relative z-10">
         <LeftRail activeView={activeView} onSelect={handleRailSelect} lang={lang} bridgeOnline={bridgeOnline} />
