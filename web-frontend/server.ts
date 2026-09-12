@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import { FREE_AI_MODELS, REPAIR_TEMPLATES } from './src/lib/aiModelsData.ts';
+import { registerKnouxAiRoutes } from './server/knouxAiRuntime.ts';
 import {
   getOrCreateUser,
   logRepairAction,
@@ -232,6 +233,7 @@ async function startServer(): Promise<void> {
   // Custom high-level API routes (AI, Cloud SQL, Workspace Metadata)
   const customRouter = express.Router();
   customRouter.use(express.json());
+  registerKnouxAiRoutes(customRouter);
 
   // Folder listing & picker delegate to the authoritative local execution bridge
   customRouter.get('/workspace/roots', (req: Request, res: Response) => {
