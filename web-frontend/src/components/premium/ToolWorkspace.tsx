@@ -488,7 +488,7 @@ export default function ToolWorkspace({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-3 pt-1">
+          <div className={clsx('knoux-tool-actions flex items-center gap-3 pt-1', isRunning && 'is-running', toolStatus === 'success' && 'is-success')}>
             {tool.AnalyzeOnlySupported && (
               <button
                 type="button"
@@ -531,8 +531,10 @@ export default function ToolWorkspace({
                 className="knoux-btn knoux-btn-primary text-xs px-6 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer font-bold disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(124,58,237,0.35)]"
                 title={needsAdmin ? (lang === 'ar' ? 'يتطلب صلاحيات مسؤول' : 'Requires administrator privileges') : ''}
               >
-                <Play size={14} />
-                <span>{lang === 'ar' ? 'تشغيل الأداة' : 'Run Tool'}</span>
+                {toolStatus === 'success' ? <CheckCircle2 size={14} /> : <Play size={14} />}
+                <span>{toolStatus === 'success'
+                  ? (lang === 'ar' ? 'اكتمل التشغيل' : 'Run completed')
+                  : (lang === 'ar' ? 'تشغيل الأداة' : 'Run Tool')}</span>
               </button>
             )}
           </div>

@@ -1,0 +1,129 @@
+/*
+ * Golden Master polish layer.
+ * Keeps the approved command-center composition while clarifying selection,
+ * execution priority, and restrained interaction feedback.
+ */
+
+.knoux-command-center .knoux-service-card,
+.knoux-command-center .knoux-tool-card {
+  transition:
+    transform 190ms var(--knoux-ease-out),
+    border-color 190ms ease,
+    box-shadow 190ms ease,
+    background 190ms ease !important;
+}
+
+.knoux-command-center .knoux-service-card:hover,
+.knoux-command-center .knoux-tool-card:hover {
+  transform: translateY(-2px) scale(1.005);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.26) !important;
+}
+
+.knoux-command-center .knoux-service-card[data-active='true'],
+.knoux-command-center .knoux-tool-card[data-active='true'] {
+  position: relative;
+  z-index: 1;
+  border-color: rgba(52, 211, 153, 0.62) !important;
+  background:
+    linear-gradient(120deg, rgba(52, 211, 153, 0.13), rgba(34, 211, 238, 0.055)),
+    rgba(7, 14, 27, 0.98) !important;
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.28),
+    inset 3px 0 rgba(52, 211, 153, 0.9),
+    inset 0 1px rgba(255, 255, 255, 0.1) !important;
+}
+
+[dir='rtl'] .knoux-command-center .knoux-service-card[data-active='true'],
+[dir='rtl'] .knoux-command-center .knoux-tool-card[data-active='true'] {
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.28),
+    inset -3px 0 rgba(52, 211, 153, 0.9),
+    inset 0 1px rgba(255, 255, 255, 0.1) !important;
+}
+
+.knoux-command-center .knoux-service-card[data-active='true']::after,
+.knoux-command-center .knoux-tool-card[data-active='true']::after {
+  content: '✓';
+  inset: 9px 9px auto auto;
+  width: 17px;
+  height: 17px;
+  border: 1px solid rgba(110, 231, 183, 0.55);
+  border-radius: 50%;
+  color: #a7f3d0;
+  background: rgba(6, 78, 59, 0.72);
+  font: 800 10px/15px var(--knoux-font-mono);
+  text-align: center;
+  transform: none;
+  opacity: 1;
+}
+
+[dir='rtl'] .knoux-command-center .knoux-service-card[data-active='true']::after,
+[dir='rtl'] .knoux-command-center .knoux-tool-card[data-active='true']::after {
+  right: auto;
+  left: 9px;
+}
+
+.knoux-command-center .knoux-service-card[data-active='true']:hover,
+.knoux-command-center .knoux-tool-card[data-active='true']:hover {
+  transform: translateY(-2px) scale(1.005);
+  border-color: rgba(110, 231, 183, 0.82) !important;
+}
+
+.knoux-command-center .knoux-service-card:focus-visible,
+.knoux-command-center .knoux-tool-card:focus-visible,
+.knoux-tool-actions button:focus-visible {
+  outline: 2px solid #6ee7b7;
+  outline-offset: 3px;
+}
+
+.knoux-tool-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  margin-inline: -2px;
+  padding: 10px 2px 2px;
+  background: linear-gradient(180deg, transparent, rgba(5, 9, 22, 0.96) 28%);
+}
+
+.knoux-tool-actions .knoux-btn-primary {
+  border-color: rgba(110, 231, 183, 0.68);
+  background: linear-gradient(135deg, #059669, #10b981);
+  color: #f0fdf4;
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.2), inset 0 1px rgba(255, 255, 255, 0.2);
+  transition: transform 180ms var(--knoux-ease-out), background 180ms ease, box-shadow 180ms ease;
+}
+
+.knoux-tool-actions .knoux-btn-primary:hover {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  box-shadow: 0 11px 25px rgba(16, 185, 129, 0.28), inset 0 1px rgba(255, 255, 255, 0.24);
+  transform: translateY(-1px);
+}
+
+.knoux-tool-actions .knoux-btn-primary:active,
+.knoux-tool-actions .knoux-btn-danger:active,
+.knoux-tool-actions .knoux-btn-secondary:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.knoux-tool-actions.is-success .knoux-btn-primary {
+  border-color: rgba(167, 243, 208, 0.85);
+  background: #047857;
+}
+
+.knoux-tool-actions.is-running .knoux-btn-danger {
+  transition: transform 180ms var(--knoux-ease-out), background 180ms ease;
+}
+
+.knoux-tool-actions .knoux-btn[disabled] {
+  filter: saturate(0.65);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knoux-command-center .knoux-service-card,
+  .knoux-command-center .knoux-tool-card,
+  .knoux-tool-actions .knoux-btn-primary,
+  .knoux-tool-actions .knoux-btn-danger,
+  .knoux-tool-actions .knoux-btn-secondary {
+    transition-duration: 1ms !important;
+  }
+}

@@ -14,6 +14,7 @@ import './family-preview.css'
 import './visual-enhancements.css'
 import './command-center.css'
 import './ai-command-center.css'
+import './golden-master-polish.css'
 import App from './App'
 import McpOverlayHost from './components/McpOverlayHost'
 
