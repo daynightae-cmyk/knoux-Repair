@@ -27,12 +27,20 @@ import {
 const MODULE_DIR = typeof __dirname === 'string'
   ? __dirname
   : path.dirname(fileURLToPath(import.meta.url));
+
+function readCliOption(name: string): string | undefined {
+  const flagIndex = process.argv.indexOf(`--${name}`);
+  return flagIndex >= 0 ? process.argv[flagIndex + 1] : undefined;
+}
+
 const HOST = '127.0.0.1';
-const PORT = Number(process.env.PORT || 3000);
+const LISTEN_HOST = process.env.KNOUX_LISTEN_HOST || readCliOption('host') || HOST;
+const PORT = Number(process.env.PORT || readCliOption('port') || 3000);
 const BRIDGE_PORT = Number(process.env.KNOUX_BRIDGE_PORT || 8787);
 const FRONTEND_ORIGIN = `http://${HOST}:${PORT}`;
 const isBundledServer = path.basename(process.argv[1] || '').toLowerCase() === 'server.cjs';
 const isProduction = process.env.NODE_ENV === 'production' || isBundledServer;
+const isEmbeddedDevelopmentPreview = !isProduction && LISTEN_HOST !== HOST;
 
 function resolveProjectRoot(): string {
   const candidates = [
@@ -68,10 +76,15 @@ let appServer: http.Server | null = null;
 function securityHeaders(_req: Request, res: Response, next: NextFunction) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'no-referrer');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+  // Local desktop/production remain locked down. The supervised Work preview is
+  // intentionally embeddable so visual QA can inspect the existing app.
+  if (!isEmbeddedDevelopmentPreview) {
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  }
 
   if (isProduction) {
     res.setHeader(
@@ -467,7 +480,7 @@ async function startServer(): Promise<void> {
     });
   });
 
-  appServer = app.listen(PORT, HOST, () => {
+  appServer = app.listen(PORT, LISTEN_HOST, () => {
     console.log(`[KNOUX] Local web gateway: ${FRONTEND_ORIGIN}`);
     console.log(`[KNOUX] Real execution bridge: ${BRIDGE_ORIGIN}`);
     console.log(`[KNOUX] Project root: ${REPO_ROOT}`);

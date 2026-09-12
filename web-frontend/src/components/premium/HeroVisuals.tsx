@@ -21,6 +21,7 @@ interface FamilyHeroVisualProps {
  */
 export function VitalityHoloVisual({ lang, systemSnapshot }: FamilyHeroVisualProps) {
   const isRtl = lang === 'ar';
+  const hasSnapshot = Boolean(systemSnapshot);
 
   const cpuDisplay = typeof systemSnapshot?.CpuLoad === 'number'
     ? `${systemSnapshot.CpuLoad}%`
@@ -153,22 +154,24 @@ export function VitalityHoloVisual({ lang, systemSnapshot }: FamilyHeroVisualPro
       {/* Right Column: Slogan Language Pack (From P1-02) */}
       <div className="absolute top-6 right-3 flex flex-col items-end text-right z-10 select-none">
         <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
-          {isRtl ? 'في الوقت الفعلي' : 'REAL-TIME'}
+          {hasSnapshot ? (isRtl ? 'لقطة فعلية' : 'LIVE SNAPSHOT') : (isRtl ? 'معاينة' : 'CONTEXT')}
         </div>
         <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
-          {isRtl ? 'صحة النظام' : 'HEALTH'}
+          {isRtl ? 'حيوية النظام' : 'VITALITY'}
         </div>
         <div className="text-[10px] font-mono font-black tracking-widest text-violet-400/90 leading-tight uppercase mt-0.5">
-          {isRtl ? 'كفاءة دائمة' : 'LASTING'}
+          {hasSnapshot ? (isRtl ? 'بيانات النظام' : 'SYSTEM DATA') : (isRtl ? 'بدون بيانات' : 'NO DATA')}
         </div>
         <div className="text-[10px] font-mono font-black tracking-widest text-violet-400/90 leading-tight uppercase">
-          {isRtl ? 'أداء متفوق' : 'PERFORMANCE'}
+          {hasSnapshot ? (isRtl ? 'متصلة' : 'CONNECTED') : (isRtl ? 'متصلة لاحقاً' : 'NOT CONNECTED')}
         </div>
       </div>
 
       {/* Bottom Conceptual Ground Tag */}
       <div className="absolute bottom-1 w-full text-center text-[9px] font-mono font-bold tracking-widest text-cyan-300/70 uppercase">
-        {isRtl ? 'مراقبة صحة النظام • تشخيص فوري' : 'VITALITY TELEMETRY • ACTIVE MONITOR'}
+        {hasSnapshot
+          ? (isRtl ? 'بيانات فعلية • لقطة النظام الحالية' : 'LIVE DATA • CURRENT SYSTEM SNAPSHOT')
+          : (isRtl ? 'معاينة سياقية • البيانات غير متصلة' : 'CONTEXT PREVIEW • DATA NOT CONNECTED')}
       </div>
     </div>
   );
@@ -180,7 +183,7 @@ export function VitalityHoloVisual({ lang, systemSnapshot }: FamilyHeroVisualPro
  * - Large 4-tier 3D cylindrical storage disk stack with glowing platters and laser bus lines
  * - Base concentric ground ripples with radial tick tracks
  * - Translucent floating data cards (Partition Architecture, Volume Shadow)
- * - Right-side uppercase slogan: SAFE / RECOVERY / BRIGHTER / TOMORROWS
+ * - Right-side uppercase slogan: EVIDENCE / RECOVERY / EXPLICIT / PATHS
  * - Purely architectural conceptual labels, ZERO fabricated numbers
  */
 export function RecoveryHoloVisual({ lang }: FamilyHeroVisualProps) {
@@ -273,16 +276,16 @@ export function RecoveryHoloVisual({ lang }: FamilyHeroVisualProps) {
       {/* Right Column: Slogan Language Pack (From P1-02) */}
       <div className="absolute top-6 right-3 flex flex-col items-end text-right z-10 select-none">
         <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
-          {isRtl ? 'استعادة' : 'SAFE'}
+          {isRtl ? 'أدلة' : 'EVIDENCE'}
         </div>
         <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
           {isRtl ? 'آمنة' : 'RECOVERY'}
         </div>
         <div className="text-[10px] font-mono font-black tracking-widest text-sky-400/90 leading-tight uppercase mt-0.5">
-          {isRtl ? 'مستقبل' : 'BRIGHTER'}
+          {isRtl ? 'مسارات' : 'EXPLICIT'}
         </div>
         <div className="text-[10px] font-mono font-black tracking-widest text-sky-400/90 leading-tight uppercase">
-          {isRtl ? 'أفضل' : 'TOMORROWS'}
+          {isRtl ? 'واضحة' : 'PATHS'}
         </div>
       </div>
 
@@ -299,7 +302,7 @@ export function RecoveryHoloVisual({ lang }: FamilyHeroVisualProps) {
  * - 420x260 Cinematic Holographic Scene vector-locked to the hero banner
  * - Large 3D faceted crystal security shield (140px) standing on concentric base pedestal
  * - Perimeter cyber topology traces connecting satellite security nodes
- * - Right-side uppercase slogan: PROTECTION / YOU CAN TRUST / TODAY / TOMORROW / ALWAYS
+ * - Right-side uppercase slogan: VERIFY / BEFORE / ACTION / EVERY / TIME
  * - Uses real Defender state from systemSnapshot or "Evidence Unavailable", NO fake statuses
  */
 export function AssuranceHoloVisual({ lang, systemSnapshot }: FamilyHeroVisualProps) {
@@ -376,7 +379,7 @@ export function AssuranceHoloVisual({ lang, systemSnapshot }: FamilyHeroVisualPr
       {/* Floating Topology Nodes (Conceptual + Factual Defender State) */}
       <div className="absolute top-4 left-3 px-2.5 py-1.5 rounded-xl bg-slate-900/85 border border-cyan-400/40 backdrop-blur-md shadow-[0_0_15px_rgba(34,211,238,0.25)] flex items-center gap-1.5 z-10">
         <Wifi size={12} className="text-cyan-400" />
-        <span className="text-[11px] font-bold text-white">{isRtl ? 'جدار الحماية' : 'Firewall Bus'}</span>
+        <span className="text-[11px] font-bold text-white">{isRtl ? 'مسار الشبكة' : 'Network Path'}</span>
       </div>
 
       <div className="absolute bottom-7 left-4 px-2.5 py-1.5 rounded-xl bg-slate-900/85 border border-emerald-400/40 backdrop-blur-md shadow-[0_0_15px_rgba(16,185,129,0.25)] flex items-center gap-1.5 z-10">
@@ -390,25 +393,27 @@ export function AssuranceHoloVisual({ lang, systemSnapshot }: FamilyHeroVisualPr
       {/* Right Column: Slogan Language Pack (From P1-02) */}
       <div className="absolute top-6 right-3 flex flex-col items-end text-right z-10 select-none">
         <div className="text-[10px] font-mono font-black tracking-widest text-emerald-400/90 leading-tight uppercase">
-          {isRtl ? 'حماية' : 'PROTECTION'}
+          {isRtl ? 'تحقق' : 'VERIFY'}
         </div>
         <div className="text-[10px] font-mono font-black tracking-widest text-emerald-400/90 leading-tight uppercase">
-          {isRtl ? 'تثق بها' : 'YOU CAN TRUST'}
+          {isRtl ? 'قبل' : 'BEFORE'}
         </div>
         <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase mt-0.5">
-          {isRtl ? 'اليوم' : 'TODAY'}
+          {isRtl ? 'أي' : 'ACTION'}
         </div>
         <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
-          {isRtl ? 'غداً' : 'TOMORROW'}
+          {isRtl ? 'في كل' : 'EVERY'}
         </div>
         <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
-          {isRtl ? 'ودائماً' : 'ALWAYS'}
+          {isRtl ? 'مرة' : 'TIME'}
         </div>
       </div>
 
       {/* Bottom Ground Tag */}
       <div className="absolute bottom-1 w-full text-center text-[9px] font-mono font-bold tracking-widest text-emerald-300/70 uppercase">
-        {isRtl ? 'ضمان أمان النظام • وقاية استباقية' : 'PREVENT ISSUES • STAY SECURE'}
+        {systemSnapshot
+          ? (isRtl ? 'حالة ديفندر من لقطة النظام' : 'DEFENDER STATE • SYSTEM SNAPSHOT')
+          : (isRtl ? 'معاينة الحماية • الأدلة غير متصلة' : 'PROTECTION PREVIEW • EVIDENCE NOT CONNECTED')}
       </div>
     </div>
   );
@@ -537,7 +542,7 @@ export function SoftwareHoloVisual({ lang }: FamilyHeroVisualProps) {
  * - 3-tier stacked isometric glass architecture planes (Presentation, API, Core Runtime)
  * - Vertical interconnect conduits and neon corner pillars
  * - Floating framework runtime chips (React, Node.js, Python, Docker)
- * - Right-side uppercase slogan: DEEP INSIGHTS / REAL-TIME DATA / PRODUCTION / READY
+ * - Right-side uppercase slogan: DEEP INSIGHTS / WORKSPACE CONTEXT / EVIDENCE / FIRST
  * - Purely architectural conceptual syntax, ZERO fabricated telemetry
  */
 export function WorkbenchHoloVisual({ lang }: FamilyHeroVisualProps) {
@@ -616,19 +621,19 @@ export function WorkbenchHoloVisual({ lang }: FamilyHeroVisualProps) {
           {isRtl ? 'رؤى عميقة' : 'DEEP INSIGHTS'}
         </div>
         <div className="text-[10px] font-mono font-black tracking-widest text-cyan-400/90 leading-tight uppercase">
-          {isRtl ? 'بيانات لحظية' : 'REAL-TIME DATA'}
+          {isRtl ? 'سياق العمل' : 'WORKSPACE CONTEXT'}
         </div>
         <div className="text-[10px] font-mono font-black tracking-widest text-violet-400/90 leading-tight uppercase mt-0.5">
-          {isRtl ? 'جاهزية كاملة' : 'PRODUCTION'}
+          {isRtl ? 'الأدلة' : 'EVIDENCE'}
         </div>
         <div className="text-[10px] font-mono font-black tracking-widest text-violet-400/90 leading-tight uppercase">
-          {isRtl ? 'للإنتاج' : 'READY'}
+          {isRtl ? 'أولاً' : 'FIRST'}
         </div>
       </div>
 
       {/* Bottom Ground Tag */}
       <div className="absolute bottom-1 w-full text-center text-[9px] font-mono font-bold tracking-widest text-indigo-300/70 uppercase">
-        {isRtl ? 'بناء أذكى • نشر أكثر أماناً' : 'BUILD SMARTER • SHIP SAFER'}
+        {isRtl ? 'بناء أذكى • تحقق قبل النشر' : 'BUILD SMARTER • VERIFY BEFORE SHIP'}
       </div>
     </div>
   );
@@ -710,8 +715,8 @@ export function InvestigationHoloVisual({ lang, systemSnapshot }: FamilyHeroVisu
 
       {/* Floating HUD Telemetry Panes (Truthful Only) */}
       <div className="absolute top-4 left-3 px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-cyan-400/40 backdrop-blur-md shadow-[0_0_15px_rgba(34,211,238,0.25)] flex items-center gap-1.5 z-10">
-        <Radio size={12} className="text-cyan-400 animate-pulse" />
-        <span className="text-[11px] font-bold text-white">{isRtl ? 'تدفق الأحداث' : 'Event Stream'}</span>
+        <Radio size={12} className="text-cyan-400" />
+        <span className="text-[11px] font-bold text-white">{isRtl ? 'شبكة الأدلة' : 'Evidence Grid'}</span>
       </div>
 
       <div className="absolute bottom-7 left-4 px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-blue-400/40 backdrop-blur-md shadow-[0_0_15px_rgba(59,130,246,0.25)] flex items-center gap-1.5 z-10">
@@ -740,7 +745,9 @@ export function InvestigationHoloVisual({ lang, systemSnapshot }: FamilyHeroVisu
 
       {/* Bottom Ground Tag */}
       <div className="absolute bottom-1 w-full text-center text-[9px] font-mono font-bold tracking-widest text-cyan-300/70 uppercase">
-        {isRtl ? 'اكتشف ما يحدث • كشف الحقائق' : 'FIND ANSWERS • MOVE FORWARD'}
+        {systemSnapshot
+          ? (isRtl ? 'لقطة النظام متاحة • افتح أداة لجمع الأدلة' : 'SYSTEM SNAPSHOT AVAILABLE • OPEN A TOOL FOR EVIDENCE')
+          : (isRtl ? 'معاينة التحقيق • الأدلة غير متصلة' : 'INVESTIGATION PREVIEW • EVIDENCE NOT CONNECTED')}
       </div>
     </div>
   );

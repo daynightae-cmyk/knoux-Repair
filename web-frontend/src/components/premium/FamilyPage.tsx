@@ -27,6 +27,12 @@ interface FamilyPageProps {
   activeToolId?: string | null;
 }
 
+function scrollTo(id: string) {
+  window.requestAnimationFrame(() => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
 export default function FamilyPage({
   family, tools, lang, bridgeOnline, bridgeElevated,
   toolStatuses, onRunTool, onCancelTool,
@@ -34,89 +40,81 @@ export default function FamilyPage({
   selectedToolId, onSelectTool, onRetryBridge,
   systemSnapshot, consoleEntries, activeToolId,
 }: FamilyPageProps) {
-  const activeServiceId = selectedService ?? family.services[0]?.id ?? null;
-  const activeService = family.services.find(service => service.id === activeServiceId) ?? family.services[0];
-
   const familyServiceIds = useMemo(() => new Set(family.services.map(service => service.id)), [family.services]);
   const familyTools = useMemo(
     () => tools.filter(tool => familyServiceIds.has(tool.Category as ServiceId)),
     [tools, familyServiceIds]
   );
-  const serviceTools = useMemo(
-    () => activeServiceId ? familyTools.filter(tool => tool.Category === activeServiceId) : [],
-    [familyTools, activeServiceId]
-  );
   const selectedTool = useMemo(
     () => selectedToolId ? familyTools.find(tool => tool.ToolId === selectedToolId) ?? null : null,
     [selectedToolId, familyTools]
   );
-  const selectedToolService = useMemo(
-    () => selectedTool
-      ? family.services.find(service => service.id === selectedTool.Category) ?? activeService
-      : activeService,
-    [selectedTool, family.services, activeService]
+  const requestedService = family.services.find(service => service.id === selectedService) ?? family.services[0];
+  const activeService = selectedTool
+    ? family.services.find(service => service.id === selectedTool.Category) ?? requestedService
+    : requestedService;
+  const serviceTools = useMemo(
+    () => activeService ? familyTools.filter(tool => tool.Category === activeService.id) : [],
+    [familyTools, activeService]
   );
 
-  if (!activeService || !selectedToolService) return null;
+  if (!activeService) return null;
 
   const selectService = (serviceId: ServiceId) => {
     onSelectService(serviceId);
     onSelectTool(null);
   };
 
+  const selectTool = (toolId: string) => {
+    onSelectTool(toolId);
+    scrollTo('family-tool-workspace');
+  };
+
+  const selectedToolStatus = selectedTool
+    ? toolStatuses[selectedTool.ToolId] ?? 'idle'
+    : 'idle';
+
   return (
     <div className="knoux-family-page">
       <HeroSection
         family={family}
-        totalTools={familyTools.length}
-        lang={lang}
-        systemSnapshot={systemSnapshot}
-        onExplore={() => {
-          const el = document.getElementById('family-services');
-          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }}
-      />
-
-      <FamilyLiveStage
-        family={family}
-        service={selectedTool ? selectedToolService : activeService}
+        service={activeService}
         selectedTool={selectedTool}
-        familyTools={familyTools}
-        serviceTools={selectedTool ? familyTools.filter(tool => tool.Category === selectedToolService.id) : serviceTools}
+        familyToolCount={familyTools.length}
+        serviceToolCount={serviceTools.length}
         lang={lang}
         bridgeOnline={bridgeOnline}
         bridgeElevated={bridgeElevated}
-        toolStatuses={toolStatuses}
-        onRunTool={onRunTool}
-        onCancelTool={onCancelTool}
+        toolStatus={selectedToolStatus}
+        systemSnapshot={systemSnapshot}
+        onExplore={() => scrollTo('family-services')}
+        onOpenWorkspace={() => scrollTo('family-tool-workspace')}
         onClearTool={() => onSelectTool(null)}
         onSelectService={selectService}
-        consoleEntries={consoleEntries}
-        activeToolId={activeToolId}
       />
 
       <section id="family-services" className="knoux-family-catalog" aria-label={lang === 'ar' ? 'الخدمات والأدوات' : 'Services and tools'}>
         <div className="knoux-section-heading">
           <div>
-            <span>{lang === 'ar' ? 'الخدمات' : 'SERVICE FAMILIES'}</span>
+            <span>{lang === 'ar' ? 'الخدمات' : 'SERVICES'}</span>
             <h2>{lang === 'ar' ? 'اختر الخدمة، ثم الأداة' : 'Choose a service, then a tool'}</h2>
           </div>
           <p>
             {lang === 'ar'
-              ? 'يظهر محتوى خدمة واحدة فقط في كل مرة. اختيار الأداة يحول منصة العمل الحية بالأعلى إلى واجهتها الفعلية.'
-              : 'Only one service is expanded at a time. Selecting a tool transforms the live stage above into its real workspace.'}
+              ? 'خدمة واحدة نشطة في كل مرة. المعاينة بالأعلى ومساحة العمل بالأسفل تتبعان اختيارك.'
+              : 'One service stays active at a time. The preview above and action workspace below follow your selection.'}
           </p>
         </div>
 
         <div className="knoux-service-grid">
           {family.services.map(service => {
-            const count = tools.filter(tool => tool.Category === service.id).length;
+            const count = familyTools.filter(tool => tool.Category === service.id).length;
             return (
               <ServiceCard
                 key={service.id}
                 service={service}
-                toolCount={count}
-                active={activeServiceId === service.id}
+                toolCount={bridgeOnline === true ? count : null}
+                active={activeService.id === service.id}
                 onClick={() => selectService(service.id)}
                 lang={lang}
                 accentColor={`var(${family.accentVar})`}
@@ -128,13 +126,13 @@ export default function FamilyPage({
         <div className="knoux-active-service-panel">
           <div className="knoux-active-service-head">
             <div>
-              <span className="knoux-active-service-kicker">{lang === 'ar' ? 'الخدمة النشطة' : 'ACTIVE SERVICE'}</span>
+              <span className="knoux-active-service-kicker">{lang === 'ar' ? 'الخدمة المحددة' : 'SELECTED SERVICE'}</span>
               <h3>{lang === 'ar' ? activeService.name.ar : activeService.name.en}</h3>
               <p>{lang === 'ar' ? activeService.purpose.ar : activeService.purpose.en}</p>
             </div>
             <div className="knoux-active-service-count">
-              <strong>{serviceTools.length}</strong>
-              <span>{lang === 'ar' ? 'أداة' : 'tools'}</span>
+              <strong>{bridgeOnline === true ? serviceTools.length : '—'}</strong>
+              <span>{lang === 'ar' ? 'أداة محمّلة' : 'loaded tools'}</span>
             </div>
           </div>
 
@@ -142,7 +140,7 @@ export default function FamilyPage({
             <div className="knoux-tool-empty-state">
               <p>{lang === 'ar' ? 'الجسر غير متصل، لذلك لا يمكن تحميل عقود الأدوات الحالية.' : 'Bridge offline, so the current tool contracts cannot be loaded.'}</p>
               <button type="button" className="knoux-btn knoux-btn-secondary" onClick={onRetryBridge}>
-                {lang === 'ar' ? 'إعادة المحاولة' : 'Retry Connection'}
+                {lang === 'ar' ? 'إعادة المحاولة' : 'Retry connection'}
               </button>
             </div>
           ) : serviceTools.length === 0 ? (
@@ -157,24 +155,20 @@ export default function FamilyPage({
               <motion.div
                 key={activeService.id}
                 className="knoux-tool-card-grid"
-                initial={{ opacity: 0, x: lang === 'ar' ? -18 : 18 }}
+                initial={{ opacity: 0, x: lang === 'ar' ? -14 : 14 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: lang === 'ar' ? 18 : -18 }}
-                transition={{ duration: 0.2, ease: 'easeOut' }}
+                exit={{ opacity: 0, x: lang === 'ar' ? 14 : -14 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
               >
                 {serviceTools.map(tool => (
                   <ToolCard
                     key={tool.ToolId}
                     tool={tool}
                     serviceIcon={activeService.icon}
-                    active={selectedToolId === tool.ToolId}
+                    active={selectedTool?.ToolId === tool.ToolId}
                     status={toolStatuses[tool.ToolId] ?? 'idle'}
                     bridgeOnline={bridgeOnline}
-                    onClick={() => {
-                      onSelectTool(tool.ToolId);
-                      const stage = document.querySelector('.knoux-live-stage');
-                      if (stage) stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }}
+                    onClick={() => selectTool(tool.ToolId)}
                     lang={lang}
                   />
                 ))}
@@ -183,6 +177,23 @@ export default function FamilyPage({
           )}
         </div>
       </section>
+
+      <FamilyLiveStage
+        family={family}
+        service={activeService}
+        selectedTool={selectedTool}
+        serviceToolCount={serviceTools.length}
+        lang={lang}
+        bridgeOnline={bridgeOnline}
+        bridgeElevated={bridgeElevated}
+        toolStatuses={toolStatuses}
+        onRunTool={onRunTool}
+        onCancelTool={onCancelTool}
+        onClearTool={() => onSelectTool(null)}
+        onChooseTool={() => scrollTo('family-services')}
+        consoleEntries={consoleEntries}
+        activeToolId={activeToolId}
+      />
     </div>
   );
 }

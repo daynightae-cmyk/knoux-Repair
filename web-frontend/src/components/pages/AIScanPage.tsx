@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import {
   Sparkles, ArrowRight, ArrowLeft, ShieldCheck, Activity, Database,
   Shield, Package, Code2, Search, Loader2, CheckCircle2, AlertTriangle,
-  Zap, Clock, Play
+  Zap, Clock, Play, BrainCircuit, Wrench
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -43,6 +43,22 @@ const FAMILY_ICONS: Record<string, React.ElementType> = {
   investigation: Search,
 };
 
+type AiWorkflowId = 'scan' | 'analyze' | 'understand' | 'repair';
+
+const AI_WORKFLOW: Array<{
+  id: AiWorkflowId;
+  icon: React.ElementType;
+  titleEn: string;
+  titleAr: string;
+  detailEn: string;
+  detailAr: string;
+}> = [
+  { id: 'scan', icon: Search, titleEn: 'Scan', titleAr: 'فحص', detailEn: 'Collect registered system evidence.', detailAr: 'جمع أدلة النظام المسجلة.' },
+  { id: 'analyze', icon: Activity, titleEn: 'Analyze', titleAr: 'تحليل', detailEn: 'Evaluate evidence without invented scores.', detailAr: 'تحليل الأدلة دون نتائج مختلقة.' },
+  { id: 'understand', icon: BrainCircuit, titleEn: 'Understand', titleAr: 'فهم', detailEn: 'Explain findings and their impact.', detailAr: 'شرح النتائج وتأثيرها.' },
+  { id: 'repair', icon: Wrench, titleEn: 'Repair Together', titleAr: 'الإصلاح معاً', detailEn: 'Open the registered tool for confirmed action.', detailAr: 'فتح الأداة المسجلة لتنفيذ الإجراء المؤكد.' },
+];
+
 export default function AIScanPage({
   lang,
   bridgeOnline,
@@ -56,13 +72,22 @@ export default function AIScanPage({
   const [findings, setFindings] = useState<ScanFinding[] | null>(null);
   const [scanTimestamp, setScanTimestamp] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedWorkflow, setSelectedWorkflow] = useState<AiWorkflowId>('scan');
+  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+  const [evidenceSourceCount, setEvidenceSourceCount] = useState(0);
+  const [scanError, setScanError] = useState('');
 
   const runDiagnosticScan = useCallback(async () => {
     if (!bridgeOnline) return;
     setScanning(true);
+    setScanError('');
+    setEvidenceSourceCount(0);
+    setSelectedFindingId(null);
+    setSelectedWorkflow('scan');
     setScanStage(isRtl ? 'فحص مقاييس الحيوية والأداء...' : 'Inspecting system vitals & memory pressure...');
 
     const discoveredFindings: ScanFinding[] = [];
+    let verifiedSources = 0;
 
     try {
       // Step 1: System snapshot
@@ -70,6 +95,8 @@ export default function AIScanPage({
       setScanStage(isRtl ? 'فحص سعة الأقراص والنظافة العامة...' : 'Evaluating disk capacity & hygiene...');
 
       if (sysRes?.system) {
+        verifiedSources += 1;
+        setSelectedWorkflow('analyze');
         const sys = sysRes.system;
         // Check RAM
         if (sys.TotalRamGB && sys.FreeRamGB !== undefined) {
@@ -133,6 +160,7 @@ export default function AIScanPage({
       const cleanRes = await api.cleanupPreview().catch(() => null);
 
       if (cleanRes?.preview) {
+        verifiedSources += 1;
         const clean = cleanRes.preview;
         const bytes = clean.Summary?.EstimatedReclaimableBytes ?? 0;
         const mb = Math.round(bytes / (1024 * 1024));
@@ -157,6 +185,7 @@ export default function AIScanPage({
       const driverRes = await api.driversPreview().catch(() => null);
 
       if (driverRes?.preview) {
+        verifiedSources += 1;
         const drv = driverRes.preview;
         if (drv.DeviceProblems && drv.DeviceProblems.length > 0) {
           discoveredFindings.push({
@@ -175,14 +204,37 @@ export default function AIScanPage({
       }
 
       setScanStage(isRtl ? 'اكتمل الفحص بنجاح' : 'Diagnostic scan complete');
+      setEvidenceSourceCount(verifiedSources);
       setFindings(discoveredFindings);
+      setSelectedFindingId(discoveredFindings[0]?.id ?? null);
       setScanTimestamp(new Date().toLocaleTimeString());
+      setSelectedWorkflow(discoveredFindings.length > 0 ? 'repair' : 'understand');
     } catch {
       setFindings([]);
+      setSelectedFindingId(null);
+      setEvidenceSourceCount(0);
+      setScanError(isRtl ? 'تعذر جمع أدلة تشخيص موثوقة من الجسر.' : 'No verified diagnostic evidence was returned by the bridge.');
+      setSelectedWorkflow('scan');
     } finally {
       setScanning(false);
     }
   }, [bridgeOnline, isRtl]);
+
+  const selectedWorkflowContent = AI_WORKFLOW.find(step => step.id === selectedWorkflow) ?? AI_WORKFLOW[0];
+  const selectedFinding = findings?.find(finding => finding.id === selectedFindingId) ?? null;
+  const selectFinding = (findingId: string) => {
+    setSelectedFindingId(findingId);
+    window.requestAnimationFrame(() => {
+      document.getElementById('ai-recommendation-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+  const previewState = scanning
+    ? (selectedWorkflow === 'analyze' ? (isRtl ? 'جارٍ التحليل' : 'Analyzing') : (isRtl ? 'جارٍ الفحص' : 'Scanning'))
+    : findings !== null && evidenceSourceCount > 0
+      ? (isRtl ? 'النتائج جاهزة' : 'Results ready')
+      : bridgeOnline === true
+        ? (isRtl ? 'جاهز' : 'Ready')
+        : (isRtl ? 'غير متصل' : 'Not connected');
 
   return (
     <div className="max-w-6xl mx-auto space-y-8" dir={isRtl ? 'rtl' : 'ltr'}>
@@ -198,8 +250,8 @@ export default function AIScanPage({
             {/* Tag */}
             <div className="text-[10px] md:text-xs font-mono font-semibold tracking-wider text-cyan-400 uppercase mb-2">
               {isRtl
-                ? `ذكاء اصطناعي • رؤى عميقة • ${toolCount ?? 158} أداة معتمدة`
-                : `AI POWERED • DEEP INSIGHTS • ${toolCount ?? 158} CANONICAL TOOLS`}
+                ? `ذكاء اصطناعي • رؤى عميقة • ${toolCount ?? '—'} أداة معتمدة`
+                : `AI POWERED • DEEP INSIGHTS • ${toolCount ?? '—'} AVAILABLE TOOLS`}
             </div>
 
             {/* Title */}
@@ -213,10 +265,8 @@ export default function AIScanPage({
             </p>
 
             {/* Subtitle */}
-            <p className="text-xs md:text-sm text-slate-300 leading-relaxed mb-5">
-              {isRtl
-                ? 'فحص ذكي للكشف عن المشاكل، وتقييم صحة الحاسوب، وتقديم حلول موجهة عبر جميع عائلات الإصلاح المعتمدة دون مخاطر.'
-                : "Run an intelligent scan to detect issues, assess your PC's health, and get guided solutions across all repair families."}
+            <p className="text-xs md:text-sm text-slate-300 leading-relaxed mb-5" aria-live="polite">
+              {isRtl ? selectedWorkflowContent.detailAr : selectedWorkflowContent.detailEn}
             </p>
 
             {/* Search / Prompt Query Box */}
@@ -271,11 +321,22 @@ export default function AIScanPage({
 
               <button
                 type="button"
-                onClick={() => onNavigate({ family: 'navigator' })}
-                className="px-5 py-2.5 rounded-xl text-xs md:text-sm font-semibold bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-slate-200 transition-all cursor-pointer flex items-center gap-2"
+                onClick={() => document.getElementById('ai-findings')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                disabled={findings === null || evidenceSourceCount === 0}
+                className="px-5 py-2.5 rounded-xl text-xs md:text-sm font-semibold bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-400/30 text-slate-200 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                <Package size={15} />
-                <span>{isRtl ? 'استعراض عائلات الإصلاح' : 'Explore Repair Families'}</span>
+                <ShieldCheck size={15} />
+                <span>{isRtl ? 'عرض النتائج' : 'View results'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => findings?.[0] && selectFinding(findings[0].id)}
+                disabled={!findings?.length}
+                className="px-5 py-2.5 rounded-xl text-xs md:text-sm font-semibold bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-slate-200 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Wrench size={15} />
+                <span>{isRtl ? 'فتح التوصيات' : 'Open recommendations'}</span>
               </button>
             </div>
 
@@ -314,6 +375,11 @@ export default function AIScanPage({
 
           {/* Right Column: Large Intelligent Diagnostic Core with Orbital Rings and Data Traces */}
           <div className="relative flex items-center justify-center p-2 lg:p-4 overflow-visible">
+            <div className="knoux-ai-preview-status" data-state={scanning ? 'active' : bridgeOnline === true ? 'ready' : 'offline'}>
+              <span aria-hidden="true" />
+              <b>{previewState}</b>
+              <small>{isRtl ? selectedWorkflowContent.titleAr : selectedWorkflowContent.titleEn}</small>
+            </div>
             <div className="relative w-72 h-72 md:w-80 md:h-80 flex items-center justify-center">
               {/* Volumetric Radial Energy Glow */}
               <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/25 via-violet-600/35 to-fuchsia-500/25 rounded-full blur-3xl animate-pulse" />
@@ -459,10 +525,39 @@ export default function AIScanPage({
         )}
       </div>
 
+      <section className="knoux-ai-workflow" aria-label={isRtl ? 'خدمات الفحص الذكي' : 'AI Scan services'}>
+        {AI_WORKFLOW.map((step, index) => {
+          const Icon = step.icon;
+          const active = step.id === selectedWorkflow;
+          return (
+            <button key={step.id} type="button" data-active={active} aria-pressed={active} onClick={() => setSelectedWorkflow(step.id)}>
+              <span className="knoux-ai-workflow-index">0{index + 1}</span>
+              <span className="knoux-ai-workflow-icon"><Icon size={18} /></span>
+              <span className="knoux-ai-workflow-copy">
+                <strong>{isRtl ? step.titleAr : step.titleEn}</strong>
+                <small>{isRtl ? step.detailAr : step.detailEn}</small>
+              </span>
+              {isRtl ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}
+            </button>
+          );
+        })}
+      </section>
+
+      <section className="knoux-ai-selected-context" aria-live="polite">
+        <span>{isRtl ? 'الخدمة المختارة' : 'Selected service'}</span>
+        <strong>{isRtl ? selectedWorkflowContent.titleAr : selectedWorkflowContent.titleEn}</strong>
+        <p>{isRtl ? selectedWorkflowContent.detailAr : selectedWorkflowContent.detailEn}</p>
+        <button type="button" onClick={() => onNavigate({ family: 'navigator' })}>
+          <Package size={14} />
+          {isRtl ? 'استعراض عائلات الإصلاح' : 'Explore repair families'}
+        </button>
+      </section>
+
       {/* ── 2. Discovered Findings Section (Real Diagnostic Evidence) ── */}
       <AnimatePresence>
         {findings !== null && (
           <motion.div
+            id="ai-findings"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
@@ -486,25 +581,36 @@ export default function AIScanPage({
               )}
             </div>
 
-            {findings.length === 0 ? (
+            {evidenceSourceCount === 0 ? (
+              <div className="p-6 rounded-xl bg-slate-500/10 border border-slate-400/20 text-center space-y-1">
+                <AlertTriangle size={24} className="mx-auto text-amber-300 mb-2" />
+                <p className="text-sm font-semibold text-slate-200">
+                  {isRtl ? 'نتيجة الفحص غير متاحة' : 'Diagnostic result unavailable'}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {scanError || (isRtl ? 'لم يرجع الجسر أي مصدر دليل يمكن التحقق منه.' : 'The bridge returned no verifiable evidence source.')}
+                </p>
+              </div>
+            ) : findings.length === 0 ? (
               <div className="p-6 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-1">
                 <CheckCircle2 size={24} className="mx-auto text-emerald-400 mb-2" />
                 <p className="text-sm font-semibold text-emerald-300">
-                  {isRtl ? 'جميع الأنظمة المفحوصة في حالة مثالية' : 'All Inspected Subsystems Operating Within Safe Limits'}
+                  {isRtl ? 'لم تُرصد مشكلة ضمن الفحوصات المكتملة' : 'No issue detected in the completed checks'}
                 </p>
                 <p className="text-xs text-slate-400">
                   {isRtl
-                    ? 'لم يتم رصد ضغط غير عادي على الذاكرة أو القرص، ومحرك الحماية يعمل بشكل طبيعي.'
-                    : 'No memory exhaustion, storage pressure, or critical defender omissions detected.'}
+                    ? `لم يتم رصد تجاوز للحدود ضمن ${evidenceSourceCount} من مصادر الأدلة المتحقق منها.`
+                    : `No threshold breach was detected across ${evidenceSourceCount} verified evidence source${evidenceSourceCount === 1 ? '' : 's'}.`}
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3">
                 {findings.map((finding) => (
-                  <div
+                  <article
                     key={finding.id}
+                    data-active={selectedFindingId === finding.id}
                     className={clsx(
-                      "p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-colors",
+                      "knoux-ai-finding-card p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-colors",
                       finding.severity === 'critical'
                         ? "bg-red-500/10 border-red-500/30"
                         : finding.severity === 'warning'
@@ -541,7 +647,7 @@ export default function AIScanPage({
 
                     <button
                       type="button"
-                      onClick={() => onNavigate(finding.dest)}
+                      onClick={() => selectFinding(finding.id)}
                       className={clsx(
                         "knoux-btn text-xs font-semibold px-4 py-2 rounded-lg shrink-0 flex items-center gap-2 cursor-pointer",
                         finding.severity === 'critical'
@@ -549,16 +655,58 @@ export default function AIScanPage({
                           : "knoux-btn-secondary"
                       )}
                     >
-                      <span>{isRtl ? finding.actionLabelAr : finding.actionLabelEn}</span>
+                      <span>{isRtl ? 'مراجعة الأداة المقترحة' : 'Review recommended tool'}</span>
                       {isRtl ? <ArrowLeft size={12} /> : <ArrowRight size={12} />}
                     </button>
-                  </div>
+                  </article>
                 ))}
               </div>
             )}
           </motion.div>
         )}
       </AnimatePresence>
+
+      <section
+        id="ai-recommendation-workspace"
+        className="knoux-workspace-stage knoux-ai-workspace"
+        data-mode={selectedFinding ? 'tool' : 'empty'}
+        aria-label={isRtl ? 'مساحة عمل توصيات الفحص الذكي' : 'AI Scan recommendation workspace'}
+      >
+        <header className="knoux-stage-header">
+          <div className="knoux-stage-kicker">
+            <BrainCircuit size={13} />
+            <span>{isRtl ? 'مساحة عمل الفحص الذكي' : 'AI SCAN WORKSPACE'}</span>
+          </div>
+          <div className="knoux-stage-context">
+            <span>AI Scan</span>
+            <span className="knoux-stage-separator">/</span>
+            <strong>{selectedFinding ? (isRtl ? selectedFinding.titleAr : selectedFinding.titleEn) : (isRtl ? 'في انتظار توصية مؤكدة' : 'Awaiting verified recommendation')}</strong>
+          </div>
+        </header>
+
+        {selectedFinding ? (
+          <div className="knoux-ai-workspace-content">
+            <div className="knoux-ai-workspace-icon"><Wrench size={24} /></div>
+            <div>
+              <span>{selectedFinding.dest.toolId ?? (isRtl ? 'أداة مسجلة' : 'Registered tool')}</span>
+              <h3>{isRtl ? selectedFinding.titleAr : selectedFinding.titleEn}</h3>
+              <p>{isRtl ? selectedFinding.detailAr : selectedFinding.detailEn}</p>
+            </div>
+            <button type="button" onClick={() => onNavigate(selectedFinding.dest)}>
+              {isRtl ? selectedFinding.actionLabelAr : selectedFinding.actionLabelEn}
+              {isRtl ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}
+            </button>
+          </div>
+        ) : (
+          <div className="knoux-ai-workspace-empty">
+            <Wrench size={22} />
+            <div>
+              <strong>{isRtl ? 'لا توجد أداة محددة' : 'No recommended tool selected'}</strong>
+              <p>{isRtl ? 'شغّل الفحص أولاً؛ لن تظهر هنا أي أداة أو نتيجة دون دليل فعلي.' : 'Run the scan first. No tool or result appears here without verified evidence.'}</p>
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* ── 3. Six Pathways Section: "AI SCAN FINDS. REPAIR FAMILIES SOLVE." ── */}
       <div>

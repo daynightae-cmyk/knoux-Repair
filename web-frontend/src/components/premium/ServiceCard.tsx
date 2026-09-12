@@ -4,7 +4,7 @@ import { ChevronRight, ChevronLeft } from 'lucide-react';
 
 interface ServiceCardProps {
   service: ServiceDefinition;
-  toolCount: number;
+  toolCount: number | null;
   active: boolean;
   onClick: () => void;
   lang: 'en' | 'ar';
@@ -39,8 +39,8 @@ export default function ServiceCard({ service, toolCount, active, onClick, lang,
           <Icon size={21} />
         </div>
         <div className="knoux-service-card-count">
-          <strong>{toolCount}</strong>
-          <span>{isRtl ? 'أداة' : 'tools'}</span>
+          <strong>{toolCount ?? '—'}</strong>
+          <span>{toolCount === null ? (isRtl ? 'غير متصل' : 'not connected') : (isRtl ? 'أداة محمّلة' : 'loaded tools')}</span>
         </div>
       </div>
       <h4>{name}</h4>
