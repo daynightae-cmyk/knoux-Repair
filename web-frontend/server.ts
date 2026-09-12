@@ -209,6 +209,22 @@ function proxyBridgeRequest(targetPath: string, req: Request, res: Response): vo
     });
   });
 
+  // The /api custom router runs express.json() before this proxy, which
+  // consumes the request stream. Re-piping a consumed stream never ends, so
+  // the bridge would wait for a body forever (hung POST /api/runs). When a
+  // parsed body exists, forward its serialization with a corrected length.
+  const parsedBody = (req as Request & { body?: unknown }).body;
+  const hasParsedBody = parsedBody !== undefined && parsedBody !== null
+    && (typeof parsedBody === 'object' || typeof parsedBody === 'string')
+    && req.method !== 'GET' && req.method !== 'HEAD';
+  if (hasParsedBody) {
+    const payload = typeof parsedBody === 'string' ? parsedBody : JSON.stringify(parsedBody);
+    proxyRequest.removeHeader('content-length');
+    proxyRequest.setHeader('Content-Length', Buffer.byteLength(payload));
+    proxyRequest.end(payload);
+    return;
+  }
+
   req.pipe(proxyRequest);
 }
 

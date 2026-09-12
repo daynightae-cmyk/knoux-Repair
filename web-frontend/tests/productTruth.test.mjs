@@ -103,7 +103,7 @@ test('Arabic UI uses approved canonical terminology without the ecclesiastical m
   const arabicUiSources = [
     '../src/components/pages/AIScanPage.tsx',
     '../src/components/premium/AllServicesNavigator.tsx',
-    '../src/components/premium/ToolWorkspace.tsx',
+    '../src/components/premium/CommandCenter.tsx',
   ].map(read);
 
   for (const source of arabicUiSources) {

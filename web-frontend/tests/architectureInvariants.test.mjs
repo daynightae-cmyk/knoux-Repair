@@ -150,10 +150,12 @@ test('Visual System: Design tokens and premium shell styles are defined and inte
 });
 
 test('Safety: Family live workspace routes confirmation-required tools through ExecutionConfirmDialog', () => {
-  const stageSource = readWeb('src/components/premium/FamilyLiveStage.tsx');
+  // Command-center architecture: the confirmation contract lives in
+  // CommandCenter (persistent live workspace), not the retired FamilyLiveStage.
+  const stageSource = readWeb('src/components/premium/CommandCenter.tsx');
 
   assert.match(stageSource, /ExecutionConfirmDialog/, 'Family live stage must render the shared execution confirmation dialog');
-  assert.match(stageSource, /selectedTool\.RequiresConfirmation/, 'Family live stage must branch on the canonical RequiresConfirmation contract');
-  assert.match(stageSource, /setPendingExecution\(\{\s*toolId:\s*selectedTool\.ToolId,\s*mode\s*\}\)/, 'Confirmation-required requests must be held pending before execution');
+  assert.match(stageSource, /tool\.RequiresConfirmation/, 'Family live stage must branch on the canonical RequiresConfirmation contract');
+  assert.match(stageSource, /setPending\(\{\s*toolId:\s*tool\.ToolId,\s*mode\s*\}\)/, 'Confirmation-required requests must be held pending before execution');
   assert.match(stageSource, /onRunTool\(pendingTool,\s*mode,\s*options,\s*confirmation\)/, 'Confirmed execution must forward immutable options and confirmation evidence to the bridge pipeline');
 });

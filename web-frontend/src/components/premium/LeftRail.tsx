@@ -2,10 +2,11 @@ import { useCallback } from 'react';
 import {
   Sparkles, Activity, Database, Shield, Package,
   Code2, Search, Bell, Settings, LayoutGrid,
+  HeartPulse, Copy, HardDrive, ClipboardList, Terminal,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
-import type { FamilyId } from '../../data/family-map';
+import type { FamilyId, NavDestination } from '../../data/family-map';
 
 export type ActiveView = FamilyId | 'ai-scan' | 'action-center' | 'settings' | 'navigator';
 
@@ -14,6 +15,7 @@ export interface LeftRailProps {
   onSelect: (view: ActiveView) => void;
   lang: 'en' | 'ar';
   bridgeOnline: boolean | null;
+  onQuickTool?: (dest: NavDestination) => void;
 }
 
 interface NavItem {
@@ -39,7 +41,24 @@ const BOTTOM_ITEMS: NavItem[] = [
   { id: 'settings', icon: Settings, labelEn: 'Settings', labelAr: 'الإعدادات' },
 ];
 
-export default function LeftRail({ activeView, onSelect, lang, bridgeOnline }: LeftRailProps) {
+interface QuickItem {
+  icon: React.ElementType;
+  labelEn: string;
+  labelAr: string;
+  dest: NavDestination;
+}
+
+// Canonical high-value shortcuts — each navigates to the REAL existing
+// family → service → tool. No duplicated implementations.
+const QUICK_ITEMS: QuickItem[] = [
+  { icon: HeartPulse, labelEn: 'System Health', labelAr: 'صحة النظام', dest: { family: 'vitality', service: '01-System-Maintenance', toolId: 'SM10' } },
+  { icon: Copy, labelEn: 'Duplicate Detection', labelAr: 'كشف التكرار', dest: { family: 'recovery', service: '05-Duplicate-Files', toolId: 'DF01' } },
+  { icon: HardDrive, labelEn: 'Storage Analysis', labelAr: 'تحليل التخزين', dest: { family: 'recovery', service: '06-Disk-Space', toolId: 'DS01' } },
+  { icon: ClipboardList, labelEn: 'Software Inspection', labelAr: 'فحص البرامج', dest: { family: 'software', service: '04-Programs-Applications', toolId: 'PA01' } },
+  { icon: Terminal, labelEn: 'Developer Diagnostics', labelAr: 'تشخيص المطور', dest: { family: 'workbench', service: '12-Developer-Tools', toolId: 'DT01' } },
+];
+
+export default function LeftRail({ activeView, onSelect, lang, bridgeOnline, onQuickTool }: LeftRailProps) {
   const renderItem = useCallback((item: NavItem) => {
     const isActive = activeView === item.id;
     const Icon = item.icon;
@@ -83,6 +102,32 @@ export default function LeftRail({ activeView, onSelect, lang, bridgeOnline }: L
         </div>
         {MAIN_ITEMS.map(renderItem)}
       </div>
+
+      {onQuickTool && (
+        <div className="knoux-rail-section flex flex-col gap-0.5">
+          <div className="knoux-rail-label">
+            {lang === 'ar' ? 'قدرات سريعة' : 'Quick capabilities'}
+          </div>
+          {QUICK_ITEMS.map(item => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.labelEn}
+                type="button"
+                onClick={() => onQuickTool(item.dest)}
+                className="knoux-rail-item"
+                data-active={false}
+                title={lang === 'ar' ? item.labelAr : item.labelEn}
+              >
+                <span className="knoux-rail-icon">
+                  <Icon size={18} />
+                </span>
+                <span className="knoux-rail-text">{lang === 'ar' ? item.labelAr : item.labelEn}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="knoux-rail-section flex flex-col gap-0.5">
         {BOTTOM_ITEMS.map(renderItem)}

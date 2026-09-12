@@ -29,6 +29,7 @@ import NexusSplash from './components/NexusSplash';
 import AuthGate from './components/AuthGate';
 import AccountCenter from './components/AccountCenter';
 import './account-shell.css';
+import type { RunMeta } from './components/premium/CommandCenter';
 
 type ActiveView = FamilyId | 'ai-scan' | 'action-center' | 'settings' | 'navigator';
 type AuthenticationProviderId = 'google' | 'github' | 'entra';
@@ -92,6 +93,10 @@ function MasterWorkstation() {
   } | null>(null);
   const [consoleStatus, setConsoleStatus] = useState<'idle' | 'running' | 'success' | 'error' | 'cancelled' | 'inconclusive'>('idle');
   const [activeTasks, setActiveTasks] = useState<SentinelTask[]>([]);
+  // Presentation-only run ledger (timestamps + structured result per tool).
+  // Execution truth stays in toolStatuses / consoleEntries / activeTool.
+  const [runMeta, setRunMeta] = useState<Record<string, RunMeta>>({});
+  const [lastRunToolId, setLastRunToolId] = useState<string | null>(null);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -258,6 +263,18 @@ function MasterWorkstation() {
   const finishRun = useCallback((run: BridgeRun) => {
     const status: ToolStatus = run.status === 'success' ? 'success' : run.status === 'inconclusive' ? 'inconclusive' : run.status === 'error' ? 'error' : 'cancelled';
     setToolStatuses(prev => ({ ...prev, [run.toolId]: status }));
+    // Terminal state ownership moves to the persistent workspace result view;
+    // the progress sheet dismisses so it never intercepts rail interaction.
+    setConsoleVisible(false);
+    setRunMeta(prev => ({
+      ...prev,
+      [run.toolId]: {
+        startedAt: prev[run.toolId]?.startedAt ?? null,
+        finishedAt: Date.now(),
+        mode: prev[run.toolId]?.mode ?? null,
+        result: run.result ?? null,
+      },
+    }));
     setConsoleStatus(run.status);
     setActiveTasks(prev => prev.map(t => t.runId === run.id ? { ...t, status: run.status } : t));
     currentRunId.current = null;
@@ -287,6 +304,8 @@ function MasterWorkstation() {
   const runTool = useCallback(async (tool: BridgeTool, mode: ExecutionMode = 'run', options: ToolRunOptions = {}, confirmation?: ToolRunConfirmation) => {
     if (pollTimer.current) window.clearTimeout(pollTimer.current);
     setActiveTool(tool);
+    setLastRunToolId(tool.ToolId);
+    setRunMeta(prev => ({ ...prev, [tool.ToolId]: { startedAt: Date.now(), finishedAt: null, mode, result: null } }));
     setActiveRequest({ tool, mode, options, confirmation });
     setConsoleVisible(true);
     setConsoleEntries([]);
@@ -356,18 +375,18 @@ function MasterWorkstation() {
       <div className="knoux-ambient-orb knoux-ambient-orb-cyan absolute bottom-0 right-0 w-[600px] h-[600px] bg-cyan-600/10 rounded-full blur-[140px] translate-x-1/2 translate-y-1/2 pointer-events-none" />
       <TopBar lang={lang} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} accountLabel={accountLabel} accountConnected={accountConnected} onSearchOpen={() => setSearchOpen(true)} onSettingsOpen={() => setSettingsOpen(true)} onAccountOpen={() => setAccountOpen(true)} />
       <div className="knoux-body flex flex-1 min-h-0 relative z-10" data-tool-active={Boolean(selectedToolId)}>
-        <LeftRail activeView={activeView} onSelect={handleRailSelect} lang={lang} bridgeOnline={bridgeOnline} />
+        <LeftRail activeView={activeView} onSelect={handleRailSelect} lang={lang} bridgeOnline={bridgeOnline} onQuickTool={navigateTo} />
         <main className="knoux-workspace flex-1 overflow-y-auto px-6 py-6" role="main">
           <AnimatePresence mode="wait">
             {activeView === 'ai-scan' ? <motion.div key="ai-scan" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><AIScanPage lang={lang} bridgeOnline={bridgeOnline} toolCount={bridgeToolCount} onNavigate={navigateTo} /></motion.div>
             : activeView === 'navigator' ? <motion.div key="navigator" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><AllServicesNavigator lang={lang} onNavigate={navigateTo} /></motion.div>
             : activeView === 'action-center' ? <motion.div key="action-center" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><ActionCenterPage lang={lang} activeTasks={activeTasks} toolStatuses={toolStatuses} onNavigate={navigateTo} /></motion.div>
             : activeView === 'settings' ? <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><SettingsCenter open={true} onClose={() => setActiveView('ai-scan')} lang={lang} setLang={setLang} theme={theme} setTheme={setTheme} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} toolCount={bridgeToolCount ?? allTools.length} onReplaySplash={() => setSplashVisible(true)} auth={authStatus} onSignIn={startSignIn} onLogout={() => { void logout(); }} /></motion.div>
-            : activeFamily ? <motion.div key={`family-${activeFamily.id}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><FamilyPage family={activeFamily} tools={allTools} lang={lang} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} toolStatuses={toolStatuses} onRunTool={runTool} onCancelTool={cancelRun} selectedService={selectedService} onSelectService={setSelectedService} selectedToolId={selectedToolId} onSelectTool={setSelectedToolId} onRetryBridge={() => { void connectBridge(); }} systemSnapshot={systemSnapshot} consoleEntries={consoleEntries} activeToolId={activeTool?.ToolId ?? null} /></motion.div>
+            : activeFamily ? <motion.div key={`family-${activeFamily.id}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><FamilyPage family={activeFamily} tools={allTools} lang={lang} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} toolStatuses={toolStatuses} onRunTool={runTool} onCancelTool={cancelRun} selectedService={selectedService} onSelectService={setSelectedService} selectedToolId={selectedToolId} onSelectTool={setSelectedToolId} onRetryBridge={() => { void connectBridge(); }} systemSnapshot={systemSnapshot} consoleEntries={consoleEntries} activeToolId={activeTool?.ToolId ?? null} runningTool={(activeTool && toolStatuses[activeTool.ToolId] === 'running') ? activeTool : null} lastRunToolId={lastRunToolId} runMeta={runMeta} /></motion.div>
             : null}
           </AnimatePresence>
         </main>
-        {!selectedToolId && <SentinelPanel lang={lang} bridgeOnline={bridgeOnline} activeFamily={activeFamily?.id ?? null} activeTasks={activeTasks} systemSnapshot={systemSnapshot} />}
+        {(activeView === 'action-center' || activeView === 'settings' || activeView === 'navigator') && <SentinelPanel lang={lang} bridgeOnline={bridgeOnline} activeFamily={activeFamily?.id ?? null} activeTasks={activeTasks} systemSnapshot={systemSnapshot} />}
       </div>
       <footer className="knoux-footer flex items-center justify-between h-7 px-4 bg-slate-950/90 border-t border-white/[0.08] text-[11px] font-mono text-slate-400 z-20"><div className="flex items-center gap-3"><span className="font-bold tracking-wider text-slate-300">KNOUX Repair</span><span className="text-slate-600">|</span><span>v2.0.2 Local Workstation</span></div><div className="flex items-center gap-2"><span>{bridgeOnline === true ? `${lang === 'ar' ? 'الجسر متصل' : 'Bridge Online'} • ${bridgeToolCount ?? 0} ${lang === 'ar' ? 'أداة جاهزة' : 'tools ready'}` : bridgeOnline === false ? (lang === 'ar' ? 'غير متاح — الجسر مفصول' : 'UNAVAILABLE — bridge offline') : (lang === 'ar' ? 'جارٍ الاتصال...' : 'Connecting to bridge...')}</span></div></footer>
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} tools={allTools} lang={lang} onNavigate={(dest: NavDestination) => { navigateTo(dest); setSearchOpen(false); }} />

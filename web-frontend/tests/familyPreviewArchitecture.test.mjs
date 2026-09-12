@@ -18,16 +18,16 @@ test('family preview configuration covers six repair families and all eighteen s
 
 test('family page is a persistent service rail, live workspace, and tool rail', () => {
   const source = read('src/components/premium/FamilyPage.tsx');
-  const serviceRail = source.indexOf('knoux-command-service-rail');
-  const liveColumn = source.indexOf('knoux-command-live-column');
-  const toolRail = source.indexOf('knoux-command-tool-rail');
+  const serviceRail = source.indexOf('CommandCenter');
+  const liveWorkspace = source.indexOf('runningTool');
+  const toolRail = source.indexOf('runMeta');
 
-  assert.ok(serviceRail >= 0);
-  assert.ok(liveColumn > serviceRail);
-  assert.ok(toolRail > liveColumn);
-  assert.match(source, /<HeroSection/);
-  assert.match(source, /<FamilyLiveStage/);
-  assert.match(source, /executionTool=\{executionTool\}/);
+  assert.ok(serviceRail >= 0, 'FamilyPage must render the CommandCenter shell');
+  assert.ok(liveWorkspace > serviceRail, 'CommandCenter must own the running-tool execution truth');
+  assert.ok(toolRail > liveWorkspace, 'CommandCenter must track per-tool run metadata');
+  assert.match(source, /<CommandCenter/);
+  assert.doesNotMatch(source, /<HeroSection/);
+  assert.doesNotMatch(source, /<FamilyLiveStage/);
   assert.doesNotMatch(source, /scrollIntoView/);
   assert.doesNotMatch(source, /function scrollTo/);
   assert.doesNotMatch(source, /id="family-services"/);
@@ -35,28 +35,27 @@ test('family page is a persistent service rail, live workspace, and tool rail', 
 
 test('selected tool and execution tool are modeled independently', () => {
   const familyPage = read('src/components/premium/FamilyPage.tsx');
-  const liveStage = read('src/components/premium/FamilyLiveStage.tsx');
-  const hero = read('src/components/premium/HeroSection.tsx');
+  const commandCenter = read('src/components/premium/CommandCenter.tsx');
 
   assert.match(familyPage, /const selectedTool = useMemo/);
-  assert.match(familyPage, /const executionTool = useMemo/);
-  assert.match(liveStage, /selectionDiffersFromExecution/);
-  assert.match(liveStage, /runtime ownership remains attached to the execution tool/);
-  assert.match(hero, /executionToolStatus === 'running'/);
-  assert.match(hero, /EXECUTION CONTINUES/);
+  assert.match(familyPage, /familyRunningTool/);
+  assert.match(commandCenter, /runningTool \?\? selectedTool/);
+  assert.match(commandCenter, /Live execution pinned to/);
+  assert.match(commandCenter, /data-execution-tool-id/);
+  assert.match(commandCenter, /data-selected-tool-id/);
 });
 
 test('command center preserves execution results and honest runtime labels', () => {
-  const hero = read('src/components/premium/HeroSection.tsx');
-  const liveStage = read('src/components/premium/FamilyLiveStage.tsx');
+  const commandCenter = read('src/components/premium/CommandCenter.tsx');
+  const visualizer = read('src/components/premium/RuntimeVisualizer.tsx');
 
-  assert.match(hero, /Context preview — no synthetic telemetry/);
-  assert.match(hero, /Live system snapshot/);
-  assert.match(liveStage, /LAST EXECUTION/);
-  assert.match(liveStage, /ACTIVE EXECUTION/);
-  assert.match(liveStage, /toolStatuses\[executionTool\.ToolId\]/);
-  assert.doesNotMatch(hero, /Math\.random/);
-  assert.doesNotMatch(liveStage, /Math\.random/);
+  assert.match(visualizer, /Metrics unavailable/);
+  assert.match(visualizer, /State derived from the real execution record/);
+  assert.match(commandCenter, /LAST RESULT/);
+  assert.match(commandCenter, /ACTIVE EXECUTION/);
+  assert.match(commandCenter, /toolStatuses\[focusedTool\.ToolId\]/);
+  assert.doesNotMatch(commandCenter, /Math\.random/);
+  assert.doesNotMatch(visualizer, /Math\.random/);
 });
 
 test('AI Scan preserves real evidence calls inside a persistent three-zone command center', () => {

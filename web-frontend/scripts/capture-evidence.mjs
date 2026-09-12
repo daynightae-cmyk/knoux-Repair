@@ -34,14 +34,12 @@ const targets = [
     width: 1280,
     height: 800,
     requireWorkspace: true,
-    scrollSelector: '.knoux-workspace-stage',
   },
   {
     name: 'P0-10B_RECOVERY-SERVICE-TOOLS.png',
     view: 'recovery',
     width: 1280,
     height: 800,
-    scrollSelector: '#family-services',
   },
   { name: 'P0-11_RECOVERY-WIDE-1920.png', view: 'recovery', width: 1920, height: 1080 },
   { name: 'P0-12_RECOVERY-RTL.png', view: 'recovery', width: 1280, height: 800, lang: 'ar' },
@@ -111,23 +109,28 @@ function findEdge() {
 }
 
 async function inspectPage(page, target) {
+  // Command-center architecture: services rail + persistent live workspace +
+  // tools rail. The workspace never scrolls the page to reach tools.
   const selectors = await page.evaluate(() => ({
-    hero: Boolean(document.querySelector('.knoux-preview-hero')),
-    liveStage: Boolean(document.querySelector('.knoux-workspace-stage')),
-    serviceCards: document.querySelectorAll('.knoux-service-card').length,
-    toolCards: document.querySelectorAll('.knoux-tool-card').length,
-    workspace: Boolean(document.querySelector('.knoux-tool-workspace')),
+    commandCenter: Boolean(document.querySelector('.knoux-cc')),
+    liveWorkspace: Boolean(document.querySelector('.cc-live')),
+    liveHead: document.querySelector('.cc-live-head')?.textContent?.replace(/\s+/g, ' ').slice(0, 120) || '',
+    serviceModules: document.querySelectorAll('.cc-service').length,
+    toolModules: document.querySelectorAll('.cc-tool').length,
+    contextDock: Boolean(document.querySelector('.cc-context')),
+    selectedToolId: document.querySelector('.knoux-workspace-stage')?.getAttribute('data-selected-tool-id') || null,
+    executionToolId: document.querySelector('.knoux-workspace-stage')?.getAttribute('data-execution-tool-id') || null,
     accountCenter: Boolean(document.querySelector('.knoux-account-center')),
     direction: document.querySelector('.knoux-shell')?.getAttribute('dir') || document.documentElement.getAttribute('dir') || document.body.getAttribute('dir') || '',
   }));
 
   if (['vitality', 'recovery', 'assurance', 'software', 'workbench', 'investigation'].includes(target.view)) {
-    if (!selectors.hero) throw new Error(`${target.name}: family hero is missing`);
-    if (!selectors.liveStage) throw new Error(`${target.name}: live tool stage is missing`);
-    if (selectors.serviceCards < 1) throw new Error(`${target.name}: service selector cards are missing`);
-    if (!target.requireWorkspace && selectors.toolCards < 1) throw new Error(`${target.name}: selected service tool cards are missing`);
+    if (!selectors.commandCenter) throw new Error(`${target.name}: command center shell is missing`);
+    if (!selectors.liveWorkspace) throw new Error(`${target.name}: persistent live workspace is missing`);
+    if (selectors.serviceModules < 1) throw new Error(`${target.name}: service rail modules are missing`);
+    if (!target.requireWorkspace && selectors.toolModules < 1) throw new Error(`${target.name}: selected service tool modules are missing`);
   }
-  if (target.requireWorkspace && !selectors.workspace) throw new Error(`${target.name}: selected tool did not transform the live stage into ToolWorkspace`);
+  if (target.requireWorkspace && !selectors.liveHead) throw new Error(`${target.name}: selected tool did not focus the live workspace`);
   if (target.requireAccount && !selectors.accountCenter) throw new Error(`${target.name}: account center did not render`);
   if (target.lang === 'ar' && selectors.direction !== 'rtl') throw new Error(`${target.name}: Arabic capture did not render RTL`);
   if (target.lang === 'en' && selectors.direction !== 'ltr') throw new Error(`${target.name}: English capture did not render LTR`);
@@ -150,7 +153,7 @@ async function inspectExecutionLifecycle(page) {
 }
 
 async function clickToolCard(page, toolId) {
-  const selector = `.knoux-tool-card[data-tool-id="${toolId}"]`;
+  const selector = `.cc-tool[data-tool-id="${toolId}"]`;
   await page.waitForSelector(selector, { timeout: 10_000 });
   await page.click(selector);
   await page.waitForFunction(
@@ -175,9 +178,10 @@ async function captureRealExecutionLifecycle(browser) {
   await page.goto(url, { waitUntil: 'networkidle0', timeout: 45_000 });
   await page.waitForSelector('.knoux-workspace-stage', { timeout: 10_000 });
   await clickToolCard(page, LIFECYCLE_TOOL_ID);
-  await page.waitForSelector('.knoux-tool-workspace', { timeout: 10_000 });
-  await page.evaluate(() => document.querySelector('.knoux-workspace-stage')?.scrollIntoView({ block: 'start', behavior: 'instant' }));
-  await new Promise(resolve => setTimeout(resolve, 250));
+  await page.waitForFunction(
+    () => (document.querySelector('.cc-live-head')?.textContent || '').length > 10,
+    { timeout: 10_000 },
+  );
 
   const selectedState = await inspectExecutionLifecycle(page);
   if (selectedState.selectedToolId !== LIFECYCLE_TOOL_ID) {
@@ -218,7 +222,7 @@ async function captureRealExecutionLifecycle(browser) {
   });
 
   const runClicked = await page.evaluate(() => {
-    const runButton = document.querySelector('.knoux-tool-workspace .knoux-btn-primary');
+    const runButton = document.querySelector('.cc-live .cc-btn-primary');
     if (!(runButton instanceof HTMLButtonElement) || runButton.disabled) return false;
     runButton.click();
     return true;
@@ -351,14 +355,7 @@ async function main() {
       await page.goto(url, { waitUntil: 'networkidle0', timeout: 45_000 });
 
       if (target.requireWorkspace) {
-        let workspace = await page.waitForSelector('.knoux-tool-workspace', { timeout: 8_000 }).catch(() => null);
-        if (!workspace) {
-          const firstCard = await page.waitForSelector('.knoux-tool-card', { timeout: 5_000 }).catch(() => null);
-          if (firstCard) {
-            await firstCard.click();
-            workspace = await page.waitForSelector('.knoux-tool-workspace', { timeout: 8_000 }).catch(() => null);
-          }
-        }
+        await page.waitForFunction(() => (document.querySelector('.cc-live-head')?.textContent || '').length > 10, { timeout: 10_000 }).catch(() => null);
       }
 
       if (target.requireAccount) await page.waitForSelector('.knoux-account-center', { timeout: 8_000 });

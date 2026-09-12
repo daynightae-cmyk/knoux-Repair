@@ -61,7 +61,9 @@ export default function DiagnosticConsole({ visible, onClose, activeTool, entrie
             ? { title: text.inconclusive, body: text.inconclusiveBody, icon: CircleAlert, className: 'is-warning' }
             : { title: text.idle, body: text.idleBody, icon: ShieldCheck, className: 'is-idle' };
   const StatusIcon = content.icon;
-  const progress = status === 'success' || status === 'inconclusive' ? 100 : status === 'running' ? Math.min(82, 18 + entries.length * 9) : status === 'error' || status === 'cancelled' ? 100 : 0;
+  // Honest activity indicator: indeterminate motion while running, full only
+  // on real terminal states. Never a synthetic percentage.
+  const trackState = status === 'running' ? 'live' : 'complete';
 
   return (
     <AnimatePresence>
@@ -74,7 +76,7 @@ export default function DiagnosticConsole({ visible, onClose, activeTool, entrie
           <div className="service-progress-icon"><StatusIcon size={24} className={isRunning ? 'animate-spin' : ''} /></div>
           <div className="service-progress-copy"><p>{activeTool ? pickName(activeTool, lang) : ''}</p><h2>{content.title}</h2><span>{content.body}</span></div>
           {isRunning && <div className="service-progress-steps"><span className="is-done"><CheckCircle2 size={13} />{text.stagePreparing}</span><span className="is-active"><LoaderCircle size={13} className="animate-spin" />{text.stageWorking}</span><span><span className="service-progress-dot" />{text.stageFinishing}</span></div>}
-          <div className="service-progress-track" aria-label={`${progress}%`}><span style={{ width: `${progress}%` }} /></div>
+          <div className={`service-progress-track is-${trackState}`} aria-label={isRunning ? (lang === 'ar' ? 'نشاط التنفيذ' : 'Execution activity') : (lang === 'ar' ? 'مكتمل' : 'Complete')}><span /></div>
           <div className="service-progress-actions">
             {isRunning && <button type="button" className="service-progress-stop" onClick={onCancel}><Square size={14} />{text.cancel}</button>}
             {(status === 'error' || status === 'cancelled') && <button type="button" className="service-progress-retry" onClick={onRetry}><RefreshCw size={14} />{text.retry}</button>}
