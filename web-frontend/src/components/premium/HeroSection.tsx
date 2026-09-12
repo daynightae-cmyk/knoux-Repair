@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import * as LucideIcons from 'lucide-react';
-import { ArrowLeft, ArrowRight, Braces, CircleDot, Layers3, Radio, RotateCcw, ShieldCheck } from 'lucide-react';
-import type { FamilyDefinition, ServiceDefinition, ServiceId } from '../../data/family-map';
+import { Activity, CircleDot, Layers3, Radio, RotateCcw, ShieldCheck } from 'lucide-react';
+import type { FamilyDefinition, ServiceDefinition } from '../../data/family-map';
 import { FAMILY_PREVIEW_CONFIG, SERVICE_PREVIEW_CONFIG } from '../../data/family-preview-config';
 import type { BridgeTool, SystemSnapshot } from '../../lib/api';
 import type { ToolStatus } from '../../types';
@@ -18,17 +18,16 @@ interface HeroSectionProps {
   family: FamilyDefinition;
   service: ServiceDefinition;
   selectedTool: BridgeTool | null;
+  executionTool: BridgeTool | null;
   familyToolCount: number;
   serviceToolCount: number;
   lang: 'en' | 'ar';
   bridgeOnline: boolean | null;
   bridgeElevated: boolean;
-  toolStatus: ToolStatus;
+  selectedToolStatus: ToolStatus;
+  executionToolStatus: ToolStatus;
   systemSnapshot?: SystemSnapshot | null;
-  onExplore: () => void;
-  onOpenWorkspace: () => void;
   onClearTool: () => void;
-  onSelectService: (id: ServiceId) => void;
 }
 
 const TOOL_STATUS_LABEL: Record<ToolStatus, { en: string; ar: string }> = {
@@ -53,17 +52,16 @@ export default function HeroSection({
   family,
   service,
   selectedTool,
+  executionTool,
   familyToolCount,
   serviceToolCount,
   lang,
   bridgeOnline,
   bridgeElevated,
-  toolStatus,
+  selectedToolStatus,
+  executionToolStatus,
   systemSnapshot,
-  onExplore,
-  onOpenWorkspace,
   onClearTool,
-  onSelectService,
 }: HeroSectionProps) {
   const isRtl = lang === 'ar';
   const familyConfig = FAMILY_PREVIEW_CONFIG[family.id as keyof typeof FAMILY_PREVIEW_CONFIG];
@@ -75,23 +73,30 @@ export default function HeroSection({
     : bridgeOnline === false
       ? (isRtl ? 'الجسر غير متصل' : 'Bridge offline')
       : (isRtl ? 'جارٍ فحص الجسر' : 'Checking bridge');
-  const contextTitle = selectedTool
-    ? (isRtl ? selectedTool.ArabicName : selectedTool.EnglishName)
+
+  const focusTool = executionTool?.ToolId && executionToolStatus === 'running' ? executionTool : selectedTool ?? executionTool;
+  const focusStatus = focusTool?.ToolId === executionTool?.ToolId ? executionToolStatus : selectedToolStatus;
+  const contextTitle = focusTool
+    ? (isRtl ? focusTool.ArabicName : focusTool.EnglishName)
     : (isRtl ? service.name.ar : service.name.en);
+  const contextId = focusTool?.ToolId ?? service.id;
   const truthLabel = hasSnapshot
     ? (isRtl ? 'لقطة نظام فعلية' : 'Live system snapshot')
-    : (isRtl ? 'معاينة سياقية — البيانات غير متصلة' : 'Context preview — runtime data not connected');
+    : (isRtl ? 'معاينة سياقية — دون قياسات مختلقة' : 'Context preview — no synthetic telemetry');
+  const executionIsDifferent = Boolean(
+    executionTool && selectedTool && executionTool.ToolId !== selectedTool.ToolId && executionToolStatus === 'running'
+  );
 
   return (
     <section
-      className="knoux-preview-hero"
+      className="knoux-preview-hero knoux-command-preview"
       data-family={family.id}
       data-tool-selected={Boolean(selectedTool)}
+      data-execution-active={executionToolStatus === 'running'}
       style={{
         '--preview-accent': serviceConfig?.accent ?? familyConfig.accent,
         '--preview-accent-rgb': serviceConfig?.accentRgb ?? familyConfig.accentRgb,
       } as React.CSSProperties}
-      dir={isRtl ? 'rtl' : 'ltr'}
       aria-labelledby={`family-${family.id}-title`}
     >
       <div className="knoux-preview-grid" aria-hidden="true" />
@@ -102,90 +107,86 @@ export default function HeroSection({
           <CircleDot size={12} />
           <span>{isRtl ? familyConfig.eyebrow.ar : familyConfig.eyebrow.en}</span>
         </div>
+        <div className="knoux-preview-path" aria-live="polite">
+          <span>{isRtl ? family.name.ar : family.name.en}</span>
+          <b>/</b>
+          <strong>{isRtl ? service.name.ar : service.name.en}</strong>
+          {selectedTool && <><b>/</b><em>{selectedTool.ToolId}</em></>}
+        </div>
         <div className="knoux-preview-runtime" data-state={bridgeOnline === true ? 'online' : bridgeOnline === false ? 'offline' : 'pending'}>
           <span aria-hidden="true" />
           {runtimeLabel}
         </div>
       </header>
 
-      <div className="knoux-preview-body">
-        <div className="knoux-preview-copy">
-          <div className="knoux-preview-path" aria-live="polite">
-            <span>{isRtl ? family.name.ar : family.name.en}</span>
-            <b>/</b>
-            <strong>{isRtl ? service.name.ar : service.name.en}</strong>
-            {selectedTool && <><b>/</b><em>{selectedTool.ToolId}</em></>}
-          </div>
-
+      <div className="knoux-preview-body knoux-command-preview-body">
+        <div className="knoux-preview-copy knoux-command-preview-copy">
+          <span className="knoux-command-preview-kicker">{isRtl ? 'مساحة العمل الحية' : 'LIVE WORKSPACE'}</span>
           <h1 id={`family-${family.id}-title`}>
             <span>{isRtl ? family.name.ar : family.name.en}</span>
-            <strong>{isRtl ? familyConfig.headline.ar : familyConfig.headline.en}</strong>
+            <strong>{contextTitle}</strong>
           </h1>
-
           <p className="knoux-preview-description">
-            {selectedTool
-              ? selectedTool.Purpose
-              : (isRtl ? service.purpose.ar : service.purpose.en)}
+            {focusTool?.Purpose ?? (isRtl ? service.purpose.ar : service.purpose.en)}
           </p>
 
-          <div className="knoux-preview-actions">
-            <button type="button" className="knoux-preview-primary" onClick={selectedTool ? onOpenWorkspace : onExplore}>
-              {selectedTool
-                ? (isRtl ? 'فتح مساحة الأداة' : 'Open tool workspace')
-                : (isRtl ? serviceConfig.action.ar : serviceConfig.action.en)}
-              {isRtl ? <ArrowLeft size={15} /> : <ArrowRight size={15} />}
-            </button>
-            {selectedTool ? (
-              <button type="button" className="knoux-preview-secondary" onClick={onClearTool}>
-                <RotateCcw size={14} />
-                {isRtl ? 'العودة للخدمة' : 'Back to service'}
-              </button>
-            ) : (
-              <button type="button" className="knoux-preview-secondary" onClick={onExplore}>
-                <Braces size={14} />
-                {isRtl ? 'عرض الأدوات المتصلة' : 'View connected tools'}
-              </button>
-            )}
-          </div>
-
-          <div className="knoux-preview-truth-row">
+          <div className="knoux-command-status-strip">
             <div>
               <Layers3 size={14} />
-              <strong>{bridgeOnline === true ? familyToolCount : '—'}</strong>
-              <span>{isRtl ? 'أداة محمّلة' : 'loaded family tools'}</span>
+              <span>{isRtl ? 'الخدمة' : 'SERVICE'}</span>
+              <strong>{isRtl ? service.name.ar : service.name.en}</strong>
             </div>
             <div>
+              <Activity size={14} />
+              <span>{isRtl ? 'السياق' : 'CONTEXT'}</span>
+              <strong>{contextId}</strong>
+            </div>
+            <div data-status={focusStatus}>
               <Radio size={14} />
-              <strong>{bridgeOnline === true ? serviceToolCount : '—'}</strong>
-              <span>{isRtl ? 'في الخدمة النشطة' : 'in selected service'}</span>
-            </div>
-            <div>
-              <ShieldCheck size={14} />
-              <strong>{bridgeOnline === true ? (bridgeElevated ? (isRtl ? 'متاح' : 'Yes') : (isRtl ? 'لا' : 'No')) : '—'}</strong>
-              <span>{isRtl ? 'تشغيل بصلاحيات مسؤول' : 'elevated runtime'}</span>
+              <span>{isRtl ? 'الحالة' : 'STATE'}</span>
+              <strong>{isRtl ? TOOL_STATUS_LABEL[focusStatus].ar : TOOL_STATUS_LABEL[focusStatus].en}</strong>
             </div>
           </div>
+
+          {executionIsDifferent && executionTool && (
+            <div className="knoux-command-running-notice" role="status">
+              <span aria-hidden="true" />
+              <div>
+                <small>{isRtl ? 'تنفيذ مستمر' : 'EXECUTION CONTINUES'}</small>
+                <strong>{executionTool.ToolId} · {isRtl ? executionTool.ArabicName : executionTool.EnglishName}</strong>
+              </div>
+            </div>
+          )}
+
+          {selectedTool && (
+            <button type="button" className="knoux-command-context-reset" onClick={onClearTool}>
+              <RotateCcw size={13} />
+              {isRtl ? 'العودة لسياق الخدمة' : 'Return to service context'}
+            </button>
+          )}
         </div>
 
         <motion.div
-          key={`${family.id}-${service.id}-${selectedTool?.ToolId ?? 'service'}`}
-          className="knoux-preview-scene"
-          initial={{ opacity: 0, y: 10, scale: 0.985 }}
+          key={`${family.id}-${service.id}-${focusTool?.ToolId ?? 'service'}-${focusStatus}`}
+          className="knoux-preview-scene knoux-command-preview-scene"
+          initial={{ opacity: 0, y: 8, scale: 0.99 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.24, ease: 'easeOut' }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
         >
           <div className="knoux-preview-scene-frame">
             <Scene family={family} lang={lang} systemSnapshot={systemSnapshot} />
           </div>
+
           <div className="knoux-preview-context-card">
             <div className="knoux-preview-context-icon"><ServiceIcon size={20} /></div>
             <div>
-              <span>{selectedTool ? (isRtl ? 'سياق الأداة المحددة' : 'SELECTED TOOL CONTEXT') : (isRtl ? 'الخدمة المحددة' : 'SELECTED SERVICE')}</span>
+              <span>{focusTool ? (isRtl ? 'سياق التنفيذ / الأداة' : 'TOOL / EXECUTION CONTEXT') : (isRtl ? 'الخدمة المحددة' : 'SELECTED SERVICE')}</span>
               <strong>{contextTitle}</strong>
               <small>{isRtl ? serviceConfig.mode.ar : serviceConfig.mode.en}</small>
             </div>
-            {selectedTool && <b data-status={toolStatus}>{isRtl ? TOOL_STATUS_LABEL[toolStatus].ar : TOOL_STATUS_LABEL[toolStatus].en}</b>}
+            <b data-status={focusStatus}>{isRtl ? TOOL_STATUS_LABEL[focusStatus].ar : TOOL_STATUS_LABEL[focusStatus].en}</b>
           </div>
+
           <div className="knoux-preview-truth-badge" data-live={hasSnapshot}>
             <span aria-hidden="true" />
             {truthLabel}
@@ -193,18 +194,11 @@ export default function HeroSection({
         </motion.div>
       </div>
 
-      <nav className="knoux-preview-service-switcher" aria-label={isRtl ? 'تغيير الخدمة النشطة' : 'Change active service'}>
-        {family.services.map((entry) => {
-          const EntryIcon = (LucideIcons as unknown as Record<string, React.ElementType>)[entry.icon] ?? LucideIcons.Wrench;
-          const active = entry.id === service.id;
-          return (
-            <button key={entry.id} type="button" data-active={active} aria-pressed={active} onClick={() => onSelectService(entry.id)}>
-              <EntryIcon size={15} />
-              <span>{isRtl ? entry.name.ar : entry.name.en}</span>
-            </button>
-          );
-        })}
-      </nav>
+      <footer className="knoux-command-preview-footer">
+        <div><span>{isRtl ? 'أدوات العائلة' : 'FAMILY TOOLS'}</span><strong>{bridgeOnline === true ? familyToolCount : '—'}</strong></div>
+        <div><span>{isRtl ? 'أدوات الخدمة' : 'SERVICE TOOLS'}</span><strong>{bridgeOnline === true ? serviceToolCount : '—'}</strong></div>
+        <div><ShieldCheck size={13} /><span>{isRtl ? 'صلاحيات المسؤول' : 'ELEVATED'}</span><strong>{bridgeOnline === true ? (bridgeElevated ? (isRtl ? 'متاح' : 'YES') : (isRtl ? 'لا' : 'NO')) : '—'}</strong></div>
+      </footer>
     </section>
   );
 }
