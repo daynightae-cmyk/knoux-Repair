@@ -49,13 +49,16 @@ test('AI Scan exposes its four service concepts and refuses an evidence-free suc
   assert.match(source, /evidenceSourceCount === 0/);
   assert.match(source, /Diagnostic result unavailable/);
   assert.match(source, /Open recommendations/);
+  assert.match(source, /id="ai-recommendation-workspace"/);
+  assert.match(source, /data-active=\{selectedFindingId === finding\.id\}/);
+  assert.match(source, /onNavigate\(selectedFinding\.dest\)/);
   assert.doesNotMatch(source, /toolCount \?\? 158/);
 });
 
 test('family preview CSS includes responsive and reduced-motion fallbacks', () => {
   const source = read('src/family-preview.css');
   assert.match(source, /min-height: clamp\(360px, 32vw, 430px\)/);
-  assert.match(source, /@media \(max-width: 980px\)/);
+  assert.match(source, /@media \(max-width: 1180px\)/);
   assert.match(source, /@media \(max-width: 700px\)/);
   assert.match(source, /@media \(prefers-reduced-motion: reduce\)/);
 });
