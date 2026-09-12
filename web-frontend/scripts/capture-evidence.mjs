@@ -57,6 +57,8 @@ const targets = [
 ];
 
 const TERMINAL_EXECUTION_STATES = new Set(['success', 'error', 'cancelled', 'inconclusive']);
+const LIFECYCLE_TOOL_ID = 'NI06';
+const LIFECYCLE_ALTERNATE_TOOL_ID = 'NI01';
 
 async function waitForGateway(timeoutMs = 45_000) {
   const deadline = Date.now() + timeoutMs;
@@ -136,20 +138,26 @@ async function inspectExecutionLifecycle(page) {
   return page.evaluate(() => {
     const stage = document.querySelector('.knoux-workspace-stage');
     const executionBar = document.querySelector('.knoux-command-execution-bar');
-    const workspace = document.querySelector('.knoux-tool-workspace');
-    const workspaceText = workspace?.textContent || '';
-    const executionText = executionBar?.textContent || '';
-    const selectedMatch = workspaceText.match(/\b[A-Z]{2}\d{2}\b/);
-    const executionMatch = executionText.match(/\b[A-Z]{2}\d{2}\b/);
     return {
       stageExecution: stage?.getAttribute('data-execution') || 'missing',
       executionBarStatus: executionBar?.getAttribute('data-status') || null,
-      selectedToolId: selectedMatch?.[0] || null,
-      executionToolId: executionMatch?.[0] || null,
-      executionText: executionText.trim().replace(/\s+/g, ' '),
+      selectedToolId: stage?.getAttribute('data-selected-tool-id') || null,
+      executionToolId: stage?.getAttribute('data-execution-tool-id') || executionBar?.getAttribute('data-tool-id') || null,
+      executionText: (executionBar?.textContent || '').trim().replace(/\s+/g, ' '),
       transitions: Array.isArray(window.__knouxLifecycleTransitions) ? window.__knouxLifecycleTransitions : [],
     };
   });
+}
+
+async function clickToolCard(page, toolId) {
+  const selector = `.knoux-tool-card[data-tool-id="${toolId}"]`;
+  await page.waitForSelector(selector, { timeout: 10_000 });
+  await page.click(selector);
+  await page.waitForFunction(
+    expectedToolId => document.querySelector('.knoux-workspace-stage')?.getAttribute('data-selected-tool-id') === expectedToolId,
+    { timeout: 5_000, polling: 20 },
+    toolId
+  );
 }
 
 async function captureRealExecutionLifecycle(browser) {
@@ -159,21 +167,26 @@ async function captureRealExecutionLifecycle(browser) {
   page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
   page.on('pageerror', error => pageErrors.push(error.message));
   await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+  await page.evaluateOnNewDocument(() => {
+    try { localStorage.setItem('knoux-lang', 'en'); } catch { /* origin initializes on navigation */ }
+  });
 
-  const url = `${ORIGIN}/?view=vitality&nosplash=1&service=08-Performance&tool=PF01`;
+  const url = `${ORIGIN}/?view=assurance&nosplash=1&service=03-Network-Internet`;
   await page.goto(url, { waitUntil: 'networkidle0', timeout: 45_000 });
+  await page.waitForSelector('.knoux-workspace-stage', { timeout: 10_000 });
+  await clickToolCard(page, LIFECYCLE_TOOL_ID);
   await page.waitForSelector('.knoux-tool-workspace', { timeout: 10_000 });
   await page.evaluate(() => document.querySelector('.knoux-workspace-stage')?.scrollIntoView({ block: 'start', behavior: 'instant' }));
   await new Promise(resolve => setTimeout(resolve, 250));
 
   const selectedState = await inspectExecutionLifecycle(page);
-  if (selectedState.selectedToolId !== 'PF01') {
-    throw new Error(`Lifecycle proof expected PF01 selected before execution, got ${selectedState.selectedToolId || 'none'}`);
+  if (selectedState.selectedToolId !== LIFECYCLE_TOOL_ID) {
+    throw new Error(`Lifecycle proof expected ${LIFECYCLE_TOOL_ID} selected before execution, got ${selectedState.selectedToolId || 'none'}`);
   }
   if (selectedState.stageExecution !== 'idle') {
     throw new Error(`Lifecycle proof expected idle before execution, got ${selectedState.stageExecution}`);
   }
-  const selectedPath = path.join(OUT_DIR, 'P1-01_EXECUTION-SELECTED-PF01.png');
+  const selectedPath = path.join(OUT_DIR, `P1-01_EXECUTION-SELECTED-${LIFECYCLE_TOOL_ID}.png`);
   await page.screenshot({ path: selectedPath, fullPage: false });
 
   await page.evaluate(() => {
@@ -181,111 +194,98 @@ async function captureRealExecutionLifecycle(browser) {
     const stage = document.querySelector('.knoux-workspace-stage');
     const record = () => {
       const status = stage?.getAttribute('data-execution') || 'missing';
-      const executionBar = document.querySelector('.knoux-command-execution-bar');
-      const executionText = executionBar?.textContent || '';
-      const executionMatch = executionText.match(/\b[A-Z]{2}\d{2}\b/);
+      const executionToolId = stage?.getAttribute('data-execution-tool-id') || null;
+      const selectedToolId = stage?.getAttribute('data-selected-tool-id') || null;
       const last = window.__knouxLifecycleTransitions[window.__knouxLifecycleTransitions.length - 1];
-      if (!last || last.status !== status || last.executionToolId !== (executionMatch?.[0] || null)) {
+      if (!last || last.status !== status || last.executionToolId !== executionToolId || last.selectedToolId !== selectedToolId) {
         window.__knouxLifecycleTransitions.push({
           status,
-          executionToolId: executionMatch?.[0] || null,
+          executionToolId,
+          selectedToolId,
           atMs: Math.round(performance.now()),
         });
       }
     };
     record();
     const observer = new MutationObserver(record);
-    if (stage) observer.observe(stage, { attributes: true, attributeFilter: ['data-execution'], subtree: true, childList: true });
+    if (stage) observer.observe(stage, {
+      attributes: true,
+      attributeFilter: ['data-execution', 'data-execution-tool-id', 'data-selected-tool-id'],
+      subtree: true,
+      childList: true,
+    });
     window.__knouxLifecycleObserver = observer;
   });
 
-  const analyzeClicked = await page.evaluate(() => {
-    const buttons = Array.from(document.querySelectorAll('.knoux-tool-workspace button'));
-    const analyze = buttons.find(button => (button.textContent || '').trim() === 'Analyze');
-    if (!analyze || analyze.disabled) return false;
-    analyze.click();
+  const runClicked = await page.evaluate(() => {
+    const runButton = document.querySelector('.knoux-tool-workspace .knoux-btn-primary');
+    if (!(runButton instanceof HTMLButtonElement) || runButton.disabled) return false;
+    runButton.click();
     return true;
   });
-  if (!analyzeClicked) throw new Error('Lifecycle proof could not start PF01 Analyze through the real ToolWorkspace control.');
+  if (!runClicked) throw new Error(`Lifecycle proof could not start ${LIFECYCLE_TOOL_ID} through the real Run Tool control.`);
 
   await page.waitForFunction(
-    () => document.querySelector('.knoux-workspace-stage')?.getAttribute('data-execution') === 'running',
-    { timeout: 10_000, polling: 20 }
+    expectedToolId => {
+      const stage = document.querySelector('.knoux-workspace-stage');
+      return stage?.getAttribute('data-execution') === 'running'
+        && stage?.getAttribute('data-execution-tool-id') === expectedToolId;
+    },
+    { timeout: 10_000, polling: 20 },
+    LIFECYCLE_TOOL_ID
   );
 
   const runningState = await inspectExecutionLifecycle(page);
-  if (runningState.executionToolId !== 'PF01' || runningState.stageExecution !== 'running') {
-    throw new Error(`Running proof lost PF01 ownership: ${JSON.stringify(runningState)}`);
+  if (runningState.executionToolId !== LIFECYCLE_TOOL_ID || runningState.stageExecution !== 'running') {
+    throw new Error(`Running proof lost ${LIFECYCLE_TOOL_ID} ownership: ${JSON.stringify(runningState)}`);
   }
-  const runningPath = path.join(OUT_DIR, 'P1-02_EXECUTION-RUNNING-PF01.png');
-  await page.screenshot({ path: runningPath, fullPage: false });
 
-  const alternateSelected = await page.evaluate(() => {
-    const cards = Array.from(document.querySelectorAll('.knoux-tool-card'));
-    const alternate = cards.find(card => /\bPF02\b/.test(card.textContent || ''));
-    if (!alternate) return false;
-    alternate.click();
-    return true;
-  });
-  if (!alternateSelected) throw new Error('Lifecycle proof could not select PF02 while PF01 was executing.');
-
+  await clickToolCard(page, LIFECYCLE_ALTERNATE_TOOL_ID);
   await page.waitForFunction(
-    () => {
+    ([selectedToolId, executionToolId]) => {
       const stage = document.querySelector('.knoux-workspace-stage');
-      const workspace = document.querySelector('.knoux-tool-workspace');
-      const executionBar = document.querySelector('.knoux-command-execution-bar');
       return stage?.getAttribute('data-execution') === 'running'
-        && /\bPF02\b/.test(workspace?.textContent || '')
-        && /\bPF01\b/.test(executionBar?.textContent || '');
+        && stage?.getAttribute('data-selected-tool-id') === selectedToolId
+        && stage?.getAttribute('data-execution-tool-id') === executionToolId;
     },
-    { timeout: 5_000, polling: 20 }
+    { timeout: 5_000, polling: 20 },
+    [LIFECYCLE_ALTERNATE_TOOL_ID, LIFECYCLE_TOOL_ID]
   );
 
   const ownershipState = await inspectExecutionLifecycle(page);
-  if (ownershipState.selectedToolId !== 'PF02' || ownershipState.executionToolId !== 'PF01') {
+  if (ownershipState.selectedToolId !== LIFECYCLE_ALTERNATE_TOOL_ID || ownershipState.executionToolId !== LIFECYCLE_TOOL_ID) {
     throw new Error(`Selected-vs-running ownership proof failed: ${JSON.stringify(ownershipState)}`);
   }
-  const ownershipPath = path.join(OUT_DIR, 'P1-03_EXECUTION-PF02-SELECTED-PF01-RUNNING.png');
+  const runningPath = path.join(OUT_DIR, `P1-02_EXECUTION-${LIFECYCLE_TOOL_ID}-RUNNING.png`);
+  await page.screenshot({ path: runningPath, fullPage: false });
+  const ownershipPath = path.join(OUT_DIR, `P1-03_EXECUTION-${LIFECYCLE_ALTERNATE_TOOL_ID}-SELECTED-${LIFECYCLE_TOOL_ID}-RUNNING.png`);
   await page.screenshot({ path: ownershipPath, fullPage: false });
 
   await page.waitForFunction(
     terminalStates => terminalStates.includes(document.querySelector('.knoux-workspace-stage')?.getAttribute('data-execution') || ''),
-    { timeout: 90_000, polling: 100 },
+    { timeout: 120_000, polling: 100 },
     Array.from(TERMINAL_EXECUTION_STATES)
   );
 
   const terminalWhileBrowsing = await inspectExecutionLifecycle(page);
   if (!TERMINAL_EXECUTION_STATES.has(terminalWhileBrowsing.stageExecution)) {
-    throw new Error(`PF01 did not reach a real terminal state: ${JSON.stringify(terminalWhileBrowsing)}`);
+    throw new Error(`${LIFECYCLE_TOOL_ID} did not reach a real terminal state: ${JSON.stringify(terminalWhileBrowsing)}`);
   }
-  if (terminalWhileBrowsing.executionToolId !== 'PF01') {
-    throw new Error(`PF01 terminal result lost canonical execution ownership: ${JSON.stringify(terminalWhileBrowsing)}`);
+  if (terminalWhileBrowsing.executionToolId !== LIFECYCLE_TOOL_ID) {
+    throw new Error(`${LIFECYCLE_TOOL_ID} terminal result lost canonical execution ownership: ${JSON.stringify(terminalWhileBrowsing)}`);
   }
 
-  const pf01Reselected = await page.evaluate(() => {
-    const cards = Array.from(document.querySelectorAll('.knoux-tool-card'));
-    const card = cards.find(item => /\bPF01\b/.test(item.textContent || ''));
-    if (!card) return false;
-    card.click();
-    return true;
-  });
-  if (!pf01Reselected) throw new Error('Lifecycle proof could not reselect PF01 for terminal evidence.');
-
-  await page.waitForFunction(
-    () => /\bPF01\b/.test(document.querySelector('.knoux-tool-workspace')?.textContent || ''),
-    { timeout: 5_000, polling: 20 }
-  );
-
+  await clickToolCard(page, LIFECYCLE_TOOL_ID);
   const terminalState = await inspectExecutionLifecycle(page);
   const transitions = terminalState.transitions;
-  if (!transitions.some(item => item.status === 'running' && item.executionToolId === 'PF01')) {
-    throw new Error(`Lifecycle transition log never observed PF01 running: ${JSON.stringify(transitions)}`);
+  if (!transitions.some(item => item.status === 'running' && item.executionToolId === LIFECYCLE_TOOL_ID)) {
+    throw new Error(`Lifecycle transition log never observed ${LIFECYCLE_TOOL_ID} running: ${JSON.stringify(transitions)}`);
   }
-  if (!transitions.some(item => TERMINAL_EXECUTION_STATES.has(item.status) && item.executionToolId === 'PF01')) {
-    throw new Error(`Lifecycle transition log never observed a PF01 terminal result: ${JSON.stringify(transitions)}`);
+  if (!transitions.some(item => TERMINAL_EXECUTION_STATES.has(item.status) && item.executionToolId === LIFECYCLE_TOOL_ID)) {
+    throw new Error(`Lifecycle transition log never observed a ${LIFECYCLE_TOOL_ID} terminal result: ${JSON.stringify(transitions)}`);
   }
 
-  const terminalPath = path.join(OUT_DIR, `P1-04_EXECUTION-TERMINAL-PF01-${terminalState.stageExecution.toUpperCase()}.png`);
+  const terminalPath = path.join(OUT_DIR, `P1-04_EXECUTION-TERMINAL-${LIFECYCLE_TOOL_ID}-${terminalState.stageExecution.toUpperCase()}.png`);
   await page.screenshot({ path: terminalPath, fullPage: false });
 
   await page.evaluate(() => {
@@ -297,11 +297,12 @@ async function captureRealExecutionLifecycle(browser) {
     url,
     source: 'real-tool-workspace-and-loopback-bridge',
     tool: {
-      toolId: 'PF01',
+      toolId: LIFECYCLE_TOOL_ID,
       expectedRisk: 'READ_ONLY',
-      mode: 'analyze',
+      mode: 'run',
+      note: 'NI06 performs a real read-only connection-quality measurement in run mode.',
     },
-    alternateSelectionToolId: 'PF02',
+    alternateSelectionToolId: LIFECYCLE_ALTERNATE_TOOL_ID,
     selectedState,
     runningState,
     ownershipState,
@@ -319,7 +320,7 @@ async function captureRealExecutionLifecycle(browser) {
 
   fs.writeFileSync(path.join(OUT_DIR, 'P1-execution-lifecycle.json'), JSON.stringify(lifecycleEvidence, null, 2));
   if (pageErrors.length > 0) throw new Error(`Lifecycle proof produced ${pageErrors.length} page error(s).`);
-  console.log(`Captured real execution lifecycle for PF01 -> ${terminalState.stageExecution}; ownership preserved while PF02 selected.`);
+  console.log(`Captured real execution lifecycle for ${LIFECYCLE_TOOL_ID} -> ${terminalState.stageExecution}; ownership preserved while ${LIFECYCLE_ALTERNATE_TOOL_ID} selected.`);
   await page.close();
   return lifecycleEvidence;
 }
