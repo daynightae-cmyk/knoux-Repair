@@ -1,0 +1,116 @@
+/* KNOUX Repair — canonical service station integration inside FamilyPage.
+ * The family command center stays mounted, but an idle selected service now
+ * opens its real Station UI in the central workspace instead of a generic
+ * "choose a tool" placeholder. Runtime/tool truth stays owned by the existing
+ * bridge contracts.
+ */
+
+.knoux-command-center.knoux-service-app-active .knoux-command-preview {
+  display: none !important;
+}
+
+.knoux-command-center.knoux-service-app-active .knoux-command-live-column {
+  gap: 0;
+}
+
+.knoux-command-center.knoux-service-app-active .knoux-command-workspace {
+  min-height: 0;
+  height: 100%;
+  flex: 1 1 auto;
+}
+
+.knoux-stage-service-app {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(103,232,249,.22) transparent;
+}
+
+.knoux-stage-service-app::-webkit-scrollbar { width: 6px; height: 6px; }
+.knoux-stage-service-app::-webkit-scrollbar-track { background: transparent; }
+.knoux-stage-service-app::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(103,232,249,.2); }
+
+/* ServiceApps is embedded inside the canonical live stage here. Its outer
+ * refresh chrome and duplicate bottom action rail are unnecessary because
+ * each Station owns its real controls and the command-center tool rail remains
+ * available for advanced inspection. */
+.knoux-stage-service-app > .service-app-shell {
+  min-height: 100%;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.knoux-stage-service-app > .service-app-shell > .service-app-topbar,
+.knoux-stage-service-app > .service-app-shell > .service-app-bottom {
+  display: none !important;
+}
+
+.knoux-stage-service-app > .service-app-shell > .service-app-loading,
+.knoux-stage-service-app > .service-app-shell > .service-app-offline-banner {
+  margin: 8px;
+}
+
+.knoux-stage-service-app :is(
+  .glass-nexus-station,
+  .cleanup-station,
+  .programs-station,
+  .software-station-root,
+  .post-install-station-root,
+  .knoux-station-workspace
+) {
+  min-height: 100%;
+}
+
+/* ToolIds stay in DOM/data attributes for runtime/testing but are not normal
+ * customer-facing labels. */
+.knoux-command-tool-rail .knoux-tool-card-id {
+  display: none !important;
+}
+
+.knoux-command-tool-rail .knoux-tool-card-title {
+  margin-top: 0 !important;
+  font-size: 11px !important;
+  line-height: 1.24 !important;
+}
+
+.knoux-command-tool-rail .knoux-command-rail-header > span::after {
+  content: '';
+}
+
+/* The Station should own vertical space. Generic telemetry remains useful
+ * only during selected-tool / active execution mode. */
+.knoux-command-workspace[data-mode='service'] .knoux-live-hud {
+  display: none;
+}
+
+.knoux-command-workspace[data-mode='service'] .knoux-stage-header {
+  min-height: 45px;
+}
+
+.knoux-command-workspace[data-mode='service'] .knoux-command-execution-bar {
+  margin: 7px 8px 0;
+}
+
+@container (max-width: 1100px) {
+  .knoux-stage-service-app { padding: 6px; }
+}
+
+@media (max-width: 900px) {
+  .knoux-stage-service-app { padding: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knoux-stage-service-app *,
+  .knoux-stage-service-app *::before,
+  .knoux-stage-service-app *::after {
+    scroll-behavior: auto !important;
+  }
+}
