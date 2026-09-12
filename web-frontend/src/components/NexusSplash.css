@@ -270,6 +270,21 @@
   transition: width 360ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.kr-splash__progress-fill:not(.is-ready) {
+  width: 34%;
+  animation: kr-splash-indeterminate 1.8s ease-in-out infinite;
+}
+
+.kr-splash__progress-fill.is-ready {
+  width: 100%;
+}
+
+@keyframes kr-splash-indeterminate {
+  0% { transform: translateX(-125%); }
+  50% { transform: translateX(85%); }
+  100% { transform: translateX(285%); }
+}
+
 .kr-splash__progress-fill::after {
   content: '';
   position: absolute;

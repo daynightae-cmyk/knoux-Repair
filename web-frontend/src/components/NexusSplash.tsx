@@ -167,7 +167,6 @@ export default function NexusSplash({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [requestSkip, visible]);
 
-  const progressValue = Math.max(0, Math.min(progress, 100));
   const readyVisual = presentation.stage === 'ready';
 
   return (
@@ -268,18 +267,14 @@ export default function NexusSplash({
                   <span className={`kr-splash__status-dot${readyVisual ? ' is-ready' : ''}`} aria-hidden="true" />
                   <span>{presentation.stageLabel}</span>
                 </div>
-                <span className="kr-splash__percentage" aria-hidden="true">{progressValue}%</span>
               </div>
 
               <div
                 className="kr-splash__progress"
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={progressValue}
-                aria-label={lang === 'ar' ? 'تقدم تهيئة النظام' : 'System initialization progress'}
+                role="status"
+                aria-label={lang === 'ar' ? 'حالة تهيئة النظام' : 'System initialization status'}
               >
-                <div className="kr-splash__progress-fill" style={{ width: `${progressValue}%` }} />
+                <div className={`kr-splash__progress-fill${readyVisual ? ' is-ready' : ''}`} />
               </div>
 
               <div className="kr-splash__meta">

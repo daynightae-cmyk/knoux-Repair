@@ -85,9 +85,9 @@
   --knoux-space-16: 64px;
 
   /* ── Typography ── */
-  --knoux-font-display: 'Space Grotesk', 'Inter', system-ui, -apple-system, sans-serif;
-  --knoux-font-body: 'Inter', system-ui, -apple-system, sans-serif;
-  --knoux-font-mono: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+  --knoux-font-display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  --knoux-font-body: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --knoux-font-mono: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
 
   --knoux-text-display: 700 48px/56px var(--knoux-font-display);
   --knoux-text-section: 600 32px/40px var(--knoux-font-display);
