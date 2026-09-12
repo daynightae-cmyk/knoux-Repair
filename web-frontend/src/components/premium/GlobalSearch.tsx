@@ -22,11 +22,13 @@ interface SearchResult {
 
 export default function GlobalSearch({ open, onClose, tools, lang, onNavigate }: GlobalSearchProps) {
   const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       setQuery('');
+      setActiveIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
@@ -85,6 +87,23 @@ export default function GlobalSearch({ open, onClose, tools, lang, onNavigate }:
     return matches.slice(0, 12);
   }, [query, tools, lang]);
 
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query]);
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowDown' && results.length > 0) {
+      event.preventDefault();
+      setActiveIndex(index => (index + 1) % results.length);
+    } else if (event.key === 'ArrowUp' && results.length > 0) {
+      event.preventDefault();
+      setActiveIndex(index => (index - 1 + results.length) % results.length);
+    } else if (event.key === 'Enter' && results[activeIndex]) {
+      event.preventDefault();
+      onNavigate(results[activeIndex].destination);
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -110,6 +129,7 @@ export default function GlobalSearch({ open, onClose, tools, lang, onNavigate }:
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder={lang === 'ar' ? 'ابحث عن أداة أو خدمة أو مشكلة...' : 'Search tools, services, or problems...'}
             className="flex-1 bg-transparent text-sm outline-none"
             style={{ color: 'var(--knoux-text)', font: 'var(--knoux-text-body)' }}
@@ -127,7 +147,8 @@ export default function GlobalSearch({ open, onClose, tools, lang, onNavigate }:
                 <button
                   key={`${result.type}-${i}`}
                   type="button"
-                  className="w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-white/[0.04] transition-colors"
+                  className={`w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-white/[0.04] transition-colors ${i === activeIndex ? 'bg-cyan-400/[0.08]' : ''}`}
+                  aria-selected={i === activeIndex}
                   onClick={() => onNavigate(result.destination)}
                 >
                   <span

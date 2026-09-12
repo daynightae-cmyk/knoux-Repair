@@ -188,6 +188,76 @@
   box-shadow: 0 20px 54px rgba(0, 0, 0, 0.3), inset 0 1px rgba(255, 255, 255, 0.06);
 }
 
+.knoux-body[data-tool-active='true'] > .knoux-sentinel {
+  width: 208px;
+}
+
+@media (max-width: 1250px) {
+  .knoux-body > .knoux-sentinel {
+    width: 220px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .knoux-body > .knoux-sentinel {
+    display: none;
+  }
+}
+
+.knoux-command-center .knoux-command-tool-rail,
+.knoux-command-center .knoux-command-service-rail {
+  min-width: 0;
+}
+
+.knoux-command-center .knoux-command-live-column {
+  min-width: 420px;
+}
+
+@media (max-width: 760px) {
+  .knoux-command-center .knoux-command-live-column {
+    min-width: 0;
+  }
+}
+
+/* Coherent light treatment for the exposed theme control. */
+:root[data-theme='light'] .knoux-shell {
+  background: #edf3fa;
+  color: #172033;
+}
+
+:root[data-theme='light'] .knoux-topbar,
+:root[data-theme='light'] .knoux-rail,
+:root[data-theme='light'] .knoux-sentinel {
+  border-color: rgba(28, 48, 82, 0.14);
+  background: rgba(246, 249, 253, 0.86);
+  color: #172033;
+}
+
+:root[data-theme='light'] .knoux-rail-item,
+:root[data-theme='light'] .knoux-command-rail-header > strong,
+:root[data-theme='light'] .knoux-login-card {
+  color: #172033;
+}
+
+:root[data-theme='light'] .knoux-command-rail {
+  border-color: rgba(28, 48, 82, 0.16);
+  background: linear-gradient(180deg, rgba(248, 251, 255, 0.94), rgba(232, 239, 248, 0.92));
+  box-shadow: 0 18px 42px rgba(51, 65, 85, 0.12);
+}
+
+:root[data-theme='light'] .knoux-command-center .knoux-service-card,
+:root[data-theme='light'] .knoux-command-center .knoux-tool-card {
+  border-color: rgba(28, 48, 82, 0.14);
+  background: rgba(255, 255, 255, 0.72);
+  color: #172033;
+}
+
+:root[data-theme='light'] .knoux-command-center .knoux-service-card[data-active='true'],
+:root[data-theme='light'] .knoux-command-center .knoux-tool-card[data-active='true'] {
+  border-color: rgba(5, 150, 105, 0.66) !important;
+  background: linear-gradient(120deg, rgba(16, 185, 129, 0.14), rgba(255, 255, 255, 0.9)) !important;
+}
+
 @media (min-width: 1500px) {
   .knoux-command-center {
     --command-rail-width: clamp(236px, 16vw, 300px);
