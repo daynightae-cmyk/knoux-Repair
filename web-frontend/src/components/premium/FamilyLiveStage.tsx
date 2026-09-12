@@ -138,6 +138,7 @@ export default function FamilyLiveStage({
       data-execution={executionStatus}
       data-selected-tool-id={selectedTool?.ToolId ?? ''}
       data-execution-tool-id={executionTool?.ToolId ?? ''}
+      data-service-tool-count={serviceToolCount}
       aria-label={isRtl ? 'مساحة عمل الخدمة والأداة' : 'Service and tool workspace'}
     >
       <div className="knoux-stage-grid" aria-hidden="true" />
