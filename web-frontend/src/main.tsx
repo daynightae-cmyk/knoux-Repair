@@ -16,12 +16,15 @@ import './command-center.css'
 import './ai-command-center.css'
 import './golden-master-polish.css'
 import './live-workspace.css'
+import './easy-services-polish.css'
 import App from './App'
 import McpOverlayHost from './components/McpOverlayHost'
+import KnouxAiOverlayHost from './components/KnouxAiOverlayHost'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
     <McpOverlayHost />
+    <KnouxAiOverlayHost />
   </StrictMode>,
 )

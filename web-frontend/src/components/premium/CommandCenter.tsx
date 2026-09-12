@@ -22,6 +22,7 @@ import type { BridgeTool, ExecutionMode, ToolRunOptions, ToolRunConfirmation, Sy
 import type { FamilyDefinition, ServiceDefinition, ServiceId } from '../../data/family-map';
 import type { ToolStatus, ConsoleEntry } from '../../types';
 import ExecutionConfirmDialog from '../ExecutionConfirmDialog';
+import KnouxAiContextButton from '../KnouxAiContextButton';
 import RuntimeVisualizer from './RuntimeVisualizer';
 
 export interface RunMeta {
@@ -263,6 +264,15 @@ export default function CommandCenter(props: CommandCenterProps) {
                 ? <span className={clsx('cc-pill', focusedStatus === 'success' && 'is-success', focusedStatus === 'error' && 'is-error', focusedStatus === 'cancelled' && 'is-cancelled', (focusedStatus === 'idle') && 'is-selected')}>{focusedStatus.toUpperCase()}</span>
                 : <span className="cc-pill">{isRtl ? 'استعداد' : 'STANDBY'}</span>}
           </span>
+          <KnouxAiContextButton
+            lang={lang}
+            familyId={family.id}
+            familyName={isRtl ? family.name.ar : family.name.en}
+            serviceId={activeService.id}
+            serviceName={isRtl ? activeService.name.ar : activeService.name.en}
+            toolId={focusedTool?.ToolId ?? null}
+            toolName={focusedTool ? (isRtl ? focusedTool.ArabicName : focusedTool.EnglishName) : null}
+          />
         </header>
 
         {pending && (
