@@ -97,13 +97,23 @@ export default function FamilyLiveStage({
   const liveStatus = selectedTool ? (toolStatuses[selectedTool.ToolId] ?? 'idle') : 'idle';
   const activityCount = selectedTool ? consoleEntries?.length ?? 0 : 0;
   const activeSignals = Object.values(toolStatuses).filter(status => status === 'running').length;
-  const statusLabel = liveStatus === 'running'
-    ? (isRtl ? 'تنفيذ مباشر' : 'LIVE EXECUTION')
-    : liveStatus === 'success'
-      ? (isRtl ? 'اكتمل بنجاح' : 'COMPLETED')
-      : liveStatus === 'error'
-        ? (isRtl ? 'يحتاج مراجعة' : 'REVIEW NEEDED')
-        : (isRtl ? 'جاهز للبث' : 'READY TO STREAM');
+  const statusLabel = bridgeOnline === null
+    ? (isRtl ? 'جارٍ فحص بيئة التشغيل' : 'CHECKING RUNTIME')
+    : bridgeOnline === false
+      ? (isRtl ? 'بيئة التشغيل غير متاحة' : 'RUNTIME UNAVAILABLE')
+      : !selectedTool
+        ? (isRtl ? 'جاهز لاختيار أداة' : 'READY FOR TOOL SELECTION')
+        : liveStatus === 'running'
+          ? (isRtl ? 'تنفيذ مباشر' : 'LIVE EXECUTION')
+          : liveStatus === 'success'
+            ? (isRtl ? 'اكتمل بنجاح' : 'COMPLETED')
+            : liveStatus === 'error'
+              ? (isRtl ? 'يحتاج مراجعة' : 'REVIEW NEEDED')
+              : liveStatus === 'cancelled'
+                ? (isRtl ? 'تم الإلغاء' : 'CANCELLED')
+                : liveStatus === 'inconclusive'
+                  ? (isRtl ? 'غير حاسم' : 'INCONCLUSIVE')
+                  : (isRtl ? 'جاهز' : 'READY');
 
   return (
     <section
@@ -143,10 +153,10 @@ export default function FamilyLiveStage({
           </div>
         </div>
         <div className="knoux-live-metrics">
-          <div><Radio size={14} /><span>{isRtl ? 'الإشارات' : 'SIGNALS'}<b>{activeSignals || (bridgeOnline === true ? 1 : 0)}</b></span></div>
+          <div><Radio size={14} /><span>{isRtl ? 'الإشارات' : 'SIGNALS'}<b>{activeSignals}</b></span></div>
           <div><TerminalSquare size={14} /><span>{isRtl ? 'السجل الحي' : 'LIVE LOG'}<b>{activityCount}</b></span></div>
-          <div><Gauge size={14} /><span>{isRtl ? 'زمن الاستجابة' : 'LATENCY'}<b>{bridgeOnline === true ? '12ms' : '—'}</b></span></div>
-          <div><ShieldCheck size={14} /><span>{isRtl ? 'حالة الأمان' : 'SAFETY'}<b>{bridgeElevated ? (isRtl ? 'مرتفع' : 'ELEVATED') : (isRtl ? 'محمي' : 'GUARDED')}</b></span></div>
+          <div><Gauge size={14} /><span>{isRtl ? 'زمن الاستجابة' : 'LATENCY'}<b>—</b></span></div>
+          <div><ShieldCheck size={14} /><span>{isRtl ? 'وضع الامتياز' : 'PRIVILEGE'}<b>{bridgeElevated ? (isRtl ? 'مرتفع' : 'ELEVATED') : (isRtl ? 'قياسي' : 'STANDARD')}</b></span></div>
         </div>
       </div>
       {executionTool && (
