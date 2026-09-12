@@ -1,4 +1,4 @@
-import { Search, Bell, Shield, Wifi, WifiOff, Settings, UserRound } from 'lucide-react';
+import { Search, Bell, Shield, Wifi, WifiOff, Settings, UserRound, CloudCog } from 'lucide-react';
 import clsx from 'clsx';
 
 export interface TopBarProps {
@@ -45,6 +45,10 @@ export default function TopBar({
             {bridgeOnline ? <Wifi size={12}/> : <WifiOff size={12}/>}<span>{bridgeOnline === true ? (isRtl ? 'متصل' : 'Online') : bridgeOnline === false ? (isRtl ? 'غير متصل' : 'Offline') : (isRtl ? 'جارٍ الاتصال...' : 'Connecting...')}</span>
           </div>
         </div>
+
+        <button type="button" className="knoux-mcp-topbar-trigger" onClick={() => window.dispatchEvent(new CustomEvent('knoux:mcp-open'))} title={isRtl ? 'اتصال MCP الخاص' : 'Private MCP connection'} aria-label={isRtl ? 'اتصال MCP الخاص' : 'Private MCP connection'}>
+          <CloudCog size={15}/><span>MCP</span><i aria-hidden="true"/>
+        </button>
 
         <button type="button" className={clsx('knoux-account-trigger', accountConnected && 'is-connected')} onClick={onAccountOpen} title={isRtl ? 'الحساب والاتصالات' : 'Account & connections'} aria-label={isRtl ? 'الحساب والاتصالات' : 'Account & connections'}>
           <span><UserRound size={16}/></span><b>{accountLabel}</b>

@@ -7,10 +7,13 @@ import './workspace.css'
 import './platform.css'
 import './service-apps.css'
 import './premium-cinematic.css'
+import './mcp-center.css'
 import App from './App'
+import McpOverlayHost from './components/McpOverlayHost'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
+    <McpOverlayHost />
   </StrictMode>,
 )

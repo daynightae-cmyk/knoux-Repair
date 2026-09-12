@@ -53,6 +53,10 @@ jobs:
         working-directory: web-frontend
         run: node scripts/capture-evidence.mjs
 
+      - name: Capture Mission 02 private MCP evidence
+        working-directory: web-frontend
+        run: node scripts/capture-mission02-evidence.mjs
+
       - name: Upload rendered UI evidence
         if: always()
         uses: actions/upload-artifact@v4
