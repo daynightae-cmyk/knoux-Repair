@@ -41,7 +41,7 @@ test('selected tool and execution tool are modeled independently', () => {
   assert.match(familyPage, /const selectedTool = useMemo/);
   assert.match(familyPage, /const executionTool = useMemo/);
   assert.match(liveStage, /selectionDiffersFromExecution/);
-  assert.match(liveStage, /runtime ownership remains attached to the execution tool/);
+  assert.match(liveStage, /runtime ownership remains attached to the original execution/);
   assert.match(hero, /executionToolStatus === 'running'/);
   assert.match(hero, /EXECUTION CONTINUES/);
 });
@@ -54,7 +54,7 @@ test('command center preserves execution results and honest runtime labels', () 
   assert.match(hero, /Live system snapshot/);
   assert.match(liveStage, /LAST EXECUTION/);
   assert.match(liveStage, /ACTIVE EXECUTION/);
-  assert.match(liveStage, /toolStatuses\[executionTool\.ToolId\]/);
+  assert.match(liveStage, /effectiveToolStatuses\[executionTool\.ToolId\]/);
   assert.doesNotMatch(hero, /Math\.random/);
   assert.doesNotMatch(liveStage, /Math\.random/);
 });
