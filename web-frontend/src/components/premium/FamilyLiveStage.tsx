@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import * as LucideIcons from 'lucide-react';
-import { Activity, Braces, CircleStop, Radio, TerminalSquare } from 'lucide-react';
+import { Activity, Braces, CircleStop, Radio, Terminal } from 'lucide-react';
 import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../lib/api';
 import type { FamilyDefinition, ServiceDefinition } from '../../data/family-map';
 import type { ToolStatus, ConsoleEntry } from '../../types';
@@ -186,7 +186,7 @@ export default function FamilyLiveStage({
             </div>
             <div className="knoux-command-empty-hint">
               <Braces size={15} />
-              <TerminalSquare size={15} />
+              <Terminal size={15} />
               <span>{isRtl ? 'الأدوات على جانب مساحة العمل' : 'Tools remain available beside the workspace'}</span>
             </div>
           </motion.div>
