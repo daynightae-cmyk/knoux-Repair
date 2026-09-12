@@ -95,6 +95,8 @@ export default function FamilyLiveStage({
       className="knoux-workspace-stage knoux-command-workspace"
       data-mode={selectedTool ? 'tool' : 'empty'}
       data-execution={executionStatus}
+      data-selected-tool-id={selectedTool?.ToolId ?? ''}
+      data-execution-tool-id={executionTool?.ToolId ?? ''}
       aria-label={isRtl ? 'مساحة عمل الأداة' : 'Tool workspace'}
     >
       <div className="knoux-stage-grid" aria-hidden="true" />
@@ -117,7 +119,12 @@ export default function FamilyLiveStage({
       </header>
 
       {executionTool && (
-        <div className="knoux-command-execution-bar" data-status={executionStatus} role="status">
+        <div
+          className="knoux-command-execution-bar"
+          data-status={executionStatus}
+          data-tool-id={executionTool.ToolId}
+          role="status"
+        >
           <div className="knoux-command-execution-led"><Radio size={14} /></div>
           <div className="knoux-command-execution-copy">
             <span>{executionRunning ? (isRtl ? 'تنفيذ نشط' : 'ACTIVE EXECUTION') : (isRtl ? 'آخر نتيجة تنفيذ' : 'LAST EXECUTION')}</span>

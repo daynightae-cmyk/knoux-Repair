@@ -56,6 +56,8 @@ export default function ToolCard({
       type="button"
       className="knoux-tool-card"
       data-active={active}
+      data-tool-id={tool.ToolId}
+      data-tool-status={status}
       onClick={onClick}
       aria-pressed={active}
       dir={isRtl ? 'rtl' : 'ltr'}
