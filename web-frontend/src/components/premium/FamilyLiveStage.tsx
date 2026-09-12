@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import * as LucideIcons from 'lucide-react';
-import { Activity, ArrowUp, Braces, CircleStop, Gauge, Radio, ShieldCheck, Terminal, TerminalSquare } from 'lucide-react';
+import { Activity, Braces, CircleStop, Gauge, Radio, ShieldCheck, Terminal, TerminalSquare } from 'lucide-react';
 import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../lib/api';
 import type { FamilyDefinition, ServiceDefinition } from '../../data/family-map';
 import type { ToolStatus, ConsoleEntry } from '../../types';
