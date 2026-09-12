@@ -7,11 +7,13 @@ import type { FamilyDefinition, ServiceDefinition } from '../../data/family-map'
 import type { ToolStatus, ConsoleEntry } from '../../types';
 import ExecutionConfirmDialog from '../ExecutionConfirmDialog';
 import KnouxAiContextButton from '../KnouxAiContextButton';
+import ServiceApps from '../ServiceApps';
 import ToolWorkspace from './ToolWorkspace';
 
 interface FamilyLiveStageProps {
   family: FamilyDefinition;
   service: ServiceDefinition;
+  serviceTools: BridgeTool[];
   selectedTool: BridgeTool | null;
   executionTool: BridgeTool | null;
   serviceToolCount: number;
@@ -22,6 +24,7 @@ interface FamilyLiveStageProps {
   onRunTool: (tool: BridgeTool, mode?: ExecutionMode, options?: ToolRunOptions, confirmation?: ToolRunConfirmation) => void;
   onCancelTool: () => void;
   onClearTool: () => void;
+  onRetryBridge: () => void;
   consoleEntries?: ConsoleEntry[];
   activeToolId?: string | null;
 }
@@ -43,6 +46,7 @@ const STATUS_TEXT: Record<ToolStatus, { en: string; ar: string }> = {
 export default function FamilyLiveStage({
   family,
   service,
+  serviceTools,
   selectedTool,
   executionTool,
   serviceToolCount,
@@ -53,11 +57,13 @@ export default function FamilyLiveStage({
   onRunTool,
   onCancelTool,
   onClearTool,
+  onRetryBridge,
   consoleEntries,
   activeToolId,
 }: FamilyLiveStageProps) {
   const [pendingExecution, setPendingExecution] = useState<PendingExecution | null>(null);
   const [liveClock, setLiveClock] = useState(() => new Date());
+  const [serviceToolStatuses, setServiceToolStatuses] = useState<Record<string, ToolStatus>>({});
   const isRtl = lang === 'ar';
   const ServiceIcon = (LucideIcons as unknown as Record<string, React.ElementType>)[service.icon] ?? LucideIcons.Wrench;
   const bridgeLabel = bridgeOnline === true
@@ -66,10 +72,16 @@ export default function FamilyLiveStage({
       ? (isRtl ? 'الجسر غير متصل' : 'Bridge offline')
       : (isRtl ? 'جارٍ فحص الجسر' : 'Checking bridge');
 
+  const effectiveToolStatuses: Record<string, ToolStatus> = {
+    ...toolStatuses,
+    ...serviceToolStatuses,
+  };
+
   const executionStatus: ToolStatus = executionTool
-    ? toolStatuses[executionTool.ToolId] ?? 'idle'
+    ? effectiveToolStatuses[executionTool.ToolId] ?? 'idle'
     : 'idle';
   const executionRunning = Boolean(executionTool && executionStatus === 'running');
+  const serviceAppMode = !selectedTool && !executionRunning;
   const selectionDiffersFromExecution = Boolean(
     selectedTool && executionTool && selectedTool.ToolId !== executionTool.ToolId
   );
@@ -95,36 +107,38 @@ export default function FamilyLiveStage({
   const pendingTool = selectedTool && pendingExecution?.toolId === selectedTool.ToolId
     ? selectedTool
     : null;
-  const liveStatus = selectedTool ? (toolStatuses[selectedTool.ToolId] ?? 'idle') : 'idle';
+  const liveStatus = selectedTool ? (effectiveToolStatuses[selectedTool.ToolId] ?? 'idle') : 'idle';
   const activityCount = selectedTool ? consoleEntries?.length ?? 0 : 0;
-  const activeSignals = Object.values(toolStatuses).filter(status => status === 'running').length;
+  const activeSignals = Object.values(effectiveToolStatuses).filter(status => status === 'running').length;
   const statusLabel = bridgeOnline === null
     ? (isRtl ? 'جارٍ فحص بيئة التشغيل' : 'CHECKING RUNTIME')
     : bridgeOnline === false
       ? (isRtl ? 'بيئة التشغيل غير متاحة' : 'RUNTIME UNAVAILABLE')
-      : !selectedTool
-        ? (isRtl ? 'جاهز لاختيار أداة' : 'READY FOR TOOL SELECTION')
-        : liveStatus === 'running'
-          ? (isRtl ? 'تنفيذ مباشر' : 'LIVE EXECUTION')
-          : liveStatus === 'success'
-            ? (isRtl ? 'اكتمل بنجاح' : 'COMPLETED')
-            : liveStatus === 'error'
-              ? (isRtl ? 'يحتاج مراجعة' : 'REVIEW NEEDED')
-              : liveStatus === 'cancelled'
-                ? (isRtl ? 'تم الإلغاء' : 'CANCELLED')
-                : liveStatus === 'inconclusive'
-                  ? (isRtl ? 'غير حاسم' : 'INCONCLUSIVE')
-                  : (isRtl ? 'جاهز' : 'READY');
+      : serviceAppMode
+        ? (isRtl ? 'الخدمة جاهزة' : 'SERVICE READY')
+        : !selectedTool
+          ? (isRtl ? 'التنفيذ النشط مستمر' : 'ACTIVE EXECUTION')
+          : liveStatus === 'running'
+            ? (isRtl ? 'تنفيذ مباشر' : 'LIVE EXECUTION')
+            : liveStatus === 'success'
+              ? (isRtl ? 'اكتمل بنجاح' : 'COMPLETED')
+              : liveStatus === 'error'
+                ? (isRtl ? 'يحتاج مراجعة' : 'REVIEW NEEDED')
+                : liveStatus === 'cancelled'
+                  ? (isRtl ? 'تم الإلغاء' : 'CANCELLED')
+                  : liveStatus === 'inconclusive'
+                    ? (isRtl ? 'غير حاسم' : 'INCONCLUSIVE')
+                    : (isRtl ? 'جاهز' : 'READY');
 
   return (
     <section
       id="family-tool-workspace"
       className="knoux-workspace-stage knoux-command-workspace"
-      data-mode={selectedTool ? 'tool' : 'empty'}
+      data-mode={selectedTool ? 'tool' : serviceAppMode ? 'service' : 'empty'}
       data-execution={executionStatus}
       data-selected-tool-id={selectedTool?.ToolId ?? ''}
       data-execution-tool-id={executionTool?.ToolId ?? ''}
-      aria-label={isRtl ? 'مساحة عمل الأداة' : 'Tool workspace'}
+      aria-label={isRtl ? 'مساحة عمل الخدمة والأداة' : 'Service and tool workspace'}
     >
       <div className="knoux-stage-grid" aria-hidden="true" />
       <div className="knoux-stage-scanline" aria-hidden="true" />
@@ -132,7 +146,7 @@ export default function FamilyLiveStage({
       <header className="knoux-stage-header">
         <div className="knoux-stage-kicker">
           <Activity size={13} />
-          <span>{isRtl ? 'مساحة التنفيذ' : 'LIVE EXECUTION WORKSPACE'}</span>
+          <span>{serviceAppMode ? (isRtl ? 'مساحة الخدمة' : 'SERVICE WORKSPACE') : (isRtl ? 'مساحة التنفيذ' : 'LIVE EXECUTION WORKSPACE')}</span>
         </div>
         <div className="knoux-stage-context">
           <span>{isRtl ? family.name.ar : family.name.en}</span>
@@ -169,6 +183,7 @@ export default function FamilyLiveStage({
           <div><ShieldCheck size={14} /><span>{isRtl ? 'وضع الامتياز' : 'PRIVILEGE'}<b>{bridgeElevated ? (isRtl ? 'مرتفع' : 'ELEVATED') : (isRtl ? 'قياسي' : 'STANDARD')}</b></span></div>
         </div>
       </div>
+
       {executionTool && (
         <div
           className="knoux-command-execution-bar"
@@ -179,9 +194,9 @@ export default function FamilyLiveStage({
           <div className="knoux-command-execution-led"><Radio size={14} /></div>
           <div className="knoux-command-execution-copy">
             <span>{executionRunning ? (isRtl ? 'تنفيذ نشط' : 'ACTIVE EXECUTION') : (isRtl ? 'آخر نتيجة تنفيذ' : 'LAST EXECUTION')}</span>
-            <strong>{executionTool.ToolId} · {isRtl ? executionTool.ArabicName : executionTool.EnglishName}</strong>
+            <strong>{isRtl ? executionTool.ArabicName : executionTool.EnglishName}</strong>
             {selectionDiffersFromExecution && (
-              <small>{isRtl ? 'الأداة المحددة مختلفة؛ حالة التنفيذ تظل مرتبطة بالأداة الأصلية.' : 'Selected tool differs; runtime ownership remains attached to the execution tool.'}</small>
+              <small>{isRtl ? 'الإجراء المحدد مختلف؛ حالة التنفيذ تظل مرتبطة بالإجراء الأصلي.' : 'Selected action differs; runtime ownership remains attached to the original execution.'}</small>
             )}
           </div>
           <b>{isRtl ? STATUS_TEXT[executionStatus].ar : STATUS_TEXT[executionStatus].en}</b>
@@ -211,7 +226,7 @@ export default function FamilyLiveStage({
               lang={lang}
               bridgeOnline={bridgeOnline}
               bridgeElevated={bridgeElevated}
-              toolStatus={toolStatuses[selectedTool.ToolId] ?? 'idle'}
+              toolStatus={effectiveToolStatuses[selectedTool.ToolId] ?? 'idle'}
               onRun={requestExecution}
               onCancel={onCancelTool}
               consoleEntries={consoleEntries}
@@ -222,9 +237,33 @@ export default function FamilyLiveStage({
               }}
             />
           </motion.div>
+        ) : serviceAppMode ? (
+          <motion.div
+            key={`service-app-${service.id}`}
+            className="knoux-stage-service-app"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+          >
+            <ServiceApps
+              activeSection={service.legacySection}
+              tools={serviceTools}
+              toolStatuses={effectiveToolStatuses}
+              lang={lang}
+              bridgeElevated={bridgeElevated}
+              bridgeOnline={bridgeOnline}
+              onRetryBridge={onRetryBridge}
+              onToolStatus={(toolId, status) => {
+                setServiceToolStatuses(prev => ({ ...prev, [toolId]: status }));
+              }}
+              onRunTool={onRunTool}
+              onCancelTool={onCancelTool}
+            />
+          </motion.div>
         ) : (
           <motion.div
-            key={service.id}
+            key={`runtime-${executionTool?.ToolId ?? service.id}`}
             className="knoux-workspace-empty knoux-command-workspace-empty"
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -233,20 +272,18 @@ export default function FamilyLiveStage({
           >
             <div className="knoux-workspace-empty-icon"><ServiceIcon size={28} /></div>
             <div>
-              <span>{isRtl ? 'مساحة العمل جاهزة للسياق' : 'CONTEXT-READY ACTION AREA'}</span>
-              <h3>{isRtl ? service.name.ar : service.name.en}</h3>
+              <span>{isRtl ? 'التنفيذ النشط يحتفظ بالمساحة' : 'ACTIVE EXECUTION OWNS THIS WORKSPACE'}</span>
+              <h3>{executionTool ? (isRtl ? executionTool.ArabicName : executionTool.EnglishName) : (isRtl ? service.name.ar : service.name.en)}</h3>
               <p>
-                {bridgeOnline === false
-                  ? (isRtl ? 'اتصل بالجسر أولاً لتحميل عقود الأدوات وتشغيلها.' : 'Connect the bridge to load and execute the registered tool contracts.')
-                  : serviceToolCount > 0
-                    ? (isRtl ? 'اختر أداة من الشريط الجانبي لفتح عناصر التحكم الحقيقية هنا.' : 'Choose a tool from the tool rail to open its real controls here.')
-                    : (isRtl ? 'لا توجد عقود أدوات محمّلة لهذه الخدمة حالياً.' : 'No tool contracts are loaded for this service yet.')}
+                {isRtl
+                  ? 'يبقى التنفيذ الحالي هو المصدر المعتمد حتى ينتهي أو يتم إلغاؤه.'
+                  : 'The current execution remains authoritative until it completes or is cancelled.'}
               </p>
             </div>
             <div className="knoux-command-empty-hint">
               <Braces size={15} />
               <Terminal size={15} />
-              <span>{isRtl ? 'الأدوات على جانب مساحة العمل' : 'Tools remain available beside the workspace'}</span>
+              <span>{isRtl ? 'لن يغيّر اختيار خدمة أخرى ملكية التنفيذ' : 'Changing service selection will not relabel the running work'}</span>
             </div>
           </motion.div>
         )}
