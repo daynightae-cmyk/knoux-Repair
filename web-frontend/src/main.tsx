@@ -12,6 +12,8 @@ import './mission04-visual.css'
 import './mission04-density.css'
 import './family-preview.css'
 import './visual-enhancements.css'
+import './command-center.css'
+import './ai-command-center.css'
 import App from './App'
 import McpOverlayHost from './components/McpOverlayHost'
 
