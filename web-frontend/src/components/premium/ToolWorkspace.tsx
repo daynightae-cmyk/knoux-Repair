@@ -14,6 +14,7 @@ interface ToolWorkspaceProps {
   family: FamilyDefinition;
   service: ServiceDefinition;
   lang: 'en' | 'ar';
+  bridgeOnline: boolean | null;
   bridgeElevated: boolean;
   toolStatus: ToolStatus;
   onRun: (mode: ExecutionMode) => void;
@@ -75,6 +76,7 @@ export default function ToolWorkspace({
   family,
   service,
   lang,
+  bridgeOnline,
   bridgeElevated,
   toolStatus,
   onRun,
@@ -88,6 +90,7 @@ export default function ToolWorkspace({
   const isRunning = toolStatus === 'running';
   const risk = RISK_LABELS[tool.RiskLevel] ?? RISK_LABELS.READ_ONLY;
   const needsAdmin = tool.RequiresAdmin && !bridgeElevated;
+  const executionUnavailable = bridgeOnline !== true || needsAdmin;
   const toolName = lang === 'ar' ? tool.ArabicName : tool.EnglishName;
   const isRtl = lang === 'ar';
 
@@ -314,16 +317,18 @@ export default function ToolWorkspace({
                     {[
                       tool.AnalyzeOnlySupported ? (lang === 'ar' ? 'تحليل' : 'Analyze') : null,
                       tool.WhatIfSupported ? (lang === 'ar' ? 'معاينة' : 'WhatIf') : null,
-                      lang === 'ar' ? 'تنفيذ كامل' : 'Execute'
+                      !executionUnavailable ? (lang === 'ar' ? 'تنفيذ كامل' : 'Execute') : null
                     ].filter(Boolean).join(' · ')}
                   </div>
                 </div>
                 <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                  <div className="text-slate-400 mb-1">{lang === 'ar' ? 'الاعتماد على الشبكة' : 'Connectivity'}</div>
+                  <div className="text-slate-400 mb-1">{lang === 'ar' ? 'حالة الجسر' : 'Bridge Status'}</div>
                   <div className="font-semibold text-white">
-                    {tool.OfflineCapability === 'FULL'
-                      ? (lang === 'ar' ? 'محلي بالكامل (بدون إنترنت)' : 'Fully Offline Capable')
-                      : (lang === 'ar' ? 'يتطلب اتصال إنترنت' : 'Network Dependent')}
+                    {bridgeOnline === true
+                      ? (lang === 'ar' ? 'متاح' : 'Available')
+                      : bridgeOnline === false
+                        ? (lang === 'ar' ? 'غير متاح — الجسر غير متصل' : 'Unavailable — bridge offline')
+                        : (lang === 'ar' ? 'جارٍ التحقق' : 'Checking availability')}
                   </div>
                 </div>
               </div>
@@ -384,7 +389,7 @@ export default function ToolWorkspace({
                 ) : (
                   <div className="text-center py-4 text-slate-400">
                     <Terminal size={18} className="mx-auto mb-1.5 text-slate-500" />
-                    <p>{lang === 'ar' ? 'لم يتم تسجيل أدلة تنفيذية حتى الآن' : 'No execution evidence recorded yet'}</p>
+                    <p>{lang === 'ar' ? 'الأدلة غير متاحة حتى الآن' : 'Evidence unavailable'}</p>
                     <p className="text-[10px] text-slate-500 mt-1">
                       {lang === 'ar' ? 'قم بتشغيل الأداة أو إجراء فحص لجمع أدلة التشخيص' : 'Execute or analyze this tool to collect diagnostic evidence.'}
                     </p>
@@ -493,7 +498,7 @@ export default function ToolWorkspace({
               <button
                 type="button"
                 onClick={() => onRun('analyze')}
-                disabled={isRunning || needsAdmin}
+                disabled={isRunning || executionUnavailable}
                 className="knoux-btn knoux-btn-secondary text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 <Search size={14} />
@@ -504,7 +509,7 @@ export default function ToolWorkspace({
               <button
                 type="button"
                 onClick={() => onRun('preview')}
-                disabled={isRunning || needsAdmin}
+                disabled={isRunning || executionUnavailable}
                 className="knoux-btn knoux-btn-secondary text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 <Eye size={14} />
@@ -527,14 +532,22 @@ export default function ToolWorkspace({
               <button
                 type="button"
                 onClick={() => onRun('run')}
-                disabled={needsAdmin}
+                disabled={executionUnavailable}
                 className="knoux-btn knoux-btn-primary text-xs px-6 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer font-bold disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(124,58,237,0.35)]"
-                title={needsAdmin ? (lang === 'ar' ? 'يتطلب صلاحيات مسؤول' : 'Requires administrator privileges') : ''}
+                title={needsAdmin
+                  ? (lang === 'ar' ? 'يتطلب صلاحيات مسؤول' : 'Requires administrator privileges')
+                  : bridgeOnline !== true
+                    ? (lang === 'ar' ? 'الجسر غير متاح للتنفيذ' : 'Bridge unavailable for execution')
+                    : ''}
               >
                 {toolStatus === 'success' ? <CheckCircle2 size={14} /> : <Play size={14} />}
                 <span>{toolStatus === 'success'
                   ? (lang === 'ar' ? 'اكتمل التشغيل' : 'Run completed')
-                  : (lang === 'ar' ? 'تشغيل الأداة' : 'Run Tool')}</span>
+                  : executionUnavailable
+                    ? (needsAdmin
+                      ? (lang === 'ar' ? 'تتطلب صلاحيات مسؤول' : 'Admin required')
+                      : (lang === 'ar' ? 'التنفيذ غير متاح' : 'Execution unavailable'))
+                    : (lang === 'ar' ? 'تشغيل الأداة' : 'Run Tool')}</span>
               </button>
             )}
           </div>

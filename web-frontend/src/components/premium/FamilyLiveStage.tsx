@@ -189,6 +189,7 @@ export default function FamilyLiveStage({
               family={family}
               service={service}
               lang={lang}
+              bridgeOnline={bridgeOnline}
               bridgeElevated={bridgeElevated}
               toolStatus={toolStatuses[selectedTool.ToolId] ?? 'idle'}
               onRun={requestExecution}
