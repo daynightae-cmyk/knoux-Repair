@@ -23,6 +23,19 @@ export interface ExecutionDecision {
   reason?: string;
 }
 
+const DEFAULT_POLL_INTERVAL_MS = 600;
+const MIN_POLL_INTERVAL_MS = 100;
+const MAX_POLL_INTERVAL_MS = 5_000;
+
+function normalizePollInterval(intervalMs?: number): number {
+  if (!Number.isFinite(intervalMs)) return DEFAULT_POLL_INTERVAL_MS;
+  return Math.min(MAX_POLL_INTERVAL_MS, Math.max(MIN_POLL_INTERVAL_MS, Math.trunc(intervalMs as number)));
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /** Pre-flight gate: confirmation, elevation, and WinRE policy before any run starts. */
 export function decideExecution(input: ExecutionRequestInput, bridgeElevated: boolean): ExecutionDecision {
   const { tool, mode, confirmation } = input;
@@ -54,9 +67,22 @@ export async function startExecution(
   return runId;
 }
 
-export async function pollExecution(runId: string, _intervalMs?: number): Promise<BridgeRun> {
-  const { run } = await api.getRun(runId);
-  return run;
+/**
+ * Wait until the bridge reports a terminal run record.
+ *
+ * The previous implementation performed one GET and returned immediately,
+ * which allowed station UIs to inspect a still-running record as if it were
+ * final. Keep the bridge as the source of truth and never synthesize success,
+ * failure, cancellation, or inconclusive outcomes client-side.
+ */
+export async function pollExecution(runId: string, intervalMs = DEFAULT_POLL_INTERVAL_MS): Promise<BridgeRun> {
+  const delayMs = normalizePollInterval(intervalMs);
+
+  for (;;) {
+    const { run } = await api.getRun(runId);
+    if (run.status !== 'running') return run;
+    await wait(delayMs);
+  }
 }
 
 export async function cancelExecution(runId: string): Promise<void> {
