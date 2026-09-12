@@ -66,9 +66,9 @@ async function main() {
     page.on('pageerror', error => pageErrors.push(error.message));
     await page.setViewport({ width: target.width, height: target.height, deviceScaleFactor: 1 });
     const url = `${ORIGIN}/?view=ai-scan&nosplash=1&mcp=1`;
-    await page.goto(url, { waitUntil: 'networkidle0', timeout: 45000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await page.evaluate(() => localStorage.setItem('knoux-lang', 'en'));
-    await page.reload({ waitUntil: 'networkidle0', timeout: 45000 });
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 45000 });
     await page.waitForSelector('.knoux-mcp-center', { timeout: 8000 });
     await new Promise(resolve => setTimeout(resolve, 900));
     const selectors = await page.evaluate(() => ({
