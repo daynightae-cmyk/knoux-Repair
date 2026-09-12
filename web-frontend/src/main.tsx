@@ -8,6 +8,7 @@ import './platform.css'
 import './service-apps.css'
 import './premium-cinematic.css'
 import './mcp-center.css'
+import './mission04-visual.css'
 import App from './App'
 import McpOverlayHost from './components/McpOverlayHost'
 

@@ -1,0 +1,418 @@
+/* ============================================================================
+   KNOUX Repair — Mission 04 / P0 Visual Architecture Closure
+   Reference-driven visual layer. Functional contracts remain in React/bridge.
+   ============================================================================ */
+
+:root {
+  --m04-ink: #030611;
+  --m04-panel: rgba(7, 12, 31, 0.82);
+  --m04-panel-strong: rgba(5, 9, 26, 0.94);
+  --m04-panel-soft: rgba(12, 18, 43, 0.58);
+  --m04-border: rgba(132, 151, 205, 0.14);
+  --m04-border-bright: rgba(129, 108, 255, 0.32);
+  --m04-violet: #8b5cf6;
+  --m04-violet-hot: #a855f7;
+  --m04-cyan: #22d3ee;
+  --m04-cyan-soft: #67e8f9;
+  --m04-text: #f7f8ff;
+  --m04-muted: #8998b8;
+  --m04-faint: #53617e;
+}
+
+.knoux-shell {
+  background:
+    radial-gradient(900px 520px at 12% -8%, rgba(92, 48, 210, 0.14), transparent 68%),
+    radial-gradient(720px 460px at 90% 9%, rgba(0, 174, 255, 0.08), transparent 68%),
+    linear-gradient(180deg, #050817 0%, #02050d 100%) !important;
+}
+
+.knoux-shell::before {
+  opacity: 0.92;
+  background:
+    linear-gradient(rgba(102, 129, 198, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(102, 129, 198, 0.025) 1px, transparent 1px),
+    radial-gradient(circle at 30% 20%, rgba(139, 92, 246, 0.08), transparent 30%),
+    radial-gradient(circle at 76% 38%, rgba(34, 211, 238, 0.045), transparent 26%) !important;
+  background-size: 32px 32px, 32px 32px, auto, auto !important;
+}
+
+.knoux-topbar {
+  height: 54px !important;
+  padding-inline: 14px !important;
+  background: linear-gradient(180deg, rgba(9, 14, 35, 0.95), rgba(5, 9, 24, 0.86)) !important;
+  border-bottom-color: rgba(133, 151, 205, 0.14) !important;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.3), inset 0 -1px rgba(125, 92, 255, 0.05);
+}
+
+.knoux-rail {
+  width: 176px !important;
+  padding: 13px 8px !important;
+  background: linear-gradient(180deg, rgba(7, 10, 28, 0.96), rgba(3, 7, 19, 0.92)) !important;
+  border-right-color: rgba(127, 149, 205, 0.13) !important;
+  box-shadow: 14px 0 38px rgba(0, 0, 0, 0.18);
+}
+
+[dir="rtl"] .knoux-rail {
+  border-right: 0 !important;
+  border-left: 1px solid rgba(127, 149, 205, 0.13) !important;
+}
+
+.knoux-rail-label {
+  padding-inline: 9px !important;
+  color: #4f607f !important;
+  letter-spacing: 0.14em !important;
+  font-size: 8px !important;
+}
+
+.knoux-rail-item {
+  min-height: 38px;
+  padding: 8px 10px !important;
+  gap: 9px !important;
+  border-radius: 9px !important;
+  font-size: 10.5px !important;
+  color: #7483a3 !important;
+}
+
+.knoux-rail-item:hover {
+  color: #dce7ff !important;
+  background: linear-gradient(90deg, rgba(77, 91, 142, 0.12), rgba(255, 255, 255, 0.015)) !important;
+}
+
+.knoux-rail-item[data-active="true"] {
+  color: #f4f5ff !important;
+  background: linear-gradient(90deg, rgba(110, 52, 235, 0.26), rgba(38, 77, 145, 0.1)) !important;
+  border-color: rgba(139, 92, 246, 0.25) !important;
+  box-shadow: 0 7px 24px rgba(81, 46, 181, 0.14), inset 0 1px rgba(255, 255, 255, 0.05) !important;
+}
+
+.knoux-rail-item[data-active="true"]::before {
+  left: -9px !important;
+  width: 3px !important;
+  height: 25px !important;
+  background: linear-gradient(#c084fc, #6366f1) !important;
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.68) !important;
+}
+
+[dir="rtl"] .knoux-rail-item[data-active="true"]::before {
+  left: auto !important;
+  right: -9px !important;
+}
+
+.knoux-sentinel {
+  width: 232px !important;
+  padding: 12px !important;
+  background: linear-gradient(180deg, rgba(8, 13, 33, 0.96), rgba(4, 8, 22, 0.92)) !important;
+  border-left-color: rgba(127, 149, 205, 0.13) !important;
+  box-shadow: -14px 0 38px rgba(0, 0, 0, 0.18);
+}
+
+[dir="rtl"] .knoux-sentinel {
+  border-left: 0 !important;
+  border-right: 1px solid rgba(127, 149, 205, 0.13) !important;
+}
+
+.knoux-workspace {
+  padding: 16px 18px 30px !important;
+  background:
+    radial-gradient(700px 380px at 18% 0%, rgba(92, 48, 210, 0.075), transparent 72%),
+    radial-gradient(620px 340px at 86% 2%, rgba(22, 185, 236, 0.045), transparent 72%) !important;
+}
+
+.knoux-workspace > div {
+  width: min(100%, 1520px) !important;
+  margin-inline: auto !important;
+}
+
+.knoux-family-page {
+  gap: 14px !important;
+  padding-bottom: 28px !important;
+}
+
+.knoux-family-page .knoux-hero {
+  min-height: 322px !important;
+  padding: 24px 28px !important;
+  border-radius: 18px !important;
+  border-color: rgba(119, 98, 255, 0.28) !important;
+  background-color: rgba(4, 7, 20, 0.95) !important;
+  box-shadow:
+    0 22px 64px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(112, 93, 255, 0.05),
+    inset 0 1px rgba(255, 255, 255, 0.085),
+    inset 0 -70px 120px rgba(27, 38, 96, 0.12) !important;
+}
+
+.knoux-family-page .knoux-hero::before {
+  background:
+    linear-gradient(90deg, rgba(5, 9, 27, 0.14), transparent 54%),
+    linear-gradient(rgba(83, 119, 190, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(83, 119, 190, 0.045) 1px, transparent 1px) !important;
+  background-size: auto, 28px 28px, 28px 28px !important;
+  opacity: 0.78;
+}
+
+.knoux-family-page .knoux-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(112deg, transparent 0 41%, rgba(255, 255, 255, 0.045) 47%, transparent 53%),
+    radial-gradient(440px 240px at 82% 46%, rgba(42, 213, 244, 0.09), transparent 72%);
+  mix-blend-mode: screen;
+}
+
+.knoux-family-page .knoux-hero > .relative {
+  min-height: 268px !important;
+}
+
+.knoux-family-page .knoux-hero h1 {
+  font-size: clamp(34px, 3.3vw, 50px) !important;
+  line-height: 0.98 !important;
+  letter-spacing: -0.045em !important;
+  text-shadow: 0 8px 35px rgba(111, 76, 255, 0.18);
+}
+
+.knoux-family-page .knoux-hero h1 + p {
+  color: #d4ddff !important;
+  font-size: 14px !important;
+}
+
+.knoux-family-page .knoux-hero p {
+  max-width: 600px !important;
+}
+
+.knoux-family-page .knoux-hero button {
+  min-height: 38px;
+  border: 1px solid rgba(164, 137, 255, 0.34) !important;
+  background: linear-gradient(95deg, rgba(116, 61, 241, 0.96), rgba(59, 80, 222, 0.95) 62%, rgba(14, 181, 214, 0.92)) !important;
+  box-shadow: 0 10px 28px rgba(85, 47, 190, 0.26), 0 0 24px rgba(34, 211, 238, 0.08), inset 0 1px rgba(255, 255, 255, 0.18) !important;
+}
+
+.knoux-family-page .knoux-hero > .relative > div:last-child > div {
+  height: 285px !important;
+  max-width: 540px !important;
+  width: 100% !important;
+  filter: saturate(1.2) brightness(1.12) contrast(1.04) drop-shadow(0 18px 38px rgba(20, 17, 68, 0.52)) drop-shadow(0 0 26px rgba(84, 73, 255, 0.18));
+}
+
+.knoux-live-stage {
+  border-radius: 17px !important;
+  border-color: rgba(89, 121, 211, 0.22) !important;
+  background:
+    radial-gradient(410px 240px at 13% 25%, rgba(108, 57, 230, 0.15), transparent 70%),
+    radial-gradient(430px 260px at 82% 36%, rgba(34, 211, 238, 0.075), transparent 72%),
+    linear-gradient(145deg, rgba(6, 10, 29, 0.96), rgba(2, 5, 16, 0.98)) !important;
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.42), inset 0 1px rgba(255, 255, 255, 0.065) !important;
+}
+
+.knoux-live-stage[data-mode="family"] { min-height: 262px !important; }
+.knoux-live-stage[data-mode="tool"] { min-height: 570px !important; }
+
+.knoux-stage-header {
+  min-height: 45px !important;
+  padding: 10px 14px !important;
+  background: rgba(6, 10, 27, 0.72) !important;
+  border-bottom-color: rgba(123, 143, 197, 0.105) !important;
+}
+
+.knoux-stage-family {
+  min-height: 216px !important;
+  padding: 16px 24px !important;
+  grid-template-columns: minmax(285px, 0.8fr) minmax(380px, 1.25fr) !important;
+  gap: 34px !important;
+}
+
+.knoux-stage-family-visual { min-height: 190px !important; }
+.knoux-stage-family-visual::before { width: 76% !important; height: 48% !important; bottom: -4% !important; }
+
+.knoux-stage-core {
+  width: 102px !important;
+  height: 102px !important;
+  border-radius: 28px !important;
+  box-shadow: 0 0 44px rgba(124, 58, 237, 0.24), 0 0 18px rgba(34, 211, 238, 0.14), inset 0 1px rgba(255, 255, 255, 0.13) !important;
+}
+
+.knoux-stage-core svg { width: 43px; height: 43px; }
+.knoux-stage-orbit.orbit-one { width: 220px !important; height: 145px !important; }
+.knoux-stage-orbit.orbit-two { width: 264px !important; height: 174px !important; }
+
+.knoux-stage-service-node {
+  width: 36px !important;
+  height: 36px !important;
+  margin: -18px !important;
+  border-radius: 11px !important;
+  transform: rotate(var(--angle)) translateX(121px) rotate(calc(var(--angle) * -1)) !important;
+}
+
+.knoux-stage-service-node svg { width: 15px; height: 15px; }
+.knoux-stage-family-copy h2 { margin-top: 6px !important; font-size: clamp(25px, 2.5vw, 38px) !important; }
+.knoux-stage-family-copy > p { margin-top: 7px !important; font-size: 11.5px !important; line-height: 1.58 !important; }
+
+.knoux-stage-facts {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+  margin-top: 13px !important;
+}
+
+.knoux-stage-facts > div {
+  min-height: 58px !important;
+  padding: 9px 10px !important;
+  border-radius: 11px !important;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.014)) !important;
+}
+
+.knoux-stage-facts svg { width: 13px; height: 13px; margin-bottom: 3px !important; }
+.knoux-stage-facts strong { font-size: 12px !important; }
+.knoux-stage-facts span { margin-top: 2px !important; font-size: 8px !important; line-height: 1.25; }
+.knoux-stage-hint { margin-top: 10px !important; padding: 8px 11px !important; font-size: 9px !important; line-height: 1.45 !important; }
+
+.knoux-family-catalog { gap: 12px !important; scroll-margin-top: 10px !important; }
+.knoux-section-heading { grid-template-columns: 1fr minmax(260px, 0.72fr) !important; gap: 18px !important; align-items: end !important; padding-inline: 2px; }
+.knoux-section-heading h2 { margin-top: 5px !important; font-size: 21px !important; }
+.knoux-section-heading > p { font-size: 10px !important; line-height: 1.5 !important; }
+.knoux-service-grid { grid-template-columns: repeat(auto-fit, minmax(188px, 1fr)) !important; gap: 9px !important; }
+
+.knoux-service-grid .knoux-service-card {
+  min-height: 126px !important;
+  padding: 12px 13px !important;
+  border-radius: 14px !important;
+  border-color: rgba(123, 143, 197, 0.105) !important;
+  background: radial-gradient(180px 105px at 98% 0%, rgba(112, 78, 230, 0.08), transparent 75%), linear-gradient(145deg, rgba(255, 255, 255, 0.043), rgba(255, 255, 255, 0.012)), rgba(6, 10, 26, 0.82) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24), inset 0 1px rgba(255, 255, 255, 0.045) !important;
+}
+
+.knoux-service-grid .knoux-service-card::after { width: 105px !important; height: 105px !important; inset-inline-end: -52px !important; top: -58px !important; opacity: 0.7; }
+.knoux-service-grid .knoux-service-card:hover { transform: translateY(-2px) !important; border-color: rgba(103, 232, 249, 0.2) !important; }
+.knoux-service-grid .knoux-service-card[data-active="true"] { transform: translateY(-2px) !important; border-color: rgba(128, 95, 255, 0.36) !important; box-shadow: 0 13px 32px rgba(0, 0, 0, 0.3), 0 0 24px rgba(111, 76, 255, 0.075), inset 0 1px rgba(255, 255, 255, 0.08) !important; }
+.knoux-service-card-icon { width: 34px !important; height: 34px !important; border-radius: 10px !important; }
+.knoux-service-card-icon svg { width: 17px; height: 17px; }
+.knoux-service-card-count strong { font-size: 13px !important; }
+.knoux-service-grid .knoux-service-card h4 { margin-top: 9px !important; font-size: 12px !important; }
+.knoux-service-grid .knoux-service-card p { margin-top: 4px !important; font-size: 9px !important; line-height: 1.42 !important; }
+.knoux-service-card-action { margin-top: 8px !important; font-size: 8.5px !important; }
+
+.knoux-active-service-panel {
+  border-radius: 16px !important;
+  border-color: rgba(123, 143, 197, 0.11) !important;
+  background: radial-gradient(260px 140px at 94% 0%, rgba(124, 58, 237, 0.085), transparent 72%), rgba(5, 9, 24, 0.78) !important;
+  box-shadow: 0 15px 42px rgba(0, 0, 0, 0.27), inset 0 1px rgba(255, 255, 255, 0.05) !important;
+}
+
+.knoux-active-service-head { min-height: 68px; padding: 12px 15px !important; align-items: center !important; }
+.knoux-active-service-head h3 { margin-top: 3px !important; font-size: 15px !important; }
+.knoux-active-service-head p { margin-top: 3px !important; font-size: 9px !important; }
+.knoux-active-service-count strong { font-size: 20px !important; }
+
+.knoux-tool-card-grid { padding: 11px !important; grid-template-columns: repeat(auto-fit, minmax(214px, 1fr)) !important; gap: 8px !important; }
+.knoux-tool-card {
+  min-height: 148px !important;
+  padding: 11px !important;
+  border-radius: 13px !important;
+  border-color: rgba(123, 143, 197, 0.095) !important;
+  background: radial-gradient(160px 90px at 100% 0%, rgba(84, 72, 198, 0.07), transparent 73%), linear-gradient(145deg, rgba(255, 255, 255, 0.044), rgba(255, 255, 255, 0.011)), rgba(6, 10, 26, 0.9) !important;
+  box-shadow: 0 9px 24px rgba(0, 0, 0, 0.25), inset 0 1px rgba(255, 255, 255, 0.045) !important;
+}
+.knoux-tool-card:hover { transform: translateY(-2px) !important; border-color: rgba(79, 211, 237, 0.21) !important; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3), 0 0 22px rgba(34, 211, 238, 0.045), inset 0 1px rgba(255, 255, 255, 0.065) !important; }
+.knoux-tool-card[data-active="true"] { border-color: rgba(142, 103, 255, 0.43) !important; background: radial-gradient(180px 100px at 100% 0%, rgba(124, 58, 237, 0.16), transparent 75%), linear-gradient(145deg, rgba(105, 83, 214, 0.13), rgba(255, 255, 255, 0.016)), rgba(7, 11, 30, 0.94) !important; }
+.knoux-tool-card-icon { width: 34px !important; height: 34px !important; border-radius: 10px !important; }
+.knoux-tool-card-icon svg { width: 16px; height: 16px; }
+.knoux-tool-card-id { font-size: 8px !important; }
+.knoux-tool-card-title { font-size: 11.5px !important; }
+.knoux-tool-card-purpose { margin-top: 8px !important; font-size: 9px !important; line-height: 1.44 !important; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.knoux-tool-card-meta { margin-top: 9px !important; gap: 5px !important; }
+.knoux-tool-card-meta > span { font-size: 7.5px !important; line-height: 1 !important; padding: 4px 6px !important; }
+.knoux-tool-card-foot { margin-top: 9px !important; padding-top: 8px !important; font-size: 7.5px !important; }
+
+.knoux-stage-tool { padding: 11px !important; }
+.knoux-live-stage .knoux-tool-workspace {
+  min-height: 500px;
+  padding: 14px 16px !important;
+  border-radius: 14px !important;
+  border-color: rgba(123, 143, 197, 0.1) !important;
+  background: radial-gradient(420px 220px at 15% 5%, rgba(104, 57, 224, 0.09), transparent 72%), linear-gradient(180deg, rgba(7, 11, 29, 0.76), rgba(3, 7, 20, 0.84)) !important;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.055) !important;
+}
+.knoux-live-stage .knoux-tool-workspace .knoux-breadcrumb { margin-bottom: 10px !important; color: #637392 !important; font-size: 9px !important; }
+.knoux-live-stage .knoux-tool-workspace h2 { letter-spacing: -0.025em; }
+.knoux-live-stage .knoux-tool-workspace [class*="border-white"] { border-color: rgba(123, 143, 197, 0.105) !important; }
+.knoux-live-stage .knoux-tool-workspace [class*="bg-white"] { backdrop-filter: blur(14px); }
+
+.knoux-workspace > .max-w-6xl.mx-auto.space-y-6 {
+  max-width: 1180px !important;
+  display: grid !important;
+  gap: 12px !important;
+}
+.knoux-workspace > .max-w-6xl.mx-auto.space-y-6 > div:first-child {
+  min-height: 132px;
+  padding: 18px 22px !important;
+  border-radius: 16px !important;
+  border-color: rgba(123, 143, 197, 0.12) !important;
+  background: radial-gradient(320px 160px at 86% 18%, rgba(34, 211, 238, 0.08), transparent 72%), radial-gradient(300px 160px at 15% 10%, rgba(124, 58, 237, 0.13), transparent 75%), linear-gradient(110deg, rgba(9, 15, 39, 0.94), rgba(4, 8, 23, 0.94)) !important;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.36), inset 0 1px rgba(255, 255, 255, 0.06) !important;
+}
+.knoux-workspace > .max-w-6xl.mx-auto.space-y-6 > div:first-child h1 { font-size: clamp(27px, 2.7vw, 38px) !important; line-height: 1 !important; letter-spacing: -0.04em !important; }
+.knoux-workspace > .max-w-6xl.mx-auto.space-y-6 > div:nth-child(2) { gap: 9px !important; }
+.knoux-workspace > .max-w-6xl.mx-auto.space-y-6 > div:nth-child(2) > div {
+  padding: 12px !important;
+  border-radius: 14px !important;
+  min-height: 240px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.009)), rgba(6, 10, 27, 0.9) !important;
+  border-color: rgba(123, 143, 197, 0.1) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25), inset 0 1px rgba(255, 255, 255, 0.045) !important;
+}
+.knoux-workspace > .max-w-6xl.mx-auto.space-y-6 > div:nth-child(2) > div:hover { transform: translateY(-2px); border-color: rgba(103, 232, 249, 0.19) !important; }
+.knoux-workspace > .max-w-6xl.mx-auto.space-y-6 > div:nth-child(2) button { min-height: 42px; padding: 7px 8px !important; border-radius: 9px !important; background: rgba(255, 255, 255, 0.022) !important; border-color: rgba(123, 143, 197, 0.08) !important; }
+.knoux-workspace > .max-w-6xl.mx-auto.space-y-6 > div:nth-child(2) button:hover { background: rgba(65, 82, 141, 0.13) !important; border-color: rgba(103, 232, 249, 0.16) !important; }
+
+.knoux-workspace > .max-w-6xl.mx-auto.space-y-8 { max-width: 1180px !important; gap: 14px !important; }
+.knoux-workspace > .max-w-6xl.mx-auto.space-y-8 > div:first-child {
+  min-height: 338px;
+  padding: 24px 27px !important;
+  border-radius: 18px !important;
+  border-color: rgba(117, 100, 245, 0.24) !important;
+  background: radial-gradient(460px 260px at 82% 46%, rgba(89, 64, 214, 0.18), transparent 72%), radial-gradient(340px 200px at 95% 8%, rgba(34, 211, 238, 0.08), transparent 72%), linear-gradient(130deg, rgba(8, 13, 35, 0.96), rgba(3, 7, 20, 0.96)) !important;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.48), inset 0 1px rgba(255, 255, 255, 0.07) !important;
+}
+.knoux-workspace > .max-w-6xl.mx-auto.space-y-8 > div:first-child h1 { font-size: clamp(42px, 4.5vw, 62px) !important; line-height: 0.94 !important; letter-spacing: -0.055em !important; }
+.knoux-workspace > .max-w-6xl.mx-auto.space-y-8 > div:first-child input { min-height: 38px; }
+
+.knoux-family-page button,
+.knoux-workspace > .max-w-6xl button { outline: none; }
+.knoux-family-page button:focus-visible,
+.knoux-workspace > .max-w-6xl button:focus-visible { box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.42), 0 0 0 5px rgba(34, 211, 238, 0.08) !important; }
+
+@media (min-width: 1500px) {
+  .knoux-rail { width: 188px !important; }
+  .knoux-sentinel { width: 248px !important; }
+  .knoux-workspace { padding-inline: 24px !important; }
+  .knoux-family-page .knoux-hero { min-height: 350px !important; }
+}
+
+@media (max-width: 1180px) {
+  .knoux-rail { width: 158px !important; }
+  .knoux-sentinel { width: 208px !important; }
+  .knoux-workspace { padding: 13px 14px 24px !important; }
+  .knoux-family-page .knoux-hero { min-height: 300px !important; padding: 20px !important; }
+  .knoux-family-page .knoux-hero > .relative > div:last-child > div { height: 250px !important; }
+  .knoux-stage-family { grid-template-columns: 255px 1fr !important; gap: 22px !important; padding-inline: 18px !important; }
+  .knoux-stage-facts { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .knoux-service-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+@media (max-width: 980px) {
+  .knoux-sentinel { display: none !important; }
+  .knoux-rail { width: 150px !important; }
+  .knoux-stage-family { grid-template-columns: 1fr !important; }
+  .knoux-stage-family-visual { display: none !important; }
+  .knoux-section-heading { grid-template-columns: 1fr !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knoux-stage-scanline,
+  .knoux-stage-core,
+  .knoux-stage-orbit { animation: none !important; }
+  .knoux-tool-card,
+  .knoux-service-card,
+  .knoux-rail-item { transition-duration: 0.01ms !important; }
+}
