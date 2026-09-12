@@ -16,29 +16,47 @@ test('family preview configuration covers six repair families and all eighteen s
   }
 });
 
-test('family page renders preview, services, selected service tools, then workspace', () => {
+test('family page is a persistent service rail, live workspace, and tool rail', () => {
   const source = read('src/components/premium/FamilyPage.tsx');
-  const hero = source.indexOf('<HeroSection');
-  const services = source.indexOf('id="family-services"');
-  const selectedService = source.indexOf('knoux-active-service-panel');
-  const tools = source.indexOf('knoux-tool-card-grid');
-  const workspace = source.indexOf('<FamilyLiveStage');
+  const serviceRail = source.indexOf('knoux-command-service-rail');
+  const liveColumn = source.indexOf('knoux-command-live-column');
+  const toolRail = source.indexOf('knoux-command-tool-rail');
 
-  assert.ok(hero >= 0);
-  assert.ok(hero < services);
-  assert.ok(services < selectedService);
-  assert.ok(selectedService < tools);
-  assert.ok(tools < workspace);
-  assert.match(source, /onSelectTool\(null\)/);
-  assert.match(source, /key=\{activeService\.id\}/);
+  assert.ok(serviceRail >= 0);
+  assert.ok(liveColumn > serviceRail);
+  assert.ok(toolRail > liveColumn);
+  assert.match(source, /<HeroSection/);
+  assert.match(source, /<FamilyLiveStage/);
+  assert.match(source, /executionTool=\{executionTool\}/);
+  assert.doesNotMatch(source, /scrollIntoView/);
+  assert.doesNotMatch(source, /function scrollTo/);
+  assert.doesNotMatch(source, /id="family-services"/);
 });
 
-test('wide preview reacts to service and tool context without synthetic runtime counts', () => {
-  const source = read('src/components/premium/HeroSection.tsx');
-  assert.match(source, /key=\{`\$\{family\.id\}-\$\{service\.id\}-\$\{selectedTool\?\.ToolId \?\? 'service'\}`\}/);
-  assert.match(source, /onSelectService\(entry\.id\)/);
-  assert.match(source, /bridgeOnline === true \? familyToolCount : '—'/);
-  assert.match(source, /Context preview — runtime data not connected/);
+test('selected tool and execution tool are modeled independently', () => {
+  const familyPage = read('src/components/premium/FamilyPage.tsx');
+  const liveStage = read('src/components/premium/FamilyLiveStage.tsx');
+  const hero = read('src/components/premium/HeroSection.tsx');
+
+  assert.match(familyPage, /const selectedTool = useMemo/);
+  assert.match(familyPage, /const executionTool = useMemo/);
+  assert.match(liveStage, /selectionDiffersFromExecution/);
+  assert.match(liveStage, /runtime ownership remains attached to the execution tool/);
+  assert.match(hero, /executionToolStatus === 'running'/);
+  assert.match(hero, /EXECUTION CONTINUES/);
+});
+
+test('command center preserves execution results and honest runtime labels', () => {
+  const hero = read('src/components/premium/HeroSection.tsx');
+  const liveStage = read('src/components/premium/FamilyLiveStage.tsx');
+
+  assert.match(hero, /Context preview — no synthetic telemetry/);
+  assert.match(hero, /Live system snapshot/);
+  assert.match(liveStage, /LAST EXECUTION/);
+  assert.match(liveStage, /ACTIVE EXECUTION/);
+  assert.match(liveStage, /toolStatuses\[executionTool\.ToolId\]/);
+  assert.doesNotMatch(hero, /Math\.random/);
+  assert.doesNotMatch(liveStage, /Math\.random/);
 });
 
 test('AI Scan exposes its four service concepts and refuses an evidence-free success state', () => {
@@ -55,10 +73,12 @@ test('AI Scan exposes its four service concepts and refuses an evidence-free suc
   assert.doesNotMatch(source, /toolCount \?\? 158/);
 });
 
-test('family preview CSS includes responsive and reduced-motion fallbacks', () => {
-  const source = read('src/family-preview.css');
-  assert.match(source, /min-height: clamp\(360px, 32vw, 430px\)/);
-  assert.match(source, /@media \(max-width: 1180px\)/);
-  assert.match(source, /@media \(max-width: 700px\)/);
+test('command center CSS keeps rails independently scrollable and supports narrower layouts', () => {
+  const source = read('src/command-center.css');
+  assert.match(source, /grid-template-columns: var\(--command-rail-width\) minmax\(0, 1fr\) var\(--command-tool-width\)/);
+  assert.match(source, /\.knoux-command-rail-scroll/);
+  assert.match(source, /overflow-y: auto/);
+  assert.match(source, /@container \(max-width: 1100px\)/);
+  assert.match(source, /@container \(max-width: 760px\)/);
   assert.match(source, /@media \(prefers-reduced-motion: reduce\)/);
 });
