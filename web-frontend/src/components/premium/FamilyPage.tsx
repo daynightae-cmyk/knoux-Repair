@@ -79,9 +79,10 @@ export default function FamilyPage({
     : 'idle';
 
   const isRtl = lang === 'ar';
+  const serviceAppActive = !selectedTool;
 
   return (
-    <div className="knoux-family-page knoux-command-center" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className={`knoux-family-page knoux-command-center${serviceAppActive ? ' knoux-service-app-active' : ''}`} dir={isRtl ? 'rtl' : 'ltr'}>
       <aside className="knoux-command-rail knoux-command-service-rail" aria-label={isRtl ? 'خدمات العائلة' : 'Family services'}>
         <header className="knoux-command-rail-header">
           <span>{isRtl ? 'الخدمات' : 'SERVICES'}</span>
@@ -127,6 +128,7 @@ export default function FamilyPage({
         <FamilyLiveStage
           family={family}
           service={activeService}
+          serviceTools={serviceTools}
           selectedTool={selectedTool}
           executionTool={executionTool}
           serviceToolCount={serviceTools.length}
@@ -137,14 +139,15 @@ export default function FamilyPage({
           onRunTool={onRunTool}
           onCancelTool={onCancelTool}
           onClearTool={() => onSelectTool(null)}
+          onRetryBridge={onRetryBridge}
           consoleEntries={consoleEntries}
           activeToolId={activeToolId}
         />
       </main>
 
-      <aside className="knoux-command-rail knoux-command-tool-rail" aria-label={isRtl ? 'أدوات الخدمة' : 'Service tools'}>
+      <aside className="knoux-command-rail knoux-command-tool-rail" aria-label={isRtl ? 'إجراءات الخدمة' : 'Service actions'}>
         <header className="knoux-command-rail-header">
-          <span>{isRtl ? 'الأدوات' : 'TOOLS'}</span>
+          <span>{isRtl ? 'الإجراءات' : 'ACTIONS'}</span>
           <strong>{isRtl ? activeService.name.ar : activeService.name.en}</strong>
           <small>{bridgeOnline === true ? serviceTools.length : '—'}</small>
         </header>
@@ -158,7 +161,7 @@ export default function FamilyPage({
         <div className="knoux-command-rail-scroll knoux-command-tool-scroll">
           {bridgeOnline === false ? (
             <div className="knoux-tool-empty-state">
-              <p>{isRtl ? 'الجسر غير متصل، لذلك لا يمكن تحميل عقود الأدوات الحالية.' : 'Bridge offline, so the current tool contracts cannot be loaded.'}</p>
+              <p>{isRtl ? 'الجسر غير متصل، لذلك لا يمكن تحميل الإجراءات الحالية.' : 'Bridge offline, so the current actions cannot be loaded.'}</p>
               <button type="button" className="knoux-btn knoux-btn-secondary" onClick={onRetryBridge}>
                 {isRtl ? 'إعادة المحاولة' : 'Retry connection'}
               </button>
@@ -166,8 +169,8 @@ export default function FamilyPage({
           ) : serviceTools.length === 0 ? (
             <div className="knoux-tool-empty-state">
               <p>{bridgeOnline === null
-                ? (isRtl ? 'جارٍ تحميل عقود الأدوات...' : 'Loading tool contracts...')
-                : (isRtl ? 'لا توجد أدوات محمّلة لهذه الخدمة.' : 'No loaded tools are available for this service.')}
+                ? (isRtl ? 'جارٍ تحميل الإجراءات...' : 'Loading actions...')
+                : (isRtl ? 'لا توجد إجراءات محمّلة لهذه الخدمة.' : 'No loaded actions are available for this service.')}
               </p>
             </div>
           ) : (
