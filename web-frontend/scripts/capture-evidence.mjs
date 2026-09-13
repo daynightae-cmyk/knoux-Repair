@@ -151,8 +151,28 @@ async function inspectExecutionLifecycle(page) {
 
 async function clickToolCard(page, toolId) {
   const selector = `.knoux-tool-card[data-tool-id="${toolId}"]`;
-  await page.waitForSelector(selector, { timeout: 10_000 });
-  await page.click(selector);
+  let card = await page.$(selector);
+
+  if (!card) {
+    const drawer = await page.$('.knoux-command-tool-drawer');
+    if (drawer) {
+      const expanded = await page.evaluate(
+        element => element.getAttribute('aria-expanded') === 'true',
+        drawer
+      );
+      if (!expanded) {
+        await drawer.click();
+        await page.waitForFunction(
+          () => document.querySelector('.knoux-command-tool-drawer')?.getAttribute('aria-expanded') === 'true',
+          { timeout: 5_000, polling: 20 }
+        );
+      }
+    }
+    card = await page.waitForSelector(selector, { timeout: 10_000 });
+  }
+
+  if (!card) throw new Error(`Tool card ${toolId} did not become available through the real action drawer.`);
+  await card.click();
   await page.waitForFunction(
     expectedToolId => document.querySelector('.knoux-workspace-stage')?.getAttribute('data-selected-tool-id') === expectedToolId,
     { timeout: 5_000, polling: 20 },
