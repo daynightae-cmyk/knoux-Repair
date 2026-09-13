@@ -45,6 +45,7 @@ export type HealthState =
   | 'NOT_SCANNED'
   | 'CHECKING'
   | 'HEALTHY'
+  | 'PARTIALLY_CHECKED'
   | 'ATTENTION'
   | 'REPAIR_RECOMMENDED'
   | 'REPAIR_IN_PROGRESS'
@@ -52,6 +53,18 @@ export type HealthState =
   | 'INCONCLUSIVE'
   | 'PERMISSION_REQUIRED'
   | 'ENGINE_OFFLINE';
+
+/**
+ * Minimum evidence coverage required before the station may call overall
+ * Windows maintenance health HEALTHY. One successful check is never enough.
+ * Each group represents alternatives that prove the same health domain.
+ */
+export const MINIMUM_HEALTH_EVIDENCE_GROUPS: readonly (readonly Station01ToolId[])[] = [
+  ['SM01'],
+  ['SM03', 'SM04'],
+  ['SM06'],
+  ['SM10'],
+];
 
 export interface ToolEvidence {
   toolId: string;
@@ -82,12 +95,18 @@ function boolField(result: KnouxRunResult | null | undefined, lower: string, upp
 
 /** Canonical evidence record from a finished bridge run. Unknown data stays empty. */
 export function evidenceFromRun(run: BridgeRun): ToolEvidence {
+  const resultStatus = field(run.result, 'status', 'Status').toUpperCase();
+  const bridgeTerminalStatus = run.status === 'cancelled'
+    ? 'CANCELLED'
+    : run.status === 'error'
+      ? 'FAILED'
+      : 'INCONCLUSIVE';
   return {
     toolId: run.toolId,
     mode: run.mode,
-    status: field(run.result, 'status', 'Status').toUpperCase() || 'INCONCLUSIVE',
+    status: resultStatus || bridgeTerminalStatus,
     verificationResult: field(run.result, 'verificationResult', 'VerificationResult'),
-    errorMessage: field(run.result, 'errorMessage', 'ErrorMessage'),
+    errorMessage: field(run.result, 'errorMessage', 'ErrorMessage') || run.error || '',
     reportPath: field(run.result, 'reportPath', 'ReportPath'),
     finishedAt: field(run.result, 'finishedAt', 'FinishedAt') || run.finishedAt || '',
     changedSystem: boolField(run.result, 'changedSystem', 'ChangedSystem'),
@@ -146,7 +165,24 @@ export function deriveHealthState(evidence: EvidenceMap, running: string[], brid
   if (items.every((item) => item.status === 'CANCELLED' || item.status === 'SKIPPED')) return 'NOT_SCANNED';
   if (items.some((item) => item.status === 'INCONCLUSIVE')) return 'INCONCLUSIVE';
   const verified = items.some((item) => item.status === 'SUCCESS');
-  return verified ? 'HEALTHY' : 'NOT_SCANNED';
+  if (!verified) return 'NOT_SCANNED';
+  const hasMinimumCoverage = MINIMUM_HEALTH_EVIDENCE_GROUPS.every((alternatives) =>
+    alternatives.some((toolId) => evidence[toolId]?.status === 'SUCCESS')
+  );
+  return hasMinimumCoverage ? 'HEALTHY' : 'PARTIALLY_CHECKED';
+}
+
+/**
+ * Overall repair completion is deny-by-default. Only known verified terminal
+ * results without a pending restart qualify; CANCELLED, WARNING, SKIPPED,
+ * INCONCLUSIVE, unknown values, and restart-pending results remain non-complete.
+ */
+export function isVerifiedRepairCompletion(item: ToolEvidence): boolean {
+  if (item.status !== 'SUCCESS' || item.restartNeeded) return false;
+  const result = item.verificationResult.toUpperCase();
+  if (item.toolId === 'SM02') return result === 'OK' || result === 'REPAIRED_VERIFIED';
+  if (item.toolId === 'SM05') return result === 'OK' || result === 'NO_REPAIR_NEEDED';
+  return false;
 }
 
 export function derivePhaseState(phase: PipelinePhase, evidence: EvidenceMap, running: string[]): PhaseState {

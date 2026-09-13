@@ -115,7 +115,12 @@ test('Station 01: health is categorical and evidence-owned', () => {
   assert.equal(model.deriveHealthState({}, ['SM01'], true), 'CHECKING');
   assert.equal(model.deriveHealthState({}, ['SM02'], true), 'REPAIR_IN_PROGRESS');
 
-  const healthy = { SM01: model.evidenceFromRun(runResult('SM01', { status: 'SUCCESS', verificationResult: 'OK' })) };
+  const partial = { SM01: model.evidenceFromRun(runResult('SM01', { status: 'SUCCESS', verificationResult: 'OK' })) };
+  assert.equal(model.deriveHealthState(partial, [], true), 'PARTIALLY_CHECKED');
+
+  const healthy = Object.fromEntries([
+    ['SM01', 'OK'], ['SM03', 'OK'], ['SM06', 'OK'], ['SM10', 'OK'],
+  ].map(([toolId, verificationResult]) => [toolId, model.evidenceFromRun(runResult(toolId, { status: 'SUCCESS', verificationResult }))]));
   assert.equal(model.deriveHealthState(healthy, [], true), 'HEALTHY');
 
   const violations = { SM01: model.evidenceFromRun(runResult('SM01', { status: 'WARNING', verificationResult: 'VIOLATIONS_FOUND' })) };

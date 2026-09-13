@@ -12,7 +12,7 @@ import { StationErrorBoundary, StationOfflineState } from '../_shared';
 import { cancelExecution, decideExecution, pollExecution, runStatusToState, startExecution } from '../_shared/StationExecutionController';
 import {
   appendHistory, availableScanChecks, buildMaintenanceReport, buildRecommendations, buildScanPlan,
-  deriveCheckState, deriveHealthState, evidenceFromRun, loadHistory, stationTools,
+  deriveCheckState, deriveHealthState, evidenceFromRun, isVerifiedRepairCompletion, loadHistory, stationTools,
   type EvidenceMap, type HistoryEntry, type MaintenanceCheckState, type MaintenanceScanGroupId,
   type Recommendation, type ToolEvidence,
 } from './maintenanceModel';
@@ -49,6 +49,7 @@ const COPY = {
     applySelected: 'APPLY SELECTED', selectedActions: 'selected actions', nothingSelected: 'Select at least one supported repair.',
     confirmRepair: 'Confirm selected repairs', confirmBody: 'These actions modify Windows. Review the exact order, risk, administrator and restart requirements.',
     typeConfirm: 'Type CONFIRM to authorize these changes', confirm: 'Confirm and apply',
+    acknowledgeRecovery: 'I reviewed and understand the recovery option listed for these actions.',
     why: 'Why it was flagged', changes: 'What will change', evidence: 'Raw evidence', rollback: 'Rollback', report: 'Report', askAi: 'Ask KNOUX AI',
     queue: 'Operation queue', beforeAfter: 'Before / action / after', before: 'Before', action: 'Action', after: 'After',
     verified: 'VERIFIED', verificationRequired: 'VERIFICATION REQUIRED', restartRequired: 'RESTART REQUIRED',
@@ -72,6 +73,7 @@ const COPY = {
     applySelected: 'تطبيق المحدد', selectedActions: 'إجراءات محددة', nothingSelected: 'اختر إصلاحًا مدعومًا واحدًا على الأقل.',
     confirmRepair: 'تأكيد الإصلاحات المحددة', confirmBody: 'هذه الإجراءات تغيّر Windows. راجع الترتيب الدقيق والمخاطر وصلاحية المدير وإعادة التشغيل.',
     typeConfirm: 'اكتب CONFIRM لتفويض هذه التغييرات', confirm: 'تأكيد وتطبيق',
+    acknowledgeRecovery: 'راجعت خيار الاستعادة الموضح لهذه الإجراءات وأفهمه.',
     why: 'سبب الرصد', changes: 'ما الذي سيتغير', evidence: 'الدليل الخام', rollback: 'الاستعادة', report: 'التقرير', askAi: 'اسأل KNOUX AI',
     queue: 'طابور التنفيذ', beforeAfter: 'قبل / الإجراء / بعد', before: 'قبل', action: 'الإجراء', after: 'بعد',
     verified: 'تم التحقق', verificationRequired: 'التحقق مطلوب', restartRequired: 'إعادة التشغيل مطلوبة',
@@ -143,6 +145,7 @@ export default function MaintenanceStation({
   const [scanPlanOpen, setScanPlanOpen] = useState(false);
   const [repairPlanOpen, setRepairPlanOpen] = useState(false);
   const [confirmPhrase, setConfirmPhrase] = useState('');
+  const [recoveryAcknowledged, setRecoveryAcknowledged] = useState(false);
   const [system, setSystem] = useState<SystemSnapshot | null>(null);
   const [elevated, setElevated] = useState(bridgeElevated);
   const [aiEnabled, setAiEnabled] = useState(false);
@@ -176,6 +179,10 @@ export default function MaintenanceStation({
   const health = useMemo(() => deriveHealthState(evidence, runningIds, bridgeOnline), [evidence, runningIds, bridgeOnline]);
   const selectedPlan = useMemo(() => buildScanPlan(selectedChecks, station), [selectedChecks, station]);
   const selectedRecommendationList = useMemo(() => recommendations.filter((item) => selectedRepairs.includes(item.id)), [recommendations, selectedRepairs]);
+  const requiresRecoveryAcknowledgement = useMemo(() => selectedRecommendationList.some((item) => {
+    const backup = byId.get(item.toolId)?.BackupMethod?.trim() || '';
+    return Boolean(backup && !/^none(?:\b|\s|\()/i.test(backup));
+  }), [byId, selectedRecommendationList]);
   const completedCount = queue.filter((item) => item.state === 'COMPLETED' || item.state === 'FAILED' || item.state === 'CANCELLED').length;
   const failedChecks = checks.filter((check) => ['FAILED', 'INCONCLUSIVE'].includes(deriveCheckState(check, evidence, runningIds)));
   const lastScan = useMemo(() => [
@@ -254,11 +261,20 @@ export default function MaintenanceStation({
   }, [executeStep, lang, selectedPlan]);
 
   const applyRepairs = useCallback(async () => {
+    if (confirmPhrase.trim().toUpperCase() !== 'CONFIRM' || (requiresRecoveryAcknowledgement && !recoveryAcknowledged)) {
+      setBanner(text.errConfirmation);
+      return;
+    }
     setRepairPlanOpen(false);
     setBanner('');
     setRepairResults([]);
     setWorkflow('APPLYING');
-    const confirmation: ToolRunConfirmation = { confirmed: true, phrase: confirmPhrase.trim(), acknowledgedRecovery: true, confirmedAt: new Date().toISOString() };
+    const confirmation: ToolRunConfirmation = {
+      confirmed: true,
+      phrase: confirmPhrase.trim(),
+      confirmedAt: new Date().toISOString(),
+      ...(requiresRecoveryAcknowledgement ? { acknowledgedRecovery: recoveryAcknowledged } : {}),
+    };
     const results: RepairResult[] = [];
     for (const recommendation of selectedRecommendationList) {
       const sourceId = recommendation.toolId === 'SM02' ? 'SM01' : recommendation.toolId === 'SM05' ? (evidence.SM04 ? 'SM04' : 'SM03') : 'SM06';
@@ -268,9 +284,9 @@ export default function MaintenanceStation({
         setRepairResults([...results]);
       } catch (error) { setBanner(`[${recommendation.toolId}] ${errorMessage(error, lang)}`); }
     }
-    const hasFailure = results.length !== selectedRecommendationList.length || results.some(({ after }) => after.status === 'FAILED' || after.status === 'INCONCLUSIVE' || (after.status === 'WARNING' && after.verificationResult !== 'SCHEDULED'));
-    setWorkflow(hasFailure ? 'PARTIAL' : 'COMPLETE');
-  }, [confirmPhrase, evidence, executeStep, lang, selectedRecommendationList]);
+    const hasIncompleteOutcome = results.length !== selectedRecommendationList.length || results.some(({ after }) => !isVerifiedRepairCompletion(after));
+    setWorkflow(hasIncompleteOutcome ? 'PARTIAL' : 'COMPLETE');
+  }, [confirmPhrase, evidence, executeStep, lang, recoveryAcknowledged, requiresRecoveryAcknowledgement, selectedRecommendationList, text.errConfirmation]);
 
   const cancelActive = useCallback(async () => {
     cancelRequested.current = true;
@@ -398,7 +414,7 @@ export default function MaintenanceStation({
               })}</div>}
               {failedChecks.length > 0 && <details className="care-errors"><summary><CircleAlert size={14}/>{text.operationalErrors} · {failedChecks.length}<ChevronDown size={13}/></summary><div>{failedChecks.map((check) => <p key={check.id}><b>{check.label[lang]}</b><span>{evidence[check.toolId]?.errorMessage || evidence[check.toolId]?.verificationResult}</span></p>)}</div></details>}
               {selectedRecommendationList.some((item) => byId.get(item.toolId)?.RequiresAdmin) && !elevated && workflow === 'REVIEW' && <button type="button" className="care-permission-callout" onClick={() => void recheckElevation()}><LockKeyhole size={14}/><span>{text.permission}</span><b>{text.recheck}</b></button>}
-              {recommendations.length > 0 && <div className="care-apply-bar"><span><b>{selectedRecommendationList.length}</b> {text.selectedActions}</span><button type="button" disabled={selectedRecommendationList.length === 0 || workflow === 'APPLYING' || selectedRecommendationList.some((item) => byId.get(item.toolId)?.RequiresAdmin && !elevated)} onClick={() => { setConfirmPhrase(''); setRepairPlanOpen(true); }}><Wrench size={15}/>{text.applySelected}</button></div>}
+              {recommendations.length > 0 && <div className="care-apply-bar"><span><b>{selectedRecommendationList.length}</b> {text.selectedActions}</span><button type="button" disabled={selectedRecommendationList.length === 0 || workflow === 'APPLYING' || selectedRecommendationList.some((item) => byId.get(item.toolId)?.RequiresAdmin && !elevated)} onClick={() => { setConfirmPhrase(''); setRecoveryAcknowledged(false); setRepairPlanOpen(true); }}><Wrench size={15}/>{text.applySelected}</button></div>}
             </>}
 
             {(workflow === 'COMPLETE' || workflow === 'PARTIAL') && <>
@@ -414,7 +430,7 @@ export default function MaintenanceStation({
 
         {scanPlanOpen && <div className="care-dialog-backdrop" onMouseDown={() => setScanPlanOpen(false)}><section role="dialog" aria-modal="true" className="care-dialog" onMouseDown={(event) => event.stopPropagation()}><button type="button" className="care-dialog-close" onClick={() => setScanPlanOpen(false)}><X size={16}/></button><ScanSearch size={24}/><h2>{text.scanPlan}</h2><p>{text.scanPlanBody}</p><ol>{selectedPlan.map((step, index) => <li key={step.toolId}><span>{index + 1}</span><div><strong>{pickName(byId.get(step.toolId)!, lang)}</strong><small>{step.toolId} · READ ONLY{byId.get(step.toolId)?.RequiresAdmin ? ` · ${text.admin}` : ''}</small></div></li>)}</ol><footer><button type="button" onClick={() => setScanPlanOpen(false)}>{text.back}</button><button type="button" onClick={() => void runScan()} disabled={selectedPlan.length === 0 || selectedNeedsAdmin}><Play size={13}/>{text.begin}</button></footer></section></div>}
 
-        {repairPlanOpen && <div className="care-dialog-backdrop" onMouseDown={() => setRepairPlanOpen(false)}><section role="dialog" aria-modal="true" className="care-dialog is-repair" onMouseDown={(event) => event.stopPropagation()}><button type="button" className="care-dialog-close" onClick={() => setRepairPlanOpen(false)}><X size={16}/></button><AlertTriangle size={24}/><h2>{text.confirmRepair}</h2><p>{text.confirmBody}</p><ol>{selectedRecommendationList.map((item, index) => { const tool = byId.get(item.toolId)!; return <li key={item.id}><span>{index + 1}</span><div><strong>{pickName(tool, lang)}</strong><small>{tool.RiskLevel} · {tool.RequiresAdmin ? text.admin : '—'} · {tool.RequiresRestart ? text.restartRequired : 'NO RESTART'}</small></div></li>; })}</ol><label><span>{text.typeConfirm}</span><input value={confirmPhrase} onChange={(event) => setConfirmPhrase(event.target.value)} placeholder="CONFIRM" autoFocus/></label><footer><button type="button" onClick={() => setRepairPlanOpen(false)}>{text.back}</button><button type="button" onClick={() => void applyRepairs()} disabled={confirmPhrase.trim().toUpperCase() !== 'CONFIRM'}><Wrench size={13}/>{text.confirm}</button></footer></section></div>}
+        {repairPlanOpen && <div className="care-dialog-backdrop" onMouseDown={() => setRepairPlanOpen(false)}><section role="dialog" aria-modal="true" className="care-dialog is-repair" onMouseDown={(event) => event.stopPropagation()}><button type="button" className="care-dialog-close" onClick={() => setRepairPlanOpen(false)}><X size={16}/></button><AlertTriangle size={24}/><h2>{text.confirmRepair}</h2><p>{text.confirmBody}</p><ol>{selectedRecommendationList.map((item, index) => { const tool = byId.get(item.toolId)!; return <li key={item.id}><span>{index + 1}</span><div><strong>{pickName(tool, lang)}</strong><small>{tool.RiskLevel} · {tool.RequiresAdmin ? text.admin : '—'} · {tool.RequiresRestart ? text.restartRequired : 'NO RESTART'}</small></div></li>; })}</ol>{requiresRecoveryAcknowledgement && <label className="care-recovery-ack"><input type="checkbox" checked={recoveryAcknowledged} onChange={(event) => setRecoveryAcknowledged(event.target.checked)}/><span>{text.acknowledgeRecovery}</span></label>}<label><span>{text.typeConfirm}</span><input value={confirmPhrase} onChange={(event) => setConfirmPhrase(event.target.value)} placeholder="CONFIRM" autoFocus={!requiresRecoveryAcknowledgement}/></label><footer><button type="button" onClick={() => setRepairPlanOpen(false)}>{text.back}</button><button type="button" onClick={() => void applyRepairs()} disabled={confirmPhrase.trim().toUpperCase() !== 'CONFIRM' || (requiresRecoveryAcknowledgement && !recoveryAcknowledged)}><Wrench size={13}/>{text.confirm}</button></footer></section></div>}
       </div>
     </StationErrorBoundary>
   );
