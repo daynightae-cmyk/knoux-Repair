@@ -54,14 +54,14 @@ type DataLoader = () => Promise<unknown>;
 const COPY = {
   en: {
     refresh: 'Refresh', loading: 'Reading your device', unavailable: 'Live device information will appear when the local service is ready.',
-    recommend: 'Recommended next step', choices: 'Available actions', deviceReady: 'Device overview', noAction: 'No action in progress',
+    recommend: 'Quick actions', choices: 'Available actions', deviceReady: 'Device overview', noAction: 'No action in progress',
     review: 'Review', start: 'Start', stop: 'Stop', permission: 'Device permission needed', safe: 'Your control comes first',
     safeBody: 'KNOUX explains changes and asks for confirmation before it applies them.', system: 'System', details: 'Details',
     healthy: 'Looking good', attention: 'Needs attention', open: 'Open', free: 'free', available: 'available',
   },
   ar: {
     refresh: 'تحديث', loading: 'جارٍ قراءة جهازك', unavailable: 'ستظهر معلومات الجهاز الحية عندما تصبح الخدمة المحلية جاهزة.',
-    recommend: 'الخطوة المقترحة التالية', choices: 'الإجراءات المتاحة', deviceReady: 'نظرة عامة على الجهاز', noAction: 'لا يوجد إجراء قيد التنفيذ',
+    recommend: 'إجراءات سريعة', choices: 'الإجراءات المتاحة', deviceReady: 'نظرة عامة على الجهاز', noAction: 'لا يوجد إجراء قيد التنفيذ',
     review: 'مراجعة', start: 'ابدأ', stop: 'إيقاف', permission: 'تحتاج إذن الجهاز', safe: 'تحكمك يأتي أولاً',
     safeBody: 'يشرح KNOUX التغييرات ويطلب التأكيد قبل تطبيقها.', system: 'النظام', details: 'التفاصيل',
     healthy: 'الحالة جيدة', attention: 'يحتاج انتباهاً', open: 'فتح', free: 'متاح', available: 'متاحة',

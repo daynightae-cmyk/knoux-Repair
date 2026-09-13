@@ -5,14 +5,7 @@ import type { FamilyDefinition, ServiceDefinition } from '../../data/family-map'
 import { FAMILY_PREVIEW_CONFIG, SERVICE_PREVIEW_CONFIG } from '../../data/family-preview-config';
 import type { BridgeTool, SystemSnapshot } from '../../lib/api';
 import type { ToolStatus } from '../../types';
-import {
-  VitalityHoloVisual,
-  RecoveryHoloVisual,
-  AssuranceHoloVisual,
-  SoftwareHoloVisual,
-  WorkbenchHoloVisual,
-  InvestigationHoloVisual,
-} from './HeroVisuals';
+import ServiceCoreVisual from './ServiceCoreVisual';
 
 interface HeroSectionProps {
   family: FamilyDefinition;
@@ -38,15 +31,6 @@ const TOOL_STATUS_LABEL: Record<ToolStatus, { en: string; ar: string }> = {
   cancelled: { en: 'Cancelled', ar: 'ملغي' },
   inconclusive: { en: 'Inconclusive', ar: 'غير حاسم' },
 };
-
-function Scene({ family, lang, systemSnapshot }: Pick<HeroSectionProps, 'family' | 'lang' | 'systemSnapshot'>) {
-  if (family.id === 'vitality') return <VitalityHoloVisual lang={lang} systemSnapshot={systemSnapshot} />;
-  if (family.id === 'recovery') return <RecoveryHoloVisual lang={lang} />;
-  if (family.id === 'assurance') return <AssuranceHoloVisual lang={lang} systemSnapshot={systemSnapshot} />;
-  if (family.id === 'software') return <SoftwareHoloVisual lang={lang} />;
-  if (family.id === 'workbench') return <WorkbenchHoloVisual lang={lang} />;
-  return <InvestigationHoloVisual lang={lang} systemSnapshot={systemSnapshot} />;
-}
 
 export default function HeroSection({
   family,
@@ -174,7 +158,7 @@ export default function HeroSection({
           transition={{ duration: 0.2, ease: 'easeOut' }}
         >
           <div className="knoux-preview-scene-frame">
-            <Scene family={family} lang={lang} systemSnapshot={systemSnapshot} />
+            <ServiceCoreVisual service={service} lang={lang} toolCount={serviceToolCount} bridgeOnline={bridgeOnline} status={focusStatus} />
           </div>
 
           <div className="knoux-preview-context-card">
