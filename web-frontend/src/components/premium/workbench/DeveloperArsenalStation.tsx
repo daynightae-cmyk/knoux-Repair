@@ -15,6 +15,7 @@ interface DeveloperArsenalProps {
   bridgeElevated: boolean;
   onRunTool: (tool: BridgeTool, mode?: ExecutionMode, options?: ToolRunOptions, confirmation?: ToolRunConfirmation) => void;
   isUnlocked?: boolean;
+  sessionToken?: string | null;
   onUnlockRequest?: () => void;
 }
 
@@ -28,6 +29,7 @@ export default function DeveloperArsenal({
   bridgeElevated: _bridgeElevated,
   onRunTool: _onRunTool,
   isUnlocked = false,
+  sessionToken: _sessionToken = null,
   onUnlockRequest,
 }: DeveloperArsenalProps) {
   const isRtl = lang === 'ar';

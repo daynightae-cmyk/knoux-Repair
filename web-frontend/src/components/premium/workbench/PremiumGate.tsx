@@ -93,12 +93,12 @@ export default function PremiumGate({ lang, isUnlocked, onUnlocked, onClose, chi
       </div>
 
       <h3 className="text-xl font-bold text-white mb-2 tracking-wide">
-        {isRtl ? 'محطة هندسة البرمجيات المتقدمة' : 'Engineering Workbench Intelligence'}
+        {isRtl ? 'فتح ميزات المحطة الهندسية المتقدمة' : 'Unlock Engineering Workbench Pro'}
       </h3>
       <p className="text-xs text-slate-400 leading-relaxed mb-6">
         {isRtl
-          ? 'يتطلب الوصول إلى سونار المشاريع واستوديو المطور المتقدم التحقق الآمن عبر scrypt من خادم الجسر المحلي. لا يُخزن المفتاح بصيغة نص صريح.'
-          : 'Access to Project Sonar and Developer Arsenal requires local bridge cryptographic verification. Key is verified server-side via salted scrypt and rate-limited.'}
+          ? 'الميزات الأساسية (فحص سونار للمشاريع، أدوات المطور، تشفير النصوص، والمنافذ) مفتوحة بالكامل. يتطلب فتح التحليل الذكي التوليدي وخزينة الوصفات الهندسية المتقدمة التحقق الآمن عبر scrypt من خادم الجسر المحلي.'
+          : 'Core capabilities (Project Sonar scanning, Developer Arsenal tools, Code/Crypto labs, and Ports) are open and free. Unlocking Generative AI Synthesis and Pro Engineering Recipes requires local bridge cryptographic verification.'}
       </p>
 
       {lockStatus.locked ? (
