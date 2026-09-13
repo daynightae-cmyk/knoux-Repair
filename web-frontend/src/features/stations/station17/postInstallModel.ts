@@ -38,6 +38,13 @@ export function deriveProvisioningReadiness(preview: PostInstallPreview | null):
     return 'pending_restart';
   }
 
+  // Driver readiness is a separate evidence domain owned by PI01. PI06 no longer
+  // performs an implicit Windows Update COM search during station bootstrap, so a
+  // baseline preview must remain inconclusive until live driver evidence exists.
+  if (preview.DriverOffers.Available !== true) {
+    return 'inconclusive';
+  }
+
   if (preview.DriverOffers.Count && preview.DriverOffers.Count > 0) {
     return 'attention';
   }
@@ -118,8 +125,18 @@ export function detectProvisioningSignals(preview: PostInstallPreview | null): P
     });
   }
 
-  // 2. Driver Offers Signal
-  if (preview.DriverOffers.Count && preview.DriverOffers.Count > 0) {
+  // 2. Driver Offers Evidence
+  if (preview.DriverOffers.Available !== true) {
+    signals.push({
+      id: 'pi-driver-offers-unchecked',
+      level: 'info',
+      titleEn: 'Driver Offers Not Checked Yet',
+      titleAr: 'عروض التعريفات لم تُفحص بعد',
+      detailEn: 'The fast PI06 baseline intentionally does not query Windows Update driver offers. Run PI01 to collect live driver-update evidence.',
+      detailAr: 'المعاينة السريعة PI06 لا تستعلم عمدًا عن عروض تعريفات Windows Update. شغّل PI01 لجمع دليل حي على تحديثات التعريفات.',
+      recommendedToolId: 'PI01',
+    });
+  } else if (preview.DriverOffers.Count && preview.DriverOffers.Count > 0) {
     signals.push({
       id: 'pi-driver-offers',
       level: 'notice',
