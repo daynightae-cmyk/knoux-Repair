@@ -45,7 +45,6 @@ export default function EngineeringWorkbenchStation(props: EngineeringWorkbenchS
 
   const isRtl = lang === 'ar';
   const [unlockedToken, setUnlockedToken] = useState<string | null>(null);
-  const [sessionChecked, setSessionChecked] = useState(false);
   const [lockOutcome, setLockOutcome] = useState<LockOutcome>('NONE');
   const [showGateModal, setShowGateModal] = useState(false);
 
@@ -61,7 +60,6 @@ export default function EngineeringWorkbenchStation(props: EngineeringWorkbenchS
 
     if (!storedToken) {
       setUnlockedToken(null);
-      setSessionChecked(true);
       return;
     }
 
@@ -80,9 +78,6 @@ export default function EngineeringWorkbenchStation(props: EngineeringWorkbenchS
         // On error/offline, do not trust unverified string in storage
         try { sessionStorage.removeItem('knoux-workbench-token'); } catch { /* ignore */ }
         setUnlockedToken(null);
-      })
-      .finally(() => {
-        if (mounted) setSessionChecked(true);
       });
 
     return () => {

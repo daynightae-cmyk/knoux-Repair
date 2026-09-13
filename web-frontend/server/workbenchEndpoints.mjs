@@ -3,8 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const EXPECTED_SALT = Buffer.from('2ce7fa3251d239d83a6d10c1f0de3179', 'hex');
-const EXPECTED_HASH = Buffer.from('8f356ac240babbfb6db8e57101e7b3abd81998ddd24b9f81a12f67777d2d9f751704dc2de12fcffd77cafea8c0fe80f2f4bfa274a4ba9085cb90d75ac6dc4a90', 'hex');
+const EXPECTED_SALT = Buffer.from('1d536dd78e4bf53ac43ad153e54af0da', 'hex');
+const EXPECTED_HASH = Buffer.from('a953276c868cc1b9887c0ff1c48998b47df24c421d22660c05e9036c4a9f3995c3ec1354fc735ad75899d6188635a72919b46fe21bb209ca6606e2cfa9b4c29d', 'hex');
 
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
 let failedAttempts = 0;
