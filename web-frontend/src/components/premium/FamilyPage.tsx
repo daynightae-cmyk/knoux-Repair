@@ -11,6 +11,7 @@ import type { BridgeTool, ExecutionMode, ToolRunOptions, ToolRunConfirmation, Sy
 import type { ToolStatus, ConsoleEntry } from '../../types';
 import CommandCenter from './CommandCenter';
 import type { RunMeta } from './CommandCenter';
+import EngineeringWorkbenchStation from './workbench/EngineeringWorkbenchStation';
 
 interface FamilyPageProps {
   family: FamilyDefinition;
@@ -65,6 +66,29 @@ export default function FamilyPage({
     onSelectService(serviceId);
     onSelectTool(null);
   };
+
+  if (family.id === 'workbench') {
+    return (
+      <EngineeringWorkbenchStation
+        family={family}
+        familyTools={familyTools}
+        lang={lang}
+        bridgeOnline={bridgeOnline}
+        bridgeElevated={bridgeElevated}
+        toolStatuses={toolStatuses}
+        activeService={activeService}
+        onSelectService={selectService}
+        selectedTool={selectedTool}
+        onSelectTool={onSelectTool}
+        runningTool={familyRunningTool}
+        onRunTool={onRunTool}
+        onCancelTool={onCancelTool}
+        onRetryBridge={onRetryBridge}
+        systemSnapshot={systemSnapshot}
+        consoleEntries={consoleEntries}
+      />
+    );
+  }
 
   return (
     <CommandCenter

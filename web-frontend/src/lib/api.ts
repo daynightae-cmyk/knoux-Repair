@@ -712,4 +712,13 @@ export const api = {
   aiModels: () => request<{ models: any[]; hasGeminiKey: boolean; hasOpenRouterKey: boolean }>('/api/ai/models'),
   aiTemplates: () => request<{ templates: any[] }>('/api/ai/templates'),
   aiGenerate: (data: AiGenerateRequest) => request<AiGenerateResponse>('/api/ai/generate', { method: 'POST', body: JSON.stringify(data) }, 120000),
+
+  // Engineering Workbench Station API
+  workbenchKeyStatus: () => request<{ ok: boolean; locked: boolean; lockRemainingSec: number; failedAttempts: number }>('/api/workbench/premium/status'),
+  workbenchVerifyKey: (key: string) => request<{ ok: boolean; sessionToken?: string; error?: string; message: string }>('/api/workbench/premium/verify', { method: 'POST', body: JSON.stringify({ key }) }),
+  workbenchLockStation: (sessionToken?: string) => request<{ ok: boolean; message: string }>('/api/workbench/premium/lock', { method: 'POST', body: JSON.stringify({ sessionToken }) }),
+  workbenchInspectArchive: (filePath: string) => request<{ ok: boolean; totalFiles: number; uncompressedBytesTotal: number; hasPathTraversal: boolean; files: Array<{ name: string; size: number; compressed: boolean; pathTraversalRisk: boolean }> }>('/api/workbench/archive/inspect', { method: 'POST', body: JSON.stringify({ path: filePath }) }),
+  workbenchInspectFile: (filePath: string) => request<{ ok: boolean; path: string; name: string; sizeBytes: number; isBinary: boolean; sha256: string; created: string; modified: string; risks: string[]; snippet: string | null }>('/api/workbench/file/inspect', { method: 'POST', body: JSON.stringify({ path: filePath }) }),
+  workbenchToolchain: () => request<{ ok: boolean; toolchain: Array<{ tool: string; available: boolean; version: string; primaryPath: string; candidates: string[] }> }>('/api/workbench/system/toolchain'),
+  workbenchPorts: () => request<{ ok: boolean; ports: Array<{ port: number; address: string; processId: number | null }> }>('/api/workbench/system/ports'),
 };
