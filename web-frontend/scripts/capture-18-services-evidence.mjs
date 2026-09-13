@@ -188,13 +188,22 @@ async function restartGatewayForEvidence(serviceId, reason) {
   await waitForGateway(45_000);
 }
 
+async function clickRetryConnection(page) {
+  await page.evaluate(() => {
+    const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
+      .find(button => /retry connection/i.test(button.textContent || ''));
+    if (retry instanceof HTMLButtonElement) retry.click();
+  });
+}
+
 async function waitForServiceInventory(page, expectedCount, serviceId) {
   let recoveredBridge = false;
   let reloadedRoute = false;
   let restartedGateway = false;
   let authoritativeCount = null;
   let lastProbe = null;
-  const maxAttempts = 4;
+  let consecutiveRetryStates = 0;
+  const maxAttempts = 6;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
@@ -205,23 +214,30 @@ async function waitForServiceInventory(page, expectedCount, serviceId) {
             .find(button => /retry connection/i.test(button.textContent || ''));
           return Number(stage?.getAttribute('data-service-tool-count') || 0) === count && !retry;
         },
-        { timeout: 12_000, polling: 100 },
+        { timeout: 10_000, polling: 100 },
         expectedCount,
       );
       return { recoveredBridge, reloadedRoute, restartedGateway, authoritativeCount };
     } catch {
-      const snapshot = await readRouteSnapshot(page);
+      let snapshot = await readRouteSnapshot(page);
 
       if (snapshot.bridgeRetryAvailable) {
         recoveredBridge = true;
-        console.log(`${serviceId}: transient bridge-unavailable state observed; exercising the real Retry connection path (attempt ${attempt}/${maxAttempts}).`);
-        await page.evaluate(() => {
-          const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
-            .find(button => /retry connection/i.test(button.textContent || ''));
-          if (retry instanceof HTMLButtonElement) retry.click();
-        });
-        await delay(650);
-        continue;
+        consecutiveRetryStates += 1;
+        console.log(`${serviceId}: transient bridge-unavailable state observed; exercising the real Retry connection path (attempt ${attempt}/${maxAttempts}, retry streak ${consecutiveRetryStates}).`);
+        await clickRetryConnection(page);
+        await delay(900);
+        snapshot = await readRouteSnapshot(page);
+
+        if (snapshot.serviceToolCount === expectedCount && !snapshot.bridgeRetryAvailable) {
+          return { recoveredBridge, reloadedRoute, restartedGateway, authoritativeCount };
+        }
+
+        if (consecutiveRetryStates < 2 && attempt < maxAttempts) {
+          continue;
+        }
+      } else {
+        consecutiveRetryStates = 0;
       }
 
       const probe = await probeAuthoritativeServiceInventory(serviceId);
@@ -233,12 +249,29 @@ async function waitForServiceInventory(page, expectedCount, serviceId) {
       }
 
       if (probe.ok && probe.count === expectedCount) {
-        if (attempt >= maxAttempts) {
-          throw new Error(`${serviceId}: backend proves ${expectedCount} tools but UI still did not hydrate after ${attempt} attempts; observed ${JSON.stringify(snapshot)}`);
-        }
         reloadedRoute = true;
+        consecutiveRetryStates = 0;
         await reloadServiceRoute(page, serviceId);
-        continue;
+
+        try {
+          await page.waitForFunction(
+            count => {
+              const stage = document.querySelector('.knoux-workspace-stage');
+              const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
+                .find(button => /retry connection/i.test(button.textContent || ''));
+              return Number(stage?.getAttribute('data-service-tool-count') || 0) === count && !retry;
+            },
+            { timeout: 10_000, polling: 100 },
+            expectedCount,
+          );
+          return { recoveredBridge, reloadedRoute, restartedGateway, authoritativeCount };
+        } catch {
+          if (attempt >= maxAttempts) {
+            const afterReload = await readRouteSnapshot(page);
+            throw new Error(`${serviceId}: backend proves ${expectedCount} tools but UI still did not hydrate after final verified route reload; observed ${JSON.stringify(afterReload)}`);
+          }
+          continue;
+        }
       }
 
       const probeReason = probe.error || (probe.status ? `HTTP ${probe.status}` : 'unknown bridge failure');
@@ -246,6 +279,7 @@ async function waitForServiceInventory(page, expectedCount, serviceId) {
         recoveredBridge = true;
         restartedGateway = true;
         reloadedRoute = true;
+        consecutiveRetryStates = 0;
         await restartGatewayForEvidence(serviceId, probeReason);
         await reloadServiceRoute(page, serviceId);
         continue;
@@ -255,7 +289,7 @@ async function waitForServiceInventory(page, expectedCount, serviceId) {
         throw new Error(`${serviceId}: neither UI nor authoritative category endpoint settled after ${attempt} attempts and one controlled gateway restart; UI=${JSON.stringify(snapshot)} backend=${JSON.stringify(probe)}`);
       }
 
-      console.log(`${serviceId}: authoritative inventory still unavailable after controlled restart (${probeReason}); waiting for health before one more strict route reload.`);
+      console.log(`${serviceId}: authoritative inventory still unavailable after controlled restart (${probeReason}); waiting for health before another strict route reload.`);
       await waitForGateway(12_000);
       reloadedRoute = true;
       await reloadServiceRoute(page, serviceId);
@@ -280,14 +314,6 @@ async function waitForActionSurface(page, expectedCount, serviceId) {
   ).catch(async () => {
     const snapshot = await readRouteSnapshot(page);
     throw new Error(`${serviceId}: action surface never became ready; observed ${JSON.stringify(snapshot)}`);
-  });
-}
-
-async function clickRetryConnection(page) {
-  await page.evaluate(() => {
-    const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
-      .find(button => /retry connection/i.test(button.textContent || ''));
-    if (retry instanceof HTMLButtonElement) retry.click();
   });
 }
 
