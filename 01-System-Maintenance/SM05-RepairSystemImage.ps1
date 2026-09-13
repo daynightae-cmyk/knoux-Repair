@@ -34,7 +34,7 @@ if (-not ($AnalyzeOnly -or $WhatIf) -and $Session.RequiresAdmin -and -not (Test-
         # Step 1: CheckHealth
         Write-Host '[RUN] Starting DISM CheckHealth...' -ForegroundColor Green
         Write-KnouxLog -Session $Session 'Starting DISM CheckHealth'
-        $check = Invoke-KnouxNativeCommand -FilePath "$env:SystemRoot\System32\Dism.exe" -ArgumentList @('/Online', '/Cleanup-Image', '/CheckHealth') -TimeoutSeconds 600
+        $check = Invoke-KnouxNativeCommand -FilePath "$env:SystemRoot\System32\Dism.exe" -ArgumentList @('/English', '/Online', '/Cleanup-Image', '/CheckHealth') -TimeoutSeconds 600
         if (-not $check) {
             $Session.Status = 'Failed'
             $Session.ErrorMessage = 'DISM CheckHealth could not be started.'
@@ -45,8 +45,12 @@ if (-not ($AnalyzeOnly -or $WhatIf) -and $Session.RequiresAdmin -and -not (Test-
             Write-KnouxLog -Session $Session ("DISM CheckHealth exit {0}" -f $checkRc)
             if ($checkRc -ne 0) {
                 Write-Host ("[WARN] CheckHealth exit {0} - component store may have corruption" -f $checkRc) -ForegroundColor Yellow
-            } else {
+            } elseif (([string]$check.Stdout) -match 'component store is repairable|component store corruption was detected') {
+                Write-Host '[WARN] CheckHealth: repairable corruption detected.' -ForegroundColor Yellow
+            } elseif (([string]$check.Stdout) -match 'No component store corruption detected') {
                 Write-Host '[OK] CheckHealth: No corruption detected.' -ForegroundColor Green
+            } else {
+                Write-Host '[WARN] CheckHealth completed but its result was not classified.' -ForegroundColor Yellow
             }
         }
 
@@ -54,7 +58,7 @@ if (-not ($AnalyzeOnly -or $WhatIf) -and $Session.RequiresAdmin -and -not (Test-
         if ($Session.Status -ne 'Failed') {
             Write-Host '[RUN] Starting DISM ScanHealth...' -ForegroundColor Green
             Write-KnouxLog -Session $Session 'Starting DISM ScanHealth'
-            $scan = Invoke-KnouxNativeCommand -FilePath "$env:SystemRoot\System32\Dism.exe" -ArgumentList @('/Online', '/Cleanup-Image', '/ScanHealth') -TimeoutSeconds 1800
+            $scan = Invoke-KnouxNativeCommand -FilePath "$env:SystemRoot\System32\Dism.exe" -ArgumentList @('/English', '/Online', '/Cleanup-Image', '/ScanHealth') -TimeoutSeconds 1800
             if (-not $scan) {
                 $Session.Status = 'Failed'
                 $Session.ErrorMessage = 'DISM ScanHealth could not be started.'
@@ -65,21 +69,39 @@ if (-not ($AnalyzeOnly -or $WhatIf) -and $Session.RequiresAdmin -and -not (Test-
                 Write-KnouxLog -Session $Session ("DISM ScanHealth exit {0}" -f $scanRc)
                 if ($scanRc -ne 0) {
                     Write-Host ("[WARN] ScanHealth exit {0} - corruption detected" -f $scanRc) -ForegroundColor Yellow
-                } else {
+                } elseif (([string]$scan.Stdout) -match 'component store is repairable|component store corruption was detected') {
+                    Write-Host '[WARN] ScanHealth: repairable corruption detected.' -ForegroundColor Yellow
+                } elseif (([string]$scan.Stdout) -match 'No component store corruption detected') {
                     Write-Host '[OK] ScanHealth: No corruption detected.' -ForegroundColor Green
+                } else {
+                    Write-Host '[WARN] ScanHealth completed but its result was not classified.' -ForegroundColor Yellow
                 }
             }
         }
 
-        # Step 3: RestoreHealth (only if corruption was detected or explicitly confirmed)
+        # Step 3: RestoreHealth only when English DISM evidence explicitly reports repairable corruption.
         if ($Session.Status -ne 'Failed') {
-            $needsRepair = ($checkRc -ne 0 -or $scanRc -ne 0)
+            $healthEvidence = ([string]$check.Stdout) + "`n" + ([string]$scan.Stdout)
+            $needsRepair = $healthEvidence -match 'component store is repairable|component store corruption was detected'
+            $unrepairable = $healthEvidence -match 'component store cannot be repaired'
+            $healthy = $healthEvidence -match 'No component store corruption detected'
+            if ($unrepairable) {
+                $Session.Status = 'Failed'
+                $Session.VerificationPerformed = $true
+                $Session.VerificationResult = 'CORRUPTION_UNREPAIRABLE'
+                $Session.ErrorMessage = 'DISM reports component store corruption that cannot be repaired by RestoreHealth.'
+            } elseif (-not $needsRepair -and -not $healthy) {
+                $Session.Status = 'Inconclusive'
+                $Session.VerificationPerformed = $true
+                $Session.VerificationResult = 'RESULT_NOT_CLASSIFIED'
+                $Session.ErrorMessage = 'Pre-repair DISM checks completed without a recognized health statement. RestoreHealth was not run.'
+            }
             $source = $null
             $sourceType = $null
             $sourceIndex = $null
             $useOffline = $false
 
-            if ($needsRepair -or (Confirm-KnouxAction 'Run DISM RestoreHealth to repair any corruption?')) {
+            if ($needsRepair) {
                 # Get local source if available
                 $sourcePath = $null
                 if (-not [string]::IsNullOrWhiteSpace($LocalSourcePath)) {
@@ -146,9 +168,9 @@ if (-not ($AnalyzeOnly -or $WhatIf) -and $Session.RequiresAdmin -and -not (Test-
                 }
             }
 
-            if ($Session.Status -ne 'Failed') {
+            if ($needsRepair -and $Session.Status -ne 'Failed') {
                 $null = New-KnouxRestorePoint -Description 'Knoux Repair SM05 before DISM RestoreHealth'
-                $args = @('/Online', '/Cleanup-Image', '/RestoreHealth')
+                $args = @('/English', '/Online', '/Cleanup-Image', '/RestoreHealth')
                 if ($useOffline) {
                     $args += ('/Source:' + $sourceType + ':' + $source + ':' + $sourceIndex)
                     $args += '/LimitAccess'
@@ -173,12 +195,16 @@ if (-not ($AnalyzeOnly -or $WhatIf) -and $Session.RequiresAdmin -and -not (Test-
                     if ($run.Success) {
                         # Post-repair verification
                         Write-Host '[RUN] Post-repair DISM ScanHealth...' -ForegroundColor Green
-                        $post = Invoke-KnouxNativeCommand -FilePath "$env:SystemRoot\System32\Dism.exe" -ArgumentList @('/Online', '/Cleanup-Image', '/ScanHealth') -TimeoutSeconds 1800
-                        if ($post -and $post.Success) {
+                        $post = Invoke-KnouxNativeCommand -FilePath "$env:SystemRoot\System32\Dism.exe" -ArgumentList @('/English', '/Online', '/Cleanup-Image', '/ScanHealth') -TimeoutSeconds 1800
+                        if ($post -and $post.Success -and ([string]$post.Stdout) -match 'No component store corruption detected') {
                             Write-Host '[OK] Post-repair ScanHealth: No corruption detected.' -ForegroundColor Green
                             $Session.Status = 'Success'
                             $Session.VerificationResult = 'OK'
                             $Session.VerificationPerformed = $true
+                        } elseif ($post -and ([string]$post.Stdout) -match 'component store is repairable|component store corruption was detected') {
+                            Write-Host '[WARN] Post-repair ScanHealth still reports corruption.' -ForegroundColor Yellow
+                            $Session.Status = 'Warning'
+                            $Session.VerificationResult = 'CORRUPTION_REMAINS'
                         } else {
                             Write-Host '[WARN] Post-repair ScanHealth could not verify.' -ForegroundColor Yellow
                             $Session.Status = 'Inconclusive'
@@ -198,6 +224,12 @@ if (-not ($AnalyzeOnly -or $WhatIf) -and $Session.RequiresAdmin -and -not (Test-
                         Write-Host ('[WARN] ' + $Session.ErrorMessage) -ForegroundColor Yellow
                     }
                 }
+            } elseif ($healthy -and -not $needsRepair -and $Session.Status -ne 'Failed') {
+                $Session.Status = 'Success'
+                $Session.VerificationPerformed = $true
+                $Session.VerificationResult = 'NO_REPAIR_NEEDED'
+                Write-Host '[OK] Pre-repair checks found no repairable component-store corruption. RestoreHealth was not run.' -ForegroundColor Green
+                Write-KnouxLog -Session $Session 'RestoreHealth skipped because pre-repair evidence found no repairable corruption'
             }
         }
     } else {

@@ -100,7 +100,7 @@ function indicatesViolations(evidence: ToolEvidence): boolean {
 }
 
 function indicatesCorruption(evidence: ToolEvidence): boolean {
-  return evidence.status === 'FAILED' || /FAILED|CORRUPT/i.test(evidence.verificationResult);
+  return /CORRUPTION_FOUND/i.test(evidence.verificationResult);
 }
 
 function indicatesDiskErrors(evidence: ToolEvidence): boolean {
@@ -137,6 +137,7 @@ export function deriveHealthState(evidence: EvidenceMap, running: string[], brid
   }
   if (
     (evidence.SM01 && indicatesViolations(evidence.SM01)) ||
+    ((evidence.SM03 && indicatesCorruption(evidence.SM03)) || (evidence.SM04 && indicatesCorruption(evidence.SM04))) ||
     (evidence.SM06 && indicatesDiskErrors(evidence.SM06))
   ) {
     return 'REPAIR_RECOMMENDED';
@@ -159,7 +160,8 @@ export function derivePhaseState(phase: PipelinePhase, evidence: EvidenceMap, ru
     if (!item) return false;
     if (id === 'SM01') return indicatesViolations(item) || item.status === 'FAILED';
     if (id === 'SM06') return indicatesDiskErrors(item) || item.status === 'FAILED';
-    return item.status === 'FAILED';
+    if (id === 'SM03' || id === 'SM04') return indicatesCorruption(item);
+    return false;
   });
   if (verifyFailed && phase.repairToolIds.length > 0) return 'REPAIR_AVAILABLE';
   if (phaseEvidence.some((item) => item.status === 'FAILED')) return 'FAILED';
@@ -236,6 +238,83 @@ export function quickDiagnosePlan(tools: BridgeTool[]): DiagnoseStep[] {
 
 export function stationTools(tools: BridgeTool[]): BridgeTool[] {
   return STATION01_TOOL_IDS.map((id) => tools.find((tool) => tool.ToolId === id)).filter((tool): tool is BridgeTool => Boolean(tool));
+}
+
+export type MaintenanceScanGroupId = 'system-files' | 'windows-image' | 'disk' | 'system-context';
+
+export interface MaintenanceScanCheck {
+  id: string;
+  groupId: MaintenanceScanGroupId;
+  toolId: Station01ToolId;
+  defaultSelected: boolean;
+  label: { en: string; ar: string };
+  description: { en: string; ar: string };
+}
+
+/**
+ * User-facing checks backed only by read-only runtime paths. Repair tools are
+ * intentionally absent: they become available only from deterministic scan
+ * evidence and require a second explicit user decision.
+ */
+export const MAINTENANCE_SCAN_CHECKS: MaintenanceScanCheck[] = [
+  {
+    id: 'system-file-integrity', groupId: 'system-files', toolId: 'SM01', defaultSelected: true,
+    label: { en: 'Protected system files', ar: 'ملفات النظام المحمية' },
+    description: { en: 'Runs SFC verify-only and reads CBS evidence. It does not repair files.', ar: 'يشغّل SFC بوضع التحقق فقط ويقرأ دليل CBS. لا يصلح الملفات.' },
+  },
+  {
+    id: 'component-store-fast', groupId: 'windows-image', toolId: 'SM03', defaultSelected: true,
+    label: { en: 'Component store quick check', ar: 'فحص سريع لمخزن المكونات' },
+    description: { en: 'Reads the DISM CheckHealth corruption flag without changing Windows.', ar: 'يقرأ علامة تلف DISM CheckHealth دون تغيير Windows.' },
+  },
+  {
+    id: 'component-store-deep', groupId: 'windows-image', toolId: 'SM04', defaultSelected: false,
+    label: { en: 'Windows image deep scan', ar: 'فحص عميق لصورة Windows' },
+    description: { en: 'Runs the longer DISM ScanHealth read-only inspection.', ar: 'يشغّل فحص DISM ScanHealth العميق للقراءة فقط.' },
+  },
+  {
+    id: 'component-store-size', groupId: 'windows-image', toolId: 'SM08', defaultSelected: false,
+    label: { en: 'Component store analysis', ar: 'تحليل حجم مخزن المكونات' },
+    description: { en: 'Collects the native DISM component-store analysis report.', ar: 'يجمع تقرير DISM الأصلي لتحليل مخزن المكونات.' },
+  },
+  {
+    id: 'disk-filesystem', groupId: 'disk', toolId: 'SM06', defaultSelected: true,
+    label: { en: 'System drive filesystem', ar: 'نظام ملفات قرص النظام' },
+    description: { en: 'Runs CHKDSK /scan online. No repair is scheduled by this check.', ar: 'يشغّل CHKDSK /scan مباشرة. لا يجدول إصلاحًا بهذا الفحص.' },
+  },
+  {
+    id: 'maintenance-context', groupId: 'system-context', toolId: 'SM10', defaultSelected: true,
+    label: { en: 'Maintenance context', ar: 'سياق الصيانة' },
+    description: { en: 'Collects OS, uptime, system-drive space and recent CBS activity.', ar: 'يجمع النظام ومدة التشغيل ومساحة القرص وآخر نشاط CBS.' },
+  },
+];
+
+export type MaintenanceCheckState = 'READY' | 'RUNNING' | 'CLEAR' | 'FINDING' | 'FAILED' | 'INCONCLUSIVE' | 'CANCELLED';
+
+export function availableScanChecks(tools: BridgeTool[]): MaintenanceScanCheck[] {
+  const available = new Set(tools.map((tool) => tool.ToolId));
+  return MAINTENANCE_SCAN_CHECKS.filter((check) => available.has(check.toolId));
+}
+
+export function buildScanPlan(selectedCheckIds: string[], tools: BridgeTool[]): DiagnoseStep[] {
+  const selected = new Set(selectedCheckIds);
+  return availableScanChecks(tools)
+    .filter((check) => selected.has(check.id))
+    .map((check) => ({ toolId: check.toolId, mode: 'run' as const }));
+}
+
+export function deriveCheckState(check: MaintenanceScanCheck, evidence: EvidenceMap, running: string[]): MaintenanceCheckState {
+  if (running.includes(check.toolId)) return 'RUNNING';
+  const item = evidence[check.toolId];
+  if (!item) return 'READY';
+  if (item.status === 'CANCELLED' || item.status === 'SKIPPED') return 'CANCELLED';
+  if (item.status === 'INCONCLUSIVE') return 'INCONCLUSIVE';
+  if (item.status === 'FAILED') return 'FAILED';
+  if (
+    /VIOLATIONS_FOUND|CBS_EVIDENCE_PRESENT|CORRUPTION_FOUND|ERRORS_FOUND/i.test(item.verificationResult)
+  ) return 'FINDING';
+  if (item.status === 'WARNING') return 'INCONCLUSIVE';
+  return item.status === 'SUCCESS' ? 'CLEAR' : 'INCONCLUSIVE';
 }
 
 export interface HistoryEntry {
