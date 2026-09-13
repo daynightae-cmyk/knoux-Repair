@@ -243,7 +243,7 @@ test('Station 01: UI is a selectable care workflow without fabricated scores or 
   for (const state of ['CONFIGURE', 'SCANNING', 'REVIEW', 'APPLYING', 'COMPLETE', 'PARTIAL']) assert.ok(station.includes(state), `station must model ${state}`);
   assert.match(station, /buildScanPlan\(selectedChecks/);
   assert.match(station, /selectedRepairs/);
-  assert.match(station, /confirmPhrase\.trim\(\) === 'CONFIRM'/);
+  assert.match(station, /confirmPhrase\.trim\(\)\.toUpperCase\(\) !== 'CONFIRM'/, 'repair execution must reject every phrase except normalized CONFIRM');
   assert.equal(/maint-op-actions|Specialized operations/.test(station), false, 'raw tool-card launcher must not bypass the care workflow');
 });
 
