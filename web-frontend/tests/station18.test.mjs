@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -121,5 +123,60 @@ test('Station 18: severityLabel renders English and Arabic truthfully', () => {
     assert.ok(en.length > 0, `English label for ${sev} should exist`);
     assert.ok(ar.length > 0, `Arabic label for ${sev} should exist`);
     assert.notEqual(en, ar, `English and Arabic labels for ${sev} must be distinct`);
+  }
+});
+
+test('Station 18: ProjectSonar.Engine correctly triggers PY_DEPENDENCIES only when Python code lacks manifest', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sonar-test-'));
+  try {
+    const dirA = path.join(tmpDir, 'dirA');
+    fs.mkdirSync(dirA);
+    fs.writeFileSync(path.join(dirA, 'main.py'), 'print(1)');
+
+    const dirB = path.join(tmpDir, 'dirB');
+    fs.mkdirSync(dirB);
+    fs.writeFileSync(path.join(dirB, 'main.py'), 'print(1)');
+    fs.writeFileSync(path.join(dirB, 'requirements.txt'), 'requests');
+
+    const dirC = path.join(tmpDir, 'dirC');
+    fs.mkdirSync(dirC);
+    fs.writeFileSync(path.join(dirC, 'app.py'), 'print(1)');
+    fs.writeFileSync(path.join(dirC, 'pyproject.toml'), '[tool]');
+
+    const dirD = path.join(tmpDir, 'dirD');
+    fs.mkdirSync(dirD);
+    fs.writeFileSync(path.join(dirD, 'package.json'), '{}');
+
+    const enginePath = path.resolve(__dirname, '../../18-Project-Sonar/ProjectSonar.Engine.psm1').replace(/\\/g, '/');
+    const script = `
+      Import-Module "${enginePath}" -Force
+      function Test-Dir($dir) {
+        $snap = Get-SonarSnapshot -Workspace $dir
+        $findings = Get-SonarFindings -Snapshot $snap
+        $pyFinding = $findings | Where-Object { $_.Code -eq "PY_DEPENDENCIES" }
+        return [bool]$pyFinding
+      }
+      [pscustomobject]@{
+        ScenarioA = Test-Dir "${dirA.replace(/\\/g, '/')}"
+        ScenarioB = Test-Dir "${dirB.replace(/\\/g, '/')}"
+        ScenarioC = Test-Dir "${dirC.replace(/\\/g, '/')}"
+        ScenarioD = Test-Dir "${dirD.replace(/\\/g, '/')}"
+      } | ConvertTo-Json
+    `;
+
+    const res = spawnSync('pwsh', ['-NoProfile', '-Command', script], { encoding: 'utf8' });
+    assert.equal(res.status, 0, `pwsh script failed: ${res.stderr}`);
+    const results = JSON.parse(res.stdout);
+
+    // Scenario A: Python file exists, NO manifest -> triggers PY_DEPENDENCIES
+    assert.equal(results.ScenarioA, true, 'Scenario A should trigger PY_DEPENDENCIES');
+    // Scenario B: Python file exists WITH requirements.txt -> does NOT trigger
+    assert.equal(results.ScenarioB, false, 'Scenario B should not trigger PY_DEPENDENCIES');
+    // Scenario C: Python file exists WITH pyproject.toml -> does NOT trigger
+    assert.equal(results.ScenarioC, false, 'Scenario C should not trigger PY_DEPENDENCIES');
+    // Scenario D: Node project with no python files -> does NOT trigger
+    assert.equal(results.ScenarioD, false, 'Scenario D should not trigger PY_DEPENDENCIES');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });

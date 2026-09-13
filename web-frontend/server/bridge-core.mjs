@@ -1237,7 +1237,13 @@ function buildSonarHtml(preview, language, markdown) {
 }
 
 function getPdfBrowserPath() {
-  const candidates = [process.env.KNOUX_PDF_BROWSER, 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe', 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'];
+  const candidates = [
+    process.env.KNOUX_PDF_BROWSER,
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  ];
   return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || '';
 }
 
