@@ -39,6 +39,8 @@ const ROUTES = [
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 function findEdge() {
   const edge = EDGE_CANDIDATES.find(candidate => fs.existsSync(candidate));
   if (!edge) throw new Error(`Microsoft Edge executable not found. Checked: ${EDGE_CANDIDATES.join(', ')}`);
@@ -84,7 +86,7 @@ async function waitForGateway(timeoutMs = 45_000) {
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
     }
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await delay(500);
   }
   throw new Error(`Gateway did not become ready at ${ORIGIN}: ${lastError}`);
 }
@@ -124,37 +126,105 @@ async function readRouteSnapshot(page) {
   });
 }
 
-async function waitForServiceInventory(page, expectedCount, serviceId) {
-  const waitForCount = () => page.waitForFunction(
-    count => {
-      const stage = document.querySelector('.knoux-workspace-stage');
-      return Number(stage?.getAttribute('data-service-tool-count') || 0) === count;
-    },
-    { timeout: 15_000, polling: 100 },
-    expectedCount
-  );
-
+async function probeAuthoritativeServiceInventory(serviceId) {
   try {
-    await waitForCount();
-    return false;
-  } catch {
-    const beforeRetry = await readRouteSnapshot(page);
-    if (!beforeRetry.bridgeRetryAvailable) {
-      throw new Error(`${serviceId}: service inventory did not settle at ${expectedCount}; observed ${JSON.stringify(beforeRetry)}`);
+    const response = await fetch(
+      `${ORIGIN}/api/categories/${encodeURIComponent(serviceId)}/tools`,
+      { signal: AbortSignal.timeout(5_000), headers: { Accept: 'application/json' } },
+    );
+    if (!response.ok) {
+      return { ok: false, status: response.status, count: null, category: null, error: `HTTP ${response.status}` };
     }
-
-    console.log(`${serviceId}: transient bridge-unavailable state observed; exercising the real Retry connection path.`);
-    await page.evaluate(() => {
-      const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
-        .find(button => /retry connection/i.test(button.textContent || ''));
-      if (retry instanceof HTMLButtonElement) retry.click();
-    });
-    await waitForCount().catch(async () => {
-      const afterRetry = await readRouteSnapshot(page);
-      throw new Error(`${serviceId}: bridge retry did not restore ${expectedCount} tools; observed ${JSON.stringify(afterRetry)}`);
-    });
-    return true;
+    const payload = await response.json();
+    const tools = Array.isArray(payload?.tools) ? payload.tools : [];
+    return {
+      ok: true,
+      status: response.status,
+      count: tools.length,
+      category: typeof payload?.category === 'string' ? payload.category : null,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: null,
+      count: null,
+      category: null,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
+}
+
+async function reloadServiceRoute(page, serviceId) {
+  console.log(`${serviceId}: authoritative inventory exists but UI bootstrap is unresolved; reloading the same route once before failing.`);
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 45_000 });
+  await page.waitForSelector('.knoux-workspace-stage', { timeout: 15_000 });
+  await page.waitForSelector('.knoux-stage-service-app', { timeout: 15_000 });
+  await delay(350);
+}
+
+async function waitForServiceInventory(page, expectedCount, serviceId) {
+  let recoveredBridge = false;
+  let reloadedRoute = false;
+  let authoritativeCount = null;
+  let lastProbe = null;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await page.waitForFunction(
+        count => {
+          const stage = document.querySelector('.knoux-workspace-stage');
+          return Number(stage?.getAttribute('data-service-tool-count') || 0) === count;
+        },
+        { timeout: 12_000, polling: 100 },
+        expectedCount,
+      );
+      return { recoveredBridge, reloadedRoute, authoritativeCount };
+    } catch {
+      const snapshot = await readRouteSnapshot(page);
+
+      if (snapshot.bridgeRetryAvailable) {
+        recoveredBridge = true;
+        console.log(`${serviceId}: transient bridge-unavailable state observed; exercising the real Retry connection path (attempt ${attempt}/3).`);
+        await page.evaluate(() => {
+          const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
+            .find(button => /retry connection/i.test(button.textContent || ''));
+          if (retry instanceof HTMLButtonElement) retry.click();
+        });
+        await delay(650);
+        continue;
+      }
+
+      const probe = await probeAuthoritativeServiceInventory(serviceId);
+      lastProbe = probe;
+      authoritativeCount = probe.count;
+
+      if (probe.ok && probe.count !== expectedCount) {
+        throw new Error(`${serviceId}: authoritative category endpoint returned ${probe.count} tools, expected ${expectedCount}; UI observed ${JSON.stringify(snapshot)}`);
+      }
+
+      if (probe.ok && probe.count === expectedCount) {
+        if (attempt >= 3) {
+          throw new Error(`${serviceId}: backend proves ${expectedCount} tools but UI still did not hydrate after ${attempt} attempts; observed ${JSON.stringify(snapshot)}`);
+        }
+        reloadedRoute = true;
+        await reloadServiceRoute(page, serviceId);
+        continue;
+      }
+
+      if (attempt >= 3) {
+        throw new Error(`${serviceId}: neither UI nor authoritative category endpoint settled after ${attempt} attempts; UI=${JSON.stringify(snapshot)} backend=${JSON.stringify(probe)}`);
+      }
+
+      console.log(`${serviceId}: authoritative inventory probe unavailable (${probe.error || probe.status || 'unknown'}); waiting for gateway/bridge recovery before route reload.`);
+      await waitForGateway(8_000).catch(() => {});
+      reloadedRoute = true;
+      await reloadServiceRoute(page, serviceId);
+    }
+  }
+
+  const finalSnapshot = await readRouteSnapshot(page);
+  throw new Error(`${serviceId}: service inventory did not settle at ${expectedCount}; UI=${JSON.stringify(finalSnapshot)} backend=${JSON.stringify(lastProbe)}`);
 }
 
 async function waitForActionSurface(page, expectedCount, serviceId) {
@@ -167,7 +237,7 @@ async function waitForActionSurface(page, expectedCount, serviceId) {
       return cards === count || Boolean(drawer) || Boolean(retry);
     },
     { timeout: 15_000, polling: 100 },
-    expectedCount
+    expectedCount,
   ).catch(async () => {
     const snapshot = await readRouteSnapshot(page);
     throw new Error(`${serviceId}: action surface never became ready; observed ${JSON.stringify(snapshot)}`);
@@ -176,6 +246,7 @@ async function waitForActionSurface(page, expectedCount, serviceId) {
 
 async function revealAllActionCards(page, expectedCount, serviceId) {
   let recoveredBridge = false;
+  let reloadedRoute = false;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     await waitForActionSurface(page, expectedCount, serviceId);
@@ -189,12 +260,14 @@ async function revealAllActionCards(page, expectedCount, serviceId) {
           .find(button => /retry connection/i.test(button.textContent || ''));
         if (retry instanceof HTMLButtonElement) retry.click();
       });
-      await waitForServiceInventory(page, expectedCount, serviceId);
+      const inventoryRecovery = await waitForServiceInventory(page, expectedCount, serviceId);
+      recoveredBridge = recoveredBridge || inventoryRecovery.recoveredBridge;
+      reloadedRoute = reloadedRoute || inventoryRecovery.reloadedRoute;
       continue;
     }
 
     if (snapshot.toolCards === expectedCount) {
-      return { expandedActions: false, recoveredBridge };
+      return { expandedActions: false, recoveredBridge, reloadedRoute };
     }
 
     if (!snapshot.actionDrawerAvailable) {
@@ -208,13 +281,13 @@ async function revealAllActionCards(page, expectedCount, serviceId) {
     await page.waitForFunction(
       count => document.querySelectorAll('.knoux-tool-card[data-tool-id]').length === count,
       { timeout: 10_000, polling: 50 },
-      expectedCount
+      expectedCount,
     ).catch(async () => {
       const afterExpand = await readRouteSnapshot(page);
       throw new Error(`${serviceId}: action drawer did not expose all ${expectedCount} cards; observed ${JSON.stringify(afterExpand)}`);
     });
 
-    return { expandedActions: true, recoveredBridge };
+    return { expandedActions: true, recoveredBridge, reloadedRoute };
   }
 
   const finalSnapshot = await readRouteSnapshot(page);
@@ -250,11 +323,13 @@ try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
     await page.waitForSelector('.knoux-workspace-stage', { timeout: 15_000 });
     await page.waitForSelector('.knoux-stage-service-app', { timeout: 15_000 });
-    const inventoryRecoveredBridge = await waitForServiceInventory(page, target.tools, target.service);
+
+    const inventoryRecovery = await waitForServiceInventory(page, target.tools, target.service);
     const actionSurface = await revealAllActionCards(page, target.tools, target.service);
-    const recoveredBridge = inventoryRecoveredBridge || actionSurface.recoveredBridge;
+    const recoveredBridge = inventoryRecovery.recoveredBridge || actionSurface.recoveredBridge;
+    const reloadedRoute = inventoryRecovery.reloadedRoute || actionSurface.reloadedRoute;
     const expandedActions = actionSurface.expandedActions;
-    await new Promise(resolve => setTimeout(resolve, 350));
+    await delay(350);
 
     const snapshot = await readRouteSnapshot(page);
 
@@ -277,11 +352,13 @@ try {
       ...target,
       ...snapshot,
       recoveredBridge,
+      reloadedRoute,
+      authoritativeCount: inventoryRecovery.authoritativeCount,
       expandedActions,
       expectedUnavailableConsoleErrors: classifiedConsole.expectedUnavailable.length,
       screenshot: fileName,
     });
-    console.log(`Verified ${target.service}: ${target.tools} tools${expandedActions ? ' (action drawer expanded)' : ''}${recoveredBridge ? ' (bridge recovered through Retry connection)' : ''}.`);
+    console.log(`Verified ${target.service}: ${target.tools} tools${expandedActions ? ' (action drawer expanded)' : ''}${recoveredBridge ? ' (bridge recovered through Retry connection)' : ''}${reloadedRoute ? ' (same route reloaded after authoritative backend proof)' : ''}.`);
     await page.close();
   }
 
