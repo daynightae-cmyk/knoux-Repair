@@ -1,4 +1,4 @@
-﻿# Knoux Repair | Project Sonar shared local analysis engine
+# Knoux Repair | Project Sonar shared local analysis engine
 Set-StrictMode -Version Latest
 
 function Resolve-SonarWorkspace {
@@ -26,7 +26,7 @@ function Get-SonarSnapshot {
   } catch { $fileRows = @() }
   $extensions = @($fileRows | ForEach-Object { $_.Extension.ToLowerInvariant() } | Where-Object { $_ } | Group-Object | Sort-Object Count -Descending | Select-Object -First 25 | ForEach-Object { [pscustomobject]@{ Extension=$_.Name; Count=$_.Count } })
   $languages = @()
-  $languageMap = @{ '.ts'='TypeScript'; '.tsx'='TypeScript'; '.js'='JavaScript'; '.jsx'='JavaScript'; '.py'='Python'; '.cs'='C#'; '.go'='Go'; '.rs'='Rust'; '.java'='Java'; '.php'='PHP'; '.rb'='Ruby'; '.swift'='Swift'; '.kt'='Kotlin'; '.c'='C'; '.cpp'='C++'; '.h'='C'; '.hpp'='C++'; '.cs'='C#'; '.ps1'='PowerShell'; '.sh'='Shell'; '.bash'='Shell'; '.json'='JSON'; '.yaml'='YAML'; '.yml'='YAML'; '.xml'='XML'; '.html'='HTML'; '.css'='CSS'; '.scss'='SCSS'; '.less'='LESS' }
+  $languageMap = @{ '.ts'='TypeScript'; '.tsx'='TypeScript'; '.js'='JavaScript'; '.jsx'='JavaScript'; '.py'='Python'; '.cs'='C#'; '.go'='Go'; '.rs'='Rust'; '.java'='Java'; '.php'='PHP'; '.rb'='Ruby'; '.swift'='Swift'; '.kt'='Kotlin'; '.c'='C'; '.cpp'='C++'; '.h'='C'; '.hpp'='C++'; '.ps1'='PowerShell'; '.sh'='Shell'; '.bash'='Shell'; '.json'='JSON'; '.yaml'='YAML'; '.yml'='YAML'; '.xml'='XML'; '.html'='HTML'; '.css'='CSS'; '.scss'='SCSS'; '.less'='LESS' }
   foreach ($entry in $extensions) { if ($languageMap.ContainsKey($entry.Extension)) { $languages += $languageMap[$entry.Extension] } }
   $languages = @($languages | Select-Object -Unique)
   
@@ -85,18 +85,20 @@ function Get-SonarFindings {
   function Add-SonarFinding { param([string]$Severity,[string]$Code,[string]$TitleEn,[string]$TitleAr,[string]$Evidence,[string]$FixEn,[string]$FixAr)
     $script:findings += [pscustomobject]@{ Severity=$Severity; Code=$Code; TitleEn=$TitleEn; TitleAr=$TitleAr; Evidence=$Evidence; FixEn=$FixEn; FixAr=$FixAr }
   }
-  $isNode = [bool]$present['package.json']; $isPython = [bool]($present['requirements.txt'] -or $present['pyproject.toml'] -or $present['Pipfile'])
+  $isNode = [bool]$present['package.json']
+  $isPython = [bool](($Snapshot.Languages -contains 'Python') -or (Test-Path -LiteralPath (Join-Path $Snapshot.Workspace '*.py')))
+  $hasPythonManifest = [bool]($present['requirements.txt'] -or $present['pyproject.toml'] -or $present['Pipfile'])
   if ($Snapshot.PackageParseError) { Add-SonarFinding 'CRITICAL' 'PKG_PARSE' 'package.json cannot be parsed' 'تعذر تحليل package.json' $Snapshot.PackageParseError 'Fix the JSON syntax before proceeding.' 'صحح بناء الجملة JSON قبل المتابعة.' }
-  if ($isNode -and -not ($present['package-lock.json'] -or $present['pnpm-lock.yaml'] -or $present['yarn.lock'] -or $present['bun.lockb'])) { Add-SonarFinding 'HIGH' 'NODE_LOCK' 'Node project has no lock file' 'مشروع Node بلا ملف قفل' 'Run npm install to create a lock file.' 'قم بتشغيل npm install لإنشاء ملف قفل.' }
-  if ($isNode -and -not ($Snapshot.PackageScripts -contains 'test')) { Add-SonarFinding 'HIGH' 'TEST_SCRIPT' 'No test script is declared' 'لا يوجد سكربت اختبار معلن' 'package.json is missing a test entry under scripts.' 'package.json مفقود إدخال الاختبار تحت النصوص.' }
-  if ($isNode -and -not ($Snapshot.PackageScripts -contains 'lint')) { Add-SonarFinding 'MEDIUM' 'LINT_SCRIPT' 'No lint script is declared' 'لا يوجد سكربت تدقيق أسلوب معلن' 'Add a lint script to package.json scripts section.' 'أضف سكربت lint إلى قسم النصوص في package.json.' }
-  if ($isNode -and ($Snapshot.Languages -contains 'TypeScript') -and -not $present['tsconfig.json']) { Add-SonarFinding 'HIGH' 'TS_CONFIG' 'TypeScript files found without tsconfig.json' 'تم العثور على ملفات TypeScript بدون tsconfig.json' 'Create a tsconfig.json in the project root.' 'قم بإنشاء tsconfig.json في جذر المشروع.' }
-  if ($isPython -and -not ($present['requirements.txt'] -or $present['pyproject.toml'] -or $present['Pipfile'])) { Add-SonarFinding 'HIGH' 'PY_DEPENDENCIES' 'Python code lacks a detected dependency manager' 'يفتقد كود Python إلى مدير التبعيات المكتشف' 'Create a requirements.txt, pyproject.toml, or Pipfile.' 'قم بإنشاء requirements.txt أو pyproject.toml أو Pipfile.' }
-  if (-not $present['README.md']) { Add-SonarFinding 'MEDIUM' 'README' 'No README.md found at project root' 'لا يوجد README.md في جذر المشروع' 'The project root has no README.md file.' 'جذر المشروع لا يحتوي على ملف README.md.' }
-  if (-not $present['.gitignore']) { Add-SonarFinding 'HIGH' 'GITIGNORE' 'No .gitignore found at project root' 'لا يوجد .gitignore في جذر المشروع' 'The project root has no .gitignore file.' 'جذر المشروع لا يحتوي على ملف .gitignore.' }
-  if ($present['.env'] -and -not $present['.env.example']) { Add-SonarFinding 'HIGH' 'ENV_TEMPLATE' 'Local environment file has no example template' 'ملف البيئة المحلي بلا قالب مثال' 'Create a .env.example file documenting required variables.' 'قم بإنشاء ملف .env.example يوثق المتغيرات المطلوبة.' }
-  if (-not $Snapshot.Git.Repository) { Add-SonarFinding 'MEDIUM' 'GIT_REPOSITORY' 'Selected folder is not a Git work tree' 'المجلد المختار ليس مساحة عمل Git' 'Git did not recognize this folder as a repository.' 'لم يتعرف Git على هذا المجلد كمستودع.' }
-  if ($Snapshot.FileCount -eq 0) { Add-SonarFinding 'HIGH' 'NO_FILES' 'No project files were observed in the scan window' 'لم تُرصد ملفات مشروع في نافذة الفحص' 'The boundary check may be too strict or the folder is empty.' 'قد تكون فحص الحدود صارمة جداً أو المجلد فارغ.' }
+  if ($isNode -and -not ($present['package-lock.json'] -or $present['pnpm-lock.yaml'] -or $present['yarn.lock'] -or $present['bun.lockb'])) { Add-SonarFinding 'HIGH' 'NODE_LOCK' 'Node project has no lock file' 'مشروع Node بلا ملف قفل' 'No lockfile found alongside package.json.' 'Run npm install to create a lock file.' 'قم بتشغيل npm install لإنشاء ملف قفل.' }
+  if ($isNode -and -not ($Snapshot.PackageScripts -contains 'test')) { Add-SonarFinding 'HIGH' 'TEST_SCRIPT' 'No test script is declared' 'لا يوجد سكربت اختبار معلن' 'package.json is missing a test entry under scripts.' 'Add a test script in package.json.' 'أضف سكربت اختبار في package.json.' }
+  if ($isNode -and -not ($Snapshot.PackageScripts -contains 'lint')) { Add-SonarFinding 'MEDIUM' 'LINT_SCRIPT' 'No lint script is declared' 'لا يوجد سكربت تدقيق أسلوب معلن' 'package.json is missing a lint entry under scripts.' 'Add a lint script to package.json scripts section.' 'أضف سكربت lint إلى قسم النصوص في package.json.' }
+  if ($isNode -and ($Snapshot.Languages -contains 'TypeScript') -and -not $present['tsconfig.json']) { Add-SonarFinding 'HIGH' 'TS_CONFIG' 'TypeScript files found without tsconfig.json' 'تم العثور على ملفات TypeScript بدون tsconfig.json' 'TypeScript sources detected without root tsconfig.json.' 'Create a tsconfig.json in the project root.' 'قم بإنشاء tsconfig.json في جذر المشروع.' }
+  if ($isPython -and -not $hasPythonManifest) { Add-SonarFinding 'HIGH' 'PY_DEPENDENCIES' 'Python code lacks a detected dependency manager' 'يفتقد كود Python إلى مدير التبعيات المكتشف' 'No Python requirements file or manifest discovered.' 'Create a requirements.txt, pyproject.toml, or Pipfile.' 'قم بإنشاء requirements.txt أو pyproject.toml أو Pipfile.' }
+  if (-not $present['README.md']) { Add-SonarFinding 'MEDIUM' 'README' 'No README.md found at project root' 'لا يوجد README.md في جذر المشروع' 'The project root has no README.md file.' 'Create a README.md file documenting the project.' 'قم بإنشاء ملف README.md يوثق المشروع.' }
+  if (-not $present['.gitignore']) { Add-SonarFinding 'HIGH' 'GITIGNORE' 'No .gitignore found at project root' 'لا يوجد .gitignore في جذر المشروع' 'The project root has no .gitignore file.' 'Add a .gitignore file to protect repository hygiene.' 'أضف ملف .gitignore لحماية نظافة المستودع.' }
+  if ($present['.env'] -and -not $present['.env.example']) { Add-SonarFinding 'HIGH' 'ENV_TEMPLATE' 'Local environment file has no example template' 'ملف البيئة المحلي بلا قالب مثال' '.env exists without corresponding .env.example.' 'Create a .env.example file documenting required variables.' 'قم بإنشاء ملف .env.example يوثق المتغيرات المطلوبة.' }
+  if (-not $Snapshot.Git.Repository) { Add-SonarFinding 'MEDIUM' 'GIT_REPOSITORY' 'Selected folder is not a Git work tree' 'المجلد المختار ليس مساحة عمل Git' 'Git did not recognize this folder as a repository.' 'Initialize git repository with git init.' 'قم بتهيئة مستودع git بواسطة git init.' }
+  if ($Snapshot.FileCount -eq 0) { Add-SonarFinding 'HIGH' 'NO_FILES' 'No project files were observed in the scan window' 'لم تُرصد ملفات مشروع في نافذة الفحص' 'The boundary check may be too strict or the folder is empty.' 'Verify the selected project folder.' 'تحقق من مجلد المشروع المختار.' }
   $rank = @{ 'CRITICAL'=0; 'HIGH'=1; 'MEDIUM'=2; 'LOW'=3 }
     return @($script:findings | Sort-Object { $rank[$_.Severity] }, Code)
 
