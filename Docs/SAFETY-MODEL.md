@@ -10,7 +10,7 @@ Every tool header declares exactly one risk level. The interfaces expose that ri
 |------|-----|---------|---------|
 | `READ_ONLY` | RO | Inspects only; performs no writes to user or system data | DR01 System Information, DF01 Analyze Duplicates |
 | `SAFE_CLEANUP` | SC | Removes or disables junk/temp data; items are quarantined before removal | SC01 Clean User Temp, DF06 Remove Empty Folders |
-| `SYSTEM_REPAIR` | SR | Repairs or reconfigures system state; may require elevation | SM01 Verify System Files, SP05 Reset Service Start Types |
+| `SYSTEM_REPAIR` | SR | Repairs or reconfigures system state; may require elevation | SM02 Repair System Files, SP05 Reset Service Start Types |
 | `DESTRUCTIVE` | DX | Deletes or replaces data in a way that is hard to reverse; always gated | SM09 Reset Windows Update |
 | `REBOOT_REQUIRED` | RB | The effect is applied by Windows at next reboot (e.g. chkdsk) | SM07 Schedule Disk Check |
 | `WINRE_ONLY` | WR | Must be executed from the Windows Recovery Environment | Environment-specific recovery tools |

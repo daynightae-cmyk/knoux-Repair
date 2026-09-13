@@ -138,7 +138,7 @@ test('Phase 00: bridge rejects unknown ToolId, arbitrary paths, and unsupported 
   // Manifest-authoritative mode support: SM10 declares WhatIfSupported=false.
   assert.throws(() => bridge.createRun('SM10', 'preview', {}), (err) => err.code === 'MODE_NOT_SUPPORTED');
   // SYSTEM_REPAIR run without confirmation evidence is rejected before spawn.
-  assert.throws(() => bridge.createRun('SM01', 'run', {}), (err) => err.code === 'CONFIRMATION_REQUIRED');
+  assert.throws(() => bridge.createRun('SM02', 'run', {}), (err) => err.code === 'CONFIRMATION_REQUIRED');
 });
 
 test('Phase 00: bridge exposes category registry endpoints', () => {
