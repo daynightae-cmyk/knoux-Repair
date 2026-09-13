@@ -6,6 +6,8 @@ import { getMcpContract, runPrivateMcpProbe } from './private-mcp.mjs';
 import {
   verifyWorkbenchKey,
   getWorkbenchLockStatus,
+  validateWorkbenchSession,
+  requireWorkbenchPremiumSession,
   revokeWorkbenchSession,
   inspectZipArchive,
   inspectLocalFile,
@@ -81,6 +83,11 @@ server.on('request', async (req, res) => {
         const result = verifyWorkbenchKey(body?.key);
         return sendJson(res, result.ok ? 200 : 401, result);
       }
+      if (req.method === 'POST' && parts[2] === 'premium' && parts[3] === 'validate') {
+        const body = await readJsonBody(req);
+        const result = validateWorkbenchSession(body?.sessionToken);
+        return sendJson(res, result.valid ? 200 : 401, result);
+      }
       if (req.method === 'POST' && parts[2] === 'premium' && parts[3] === 'lock') {
         const body = await readJsonBody(req);
         const result = revokeWorkbenchSession(body?.sessionToken);
@@ -93,7 +100,7 @@ server.on('request', async (req, res) => {
       }
       if (req.method === 'POST' && parts[2] === 'file' && parts[3] === 'inspect') {
         const body = await readJsonBody(req);
-        const result = inspectLocalFile(body?.path);
+        const result = await inspectLocalFile(body?.path);
         return sendJson(res, result.ok ? 200 : 400, result);
       }
       if (req.method === 'GET' && parts[2] === 'system' && parts[3] === 'toolchain') {
@@ -105,6 +112,38 @@ server.on('request', async (req, res) => {
       return sendJson(res, 404, { ok: false, error: 'NOT_FOUND', message: `No route for ${req.method} ${req.url}` });
     } catch (err) {
       return sendJson(res, 500, { ok: false, error: 'WORKBENCH_ERROR', message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  // Intercept Pro AI Sonar Analysis to enforce cryptographically verified Premium session
+  if (parts[0] === 'api' && parts[1] === 'sonar' && parts[2] === 'analysis' && req.method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      const auth = requireWorkbenchPremiumSession(req, body);
+      if (!auth.ok) {
+        return sendJson(res, 401, {
+          ok: false,
+          error: auth.error,
+          message: auth.message,
+        });
+      }
+      // Session is valid. Replay the body payload so the downstream delegated handler can read it.
+      const payloadBuf = Buffer.from(JSON.stringify(body), 'utf8');
+      const replayedReq = Object.create(req);
+      replayedReq.on = function(event, handler) {
+        if (event === 'data') {
+          process.nextTick(() => handler(payloadBuf));
+          return this;
+        }
+        if (event === 'end') {
+          process.nextTick(() => handler());
+          return this;
+        }
+        return req.on(event, handler);
+      };
+      return delegated(replayedReq, res);
+    } catch (err) {
+      return sendJson(res, 500, { ok: false, error: 'SESSION_ERROR', message: err instanceof Error ? err.message : String(err) });
     }
   }
 

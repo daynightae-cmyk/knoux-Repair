@@ -80,11 +80,53 @@ export function isWorkbenchSessionValid(sessionToken) {
   return true;
 }
 
+export function validateWorkbenchSession(sessionToken) {
+  if (!sessionToken || typeof sessionToken !== 'string') {
+    return { ok: false, valid: false, message: 'Invalid or missing token.' };
+  }
+  pruneExpiredSessions();
+  const session = activeSessions.get(sessionToken);
+  if (!session) {
+    return { ok: false, valid: false, message: 'Session not found or expired.' };
+  }
+  const now = Date.now();
+  if (now >= session.expiresAt) {
+    activeSessions.delete(sessionToken);
+    return { ok: false, valid: false, message: 'Session has expired.' };
+  }
+  const remainingSec = Math.max(0, Math.ceil((session.expiresAt - now) / 1000));
+  return { ok: true, valid: true, remainingSec, message: 'Session is active.' };
+}
+
+export function extractSessionToken(req, body) {
+  const headerToken = req.headers?.['x-workbench-session'];
+  if (typeof headerToken === 'string' && headerToken.trim()) {
+    return headerToken.trim();
+  }
+  if (body && typeof body.sessionToken === 'string' && body.sessionToken.trim()) {
+    return body.sessionToken.trim();
+  }
+  return null;
+}
+
+export function requireWorkbenchPremiumSession(req, body) {
+  const token = extractSessionToken(req, body);
+  if (!token) {
+    return { ok: false, error: 'PREMIUM_REQUIRED', message: 'Valid workbench premium session required.' };
+  }
+  if (!isWorkbenchSessionValid(token)) {
+    return { ok: false, error: 'PREMIUM_UNAUTHORIZED', message: 'Workbench session is invalid or has expired.' };
+  }
+  return { ok: true, sessionToken: token };
+}
+
 export function revokeWorkbenchSession(sessionToken) {
+  let wasActive = false;
   if (sessionToken && typeof sessionToken === 'string') {
+    wasActive = activeSessions.has(sessionToken);
     activeSessions.delete(sessionToken);
   }
-  return { ok: true, message: 'Session revoked.' };
+  return { ok: true, revoked: wasActive, message: wasActive ? 'Session revoked successfully.' : 'Session not found or already revoked.' };
 }
 
 export function getWorkbenchLockStatus() {
@@ -101,11 +143,19 @@ export function getWorkbenchLockStatus() {
   };
 }
 
+const MAX_ZIP_CENTRAL_DIR_SIZE = 32 * 1024 * 1024; // 32MB max central directory
+const MAX_ZIP_ENTRIES = 10_000;
+const MAX_ZIP_FILENAME_LEN = 1024;
+
 export function inspectZipArchive(filePath) {
   if (!fs.existsSync(filePath)) {
     return { ok: false, error: 'FILE_NOT_FOUND', message: 'File not found.' };
   }
   const stats = fs.statSync(filePath);
+  if (stats.size > 2 * 1024 * 1024 * 1024) {
+    return { ok: false, error: 'ARCHIVE_TOO_LARGE', message: 'Archive exceeds 2GB maximum inspection limit.' };
+  }
+
   const fd = fs.openSync(filePath, 'r');
   const buffer = Buffer.alloc(Math.min(stats.size, 65536));
   fs.readSync(fd, buffer, 0, buffer.length, Math.max(0, stats.size - buffer.length));
@@ -127,6 +177,17 @@ export function inspectZipArchive(filePath) {
   const cdSize = buffer.readUInt32LE(eocdOffset + 12);
   const cdOffset = buffer.readUInt32LE(eocdOffset + 16);
 
+  // Strict Bounds Validation
+  if (cdSize > MAX_ZIP_CENTRAL_DIR_SIZE) {
+    return { ok: false, error: 'ARCHIVE_TOO_LARGE', message: `Central directory size (${cdSize} bytes) exceeds safety limit.` };
+  }
+  if (cdOffset < 0 || cdSize < 0 || (cdOffset + cdSize) > stats.size) {
+    return { ok: false, error: 'ARCHIVE_INVALID_BOUNDS', message: 'Central directory offsets exceed total archive file size.' };
+  }
+  if (entriesCount > MAX_ZIP_ENTRIES) {
+    return { ok: false, error: 'ARCHIVE_TOO_LARGE', message: `Entry count (${entriesCount}) exceeds maximum allowed entries (${MAX_ZIP_ENTRIES}).` };
+  }
+
   const cdBuffer = Buffer.alloc(cdSize);
   const cdFd = fs.openSync(filePath, 'r');
   fs.readSync(cdFd, cdBuffer, 0, cdSize, cdOffset);
@@ -137,16 +198,20 @@ export function inspectZipArchive(filePath) {
   let hasPathTraversal = false;
 
   for (let i = 0; i < entriesCount && pos < cdSize; i++) {
-    if (cdBuffer.readUInt32LE(pos) !== 0x02014b50) break;
-    const flags = cdBuffer.readUInt16LE(pos + 8);
+    if (pos + 46 > cdSize || cdBuffer.readUInt32LE(pos) !== 0x02014b50) break;
     const compMethod = cdBuffer.readUInt16LE(pos + 10);
     const uncompressedSize = cdBuffer.readUInt32LE(pos + 24);
     const fileNameLen = cdBuffer.readUInt16LE(pos + 28);
     const extraLen = cdBuffer.readUInt16LE(pos + 30);
     const commentLen = cdBuffer.readUInt16LE(pos + 32);
 
+    if (fileNameLen > MAX_ZIP_FILENAME_LEN) {
+      return { ok: false, error: 'ARCHIVE_INVALID_BOUNDS', message: 'Archive entry filename exceeds maximum length.' };
+    }
+
+    if (pos + 46 + fileNameLen > cdSize) break;
     const fileName = cdBuffer.toString('utf8', pos + 46, pos + 46 + fileNameLen);
-    const isTraversal = fileName.includes('..') || path.isAbsolute(fileName);
+    const isTraversal = fileName.includes('..') || path.isAbsolute(fileName) || fileName.startsWith('/') || fileName.startsWith('\\');
     if (isTraversal) hasPathTraversal = true;
 
     files.push({
@@ -161,6 +226,7 @@ export function inspectZipArchive(filePath) {
 
   return {
     ok: true,
+    capability: 'INSPECTION_ONLY', // explicitly declares no safe extraction
     totalFiles: files.length,
     uncompressedBytesTotal: files.reduce((acc, f) => acc + f.size, 0),
     hasPathTraversal,
@@ -168,7 +234,69 @@ export function inspectZipArchive(filePath) {
   };
 }
 
-export function inspectLocalFile(targetPath) {
+// Streaming SHA-256 calculation to avoid buffering whole files in memory
+export function computeFileSha256Streaming(targetPath) {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256');
+    const stream = fs.createReadStream(targetPath);
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('end', () => resolve(hash.digest('hex')));
+    stream.on('error', reject);
+  });
+}
+
+const SECRET_PATTERNS = [
+  { type: 'OpenAI/LLM Key', regex: /sk-[a-zA-Z0-9]{20,}/g },
+  { type: 'Google API Key', regex: /AIza[0-9A-Za-z-_]{30,45}/g },
+  { type: 'GitHub Personal Access Token', regex: /gh[pousr]_[0-9a-zA-Z]{36}/g },
+  { type: 'AWS Access Key ID', regex: /AKIA[0-9A-Z]{16}/g },
+  { type: 'Bearer Token', regex: /Bearer\s+([a-zA-Z0-9_\-\.]{20,})/gi },
+  { type: 'Private Key Block', regex: /-----BEGIN\s+(?:RSA|OPENSSH|EC|DSA|PGP)?\s*PRIVATE KEY-----[\s\S]*?-----END\s+(?:RSA|OPENSSH|EC|DSA|PGP)?\s*PRIVATE KEY-----/gi },
+  { type: 'Generic Password Field', regex: /(?:password|passwd|pwd|secret|api_key|apikey|auth_token)\s*[:=]\s*["']([^"']{8,})["']/gi },
+  { type: 'Database Connection String', regex: /(?:postgres|mysql|mongodb|redis|mssql):\/\/[^\s"'<>]+/gi },
+];
+
+export function redactSecretsAndAudit(text) {
+  if (!text || typeof text !== 'string') return { redactedText: text || '', secretFindings: [] };
+
+  const secretFindings = [];
+  let redactedText = text;
+
+  for (const { type, regex } of SECRET_PATTERNS) {
+    // Reset regex index if global
+    regex.lastIndex = 0;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const rawMatch = match[0];
+      const startIdx = match.index;
+      const endIdx = startIdx + rawMatch.length;
+
+      let maskedPreview = '';
+      if (rawMatch.length <= 8) {
+        maskedPreview = '***REDACTED***';
+      } else {
+        maskedPreview = `${rawMatch.slice(0, 3)}...${rawMatch.slice(-3)} [REDACTED]`;
+      }
+
+      secretFindings.push({
+        type,
+        location: { start: startIdx, end: endIdx },
+        maskedPreview,
+      });
+    }
+
+    // Replace all occurrences in redactedText
+    regex.lastIndex = 0;
+    redactedText = redactedText.replace(regex, (matched) => {
+      if (matched.length <= 8) return '***REDACTED***';
+      return `${matched.slice(0, 3)}...${matched.slice(-3)} [REDACTED]`;
+    });
+  }
+
+  return { redactedText, secretFindings };
+}
+
+export async function inspectLocalFile(targetPath) {
   if (!fs.existsSync(targetPath)) {
     return { ok: false, error: 'NOT_FOUND', message: 'Target file does not exist.' };
   }
@@ -177,16 +305,15 @@ export function inspectLocalFile(targetPath) {
     return { ok: false, error: 'NOT_A_FILE', message: 'Target path is not a file.' };
   }
 
+  // Stream SHA256 to handle arbitrary file sizes safely without memory bloat
+  const sha256 = await computeFileSha256Streaming(targetPath);
+
+  // Read preview sample (up to 1MB)
   const fd = fs.openSync(targetPath, 'r');
   const sampleSize = Math.min(stat.size, 1024 * 1024);
   const sampleBuf = Buffer.alloc(sampleSize);
   fs.readSync(fd, sampleBuf, 0, sampleSize, 0);
   fs.closeSync(fd);
-
-  const fullHash = crypto.createHash('sha256');
-  const stream = fs.readFileSync(targetPath);
-  fullHash.update(stream);
-  const sha256 = fullHash.digest('hex');
 
   let isBinary = false;
   for (let i = 0; i < Math.min(sampleSize, 1024); i++) {
@@ -205,11 +332,15 @@ export function inspectLocalFile(targetPath) {
     if (/Start-Process.*-Verb\s+RunAs/i.test(textSample)) risks.push('UAC Elevation request');
     if (/Set-ExecutionPolicy/i.test(textSample)) risks.push('ExecutionPolicy change');
     if (/\[System\.Convert\]::FromBase64String/i.test(textSample)) risks.push('Base64 decoded command');
+  }
 
-    if (/AIza[0-9A-Za-z-_]{35}/.test(textSample)) risks.push('Google API Key detected');
-    if (/sk-[a-zA-Z0-9]{20,}/.test(textSample)) risks.push('OpenAI/LLM Key detected');
-    if (/ghp_[0-9a-zA-Z]{36}/.test(textSample)) risks.push('GitHub Personal Access Token');
-    if (/BEGIN\s+(RSA|OPENSSH|EC|DSA)?\s*PRIVATE KEY/.test(textSample)) risks.push('Private SSH/RSA Key');
+  const { redactedText, secretFindings } = isBinary ? { redactedText: null, secretFindings: [] } : redactSecretsAndAudit(textSample);
+
+  if (secretFindings.length > 0) {
+    for (const sf of secretFindings) {
+      const riskDesc = `Sensitive Secret Detected: ${sf.type} (${sf.maskedPreview})`;
+      if (!risks.includes(riskDesc)) risks.push(riskDesc);
+    }
   }
 
   return {
@@ -222,7 +353,8 @@ export function inspectLocalFile(targetPath) {
     created: stat.birthtime,
     modified: stat.mtime,
     risks,
-    snippet: isBinary ? null : textSample.slice(0, 4000),
+    secretFindings,
+    snippet: isBinary ? null : (redactedText ? redactedText.slice(0, 4000) : null),
   };
 }
 

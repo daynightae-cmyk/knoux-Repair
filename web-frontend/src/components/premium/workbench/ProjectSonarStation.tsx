@@ -20,6 +20,7 @@ interface ProjectSonarStationProps {
   bridgeElevated: boolean;
   onRunTool: (tool: BridgeTool, mode?: ExecutionMode, options?: ToolRunOptions, confirmation?: ToolRunConfirmation) => void;
   isUnlocked?: boolean;
+  sessionToken?: string | null;
   onUnlockRequest?: () => void;
 }
 
@@ -32,6 +33,7 @@ export default function ProjectSonarStation({
   bridgeElevated: _bridgeElevated,
   onRunTool: _onRunTool,
   isUnlocked = false,
+  sessionToken = null,
   onUnlockRequest,
 }: ProjectSonarStationProps) {
   const isRtl = lang === 'ar';
@@ -99,7 +101,7 @@ export default function ProjectSonarStation({
     if (!workspace) return;
     setAiLoading(true);
     try {
-      const analysis = await api.sonarAnalysis(workspace, lang);
+      const analysis = await api.sonarAnalysis(workspace, lang, sessionToken);
       setAiAnalysis(analysis);
     } catch (err: any) {
       setError(err?.message || 'AI Analysis failed');

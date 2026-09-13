@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Radar, Terminal, Code2, Lock, Unlock
+  Radar, Terminal, Code2, Lock, Unlock, ShieldCheck, ShieldAlert
 } from 'lucide-react';
 import type { BridgeTool, ExecutionMode, ToolRunOptions, ToolRunConfirmation, SystemSnapshot } from '../../../lib/api';
 import { api } from '../../../lib/api';
@@ -29,6 +29,8 @@ export interface EngineeringWorkbenchStationProps {
   consoleEntries?: ConsoleEntry[];
 }
 
+export type LockOutcome = 'NONE' | 'REVOKED' | 'LOCAL_LOCK_ONLY_SERVER_UNCONFIRMED' | 'BRIDGE_UNAVAILABLE';
+
 export default function EngineeringWorkbenchStation(props: EngineeringWorkbenchStationProps) {
   const {
     lang,
@@ -42,20 +44,58 @@ export default function EngineeringWorkbenchStation(props: EngineeringWorkbenchS
   } = props;
 
   const isRtl = lang === 'ar';
-  const [unlockedToken, setUnlockedToken] = useState<string | null>(() => {
-    try {
-      return sessionStorage.getItem('knoux-workbench-token') || null;
-    } catch {
-      return null;
-    }
-  });
+  const [unlockedToken, setUnlockedToken] = useState<string | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [lockOutcome, setLockOutcome] = useState<LockOutcome>('NONE');
   const [showGateModal, setShowGateModal] = useState(false);
+
+  // Validate any existing token on mount via backend revalidation
+  useEffect(() => {
+    let mounted = true;
+    let storedToken: string | null = null;
+    try {
+      storedToken = sessionStorage.getItem('knoux-workbench-token') || null;
+    } catch {
+      storedToken = null;
+    }
+
+    if (!storedToken) {
+      setUnlockedToken(null);
+      setSessionChecked(true);
+      return;
+    }
+
+    api.workbenchValidateSession(storedToken)
+      .then((res) => {
+        if (!mounted) return;
+        if (res.valid) {
+          setUnlockedToken(storedToken);
+        } else {
+          try { sessionStorage.removeItem('knoux-workbench-token'); } catch { /* ignore */ }
+          setUnlockedToken(null);
+        }
+      })
+      .catch(() => {
+        if (!mounted) return;
+        // On error/offline, do not trust unverified string in storage
+        try { sessionStorage.removeItem('knoux-workbench-token'); } catch { /* ignore */ }
+        setUnlockedToken(null);
+      })
+      .finally(() => {
+        if (mounted) setSessionChecked(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Active operational world: '18-Project-Sonar' vs '12-Developer-Tools'
   const isSonar = activeService.id === '18-Project-Sonar';
 
   const handleUnlocked = (token: string) => {
     setUnlockedToken(token);
+    setLockOutcome('NONE');
     try {
       sessionStorage.setItem('knoux-workbench-token', token);
     } catch {
@@ -65,19 +105,29 @@ export default function EngineeringWorkbenchStation(props: EngineeringWorkbenchS
   };
 
   const handleLockStation = async () => {
-    if (unlockedToken) {
-      try {
-        await api.workbenchLockStation(unlockedToken);
-      } catch {
-        // ignore
-      }
-    }
+    const tokenToRevoke = unlockedToken;
     setUnlockedToken(null);
     try {
       sessionStorage.removeItem('knoux-workbench-token');
     } catch {
       // ignore
     }
+
+    if (tokenToRevoke) {
+      try {
+        const res = await api.workbenchLockStation(tokenToRevoke);
+        if (res.ok && res.revoked) {
+          setLockOutcome('REVOKED');
+        } else {
+          setLockOutcome('LOCAL_LOCK_ONLY_SERVER_UNCONFIRMED');
+        }
+      } catch {
+        setLockOutcome('BRIDGE_UNAVAILABLE');
+      }
+    } else {
+      setLockOutcome('REVOKED');
+    }
+    setTimeout(() => setLockOutcome('NONE'), 6000);
   };
 
   return (
@@ -132,12 +182,32 @@ export default function EngineeringWorkbenchStation(props: EngineeringWorkbenchS
             </button>
           </div>
 
+          {/* Lock state notification badge */}
+          {lockOutcome === 'REVOKED' && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] rounded-lg">
+              <ShieldCheck size={12} />
+              <span>{isRtl ? 'تم إلغاء الجلسة من الخادم بنجاح' : 'Server session revoked'}</span>
+            </div>
+          )}
+          {lockOutcome === 'LOCAL_LOCK_ONLY_SERVER_UNCONFIRMED' && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] rounded-lg">
+              <ShieldAlert size={12} />
+              <span>{isRtl ? 'قفل محلي فقط (لم يؤكد الخادم)' : 'Local lock only (server unconfirmed)'}</span>
+            </div>
+          )}
+          {lockOutcome === 'BRIDGE_UNAVAILABLE' && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[11px] rounded-lg">
+              <ShieldAlert size={12} />
+              <span>{isRtl ? 'قفل محلي (الجسر غير متاح)' : 'Local lock (bridge unreachable)'}</span>
+            </div>
+          )}
+
           {unlockedToken ? (
             <button
               type="button"
               onClick={handleLockStation}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:bg-rose-500/25 rounded-xl text-xs font-medium transition"
-              title={isRtl ? 'قفل الوصول المتقدم للمحطة' : 'Lock station and revoke session'}
+              title={isRtl ? 'قفل الوصول المتقدم للمحطة وإلغاء الجلسة' : 'Lock station and revoke server session'}
             >
               <Lock size={13} />
               <span>{isRtl ? 'قفل المحطة' : 'Lock Station'}</span>
@@ -166,6 +236,7 @@ export default function EngineeringWorkbenchStation(props: EngineeringWorkbenchS
             bridgeElevated={bridgeElevated}
             onRunTool={onRunTool}
             isUnlocked={Boolean(unlockedToken)}
+            sessionToken={unlockedToken}
             onUnlockRequest={() => setShowGateModal(true)}
           />
         ) : (
@@ -177,6 +248,7 @@ export default function EngineeringWorkbenchStation(props: EngineeringWorkbenchS
             bridgeElevated={bridgeElevated}
             onRunTool={onRunTool}
             isUnlocked={Boolean(unlockedToken)}
+            sessionToken={unlockedToken}
             onUnlockRequest={() => setShowGateModal(true)}
           />
         )}

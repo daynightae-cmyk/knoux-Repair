@@ -701,7 +701,16 @@ export const api = {
 
   sonarAiStatus: () => request<ProjectSonarAiStatus>('/api/sonar/ai-status', undefined, 15000),
   sonarExport: (folderPath: string, format: 'pdf' | 'markdown', language: LangCode) => request<{ export: ProjectSonarExport }>('/api/sonar/export', { method: 'POST', body: JSON.stringify({ path: folderPath, format, language }) }, 125000),
-  sonarAnalysis: (folderPath: string, language: LangCode) => request<ProjectSonarAiAnalysis>('/api/sonar/analysis', { method: 'POST', body: JSON.stringify({ path: folderPath, language }) }, 125000),
+  sonarAnalysis: (folderPath: string, language: LangCode, sessionToken?: string | null) =>
+    request<ProjectSonarAiAnalysis>(
+      '/api/sonar/analysis',
+      {
+        method: 'POST',
+        headers: sessionToken ? { 'X-Workbench-Session': sessionToken } : undefined,
+        body: JSON.stringify({ path: folderPath, language, sessionToken }),
+      },
+      125000
+    ),
   startRun: (toolId: string, mode: ExecutionMode = 'run', options: ToolRunOptions = {}, confirmation?: ToolRunConfirmation) =>
     request<{ runId: string }>('/api/runs', { method: 'POST', body: JSON.stringify({ toolId, mode, options, confirmation }) }, 15000),
   getRun: (runId: string) => request<{ run: BridgeRun }>(`/api/runs/${runId}`, undefined, 15000),
@@ -716,9 +725,10 @@ export const api = {
   // Engineering Workbench Station API
   workbenchKeyStatus: () => request<{ ok: boolean; locked: boolean; lockRemainingSec: number; failedAttempts: number }>('/api/workbench/premium/status'),
   workbenchVerifyKey: (key: string) => request<{ ok: boolean; sessionToken?: string; error?: string; message: string }>('/api/workbench/premium/verify', { method: 'POST', body: JSON.stringify({ key }) }),
-  workbenchLockStation: (sessionToken?: string) => request<{ ok: boolean; message: string }>('/api/workbench/premium/lock', { method: 'POST', body: JSON.stringify({ sessionToken }) }),
-  workbenchInspectArchive: (filePath: string) => request<{ ok: boolean; totalFiles: number; uncompressedBytesTotal: number; hasPathTraversal: boolean; files: Array<{ name: string; size: number; compressed: boolean; pathTraversalRisk: boolean }> }>('/api/workbench/archive/inspect', { method: 'POST', body: JSON.stringify({ path: filePath }) }),
-  workbenchInspectFile: (filePath: string) => request<{ ok: boolean; path: string; name: string; sizeBytes: number; isBinary: boolean; sha256: string; created: string; modified: string; risks: string[]; snippet: string | null }>('/api/workbench/file/inspect', { method: 'POST', body: JSON.stringify({ path: filePath }) }),
+  workbenchValidateSession: (sessionToken: string) => request<{ ok: boolean; valid: boolean; remainingSec?: number; message?: string }>('/api/workbench/premium/validate', { method: 'POST', body: JSON.stringify({ sessionToken }) }),
+  workbenchLockStation: (sessionToken?: string) => request<{ ok: boolean; revoked?: boolean; message: string }>('/api/workbench/premium/lock', { method: 'POST', body: JSON.stringify({ sessionToken }) }),
+  workbenchInspectArchive: (filePath: string) => request<{ ok: boolean; capability?: string; totalFiles: number; uncompressedBytesTotal: number; hasPathTraversal: boolean; files: Array<{ name: string; size: number; compressed: boolean; pathTraversalRisk: boolean }> }>('/api/workbench/archive/inspect', { method: 'POST', body: JSON.stringify({ path: filePath }) }),
+  workbenchInspectFile: (filePath: string) => request<{ ok: boolean; path: string; name: string; sizeBytes: number; isBinary: boolean; sha256: string; created: string; modified: string; risks: string[]; secretFindings?: Array<{ type: string; location: { start: number; end: number }; maskedPreview: string }>; snippet: string | null }>('/api/workbench/file/inspect', { method: 'POST', body: JSON.stringify({ path: filePath }) }),
   workbenchToolchain: () => request<{ ok: boolean; toolchain: Array<{ tool: string; available: boolean; version: string; primaryPath: string; candidates: string[] }> }>('/api/workbench/system/toolchain'),
   workbenchPorts: () => request<{ ok: boolean; ports: Array<{ port: number; address: string; processId: number | null }> }>('/api/workbench/system/ports'),
 };
