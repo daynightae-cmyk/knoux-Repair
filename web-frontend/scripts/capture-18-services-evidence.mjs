@@ -97,12 +97,19 @@ function normalizeText(value) {
   return String(value || '').trim().replace(/\s+/g, ' ');
 }
 
-function classifyConsoleErrors(errors) {
+function classifyConsoleErrors(errors, { allowControlledRestartNoise = false } = {}) {
   const expectedUnavailable = [];
   const unexpected = [];
   for (const message of errors) {
-    if (/status of 503\s*\(Service Unavailable\)/i.test(message)) expectedUnavailable.push(message);
-    else unexpected.push(message);
+    const unavailable503 = /status of 503\s*\(Service Unavailable\)/i.test(message);
+    const transportReset = /Failed to load resource:\s*net::ERR_CONNECTION_(?:RESET|REFUSED)/i.test(message);
+    const devSocketReset = /WebSocket connection to 'ws:\/\/127\.0\.0\.1:24678\/'.*ERR_CONNECTION_REFUSED/i.test(message);
+
+    if (unavailable503 || (allowControlledRestartNoise && (transportReset || devSocketReset))) {
+      expectedUnavailable.push(message);
+    } else {
+      unexpected.push(message);
+    }
   }
   return { expectedUnavailable, unexpected };
 }
@@ -371,7 +378,9 @@ try {
     if (snapshot.selectedToolId) throw new Error(`${target.service}: route should open service workspace before a tool is selected`);
     if (pageErrors.length > 0) throw new Error(`${target.service}: page errors: ${pageErrors.join(' | ')}`);
 
-    const classifiedConsole = classifyConsoleErrors(consoleErrors);
+    const classifiedConsole = classifyConsoleErrors(consoleErrors, {
+      allowControlledRestartNoise: restartedGateway,
+    });
     if (classifiedConsole.unexpected.length > 0) {
       throw new Error(`${target.service}: unexpected console errors: ${classifiedConsole.unexpected.join(' | ')}`);
     }
