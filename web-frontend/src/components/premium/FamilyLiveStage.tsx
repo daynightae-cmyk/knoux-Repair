@@ -197,7 +197,7 @@ export default function FamilyLiveStage({
             <span>{executionRunning ? (isRtl ? 'تنفيذ نشط' : 'ACTIVE EXECUTION') : (isRtl ? 'آخر نتيجة تنفيذ' : 'LAST EXECUTION')}</span>
             <strong>{isRtl ? executionTool.ArabicName : executionTool.EnglishName}</strong>
             {selectionDiffersFromExecution && (
-              <small>{isRtl ? 'الإجراء المحدد مختلف؛ حالة التنفيذ تظل مرتبطة بالإجراء الأصلي.' : 'Selected action differs; runtime ownership remains attached to the original execution.'}</small>
+              <small>{isRtl ? 'الإجراء المحدد مختلف؛ حالة التنفيذ تظل مرتبطة بأداة التنفيذ الأصلية.' : 'Selected action differs; runtime ownership remains attached to the execution tool.'}</small>
             )}
           </div>
           <b>{isRtl ? STATUS_TEXT[executionStatus].ar : STATUS_TEXT[executionStatus].en}</b>
