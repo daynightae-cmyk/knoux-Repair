@@ -72,18 +72,18 @@ try {
   $updateServices = @('wuauserv', 'BITS') | ForEach-Object {
     try { $service = Get-Service -Name $_ -ErrorAction Stop; [pscustomobject]@{ Name = $service.Name; Status = [string]$service.Status; StartType = [string]$service.StartType } } catch { [pscustomobject]@{ Name = $_; Status = 'Unavailable'; StartType = 'Unavailable' } }
   }
-  $driverOffers = [ordered]@{ Available = $false; Count = $null; Offers = @(); Error = $null }
-  try {
-    $updateSession = New-Object -ComObject Microsoft.Update.Session
-    $searcher = $updateSession.CreateUpdateSearcher()
-    $result = $searcher.Search("IsInstalled=0 and Type='Driver'")
-    $driverOffers.Available = $true
-    $driverOffers.Count = [int]$result.Updates.Count
-    $driverOffers.Offers = @(for ($index = 0; $index -lt $result.Updates.Count; $index++) {
-      $offer = $result.Updates.Item($index)
-      [pscustomobject]@{ Selection = $index + 1; Title = [string]$offer.Title; DriverClass = [string]$offer.DriverClass; DriverModel = [string]$offer.DriverModel; DriverVerDate = [string]$offer.DriverVerDate }
-    })
-  } catch { $driverOffers.Error = $_.Exception.Message }
+
+  # IMPORTANT: PI06 is the fast workstation-baseline preview. It must not start
+  # a live Windows Update COM search during page bootstrap because that search can
+  # take an unbounded amount of time and previously blocked the single local bridge
+  # process, starving unrelated /api/categories/.../tools requests. PI01 owns live
+  # Windows Update driver discovery and is an explicit user action.
+  $driverOffers = [ordered]@{
+    Available = $false
+    Count = $null
+    Offers = @()
+    Error = 'Driver offers were not queried by PI06. Run PI01 Discover Windows Driver Updates for live Windows Update driver evidence.'
+  }
 
   $pendingRestart = @()
   if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired') { $pendingRestart += 'WindowsUpdate' }
@@ -101,20 +101,20 @@ try {
     Catalog = $catalogState
     Safety = [pscustomobject]@{
       ChangesMade = $false
-      Sources = @('Installed-program registry', 'winget --version and source list', 'Windows Update driver search', 'Windows Update and BITS services', 'reboot evidence registry keys')
-      Notice = 'Read-only post-install inventory. Catalog rows are optional exact Winget identifiers, not recommendations. No source is refreshed, no update is downloaded, and no app or driver is installed by this preview.'
+      Sources = @('Installed-program registry', 'winget --version and source list', 'Windows Update and BITS services', 'reboot evidence registry keys')
+      Notice = 'Read-only post-install baseline. Driver offers are intentionally not queried here; PI01 owns live Windows Update driver discovery. No package source is refreshed, no update is downloaded, and no app or driver is installed by this preview.'
     }
   }
   $preview | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath (Join-Path $Session.RawDir 'interactive-postinstall-preview.json') -Encoding UTF8
   $Session.ItemsFound = $catalogState.Count
   $Session.VerificationPerformed = $true
-  $Session.VerificationResult = 'Post-install inventory and update availability were read only; no package source, application, driver, service, or system setting was changed.'
+  $Session.VerificationResult = 'Post-install baseline was read only; driver offers remain unverified until PI01 is run explicitly. No package source, application, driver, service, or system setting was changed.'
   if ($EmitJson) {
     Write-Output '---KNOUX_POST_INSTALL_JSON_START---'
     $preview | ConvertTo-Json -Depth 7 -Compress
     Write-Output '---KNOUX_POST_INSTALL_JSON_END---'
   } else {
-    Write-Host ('[OK] Read post-install inventory for {0} catalog item(s); no changes made.' -f $catalogState.Count) -ForegroundColor Green
+    Write-Host ('[OK] Read post-install baseline for {0} catalog item(s); driver offers not queried; no changes made.' -f $catalogState.Count) -ForegroundColor Green
   }
 } catch {
   $Session.Status = 'Failed'

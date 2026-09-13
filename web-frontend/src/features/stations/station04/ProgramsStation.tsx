@@ -228,35 +228,6 @@ export default function ProgramsStation({
     };
   }, []);
 
-  // Seed initial diagnostics if empty
-  useEffect(() => {
-    setEvidence((prev) => {
-      if (prev.associations.length > 0) return prev;
-      const initialAssocs: AssociationDiagnostic[] = [
-        { extensionOrProtocol: '.txt', progId: 'txtfile', currentTarget: 'notepad.exe', targetExecutable: 'notepad.exe', targetExists: true, userChoicePresent: true, status: 'VALID', recommendedAction: 'Association is valid.' },
-        { extensionOrProtocol: '.pdf', progId: 'PDFXEdit.PDF', currentTarget: 'PDFXEdit.exe', targetExecutable: 'PDFXEdit.exe', targetExists: true, userChoicePresent: true, status: 'VALID', recommendedAction: 'Association is valid.' },
-        { extensionOrProtocol: '.html', progId: 'ChromeHTML', currentTarget: 'chrome.exe', targetExecutable: 'chrome.exe', targetExists: true, userChoicePresent: true, status: 'VALID', recommendedAction: 'Association is valid.' },
-        { extensionOrProtocol: '.xyz_broken', progId: 'BrokenProgId', currentTarget: 'C:\\NonExistent\\app.exe', targetExecutable: 'C:\\NonExistent\\app.exe', targetExists: false, userChoicePresent: false, status: 'BROKEN', recommendedAction: 'Executable does not exist. Re-assign via Windows Settings.' },
-      ];
-      const initialFeatures: WindowsFeatureItem[] = [
-        { featureName: 'NetFx4-AdvSrvs', displayName: '.NET Framework 4.8 Advanced Services', state: 'ENABLED', restartRequired: false },
-        { featureName: 'Microsoft-Windows-Subsystem-Linux', displayName: 'Windows Subsystem for Linux', state: 'DISABLED', restartRequired: true },
-        { featureName: 'VirtualMachinePlatform', displayName: 'Virtual Machine Platform', state: 'ENABLED', restartRequired: true },
-        { featureName: 'Containers-DisposableClientVM', displayName: 'Windows Sandbox', state: 'DISABLED', restartRequired: true },
-      ];
-      const initialUpdates: InstalledWindowsUpdate[] = [
-        { kb: 'KB5072653', title: 'Security Update KB5072653', installedOn: '6/19/2026', type: 'Security Update', uninstallable: false, restartRelevant: true, source: 'Get-HotFix', state: 'NOT_REMOVABLE' },
-        { kb: 'KB5126421', title: 'Update KB5126421', installedOn: '9/9/2026', type: 'Update', uninstallable: true, restartRelevant: true, source: 'Get-HotFix', state: 'INSTALLED' },
-      ];
-      return {
-        ...prev,
-        associations: initialAssocs,
-        windowsFeatures: initialFeatures,
-        installedUpdates: initialUpdates,
-      };
-    });
-  }, []);
-
   const recommendations = useMemo(() => {
     return buildProgramsRecommendations(evidence, station);
   }, [evidence, station]);

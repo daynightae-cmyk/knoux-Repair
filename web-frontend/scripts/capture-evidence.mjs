@@ -14,6 +14,10 @@ const EDGE_CANDIDATES = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
 ].filter(Boolean);
+const FAMILY_VIEWS = new Set(['vitality', 'recovery', 'assurance', 'software', 'workbench', 'investigation']);
+const TERMINAL_EXECUTION_STATES = new Set(['success', 'error', 'cancelled', 'inconclusive']);
+const LIFECYCLE_TOOL_ID = 'NI06';
+const LIFECYCLE_ALTERNATE_TOOL_ID = 'NI01';
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
@@ -56,9 +60,7 @@ const targets = [
   },
 ];
 
-const TERMINAL_EXECUTION_STATES = new Set(['success', 'error', 'cancelled', 'inconclusive']);
-const LIFECYCLE_TOOL_ID = 'NI06';
-const LIFECYCLE_ALTERNATE_TOOL_ID = 'NI01';
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function waitForGateway(timeoutMs = 45_000) {
   const deadline = Date.now() + timeoutMs;
@@ -71,7 +73,7 @@ async function waitForGateway(timeoutMs = 45_000) {
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
     }
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await delay(500);
   }
   throw new Error(`Gateway did not become ready at ${ORIGIN}: ${lastError}`);
 }
@@ -110,6 +112,94 @@ function findEdge() {
   return edge;
 }
 
+async function readFamilySurface(page) {
+  return page.evaluate(() => {
+    const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
+      .find(button => /retry connection/i.test(button.textContent || '') || /إعادة المحاولة/.test(button.textContent || ''));
+    const drawer = document.querySelector('.knoux-command-tool-drawer');
+    const stage = document.querySelector('.knoux-workspace-stage');
+    return {
+      hero: Boolean(document.querySelector('.knoux-preview-hero')),
+      stage: Boolean(stage),
+      serviceCards: document.querySelectorAll('.knoux-service-card').length,
+      serviceToolCount: Number(stage?.getAttribute('data-service-tool-count') || 0),
+      toolCards: document.querySelectorAll('.knoux-tool-card[data-tool-id]').length,
+      workspace: Boolean(document.querySelector('.knoux-tool-workspace')),
+      retryAvailable: Boolean(retry),
+      drawerAvailable: Boolean(drawer),
+      drawerExpanded: drawer?.getAttribute('aria-expanded') === 'true' || drawer?.getAttribute('data-expanded') === 'true',
+    };
+  });
+}
+
+async function clickRetryConnection(page) {
+  return page.evaluate(() => {
+    const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
+      .find(button => /retry connection/i.test(button.textContent || '') || /إعادة المحاولة/.test(button.textContent || ''));
+    if (!(retry instanceof HTMLButtonElement)) return false;
+    retry.click();
+    return true;
+  });
+}
+
+async function ensureFamilySurfaceReady(page, target) {
+  if (!FAMILY_VIEWS.has(target.view)) return;
+
+  await page.waitForSelector('.knoux-preview-hero', { timeout: 15_000 });
+  await page.waitForSelector('.knoux-workspace-stage', { timeout: 15_000 });
+  await page.waitForSelector('.knoux-service-card', { timeout: 15_000 });
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await page.waitForFunction(
+      requireWorkspace => {
+        const cards = document.querySelectorAll('.knoux-tool-card[data-tool-id]').length;
+        const workspace = Boolean(document.querySelector('.knoux-tool-workspace'));
+        const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
+          .some(button => /retry connection/i.test(button.textContent || '') || /إعادة المحاولة/.test(button.textContent || ''));
+        const drawer = Boolean(document.querySelector('.knoux-command-tool-drawer'));
+        return retry || cards > 0 || drawer || (requireWorkspace && workspace);
+      },
+      { timeout: 15_000, polling: 100 },
+      Boolean(target.requireWorkspace)
+    ).catch(() => {});
+
+    const surface = await readFamilySurface(page);
+    if (surface.retryAvailable) {
+      console.log(`${target.name}: transient bridge-unavailable state observed; exercising real Retry connection path (attempt ${attempt}/3).`);
+      await clickRetryConnection(page);
+      await delay(500);
+      continue;
+    }
+
+    if (target.requireWorkspace && surface.workspace) return;
+    if (surface.toolCards > 0) return;
+
+    await delay(500);
+  }
+
+  const finalSurface = await readFamilySurface(page);
+  throw new Error(`${target.name}: family action surface never became ready after bridge recovery attempts: ${JSON.stringify(finalSurface)}`);
+}
+
+async function ensureToolWorkspace(page, target) {
+  if (!target.requireWorkspace) return;
+
+  let workspace = await page.$('.knoux-tool-workspace');
+  if (workspace) return;
+
+  await ensureFamilySurfaceReady(page, target);
+  workspace = await page.$('.knoux-tool-workspace');
+  if (workspace) return;
+
+  const firstCard = await page.$('.knoux-tool-card[data-tool-id]');
+  if (!firstCard) {
+    const surface = await readFamilySurface(page);
+    throw new Error(`${target.name}: no real tool action became available for workspace proof: ${JSON.stringify(surface)}`);
+  }
+  await firstCard.click();
+  await page.waitForSelector('.knoux-tool-workspace', { timeout: 10_000 });
+}
+
 async function inspectPage(page, target) {
   const selectors = await page.evaluate(() => ({
     hero: Boolean(document.querySelector('.knoux-preview-hero')),
@@ -121,11 +211,11 @@ async function inspectPage(page, target) {
     direction: document.querySelector('.knoux-shell')?.getAttribute('dir') || document.documentElement.getAttribute('dir') || document.body.getAttribute('dir') || '',
   }));
 
-  if (['vitality', 'recovery', 'assurance', 'software', 'workbench', 'investigation'].includes(target.view)) {
+  if (FAMILY_VIEWS.has(target.view)) {
     if (!selectors.hero) throw new Error(`${target.name}: family hero is missing`);
     if (!selectors.liveStage) throw new Error(`${target.name}: live tool stage is missing`);
     if (selectors.serviceCards < 1) throw new Error(`${target.name}: service selector cards are missing`);
-    if (!target.requireWorkspace && selectors.toolCards < 1) throw new Error(`${target.name}: selected service tool cards are missing`);
+    if (!target.requireWorkspace && selectors.toolCards < 1) throw new Error(`${target.name}: selected service tool cards are missing after readiness/retry proof`);
   }
   if (target.requireWorkspace && !selectors.workspace) throw new Error(`${target.name}: selected tool did not transform the live stage into ToolWorkspace`);
   if (target.requireAccount && !selectors.accountCenter) throw new Error(`${target.name}: account center did not render`);
@@ -149,10 +239,43 @@ async function inspectExecutionLifecycle(page) {
   });
 }
 
+async function ensureLifecycleActionSurface(page) {
+  const target = { name: 'P1_EXECUTION_LIFECYCLE', view: 'assurance', requireWorkspace: false };
+  await ensureFamilySurfaceReady(page, target);
+}
+
 async function clickToolCard(page, toolId) {
   const selector = `.knoux-tool-card[data-tool-id="${toolId}"]`;
-  await page.waitForSelector(selector, { timeout: 10_000 });
-  await page.click(selector);
+  let card = await page.$(selector);
+
+  if (!card) {
+    await ensureLifecycleActionSurface(page);
+    card = await page.$(selector);
+  }
+
+  if (!card) {
+    const drawer = await page.$('.knoux-command-tool-drawer');
+    if (drawer) {
+      const expanded = await page.evaluate(
+        element => element.getAttribute('aria-expanded') === 'true' || element.getAttribute('data-expanded') === 'true',
+        drawer
+      );
+      if (!expanded) {
+        await drawer.click();
+        await page.waitForFunction(
+          () => {
+            const button = document.querySelector('.knoux-command-tool-drawer');
+            return button?.getAttribute('aria-expanded') === 'true' || button?.getAttribute('data-expanded') === 'true';
+          },
+          { timeout: 5_000, polling: 20 }
+        );
+      }
+    }
+    card = await page.waitForSelector(selector, { timeout: 10_000 }).catch(() => null);
+  }
+
+  if (!card) throw new Error(`Tool card ${toolId} did not become available through the real action drawer after bridge readiness recovery.`);
+  await card.click();
   await page.waitForFunction(
     expectedToolId => document.querySelector('.knoux-workspace-stage')?.getAttribute('data-selected-tool-id') === expectedToolId,
     { timeout: 5_000, polling: 20 },
@@ -172,12 +295,13 @@ async function captureRealExecutionLifecycle(browser) {
   });
 
   const url = `${ORIGIN}/?view=assurance&nosplash=1&service=03-Network-Internet`;
-  await page.goto(url, { waitUntil: 'networkidle0', timeout: 45_000 });
-  await page.waitForSelector('.knoux-workspace-stage', { timeout: 10_000 });
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
+  await page.waitForSelector('.knoux-workspace-stage', { timeout: 15_000 });
+  await ensureLifecycleActionSurface(page);
   await clickToolCard(page, LIFECYCLE_TOOL_ID);
   await page.waitForSelector('.knoux-tool-workspace', { timeout: 10_000 });
   await page.evaluate(() => document.querySelector('.knoux-workspace-stage')?.scrollIntoView({ block: 'start', behavior: 'instant' }));
-  await new Promise(resolve => setTimeout(resolve, 250));
+  await delay(250);
 
   const selectedState = await inspectExecutionLifecycle(page);
   if (selectedState.selectedToolId !== LIFECYCLE_TOOL_ID) {
@@ -198,12 +322,7 @@ async function captureRealExecutionLifecycle(browser) {
       const selectedToolId = stage?.getAttribute('data-selected-tool-id') || null;
       const last = window.__knouxLifecycleTransitions[window.__knouxLifecycleTransitions.length - 1];
       if (!last || last.status !== status || last.executionToolId !== executionToolId || last.selectedToolId !== selectedToolId) {
-        window.__knouxLifecycleTransitions.push({
-          status,
-          executionToolId,
-          selectedToolId,
-          atMs: Math.round(performance.now()),
-        });
+        window.__knouxLifecycleTransitions.push({ status, executionToolId, selectedToolId, atMs: Math.round(performance.now()) });
       }
     };
     record();
@@ -287,10 +406,7 @@ async function captureRealExecutionLifecycle(browser) {
 
   const terminalPath = path.join(OUT_DIR, `P1-04_EXECUTION-TERMINAL-${LIFECYCLE_TOOL_ID}-${terminalState.stageExecution.toUpperCase()}.png`);
   await page.screenshot({ path: terminalPath, fullPage: false });
-
-  await page.evaluate(() => {
-    window.__knouxLifecycleObserver?.disconnect?.();
-  });
+  await page.evaluate(() => window.__knouxLifecycleObserver?.disconnect?.());
 
   const lifecycleEvidence = {
     generatedAt: new Date().toISOString(),
@@ -330,10 +446,15 @@ async function main() {
   let browser;
   const evidence = [];
   let executionLifecycle = null;
+
   try {
     await waitForGateway();
     console.log(`Gateway ready at ${ORIGIN}`);
-    browser = await puppeteer.launch({ executablePath: findEdge(), headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'] });
+    browser = await puppeteer.launch({
+      executablePath: findEdge(),
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+    });
 
     for (const target of targets) {
       const page = await browser.newPage();
@@ -342,38 +463,44 @@ async function main() {
       page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
       page.on('pageerror', error => pageErrors.push(error.message));
       await page.setViewport({ width: target.width, height: target.height, deviceScaleFactor: 1 });
+
       if (target.lang) {
         await page.evaluateOnNewDocument(nextLang => {
           try { localStorage.setItem('knoux-lang', nextLang); } catch { /* origin initializes on navigation */ }
         }, target.lang);
       }
+
       const url = `${ORIGIN}/?view=${target.view}&nosplash=1${target.query || ''}`;
-      await page.goto(url, { waitUntil: 'networkidle0', timeout: 45_000 });
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
 
-      if (target.requireWorkspace) {
-        let workspace = await page.waitForSelector('.knoux-tool-workspace', { timeout: 8_000 }).catch(() => null);
-        if (!workspace) {
-          const firstCard = await page.waitForSelector('.knoux-tool-card', { timeout: 5_000 }).catch(() => null);
-          if (firstCard) {
-            await firstCard.click();
-            workspace = await page.waitForSelector('.knoux-tool-workspace', { timeout: 8_000 }).catch(() => null);
-          }
-        }
+      if (FAMILY_VIEWS.has(target.view)) {
+        await ensureFamilySurfaceReady(page, target);
+        await ensureToolWorkspace(page, target);
       }
+      if (target.requireAccount) await page.waitForSelector('.knoux-account-center', { timeout: 10_000 });
 
-      if (target.requireAccount) await page.waitForSelector('.knoux-account-center', { timeout: 8_000 });
-      await new Promise(resolve => setTimeout(resolve, 900));
+      await delay(350);
       const selectors = await inspectPage(page, target);
 
       if (target.scrollSelector) {
         await page.evaluate(selector => document.querySelector(selector)?.scrollIntoView({ block: 'start', behavior: 'instant' }), target.scrollSelector);
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await delay(300);
       }
 
       const destination = path.join(OUT_DIR, target.name);
       await page.screenshot({ path: destination, fullPage: false });
       const stat = fs.statSync(destination);
-      evidence.push({ name: target.name, url, viewport: { width: target.width, height: target.height }, lang: target.lang || 'en', scrollSelector: target.scrollSelector || null, selectors, consoleErrors, pageErrors, bytes: stat.size });
+      evidence.push({
+        name: target.name,
+        url,
+        viewport: { width: target.width, height: target.height },
+        lang: target.lang || 'en',
+        scrollSelector: target.scrollSelector || null,
+        selectors,
+        consoleErrors,
+        pageErrors,
+        bytes: stat.size,
+      });
       console.log(`Captured ${target.name} (${stat.size} bytes, console errors=${consoleErrors.length}, page errors=${pageErrors.length})`);
       await page.close();
     }

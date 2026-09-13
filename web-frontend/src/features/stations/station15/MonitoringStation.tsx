@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity, Cpu, HardDrive, RefreshCw, Play,
   CheckCircle2, AlertTriangle, Search,
   History, FileText, Server, AlertOctagon, Zap
 } from 'lucide-react';
 import type {
-  BridgeTool, ExecutionMode,
+  BridgeRun, BridgeTool, ExecutionMode,
   OperationsPreview,
   ToolRunConfirmation, ToolRunOptions
 } from '../../../lib/api';
@@ -13,8 +13,8 @@ import { api } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
 import { pickName } from '../../../lib/i18n';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
-import { StationErrorBoundary, StationOfflineState } from '../_shared';
-import { startExecution, pollExecution } from '../_shared/StationExecutionController';
+import { StationErrorBoundary, StationOfflineState, StationActiveRunBanner } from '../_shared';
+import { startExecution, pollUntilTerminal, requestConfirmedCancel, rememberRun, recallRun, forgetRun, historyMessageForRun } from '../_shared/StationExecutionController';
 import {
   type ObservatorySummary, type ObservatorySignal, type StationHistoryEntry,
   summarizeObservatory, detectObservatorySignals, stationTools,
@@ -127,6 +127,8 @@ const COPY = {
   },
 };
 
+const STATION_KEY = 'station15';
+
 export default function MonitoringStation(props: MonitoringStationProps) {
   return (
     <StationErrorBoundary lang={props.lang}>
@@ -149,6 +151,22 @@ function MonitoringStationContent({
   const [searchQuery, setSearchQuery] = useState('');
   const [history, setHistory] = useState<StationHistoryEntry[]>([]);
   const [pendingTool, setPendingTool] = useState<{ tool: BridgeTool; mode: ExecutionMode } | null>(null);
+  // Active run tracking: selection and execution are separate concepts.
+  // CANCELLED is recorded only after the backend confirms a terminal state;
+  // aborting local observation never fabricates cancellation.
+  const [activeRun, setActiveRun] = useState<{ runId: string; toolId: string; phase: 'running' | 'cancelling'; lineCount: number } | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
+  const pollAbortRef = useRef<AbortController | null>(null);
+  const settledRef = useRef(false);
+  const reconcileInflightRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      pollAbortRef.current?.abort();
+    };
+  }, []);
 
   const availableStationTools = useMemo(() => stationTools(tools), [tools]);
 
@@ -190,39 +208,146 @@ function MonitoringStationContent({
   }, [preview]);
 
   const handleLaunchTool = (tool: BridgeTool, mode: ExecutionMode = 'analyze') => {
+    if (activeRun) {
+      setRunError(lang === 'ar'
+        ? 'أداة أخرى قيد التنفيذ حالياً. انتظر انتهاءها أو ألغها أولاً.'
+        : 'Another tool is currently running. Wait for it to finish or cancel it first.');
+      return;
+    }
     setPendingTool({ tool, mode });
   };
 
+  // Records ONLY backend-terminal outcomes. A backend-confirmed cancelled
+  // run stays CANCELLED; anything else follows the result evidence.
+  const settleTerminalRun = useCallback((toolId: string, toolName: string, terminal: BridgeRun) => {
+    forgetRun(STATION_KEY);
+    const outcome = terminal.status === 'cancelled' ? 'CANCELLED' as const : outcomeFromRun(terminal.result);
+    onToolStatus(
+      toolId,
+      outcome === 'SUCCESS' ? 'success' : outcome === 'WARNING' ? 'inconclusive' : outcome === 'FAILED' ? 'error' : outcome === 'CANCELLED' ? 'cancelled' : 'inconclusive'
+    );
+    const newEntry: StationHistoryEntry = {
+      id: `${toolId}-${Date.now()}`,
+      toolId,
+      toolName,
+      timestamp: new Date().toLocaleTimeString(),
+      status: outcome,
+      itemsProcessed: terminal.result?.itemsProcessed || 0,
+      summary: terminal.result?.output?.slice(0, 180) || historyMessageForRun(terminal),
+    };
+    if (mountedRef.current) {
+      setHistory((prev) => [newEntry, ...prev]);
+      setActiveRun(null);
+    }
+    void loadPreview();
+  }, [onToolStatus, lang, loadPreview]);
+
+  // Observes one backend run to a terminal state. Local observation stops
+  // record NOTHING: the run stays remembered so a remount reconciles it.
+  const observeRun = useCallback(async (runId: string, toolId: string, toolName: string, aborter: AbortController) => {
+    try {
+      const terminal = await pollUntilTerminal(runId, {
+        signal: aborter.signal,
+        onTick: (run) => {
+          if (mountedRef.current) {
+            setActiveRun((prev) => (prev && prev.runId === runId ? { ...prev, lineCount: run.lines?.length ?? 0 } : prev));
+          }
+        },
+      });
+      if (!mountedRef.current || settledRef.current) return;
+      settledRef.current = true;
+      settleTerminalRun(toolId, toolName, terminal);
+    } catch (err: unknown) {
+      if (settledRef.current || !mountedRef.current) return;
+      const code = (err as Error & { code?: string })?.code;
+      if (code === 'POLL_CANCELLED') return;
+      const msg = err instanceof Error ? err.message : String(err);
+      onToolStatus(toolId, 'error');
+      setRunError(msg);
+      setActiveRun(null);
+    }
+  }, [settleTerminalRun, onToolStatus, lang]);
+
+  // Remount rediscovery: a remembered run is re-observed to its real
+  // terminal state instead of being orphaned.
+  useEffect(() => {
+    const orphan = recallRun(STATION_KEY);
+    if (orphan && !reconcileInflightRef.current) {
+      reconcileInflightRef.current = true;
+      settledRef.current = false;
+      const aborter = new AbortController();
+      pollAbortRef.current = aborter;
+      setActiveRun({ runId: orphan.runId, toolId: orphan.toolId, phase: 'running', lineCount: 0 });
+      void observeRun(orphan.runId, orphan.toolId, orphan.toolName || orphan.toolId, aborter)
+        .finally(() => { reconcileInflightRef.current = false; });
+    }
+  }, [observeRun]);
+
   const handleConfirmRun = async (options?: ToolRunOptions, confirmation?: ToolRunConfirmation) => {
     if (!pendingTool) return;
+    if (activeRun) {
+      setRunError(lang === 'ar'
+        ? 'أداة أخرى قيد التنفيذ حالياً. انتظر انتهاءها أو ألغها أولاً.'
+        : 'Another tool is currently running. Wait for it to finish or cancel it first.');
+      return;
+    }
     const { tool, mode } = pendingTool;
     setPendingTool(null);
-
+    setRunError(null);
+    settledRef.current = false;
+    const toolName = pickName(tool, lang);
     try {
       onToolStatus(tool.ToolId, 'running');
       const runId = await startExecution({ tool, mode, options, confirmation });
-      const finalRun = await pollExecution(runId);
-
-      const outcome = outcomeFromRun(finalRun.result);
-      onToolStatus(
-        tool.ToolId,
-        outcome === 'SUCCESS' ? 'success' : outcome === 'WARNING' ? 'inconclusive' : 'error'
-      );
-
-      const newEntry: StationHistoryEntry = {
-        id: `${tool.ToolId}-${Date.now()}`,
-        toolId: tool.ToolId,
-        toolName: pickName(tool, lang),
-        timestamp: new Date().toLocaleTimeString(),
-        status: outcome,
-        itemsProcessed: finalRun.result?.itemsProcessed || 0,
-        summary: finalRun.result?.output?.slice(0, 180) || 'Execution completed.',
-      };
-      setHistory((prev) => [newEntry, ...prev]);
-
-      void loadPreview();
+      rememberRun({ runId, toolId: tool.ToolId, toolName, stationKey: STATION_KEY, startedAt: Date.now() });
+      if (!mountedRef.current) return;
+      const aborter = new AbortController();
+      pollAbortRef.current?.abort();
+      pollAbortRef.current = aborter;
+      setActiveRun({ runId, toolId: tool.ToolId, phase: 'running', lineCount: 0 });
+      await observeRun(runId, tool.ToolId, toolName, aborter);
     } catch {
+      // startExecution itself failed: no backend run exists.
+      if (!mountedRef.current) return;
       onToolStatus(tool.ToolId, 'error');
+      setRunError(lang === 'ar' ? 'تعذر بدء التنفيذ.' : 'Execution could not be started.');
+      setActiveRun(null);
+    }
+  };
+
+  // Cancel honesty: CANCELLED is recorded only after the backend confirms a
+  // terminal state. If confirmation fails, monitoring continues.
+  const handleCancelRun = async () => {
+    const current = activeRun;
+    if (!current || current.phase === 'cancelling') return;
+    const remembered = recallRun(STATION_KEY);
+    const toolName = (remembered && remembered.runId === current.runId && remembered.toolName) || current.toolId;
+    setActiveRun({ ...current, phase: 'cancelling' });
+    try {
+      const terminal = await requestConfirmedCancel(current.runId, {
+        onTick: (run) => {
+          if (mountedRef.current) {
+            setActiveRun((prev) => (prev && prev.runId === current.runId ? { ...prev, lineCount: run.lines?.length ?? 0 } : prev));
+          }
+        },
+      });
+      settledRef.current = true;
+      pollAbortRef.current?.abort();
+      if (!mountedRef.current) {
+        forgetRun(STATION_KEY);
+        return;
+      }
+      settleTerminalRun(current.toolId, toolName, terminal);
+    } catch (err: unknown) {
+      if (!mountedRef.current) return;
+      const code = (err as Error & { code?: string })?.code;
+      if (code === 'POLL_CANCELLED') return;
+      // CANCEL_FAILED (or any reconcile failure): the backend did NOT confirm
+      // cancellation, so monitoring continues via the original observer.
+      const msg = err instanceof Error ? err.message : String(err);
+      setActiveRun({ ...current, phase: 'running' });
+      onToolStatus(current.toolId, 'running');
+      setRunError(msg);
     }
   };
 
@@ -276,6 +401,23 @@ function MonitoringStationContent({
           <span>{loading ? t.refreshing : t.refresh}</span>
         </button>
       </div>
+
+      {runError && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '10px 14px', background: 'rgba(244, 63, 94, 0.1)', border: '1px solid rgba(244, 63, 94, 0.35)', borderRadius: 10, color: '#fda4af', fontSize: 12 }} role="alert">
+          <span>{runError}</span>
+        </div>
+      )}
+
+      {activeRun && (
+        <StationActiveRunBanner
+          lang={lang}
+          toolId={activeRun.toolId}
+          lineCount={activeRun.lineCount}
+          accent="sky"
+          phase={activeRun.phase}
+          onCancel={() => void handleCancelRun()}
+        />
+      )}
 
       {/* Hero Visual Block */}
       <div
@@ -771,7 +913,7 @@ function MonitoringStationContent({
                     )}
                     <button
                       type="button"
-                      onClick={() => handleLaunchTool(tool, 'repair')}
+                      onClick={() => handleLaunchTool(tool, 'run')}
                       style={{
                         padding: '5px 10px',
                         background: '#0284c7',

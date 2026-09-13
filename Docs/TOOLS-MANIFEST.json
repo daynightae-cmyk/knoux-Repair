@@ -6,7 +6,7 @@
         "EnglishName":  "Verify System Files",
         "ArabicName":  "التحقق من ملفات النظام",
         "Purpose":  "Runs sfc /verifyonly: checks protected system files for corruption WITHOUT repairing. Run SM02 to repair any violations found. Evidence: captures native exit code, raw output, and relevant CBS.log entries. Does not claim \"no violations\" from exit code alone - uses Inconclusive when CBS evidence unavailable.",
-        "RiskLevel":  "SYSTEM_REPAIR",
+        "RiskLevel":  "READ_ONLY",
         "RequiresAdmin":  true,
         "RequiresRestart":  false,
         "OfflineCapability":  "FULL",

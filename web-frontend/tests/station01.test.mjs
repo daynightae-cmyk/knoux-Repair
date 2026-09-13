@@ -84,12 +84,14 @@ test('Station 01: unsupported modes are rejected, supported modes pass validatio
 });
 
 test('Station 01: SYSTEM_REPAIR and above require confirmation evidence', () => {
-  for (const id of ['SM01', 'SM02', 'SM05', 'SM07', 'SM09']) {
+  assert.equal(bridge.manifest.get('SM01').RiskLevel, 'READ_ONLY', 'SFC verify-only must not be classified as a repair');
+  assert.doesNotThrow(() => bridge.validateExecutionRequest({ tool: bridge.manifest.get('SM01'), mode: 'run', confirmation: null }));
+  for (const id of ['SM02', 'SM05', 'SM07', 'SM09']) {
     assert.throws(() => bridge.createRun(id, 'run', {}), (err) => err.code === 'CONFIRMATION_REQUIRED', `${id} run must require confirmation`);
   }
   const phrase = bridge.normalizeConfirmation({ confirmed: true, phrase: 'CONFIRM', confirmedAt: new Date().toISOString() });
   // Evidence-carrying runs validate past the gate (spawn happens after; not exercised here).
-  bridge.validateExecutionRequest({ tool: bridge.manifest.get('SM01'), mode: 'run', confirmation: phrase });
+  bridge.validateExecutionRequest({ tool: bridge.manifest.get('SM02'), mode: 'run', confirmation: phrase });
   bridge.validateExecutionRequest({ tool: bridge.manifest.get('SM09'), mode: 'run', confirmation: phrase });
 });
 
@@ -113,7 +115,12 @@ test('Station 01: health is categorical and evidence-owned', () => {
   assert.equal(model.deriveHealthState({}, ['SM01'], true), 'CHECKING');
   assert.equal(model.deriveHealthState({}, ['SM02'], true), 'REPAIR_IN_PROGRESS');
 
-  const healthy = { SM01: model.evidenceFromRun(runResult('SM01', { status: 'SUCCESS', verificationResult: 'OK' })) };
+  const partial = { SM01: model.evidenceFromRun(runResult('SM01', { status: 'SUCCESS', verificationResult: 'OK' })) };
+  assert.equal(model.deriveHealthState(partial, [], true), 'PARTIALLY_CHECKED');
+
+  const healthy = Object.fromEntries([
+    ['SM01', 'OK'], ['SM03', 'OK'], ['SM06', 'OK'], ['SM10', 'OK'],
+  ].map(([toolId, verificationResult]) => [toolId, model.evidenceFromRun(runResult(toolId, { status: 'SUCCESS', verificationResult }))]));
   assert.equal(model.deriveHealthState(healthy, [], true), 'HEALTHY');
 
   const violations = { SM01: model.evidenceFromRun(runResult('SM01', { status: 'WARNING', verificationResult: 'VIOLATIONS_FOUND' })) };
@@ -138,9 +145,12 @@ test('Station 01: recommendations map failures to their supported repair only', 
   assert.equal(recs.length, 1);
   assert.equal(recs[0].toolId, 'SM02');
 
-  const storeBad = { SM04: model.evidenceFromRun(runResult('SM04', { status: 'FAILED', verificationResult: 'FAILED' })) };
+  const storeBad = { SM04: model.evidenceFromRun(runResult('SM04', { status: 'WARNING', verificationResult: 'CORRUPTION_FOUND' })) };
   const recs2 = model.buildRecommendations(storeBad, tools);
   assert.ok(recs2.some((rec) => rec.toolId === 'SM05'), 'store corruption must recommend SM05');
+
+  const commandFailure = { SM04: model.evidenceFromRun(runResult('SM04', { status: 'FAILED', verificationResult: 'FAILED' })) };
+  assert.ok(!model.buildRecommendations(commandFailure, tools).some((rec) => rec.toolId === 'SM05'), 'a failed DISM command is not proof of corruption');
 
   const diskBad = { SM06: model.evidenceFromRun(runResult('SM06', { status: 'WARNING', verificationResult: 'ERRORS_FOUND' })) };
   const recs3 = model.buildRecommendations(diskBad, tools);
@@ -171,6 +181,38 @@ test('Station 01: inconclusive evidence is never reported as success', () => {
   assert.notEqual(item.status, 'SUCCESS');
 });
 
+test('Station 01: scan selection exposes only registered read-only checks in deterministic order', () => {
+  const tools = STATION_IDS.map((id) => bridge.manifest.get(id));
+  const checks = model.availableScanChecks(tools);
+  assert.deepEqual(checks.map((check) => check.toolId), ['SM01', 'SM03', 'SM04', 'SM08', 'SM06', 'SM10']);
+  assert.ok(checks.every((check) => !['SM02', 'SM05', 'SM07', 'SM09'].includes(check.toolId)), 'repairs must not appear as scan checks');
+  const selected = [checks[4].id, checks[0].id, checks[5].id];
+  assert.deepEqual(model.buildScanPlan(selected, tools).map((step) => step.toolId), ['SM01', 'SM06', 'SM10']);
+});
+
+test('Station 01: check states are derived only from completed run evidence', () => {
+  const check = model.MAINTENANCE_SCAN_CHECKS.find((item) => item.toolId === 'SM04');
+  assert.equal(model.deriveCheckState(check, {}, []), 'READY');
+  assert.equal(model.deriveCheckState(check, {}, ['SM04']), 'RUNNING');
+  assert.equal(model.deriveCheckState(check, { SM04: model.evidenceFromRun(runResult('SM04', { status: 'SUCCESS', verificationResult: 'OK' })) }, []), 'CLEAR');
+  assert.equal(model.deriveCheckState(check, { SM04: model.evidenceFromRun(runResult('SM04', { status: 'WARNING', verificationResult: 'CORRUPTION_FOUND' })) }, []), 'FINDING');
+  assert.equal(model.deriveCheckState(check, { SM04: model.evidenceFromRun(runResult('SM04', { status: 'FAILED', verificationResult: 'FAILED' })) }, []), 'FAILED');
+});
+
+test('Station 01: DISM checks classify explicit English evidence and repair verifies post-state', () => {
+  for (const scriptPath of ['01-System-Maintenance/SM03-CheckComponentStore.ps1', '01-System-Maintenance/SM04-ScanSystemImage.ps1']) {
+    const script = readRepo(scriptPath);
+    assert.match(script, /'\/English'/, `${scriptPath} must request stable DISM output`);
+    assert.match(script, /CORRUPTION_FOUND/);
+    assert.match(script, /CORRUPTION_UNREPAIRABLE/);
+    assert.match(script, /RESULT_NOT_CLASSIFIED/);
+  }
+  const repair = readRepo('01-System-Maintenance/SM05-RepairSystemImage.ps1');
+  assert.match(repair, /if \(\$needsRepair\)/, 'RestoreHealth must be gated by measured corruption');
+  assert.match(repair, /NO_REPAIR_NEEDED/, 'healthy pre-check must skip repair truthfully');
+  assert.match(repair, /CORRUPTION_REMAINS/, 'post-check must preserve a remaining-corruption result');
+});
+
 test('Station 01: report is built from measured evidence only', () => {
   const evidence = {
     SM01: model.evidenceFromRun(runResult('SM01', { status: 'WARNING', verificationResult: 'VIOLATIONS_FOUND' })),
@@ -189,7 +231,7 @@ test('Station 01: report is built from measured evidence only', () => {
 
 // ---------- product surface ----------
 
-test('Station 01: UI surface keeps the Health Studio identity without fabricated scores', () => {
+test('Station 01: UI is a selectable care workflow without fabricated scores or raw tool cards', () => {
   const station = readWeb('src/features/stations/station01/MaintenanceStation.tsx');
   const modelSource = readWeb('src/features/stations/station01/maintenanceModel.ts');
   assert.match(station, /HEALTH STUDIO/, 'station must keep the Health Studio identity');
@@ -198,10 +240,11 @@ test('Station 01: UI surface keeps the Health Studio identity without fabricated
     assert.equal(/readiness\.score|gaugeDegrees|repair readiness.*\/ 100/i.test(source), false, 'no numeric health score');
     assert.equal(/90%/.test(source), false, 'no arbitrary percentages');
   }
-  assert.ok(!/System Healthy/.test(station) || /needs review|Protection needs review/.test(station), 'no blanket healthy claims');
-  for (const state of ['NOT_SCANNED', 'REPAIR_RECOMMENDED', 'RESTART_REQUIRED', 'INCONCLUSIVE', 'PERMISSION_REQUIRED', 'ENGINE_OFFLINE']) {
-    assert.ok(station.includes(state), `station must model ${state}`);
-  }
+  for (const state of ['CONFIGURE', 'SCANNING', 'REVIEW', 'APPLYING', 'COMPLETE', 'PARTIAL']) assert.ok(station.includes(state), `station must model ${state}`);
+  assert.match(station, /buildScanPlan\(selectedChecks/);
+  assert.match(station, /selectedRepairs/);
+  assert.match(station, /confirmPhrase\.trim\(\)\.toUpperCase\(\) !== 'CONFIRM'/, 'repair execution must reject every phrase except normalized CONFIRM');
+  assert.equal(/maint-op-actions|Specialized operations/.test(station), false, 'raw tool-card launcher must not bypass the care workflow');
 });
 
 test('Station 01: offline renders the shared offline state, never zero tools', () => {
@@ -212,7 +255,7 @@ test('Station 01: offline renders the shared offline state, never zero tools', (
 
 test('Station 01: Arabic and English labels are both present', () => {
   const station = readWeb('src/features/stations/station01/MaintenanceStation.tsx');
-  for (const label of ['فحص صحة ويندوز', 'صحة الجهاز', 'مسار السلامة', 'غير حاسم', 'يلزم إعادة التشغيل']) {
+  for (const label of ['عناية KNOUX', 'اختر ما تريد فحصه', 'مراجعة النتائج', 'غير حاسم', 'إعادة التشغيل مطلوبة']) {
     assert.ok(station.includes(label), `station must include Arabic label: ${label}`);
   }
   assert.match(station, /dir=\{lang === 'ar' \? 'rtl' : 'ltr'\}/, 'station must switch direction');

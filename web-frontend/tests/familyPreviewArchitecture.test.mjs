@@ -54,7 +54,7 @@ test('command center preserves execution results and honest runtime labels', () 
   assert.match(hero, /Live system snapshot/);
   assert.match(liveStage, /LAST EXECUTION/);
   assert.match(liveStage, /ACTIVE EXECUTION/);
-  assert.match(liveStage, /toolStatuses\[executionTool\.ToolId\]/);
+  assert.match(liveStage, /effectiveToolStatuses\[executionTool\.ToolId\]/);
   assert.doesNotMatch(hero, /Math\.random/);
   assert.doesNotMatch(liveStage, /Math\.random/);
 });

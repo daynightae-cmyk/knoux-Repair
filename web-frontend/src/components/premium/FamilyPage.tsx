@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronDown, Layers3, Search } from 'lucide-react';
 import type { FamilyDefinition, ServiceId } from '../../data/family-map';
 import type { BridgeTool, ExecutionMode, ToolRunOptions, ToolRunConfirmation, SystemSnapshot } from '../../lib/api';
 import type { ToolStatus, ConsoleEntry } from '../../types';
@@ -34,6 +35,8 @@ export default function FamilyPage({
   selectedToolId, onSelectTool, onRetryBridge,
   systemSnapshot, consoleEntries, activeToolId,
 }: FamilyPageProps) {
+  const [toolQuery, setToolQuery] = useState('');
+  const [toolsExpanded, setToolsExpanded] = useState(false);
   const familyServiceIds = useMemo(() => new Set(family.services.map(service => service.id)), [family.services]);
   const familyTools = useMemo(
     () => tools.filter(tool => familyServiceIds.has(tool.Category as ServiceId)),
@@ -59,12 +62,23 @@ export default function FamilyPage({
     () => activeService ? familyTools.filter(tool => tool.Category === activeService.id) : [],
     [familyTools, activeService]
   );
+  const filteredServiceTools = useMemo(() => {
+    const query = toolQuery.trim().toLocaleLowerCase(lang === 'ar' ? 'ar' : 'en');
+    if (!query) return serviceTools;
+    return serviceTools.filter(tool => [tool.EnglishName, tool.ArabicName, tool.Purpose]
+      .some(value => value.toLocaleLowerCase(lang === 'ar' ? 'ar' : 'en').includes(query)));
+  }, [lang, serviceTools, toolQuery]);
+  const visibleServiceTools = toolsExpanded || toolQuery.trim()
+    ? filteredServiceTools
+    : filteredServiceTools.slice(0, 4);
 
   if (!activeService) return null;
 
   const selectService = (serviceId: ServiceId) => {
     onSelectService(serviceId);
     onSelectTool(null);
+    setToolQuery('');
+    setToolsExpanded(false);
   };
 
   const selectTool = (toolId: string) => {
@@ -158,6 +172,33 @@ export default function FamilyPage({
           <p>{isRtl ? activeService.purpose.ar : activeService.purpose.en}</p>
         </div>
 
+        {bridgeOnline === true && serviceTools.length > 0 && (
+          <div className="knoux-command-tool-controls">
+            <label className="knoux-command-tool-search">
+              <Search size={14} aria-hidden="true" />
+              <input
+                value={toolQuery}
+                onChange={event => setToolQuery(event.target.value)}
+                placeholder={isRtl ? 'ابحث داخل إجراءات الخدمة' : 'Search service actions'}
+                aria-label={isRtl ? 'بحث إجراءات الخدمة' : 'Search service actions'}
+              />
+            </label>
+            <button
+              type="button"
+              className="knoux-command-tool-drawer"
+              data-expanded={toolsExpanded}
+              onClick={() => setToolsExpanded(value => !value)}
+              aria-expanded={toolsExpanded}
+            >
+              <Layers3 size={14} aria-hidden="true" />
+              <span>{toolsExpanded
+                ? (isRtl ? 'عرض الإجراءات الأساسية' : 'Show primary actions')
+                : (isRtl ? `عرض كل الإجراءات (${serviceTools.length})` : `Show all actions (${serviceTools.length})`)}</span>
+              <ChevronDown size={14} aria-hidden="true" />
+            </button>
+          </div>
+        )}
+
         <div className="knoux-command-rail-scroll knoux-command-tool-scroll">
           {bridgeOnline === false ? (
             <div className="knoux-tool-empty-state">
@@ -183,7 +224,7 @@ export default function FamilyPage({
                 exit={{ opacity: 0, x: isRtl ? 10 : -10 }}
                 transition={{ duration: 0.16, ease: 'easeOut' }}
               >
-                {serviceTools.map(tool => (
+                {visibleServiceTools.map(tool => (
                   <ToolCard
                     key={tool.ToolId}
                     tool={tool}
@@ -195,6 +236,11 @@ export default function FamilyPage({
                     lang={lang}
                   />
                 ))}
+                {filteredServiceTools.length === 0 && (
+                  <div className="knoux-tool-empty-state">
+                    <p>{isRtl ? 'لا توجد إجراءات تطابق البحث.' : 'No actions match this search.'}</p>
+                  </div>
+                )}
               </motion.div>
             </AnimatePresence>
           )}

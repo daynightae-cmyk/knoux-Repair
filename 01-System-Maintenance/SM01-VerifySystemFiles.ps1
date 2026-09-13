@@ -1,6 +1,6 @@
 ﻿#Requires -Version 5.1
 #  knoux Repair v2.0.2 | 01-System-Maintenance | SM01 - Verify System Files
-#  Risk: SYSTEM_REPAIR | Offline: Yes | Admin: Required
+#  Risk: READ_ONLY | Offline: Yes | Admin: Required
 #  Runs sfc /verifyonly: checks protected system files for corruption
 #  WITHOUT repairing. Run SM02 to repair any violations found.
 #  Evidence: captures native exit code, raw output, and relevant CBS.log entries.
@@ -12,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-$Session = Start-KnouxSession -ToolId 'SM01' -ToolName 'Verify System Files' -Category '01-System-Maintenance' -RiskLevel 'SYSTEM_REPAIR' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
+$Session = Start-KnouxSession -ToolId 'SM01' -ToolName 'Verify System Files' -Category '01-System-Maintenance' -RiskLevel 'READ_ONLY' -Mode $(if ($AnalyzeOnly) { 'analyze' } elseif ($WhatIf) { 'preview' } else { 'run' })
 $Session.RequiresAdmin = $true
 $Session.OfflineCapable = $true
 $rc = 0

@@ -32,7 +32,7 @@ if (-not ($AnalyzeOnly -or $WhatIf) -and $Session.RequiresAdmin -and -not (Test-
     if (Confirm-KnouxAction 'Proceed with DISM CheckHealth?') {
         Write-Host '[RUN] Running DISM /CheckHealth (fast, read-only)...' -ForegroundColor Green
         Write-KnouxLog -Session $Session 'Starting DISM CheckHealth'
-        $run = Invoke-KnouxNativeCommand -FilePath "$env:SystemRoot\System32\Dism.exe" -ArgumentList @('/Online', '/Cleanup-Image', '/CheckHealth') -TimeoutSeconds 600
+        $run = Invoke-KnouxNativeCommand -FilePath "$env:SystemRoot\System32\Dism.exe" -ArgumentList @('/English', '/Online', '/Cleanup-Image', '/CheckHealth') -TimeoutSeconds 600
         if (-not $run) {
             $Session.Status = 'Failed'
             $Session.ErrorMessage = 'DISM could not be started.'
@@ -43,19 +43,36 @@ if (-not ($AnalyzeOnly -or $WhatIf) -and $Session.RequiresAdmin -and -not (Test-
             Write-KnouxLog -Session $Session ("DISM CheckHealth exit {0}" -f $rc)
             $Session.ItemsProcessed = 1
             $Session.VerificationPerformed = $true
-            if ($run.Success) {
-                $Session.Status = 'Success'
-                $Session.VerificationResult = 'OK'
-                Write-Host '[OK] Component store check completed (read-only).' -ForegroundColor Green
-            } else {
+            $output = [string]$run.Stdout
+            if ($run.TimedOut) {
+                $Session.Status = 'Warning'
+                $Session.VerificationResult = 'TIMEOUT'
+                $Session.ErrorMessage = 'DISM exceeded the time limit.'
+                Write-Host ('[WARN] ' + $Session.ErrorMessage) -ForegroundColor Yellow
+            } elseif (-not $run.Success) {
                 $Session.Status = 'Failed'
                 $Session.VerificationResult = 'FAILED'
                 $Session.ErrorMessage = "DISM exited with code $rc."
                 Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
-            }
-            if ($run.TimedOut) {
+            } elseif ($output -match 'component store cannot be repaired') {
+                $Session.Status = 'Failed'
+                $Session.ItemsFound = 1
+                $Session.VerificationResult = 'CORRUPTION_UNREPAIRABLE'
+                $Session.ErrorMessage = 'DISM reports component store corruption that cannot be repaired by RestoreHealth.'
+                Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
+            } elseif ($output -match 'component store is repairable|component store corruption was detected') {
                 $Session.Status = 'Warning'
-                $Session.ErrorMessage = 'DISM exceeded the time limit.'
+                $Session.ItemsFound = 1
+                $Session.VerificationResult = 'CORRUPTION_FOUND'
+                Write-Host '[WARN] Repairable component store corruption was detected.' -ForegroundColor Yellow
+            } elseif ($output -match 'No component store corruption detected') {
+                $Session.Status = 'Success'
+                $Session.VerificationResult = 'OK'
+                Write-Host '[OK] Component store check completed (read-only).' -ForegroundColor Green
+            } else {
+                $Session.Status = 'Inconclusive'
+                $Session.VerificationResult = 'RESULT_NOT_CLASSIFIED'
+                $Session.ErrorMessage = 'DISM completed, but its output did not contain a recognized component-store health statement.'
                 Write-Host ('[WARN] ' + $Session.ErrorMessage) -ForegroundColor Yellow
             }
         }
