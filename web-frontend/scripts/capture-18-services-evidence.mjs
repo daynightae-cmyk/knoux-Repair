@@ -201,7 +201,9 @@ async function waitForServiceInventory(page, expectedCount, serviceId) {
       await page.waitForFunction(
         count => {
           const stage = document.querySelector('.knoux-workspace-stage');
-          return Number(stage?.getAttribute('data-service-tool-count') || 0) === count;
+          const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
+            .find(button => /retry connection/i.test(button.textContent || ''));
+          return Number(stage?.getAttribute('data-service-tool-count') || 0) === count && !retry;
         },
         { timeout: 12_000, polling: 100 },
         expectedCount,
@@ -281,32 +283,39 @@ async function waitForActionSurface(page, expectedCount, serviceId) {
   });
 }
 
+async function clickRetryConnection(page) {
+  await page.evaluate(() => {
+    const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
+      .find(button => /retry connection/i.test(button.textContent || ''));
+    if (retry instanceof HTMLButtonElement) retry.click();
+  });
+}
+
 async function revealAllActionCards(page, expectedCount, serviceId) {
   let recoveredBridge = false;
   let reloadedRoute = false;
   let restartedGateway = false;
+  let expandedActions = false;
+  const maxAttempts = 4;
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     await waitForActionSurface(page, expectedCount, serviceId);
-    const snapshot = await readRouteSnapshot(page);
+    let snapshot = await readRouteSnapshot(page);
 
     if (snapshot.bridgeRetryAvailable) {
       recoveredBridge = true;
-      console.log(`${serviceId}: action rail entered bridge-unavailable state; exercising Retry connection before verification.`);
-      await page.evaluate(() => {
-        const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
-          .find(button => /retry connection/i.test(button.textContent || ''));
-        if (retry instanceof HTMLButtonElement) retry.click();
-      });
+      console.log(`${serviceId}: action rail entered bridge-unavailable state; exercising Retry connection before verification (attempt ${attempt}/${maxAttempts}).`);
+      await clickRetryConnection(page);
       const inventoryRecovery = await waitForServiceInventory(page, expectedCount, serviceId);
       recoveredBridge = recoveredBridge || inventoryRecovery.recoveredBridge;
       reloadedRoute = reloadedRoute || inventoryRecovery.reloadedRoute;
       restartedGateway = restartedGateway || inventoryRecovery.restartedGateway;
+      await delay(350);
       continue;
     }
 
     if (snapshot.toolCards === expectedCount) {
-      return { expandedActions: false, recoveredBridge, reloadedRoute, restartedGateway };
+      return { expandedActions, recoveredBridge, reloadedRoute, restartedGateway };
     }
 
     if (!snapshot.actionDrawerAvailable) {
@@ -315,22 +324,48 @@ async function revealAllActionCards(page, expectedCount, serviceId) {
 
     if (!snapshot.actionDrawerExpanded) {
       await page.click('.knoux-command-tool-drawer');
+      expandedActions = true;
     }
 
     await page.waitForFunction(
-      count => document.querySelectorAll('.knoux-tool-card[data-tool-id]').length === count,
+      count => {
+        const cards = document.querySelectorAll('.knoux-tool-card[data-tool-id]').length;
+        const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
+          .find(button => /retry connection/i.test(button.textContent || ''));
+        return cards === count || Boolean(retry);
+      },
       { timeout: 10_000, polling: 50 },
       expectedCount,
-    ).catch(async () => {
-      const afterExpand = await readRouteSnapshot(page);
-      throw new Error(`${serviceId}: action drawer did not expose all ${expectedCount} cards; observed ${JSON.stringify(afterExpand)}`);
-    });
+    ).catch(() => {});
 
-    return { expandedActions: true, recoveredBridge, reloadedRoute, restartedGateway };
+    snapshot = await readRouteSnapshot(page);
+
+    if (snapshot.bridgeRetryAvailable) {
+      recoveredBridge = true;
+      console.log(`${serviceId}: bridge became unavailable while expanding the action drawer; exercising Retry connection before re-verification (attempt ${attempt}/${maxAttempts}).`);
+      await clickRetryConnection(page);
+      const inventoryRecovery = await waitForServiceInventory(page, expectedCount, serviceId);
+      recoveredBridge = recoveredBridge || inventoryRecovery.recoveredBridge;
+      reloadedRoute = reloadedRoute || inventoryRecovery.reloadedRoute;
+      restartedGateway = restartedGateway || inventoryRecovery.restartedGateway;
+      await delay(350);
+      continue;
+    }
+
+    if (snapshot.toolCards === expectedCount) {
+      return { expandedActions: true, recoveredBridge, reloadedRoute, restartedGateway };
+    }
+
+    if (attempt >= maxAttempts) {
+      throw new Error(`${serviceId}: action drawer did not expose all ${expectedCount} cards after ${attempt} attempts; observed ${JSON.stringify(snapshot)}`);
+    }
+
+    console.log(`${serviceId}: action drawer did not settle on attempt ${attempt}/${maxAttempts}; retrying the same real action surface.`);
+    await delay(350);
   }
 
   const finalSnapshot = await readRouteSnapshot(page);
-  throw new Error(`${serviceId}: action surface did not recover after Retry connection; observed ${JSON.stringify(finalSnapshot)}`);
+  throw new Error(`${serviceId}: action surface did not recover after ${maxAttempts} attempts; observed ${JSON.stringify(finalSnapshot)}`);
 }
 
 try {
