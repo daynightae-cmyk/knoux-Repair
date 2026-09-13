@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Rocket, Layers, HardDrive, RefreshCw, Play,
   CheckCircle2, AlertTriangle, XCircle, History, Search,
@@ -6,15 +6,15 @@ import {
   RotateCcw, ShieldAlert
 } from 'lucide-react';
 import type {
-  BridgeTool, ExecutionMode,
+  BridgeRun, BridgeTool, ExecutionMode,
   PostInstallPreview,
   ToolRunConfirmation, ToolRunOptions
 } from '../../../lib/api';
 import { api } from '../../../lib/api';
 import type { Lang } from '../../../types';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
-import { StationErrorBoundary, StationOfflineState } from '../_shared';
-import { startExecution, pollExecution } from '../_shared/StationExecutionController';
+import { StationErrorBoundary, StationOfflineState, StationActiveRunBanner } from '../_shared';
+import { startExecution, pollUntilTerminal, requestConfirmedCancel, rememberRun, recallRun, forgetRun, outcomeLabelForRun, historyMessageForRun } from '../_shared/StationExecutionController';
 import {
   type ProvisioningSummary, type ProvisioningSignal,
   summarizeProvisioning, detectProvisioningSignals, filterCatalog,
@@ -135,6 +135,8 @@ const COPY = {
   }
 };
 
+const STATION_KEY = 'station17';
+
 export default function PostInstallStation(props: PostInstallStationProps) {
   const { lang, tools, toolStatuses, bridgeElevated, bridgeOnline, onRetryBridge, onToolStatus } = props;
   const t = COPY[lang];
@@ -152,6 +154,24 @@ export default function PostInstallStation(props: PostInstallStationProps) {
 
   // History tracking
   const [history, setHistory] = useState<StationHistoryEntry[]>([]);
+
+  // Active run tracking: selection and execution are separate concepts —
+  // the user may browse tabs while a job runs; ownership stays with the run.
+  // CANCELLED is recorded only after the backend confirms a terminal state;
+  // aborting local observation never fabricates cancellation.
+  const [activeRun, setActiveRun] = useState<{ runId: string; toolId: string; mode?: ExecutionMode; phase: 'running' | 'cancelling'; startedAt: number; lineCount: number } | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
+  const pollAbortRef = useRef<AbortController | null>(null);
+  const settledRef = useRef(false);
+  const reconcileInflightRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      pollAbortRef.current?.abort();
+    };
+  }, []);
 
   // Execution dialog state
   const [pendingRun, setPendingRun] = useState<{
@@ -219,59 +239,175 @@ export default function PostInstallStation(props: PostInstallStationProps) {
     );
   }, []);
 
-  const handleLaunchTool = useCallback((tool: BridgeTool, mode: ExecutionMode = 'AnalyzeOnly', customOptions?: ToolRunOptions) => {
+  const handleLaunchTool = useCallback((tool: BridgeTool, mode: ExecutionMode = 'analyze', customOptions?: ToolRunOptions) => {
+    if (activeRun) {
+      setRunError(lang === 'ar'
+        ? 'أداة أخرى قيد التنفيذ حالياً. انتظر انتهاءها أو ألغها أولاً.'
+        : 'Another tool is currently running. Wait for it to finish or cancel it first.');
+      return;
+    }
     setPendingRun({
       tool,
       mode,
       options: customOptions
     });
-  }, []);
+  }, [activeRun, lang]);
 
-  const handleConfirmRun = useCallback(async (options: ToolRunOptions, confirmation?: ToolRunConfirmation) => {
-    if (!pendingRun) return;
-    const { tool, mode } = pendingRun;
-    setPendingRun(null);
-
-    onToolStatus(tool.ToolId, 'running');
-    try {
-      const runId = await startExecution(tool, mode, options, confirmation);
-      const finalRecord = await pollExecution(runId, 250);
-
-      const outcome = finalRecord.Outcome === 'Success' ? 'success'
-        : finalRecord.Outcome === 'Failed' ? 'error'
-        : finalRecord.Outcome === 'Cancelled' ? 'cancelled'
-        : 'inconclusive';
-
-      onToolStatus(tool.ToolId, outcome);
-
-      const toolName = lang === 'ar' ? (tool.ArabicName || tool.EnglishName) : tool.EnglishName;
+  // Records ONLY backend-terminal outcomes. Running/timeout/missing-result
+  // states never become success here.
+  const settleTerminalRun = useCallback((toolId: string, toolName: string, terminal: BridgeRun) => {
+    forgetRun(STATION_KEY);
+    const outcome = outcomeLabelForRun(terminal);
+    onToolStatus(toolId, outcome);
+    if (mountedRef.current) {
       setHistory(prev => [
         {
-          toolId: tool.ToolId,
+          toolId,
           toolName,
           timestamp: new Date().toLocaleTimeString(),
           outcome,
-          message: finalRecord.ErrorMessage || `Executed ${tool.ToolId} successfully.`
+          message: historyMessageForRun(terminal)
         },
         ...prev
       ]);
+      setActiveRun(null);
+    }
+    loadData();
+  }, [onToolStatus, lang, loadData]);
 
-      loadData();
+  // Observes one backend run to a terminal state. Local observation stops
+  // (abort/unmount) record NOTHING: the run stays remembered so a remount
+  // reconciles it instead of silently losing backend ownership.
+  const observeRun = useCallback(async (runId: string, toolId: string, toolName: string, aborter: AbortController) => {
+    try {
+      const terminal = await pollUntilTerminal(runId, {
+        signal: aborter.signal,
+        onTick: (run) => {
+          if (mountedRef.current) {
+            setActiveRun((prev) => (prev && prev.runId === runId ? { ...prev, lineCount: run.lines?.length ?? 0 } : prev));
+          }
+        },
+      });
+      if (!mountedRef.current || settledRef.current) return;
+      settledRef.current = true;
+      settleTerminalRun(toolId, toolName, terminal);
     } catch (err: unknown) {
-      onToolStatus(tool.ToolId, 'error');
+      if (settledRef.current || !mountedRef.current) return;
+      const code = (err as Error & { code?: string })?.code;
+      // POLL_CANCELLED means local observation stopped (unmount). The backend
+      // run may still be executing and stays remembered — never mark CANCELLED.
+      if (code === 'POLL_CANCELLED') return;
       const msg = err instanceof Error ? err.message : String(err);
+      onToolStatus(toolId, 'error');
+      setRunError(msg);
+      setHistory(prev => [
+        {
+          toolId,
+          toolName,
+          timestamp: new Date().toLocaleTimeString(),
+          outcome: 'error' as const,
+          message: msg
+        },
+        ...prev
+      ]);
+      setActiveRun(null);
+    }
+  }, [settleTerminalRun, onToolStatus, lang]);
+
+  // Remount rediscovery: a run remembered by an unmounted station is
+  // re-observed to its real terminal state instead of being orphaned.
+  useEffect(() => {
+    const orphan = recallRun(STATION_KEY);
+    if (orphan && !reconcileInflightRef.current) {
+      reconcileInflightRef.current = true;
+      settledRef.current = false;
+      const aborter = new AbortController();
+      pollAbortRef.current = aborter;
+      setActiveRun({ runId: orphan.runId, toolId: orphan.toolId, phase: 'running', startedAt: orphan.startedAt, lineCount: 0 });
+      void observeRun(orphan.runId, orphan.toolId, orphan.toolName || orphan.toolId, aborter)
+        .finally(() => { reconcileInflightRef.current = false; });
+    }
+  }, [observeRun]);
+
+  const handleConfirmRun = useCallback(async (options: ToolRunOptions, confirmation?: ToolRunConfirmation) => {
+    if (!pendingRun) return;
+    if (activeRun) {
+      setRunError(lang === 'ar'
+        ? 'أداة أخرى قيد التنفيذ حالياً. انتظر انتهاءها أو ألغها أولاً.'
+        : 'Another tool is currently running. Wait for it to finish or cancel it first.');
+      return;
+    }
+    const { tool, mode } = pendingRun;
+    setPendingRun(null);
+    setRunError(null);
+    settledRef.current = false;
+    const toolName = lang === 'ar' ? (tool.ArabicName || tool.EnglishName) : tool.EnglishName;
+    try {
+      const runId = await startExecution(tool, mode, options, confirmation);
+      rememberRun({ runId, toolId: tool.ToolId, toolName, stationKey: STATION_KEY, startedAt: Date.now() });
+      if (!mountedRef.current) return;
+      onToolStatus(tool.ToolId, 'running');
+      const aborter = new AbortController();
+      pollAbortRef.current?.abort();
+      pollAbortRef.current = aborter;
+      setActiveRun({ runId, toolId: tool.ToolId, mode, phase: 'running', startedAt: Date.now(), lineCount: 0 });
+      await observeRun(runId, tool.ToolId, toolName, aborter);
+    } catch (err: unknown) {
+      // startExecution itself failed: no backend run exists.
+      if (!mountedRef.current) return;
+      const msg = err instanceof Error ? err.message : String(err);
+      onToolStatus(tool.ToolId, 'error');
+      setRunError(msg);
       setHistory(prev => [
         {
           toolId: tool.ToolId,
           toolName: tool.ToolId,
           timestamp: new Date().toLocaleTimeString(),
-          outcome: 'error',
+          outcome: 'error' as const,
           message: msg
         },
         ...prev
       ]);
+      setActiveRun(null);
     }
-  }, [pendingRun, onToolStatus, lang, loadData]);
+  }, [pendingRun, activeRun, observeRun, onToolStatus, lang]);
+
+  // Cancel honesty: CANCELLED is recorded only after the backend confirms a
+  // terminal state. If confirmation fails, monitoring continues — the banner
+  // shows CANCELLING meanwhile and never claims a cancelled run.
+  const handleCancelRun = useCallback(async () => {
+    const current = activeRun;
+    if (!current || current.phase === 'cancelling') return;
+    const remembered = recallRun(STATION_KEY);
+    const toolName = (remembered && remembered.runId === current.runId && remembered.toolName) || current.toolId;
+    setActiveRun({ ...current, phase: 'cancelling' });
+    try {
+      const terminal = await requestConfirmedCancel(current.runId, {
+        onTick: (run) => {
+          if (mountedRef.current) {
+            setActiveRun((prev) => (prev && prev.runId === current.runId ? { ...prev, lineCount: run.lines?.length ?? 0 } : prev));
+          }
+        },
+      });
+      settledRef.current = true;
+      pollAbortRef.current?.abort();
+      if (!mountedRef.current) {
+        forgetRun(STATION_KEY);
+        return;
+      }
+      settleTerminalRun(current.toolId, toolName, terminal);
+    } catch (err: unknown) {
+      if (!mountedRef.current) return;
+      const code = (err as Error & { code?: string })?.code;
+      if (code === 'POLL_CANCELLED') return;
+      // CANCEL_FAILED: the backend did NOT confirm. Keep the original
+      // observer running and say so — never report CANCELLED.
+      const msg = err instanceof Error ? err.message : String(err);
+      setActiveRun({ ...current, phase: 'running' });
+      onToolStatus(current.toolId, 'running');
+      setRunError(msg);
+    }
+  }, [activeRun, settleTerminalRun, onToolStatus]);
 
   if (bridgeOnline === false && !previewData) {
     return (
@@ -311,6 +447,27 @@ export default function PostInstallStation(props: PostInstallStationProps) {
             <AlertTriangle size={18} />
             <span>{lastError}</span>
           </div>
+        )}
+
+        {runError && (
+          <div className="station-banner error" role="alert">
+            <XCircle size={18} />
+            <span>{runError}</span>
+            <button type="button" className="banner-retry-btn" onClick={() => { setRunError(null); void loadData(); }}>
+              <RotateCcw size={13} />
+              <span>{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</span>
+            </button>
+          </div>
+        )}
+
+        {activeRun && (
+          <StationActiveRunBanner
+            lang={lang}
+            toolId={activeRun.toolId}
+            lineCount={activeRun.lineCount}
+            phase={activeRun.phase}
+            onCancel={() => void handleCancelRun()}
+          />
         )}
 
         {/* Tab Navigation */}
@@ -439,7 +596,7 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                   <button
                     type="button"
                     className="quick-action-pill"
-                    onClick={() => handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI01')!, 'AnalyzeOnly')}
+                    onClick={() => handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI01')!, 'analyze')}
                   >
                     <Download size={14} />
                     <span>{t.quickDiscoverDrivers}</span>
@@ -449,7 +606,7 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                   <button
                     type="button"
                     className="quick-action-pill"
-                    onClick={() => handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI03')!, 'AnalyzeOnly')}
+                    onClick={() => handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI03')!, 'analyze')}
                   >
                     <Layers size={14} />
                     <span>{t.quickCatalog}</span>
@@ -459,7 +616,7 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                   <button
                     type="button"
                     className="quick-action-pill"
-                    onClick={() => handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI05')!, 'WhatIf')}
+                    onClick={() => handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI05')!, 'preview')}
                   >
                     <RefreshCw size={14} />
                     <span>{t.quickRefreshSources}</span>
@@ -469,7 +626,7 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                   <button
                     type="button"
                     className="quick-action-pill"
-                    onClick={() => handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI06')!, 'AnalyzeOnly')}
+                    onClick={() => handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI06')!, 'analyze')}
                   >
                     <ArrowUpRight size={14} />
                     <span>{t.quickPreview}</span>
@@ -500,7 +657,7 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                             <button
                               type="button"
                               className="signal-action-btn"
-                              onClick={() => handleLaunchTool(recTool, recTool.RiskLevel === 'READ_ONLY' ? 'AnalyzeOnly' : 'WhatIf')}
+                              onClick={() => handleLaunchTool(recTool, recTool.RiskLevel === 'READ_ONLY' ? 'analyze' : 'preview')}
                             >
                               <span>{recTool.ToolId}: {lang === 'ar' ? (recTool.ArabicName || recTool.EnglishName) : recTool.EnglishName}</span>
                               <ArrowUpRight size={13} />
@@ -627,7 +784,7 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                       onClick={() => {
                         if (selectedAppSelections.length === 0) return;
                         const selectionStr = selectedAppSelections.sort((a, b) => a - b).join(',');
-                        handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI04')!, 'WhatIf', {
+                        handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI04')!, 'preview', {
                           customParameters: { Selection: selectionStr }
                         });
                       }}
@@ -742,7 +899,7 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                     onClick={() => {
                       if (selectedDriverSelections.length === 0) return;
                       const selStr = selectedDriverSelections.sort((a, b) => a - b).join(',');
-                      handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI02')!, 'WhatIf', {
+                      handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI02')!, 'preview', {
                         customParameters: { Selection: selStr }
                       });
                     }}
@@ -821,7 +978,7 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                   <button
                     type="button"
                     className="action-button-primary"
-                    onClick={() => handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI05')!, 'WhatIf')}
+                    onClick={() => handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI05')!, 'preview')}
                   >
                     <RotateCcw size={14} />
                     <span>{t.refreshSourcesAction}</span>
@@ -871,7 +1028,7 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                           <button
                             type="button"
                             className="tool-exec-btn analyze"
-                            onClick={() => handleLaunchTool(tool, 'AnalyzeOnly')}
+                            onClick={() => handleLaunchTool(tool, 'analyze')}
                           >
                             Analyze
                           </button>
@@ -880,7 +1037,7 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                           <button
                             type="button"
                             className="tool-exec-btn whatif"
-                            onClick={() => handleLaunchTool(tool, 'WhatIf')}
+                            onClick={() => handleLaunchTool(tool, 'preview')}
                           >
                             WhatIf
                           </button>
@@ -889,7 +1046,7 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                           <button
                             type="button"
                             className="tool-exec-btn execute"
-                            onClick={() => handleLaunchTool(tool, 'Execute')}
+                            onClick={() => handleLaunchTool(tool, 'run')}
                           >
                             Execute
                           </button>

@@ -1,16 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity, Cpu, HardDrive, RefreshCw, Play,
   CheckCircle2, AlertTriangle, XCircle, FileText,
   DatabaseZap, Wrench, Clock, FileWarning
 } from 'lucide-react';
-import type { BridgeTool, DiagnosticsPreview, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../../lib/api';
+import type { BridgeRun, BridgeTool, DiagnosticsPreview, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../../lib/api';
 import { api } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
 import { pickName } from '../../../lib/i18n';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
-import { StationErrorBoundary, StationOfflineState } from '../_shared';
-import { startExecution, pollExecution } from '../_shared/StationExecutionController';
+import { StationErrorBoundary, StationOfflineState, StationActiveRunBanner } from '../_shared';
+import { startExecution, pollUntilTerminal, requestConfirmedCancel, rememberRun, recallRun, forgetRun, historyMessageForRun } from '../_shared/StationExecutionController';
 import {
   type DiagnosticSignal, type StationHistoryEntry,
   summarizeDiagnostics, parseProblemDevices, parseEventLog, parseDiskSmart,
@@ -115,6 +115,8 @@ const COPY = {
   },
 };
 
+const STATION_KEY = 'station10';
+
 export default function DiagnosticsStation(props: DiagnosticsStationProps) {
   return (
     <StationErrorBoundary>
@@ -143,6 +145,21 @@ function DiagnosticsStationContent({
     mode: ExecutionMode;
     options?: ToolRunOptions;
   } | null>(null);
+  // Active run tracking: selection and execution are separate concepts.
+  // CANCELLED is recorded only after the backend confirms a terminal state;
+  // aborting local observation never fabricates cancellation.
+  const [activeRun, setActiveRun] = useState<{ runId: string; toolId: string; phase: 'running' | 'cancelling'; lineCount: number } | null>(null);
+  const pollAbortRef = useRef<AbortController | null>(null);
+  const settledRef = useRef(false);
+  const reconcileInflightRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      pollAbortRef.current?.abort();
+    };
+  }, []);
 
   // Filter tools strictly belonging to Station 10
   const stTools = useMemo(() => stationTools(tools), [tools]);
@@ -172,9 +189,83 @@ function DiagnosticsStationContent({
   const disksSmart = useMemo(() => parseDiskSmart(preview?.Storage?.Disks), [preview?.Storage?.Disks]);
   const signals: DiagnosticSignal[] = useMemo(() => detectDiagnosticSignals(summary), [summary]);
 
-  // Execution handler
+  // Execution handler. mode is passed through untouched: analyze stays
+  // analyze and is never silently promoted to run.
+  // Records ONLY backend-terminal outcomes.
+  const settleTerminalRun = useCallback((toolId: string, toolName: string, terminal: BridgeRun) => {
+    forgetRun(STATION_KEY);
+    const status = terminal.status === 'cancelled' ? 'CANCELLED' as const : outcomeFromRun(terminal.result);
+    onToolStatus(toolId, status === 'SUCCESS' ? 'success' : status === 'WARNING' ? 'inconclusive' : status === 'FAILED' ? 'error' : status === 'CANCELLED' ? 'cancelled' : 'inconclusive');
+    const newEntry: StationHistoryEntry = {
+      id: `${toolId}-${Date.now()}`,
+      toolId,
+      toolName,
+      timestamp: new Date().toLocaleTimeString(lang),
+      status,
+      itemsProcessed: terminal.result?.itemsProcessed ?? terminal.result?.ItemsProcessed ?? 0,
+      summary: terminal.result?.Status === 'Success' || terminal.result?.status === 'success'
+        ? (lang === 'ar' ? 'اكتمل الفحص التشخيصي بنجاح' : 'Diagnostic scan completed successfully')
+        : historyMessageForRun(terminal),
+    };
+    if (mountedRef.current) {
+      setHistory((prev) => [newEntry, ...prev.slice(0, 19)]);
+      setActiveRun(null);
+    }
+    void refreshDiagnostics();
+  }, [lang, onToolStatus, refreshDiagnostics]);
+
+  // Observes one backend run to a terminal state. Local observation stops
+  // record NOTHING: the run stays remembered so a remount reconciles it.
+  const observeRun = useCallback(async (runId: string, toolId: string, toolName: string, aborter: AbortController) => {
+    try {
+      const terminal = await pollUntilTerminal(runId, {
+        signal: aborter.signal,
+        onTick: (run) => {
+          if (mountedRef.current) {
+            setActiveRun((prev) => (prev && prev.runId === runId ? { ...prev, lineCount: run.lines?.length ?? 0 } : prev));
+          }
+        },
+      });
+      if (!mountedRef.current || settledRef.current) return;
+      settledRef.current = true;
+      settleTerminalRun(toolId, toolName, terminal);
+    } catch (err: unknown) {
+      if (settledRef.current || !mountedRef.current) return;
+      const code = (err as Error & { code?: string })?.code;
+      // POLL_CANCELLED means local observation stopped (unmount). The backend
+      // run may still be executing and stays remembered — never mark CANCELLED.
+      if (code === 'POLL_CANCELLED') return;
+      onToolStatus(toolId, 'error');
+      setError(err instanceof Error ? err.message : String(err));
+      setActiveRun(null);
+    }
+  }, [settleTerminalRun, onToolStatus]);
+
+  // Remount rediscovery: a remembered run is re-observed to its real
+  // terminal state instead of being orphaned.
+  useEffect(() => {
+    const orphan = recallRun(STATION_KEY);
+    if (orphan && !reconcileInflightRef.current) {
+      reconcileInflightRef.current = true;
+      settledRef.current = false;
+      const aborter = new AbortController();
+      pollAbortRef.current = aborter;
+      setActiveRun({ runId: orphan.runId, toolId: orphan.toolId, phase: 'running', lineCount: 0 });
+      void observeRun(orphan.runId, orphan.toolId, orphan.toolName || orphan.toolId, aborter)
+        .finally(() => { reconcileInflightRef.current = false; });
+    }
+  }, [observeRun]);
+
   const executeTool = useCallback(
     async (tool: BridgeTool, mode: ExecutionMode, options?: ToolRunOptions, confirmation?: ToolRunConfirmation) => {
+      if (activeRun) {
+        setError(lang === 'ar'
+          ? 'أداة أخرى قيد التنفيذ حالياً. انتظر انتهاءها أو ألغها أولاً.'
+          : 'Another tool is currently running. Wait for it to finish or cancel it first.');
+        return;
+      }
+      settledRef.current = false;
+      const toolName = pickName(tool, lang);
       onToolStatus(tool.ToolId, 'running');
       try {
         const runId = await startExecution({
@@ -183,40 +274,74 @@ function DiagnosticsStationContent({
           options,
           confirmation,
         });
-
-        const completedRun = await pollExecution(runId);
-        const status = outcomeFromRun(completedRun.result);
-        onToolStatus(tool.ToolId, status === 'SUCCESS' ? 'success' : status === 'WARNING' ? 'inconclusive' : 'error');
-
-        const newEntry: StationHistoryEntry = {
-          id: runId || `run-${Date.now()}`,
-          toolId: tool.ToolId,
-          toolName: pickName(tool, lang),
-          timestamp: new Date().toLocaleTimeString(lang),
-          status,
-          itemsProcessed: completedRun.result?.ItemsProcessed ?? 1,
-          summary: completedRun.result?.Status === 'Success'
-            ? (lang === 'ar' ? 'اكتمل الفحص التشخيصي بنجاح' : 'Diagnostic scan completed successfully')
-            : (completedRun.result?.ErrorMessage || 'Completed with observations'),
-        };
-        setHistory((prev) => [newEntry, ...prev.slice(0, 19)]);
-        void refreshDiagnostics();
+        rememberRun({ runId, toolId: tool.ToolId, toolName, stationKey: STATION_KEY, startedAt: Date.now() });
+        if (!mountedRef.current) return;
+        const aborter = new AbortController();
+        pollAbortRef.current?.abort();
+        pollAbortRef.current = aborter;
+        setActiveRun({ runId, toolId: tool.ToolId, phase: 'running', lineCount: 0 });
+        await observeRun(runId, tool.ToolId, toolName, aborter);
       } catch (err) {
+        // startExecution itself failed: no backend run exists.
+        if (!mountedRef.current) return;
         onToolStatus(tool.ToolId, 'error');
         setError(err instanceof Error ? err.message : String(err));
+        setActiveRun(null);
       }
     },
-    [lang, onToolStatus, refreshDiagnostics]
+    [activeRun, observeRun, lang, onToolStatus]
   );
+
+  // Cancel honesty: CANCELLED is recorded only after the backend confirms a
+  // terminal state. If confirmation fails, monitoring continues.
+  const handleCancelRun = useCallback(async () => {
+    const current = activeRun;
+    if (!current || current.phase === 'cancelling') return;
+    const remembered = recallRun(STATION_KEY);
+    const toolName = (remembered && remembered.runId === current.runId && remembered.toolName) || current.toolId;
+    setActiveRun({ ...current, phase: 'cancelling' });
+    try {
+      const terminal = await requestConfirmedCancel(current.runId, {
+        onTick: (run) => {
+          if (mountedRef.current) {
+            setActiveRun((prev) => (prev && prev.runId === current.runId ? { ...prev, lineCount: run.lines?.length ?? 0 } : prev));
+          }
+        },
+      });
+      settledRef.current = true;
+      pollAbortRef.current?.abort();
+      if (!mountedRef.current) {
+        forgetRun(STATION_KEY);
+        return;
+      }
+      settleTerminalRun(current.toolId, toolName, terminal);
+    } catch (err: unknown) {
+      if (!mountedRef.current) return;
+      const code = (err as Error & { code?: string })?.code;
+      if (code === 'POLL_CANCELLED') return;
+      // CANCEL_FAILED (or any reconcile failure): the backend did NOT confirm
+      // cancellation, so monitoring continues via the original observer.
+      const msg = err instanceof Error ? err.message : String(err);
+      setActiveRun({ ...current, phase: 'running' });
+      onToolStatus(current.toolId, 'running');
+      setError(msg);
+    }
+  }, [activeRun, settleTerminalRun, onToolStatus]);
 
   const launchAction = useCallback(
     (toolId: string, defaultMode: ExecutionMode = 'run') => {
+      if (activeRun) {
+        setError(lang === 'ar'
+          ? 'أداة أخرى قيد التنفيذ حالياً. انتظر انتهاءها أو ألغها أولاً.'
+          : 'Another tool is currently running. Wait for it to finish or cancel it first.');
+        return;
+      }
       const tool = stTools.find((t) => t.ToolId === toolId);
       if (!tool) return;
       const mode = tool.AnalyzeOnlySupported ? 'analyze' : defaultMode;
       setPendingTool({ tool, mode });
     },
-    [stTools]
+    [stTools, activeRun, lang]
   );
 
   if (bridgeOnline === false) {
@@ -287,6 +412,18 @@ function DiagnosticsStationContent({
           </button>
         </div>
       </header>
+
+      {activeRun && (
+        <div className="mt-4">
+          <StationActiveRunBanner
+            lang={lang}
+            toolId={activeRun.toolId}
+            lineCount={activeRun.lineCount}
+            phase={activeRun.phase}
+            onCancel={() => void handleCancelRun()}
+          />
+        </div>
+      )}
 
       {/* Mini-Nav Tabs */}
       <nav className="flex items-center gap-1.5 mt-4 pb-2 overflow-x-auto border-b border-slate-800/60 no-scrollbar">
