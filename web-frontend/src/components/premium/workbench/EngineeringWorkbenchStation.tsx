@@ -59,6 +59,10 @@ export default function EngineeringWorkbenchStation({
   return (
     <section
       className="knoux-workspace-stage knoux-command-workspace knoux-engineering-workbench"
+      data-mode="service"
+      data-execution="idle"
+      data-selected-tool-id=""
+      data-execution-tool-id=""
       data-service-id={activeService.id}
       data-service-tool-count={bridgeOnline === true ? serviceTools.length : ''}
       aria-label={isRtl ? 'محطة ورشة الهندسة' : 'Engineering Workbench station'}
@@ -137,7 +141,7 @@ export default function EngineeringWorkbenchStation({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden p-3">
+      <div className="knoux-stage-service-app min-h-0 flex-1 overflow-hidden p-3">
         <ServiceApps
           activeSection={activeService.legacySection}
           tools={serviceTools}
