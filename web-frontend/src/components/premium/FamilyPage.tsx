@@ -8,6 +8,7 @@ import HeroSection from './HeroSection';
 import ServiceCard from './ServiceCard';
 import ToolCard from './ToolCard';
 import FamilyLiveStage from './FamilyLiveStage';
+import EngineeringWorkbenchStation from './workbench/EngineeringWorkbenchStation';
 
 interface FamilyPageProps {
   family: FamilyDefinition;
@@ -94,6 +95,7 @@ export default function FamilyPage({
 
   const isRtl = lang === 'ar';
   const serviceAppActive = !selectedTool;
+  const showWorkbenchStation = family.id === 'workbench' && !selectedTool && !executionTool;
 
   return (
     <div className={`knoux-family-page knoux-command-center${serviceAppActive ? ' knoux-service-app-active' : ''}`} dir={isRtl ? 'rtl' : 'ltr'}>
@@ -139,24 +141,40 @@ export default function FamilyPage({
           onClearTool={() => onSelectTool(null)}
         />
 
-        <FamilyLiveStage
-          family={family}
-          service={activeService}
-          serviceTools={serviceTools}
-          selectedTool={selectedTool}
-          executionTool={executionTool}
-          serviceToolCount={serviceTools.length}
-          lang={lang}
-          bridgeOnline={bridgeOnline}
-          bridgeElevated={bridgeElevated}
-          toolStatuses={toolStatuses}
-          onRunTool={onRunTool}
-          onCancelTool={onCancelTool}
-          onClearTool={() => onSelectTool(null)}
-          onRetryBridge={onRetryBridge}
-          consoleEntries={consoleEntries}
-          activeToolId={activeToolId}
-        />
+        {showWorkbenchStation ? (
+          <EngineeringWorkbenchStation
+            family={family}
+            activeService={activeService}
+            serviceTools={serviceTools}
+            lang={lang}
+            bridgeOnline={bridgeOnline}
+            bridgeElevated={bridgeElevated}
+            toolStatuses={toolStatuses}
+            onSelectService={selectService}
+            onRunTool={onRunTool}
+            onCancelTool={onCancelTool}
+            onRetryBridge={onRetryBridge}
+          />
+        ) : (
+          <FamilyLiveStage
+            family={family}
+            service={activeService}
+            serviceTools={serviceTools}
+            selectedTool={selectedTool}
+            executionTool={executionTool}
+            serviceToolCount={serviceTools.length}
+            lang={lang}
+            bridgeOnline={bridgeOnline}
+            bridgeElevated={bridgeElevated}
+            toolStatuses={toolStatuses}
+            onRunTool={onRunTool}
+            onCancelTool={onCancelTool}
+            onClearTool={() => onSelectTool(null)}
+            onRetryBridge={onRetryBridge}
+            consoleEntries={consoleEntries}
+            activeToolId={activeToolId}
+          />
+        )}
       </main>
 
       <aside className="knoux-command-rail knoux-command-tool-rail" aria-label={isRtl ? 'إجراءات الخدمة' : 'Service actions'}>
