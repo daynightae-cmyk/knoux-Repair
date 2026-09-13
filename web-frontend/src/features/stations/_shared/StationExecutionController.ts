@@ -78,9 +78,16 @@ export async function startExecution(
   return runId;
 }
 
-export async function pollExecution(runId: string, _intervalMs?: number): Promise<BridgeRun> {
-  const { run } = await api.getRun(runId);
-  return run;
+/**
+ * Backward-compatible station polling entrypoint.
+ *
+ * Older stations still call pollExecution(). It must therefore inherit the
+ * same honesty guarantees as the newer pollUntilTerminal() path: RUNNING is
+ * never returned as a completed outcome, and only a bridge-confirmed terminal
+ * record may escape this function.
+ */
+export async function pollExecution(runId: string, intervalMs = 800): Promise<BridgeRun> {
+  return pollUntilTerminal(runId, { intervalMs });
 }
 
 export interface PollUntilTerminalOptions {
