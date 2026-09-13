@@ -79,6 +79,13 @@ test('Station 17: deriveProvisioningReadiness evaluates readiness truthfully', (
 
   assert.equal(deriveProvisioningReadiness(basePreview), 'ready');
 
+  // Driver evidence is its own domain. PI06 baseline must not claim READY before PI01 proves it.
+  const uncheckedDriversPreview = {
+    ...basePreview,
+    DriverOffers: { Available: false, Count: null, Offers: [], Error: 'Not queried by PI06' },
+  };
+  assert.equal(deriveProvisioningReadiness(uncheckedDriversPreview), 'inconclusive');
+
   // Pending reboot takes priority
   const rebootPreview = {
     ...basePreview,
@@ -159,6 +166,15 @@ test('Station 17: detectProvisioningSignals cites relevant tools', () => {
   assert.ok(driverSignal, 'Should detect driver offers and cite PI01');
   assert.ok(catalogSignal, 'Should detect missing apps and cite PI03');
   assert.ok(sourcesSignal, 'Should detect empty winget sources and cite PI05');
+
+  const uncheckedDriverSignals = detectProvisioningSignals({
+    ...preview,
+    System: { ...preview.System, PendingRestartSignals: [] },
+    DriverOffers: { Available: false, Count: null, Offers: [], Error: 'Not queried by PI06' },
+  });
+  const unchecked = uncheckedDriverSignals.find((s) => s.id === 'pi-driver-offers-unchecked');
+  assert.ok(unchecked, 'Unchecked driver evidence must stay visible instead of being treated as zero offers');
+  assert.equal(unchecked.recommendedToolId, 'PI01');
 });
 
 test('Station 17: filterCatalog filters correctly by query and status', () => {
