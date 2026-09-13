@@ -40,6 +40,8 @@ const ROUTES = [
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+const MAX_GATEWAY_RESTARTS = 2;
+let gatewayRestartCount = 0;
 
 function findEdge() {
   const edge = EDGE_CANDIDATES.find(candidate => fs.existsSync(candidate));
@@ -156,20 +158,38 @@ async function probeAuthoritativeServiceInventory(serviceId) {
 }
 
 async function reloadServiceRoute(page, serviceId) {
-  console.log(`${serviceId}: authoritative inventory exists but UI bootstrap is unresolved; reloading the same route once before failing.`);
+  console.log(`${serviceId}: reloading the same service route after verified recovery evidence.`);
   await page.reload({ waitUntil: 'domcontentloaded', timeout: 45_000 });
   await page.waitForSelector('.knoux-workspace-stage', { timeout: 15_000 });
   await page.waitForSelector('.knoux-stage-service-app', { timeout: 15_000 });
   await delay(350);
 }
 
+let gateway = launchGateway();
+let browser;
+
+async function restartGatewayForEvidence(serviceId, reason) {
+  if (gatewayRestartCount >= MAX_GATEWAY_RESTARTS) {
+    throw new Error(`${serviceId}: gateway/bridge recovery budget exhausted after ${gatewayRestartCount} controlled restart(s); last reason=${reason}`);
+  }
+
+  gatewayRestartCount += 1;
+  console.warn(`${serviceId}: restarting the supervised gateway/bridge (${gatewayRestartCount}/${MAX_GATEWAY_RESTARTS}) after authoritative inventory became unavailable: ${reason}`);
+  await stopGateway(gateway);
+  await delay(900);
+  gateway = launchGateway();
+  await waitForGateway(45_000);
+}
+
 async function waitForServiceInventory(page, expectedCount, serviceId) {
   let recoveredBridge = false;
   let reloadedRoute = false;
+  let restartedGateway = false;
   let authoritativeCount = null;
   let lastProbe = null;
+  const maxAttempts = 4;
 
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       await page.waitForFunction(
         count => {
@@ -179,13 +199,13 @@ async function waitForServiceInventory(page, expectedCount, serviceId) {
         { timeout: 12_000, polling: 100 },
         expectedCount,
       );
-      return { recoveredBridge, reloadedRoute, authoritativeCount };
+      return { recoveredBridge, reloadedRoute, restartedGateway, authoritativeCount };
     } catch {
       const snapshot = await readRouteSnapshot(page);
 
       if (snapshot.bridgeRetryAvailable) {
         recoveredBridge = true;
-        console.log(`${serviceId}: transient bridge-unavailable state observed; exercising the real Retry connection path (attempt ${attempt}/3).`);
+        console.log(`${serviceId}: transient bridge-unavailable state observed; exercising the real Retry connection path (attempt ${attempt}/${maxAttempts}).`);
         await page.evaluate(() => {
           const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
             .find(button => /retry connection/i.test(button.textContent || ''));
@@ -204,7 +224,7 @@ async function waitForServiceInventory(page, expectedCount, serviceId) {
       }
 
       if (probe.ok && probe.count === expectedCount) {
-        if (attempt >= 3) {
+        if (attempt >= maxAttempts) {
           throw new Error(`${serviceId}: backend proves ${expectedCount} tools but UI still did not hydrate after ${attempt} attempts; observed ${JSON.stringify(snapshot)}`);
         }
         reloadedRoute = true;
@@ -212,12 +232,22 @@ async function waitForServiceInventory(page, expectedCount, serviceId) {
         continue;
       }
 
-      if (attempt >= 3) {
-        throw new Error(`${serviceId}: neither UI nor authoritative category endpoint settled after ${attempt} attempts; UI=${JSON.stringify(snapshot)} backend=${JSON.stringify(probe)}`);
+      const probeReason = probe.error || (probe.status ? `HTTP ${probe.status}` : 'unknown bridge failure');
+      if (!restartedGateway) {
+        recoveredBridge = true;
+        restartedGateway = true;
+        reloadedRoute = true;
+        await restartGatewayForEvidence(serviceId, probeReason);
+        await reloadServiceRoute(page, serviceId);
+        continue;
       }
 
-      console.log(`${serviceId}: authoritative inventory probe unavailable (${probe.error || probe.status || 'unknown'}); waiting for gateway/bridge recovery before route reload.`);
-      await waitForGateway(8_000).catch(() => {});
+      if (attempt >= maxAttempts) {
+        throw new Error(`${serviceId}: neither UI nor authoritative category endpoint settled after ${attempt} attempts and one controlled gateway restart; UI=${JSON.stringify(snapshot)} backend=${JSON.stringify(probe)}`);
+      }
+
+      console.log(`${serviceId}: authoritative inventory still unavailable after controlled restart (${probeReason}); waiting for health before one more strict route reload.`);
+      await waitForGateway(12_000);
       reloadedRoute = true;
       await reloadServiceRoute(page, serviceId);
     }
@@ -247,6 +277,7 @@ async function waitForActionSurface(page, expectedCount, serviceId) {
 async function revealAllActionCards(page, expectedCount, serviceId) {
   let recoveredBridge = false;
   let reloadedRoute = false;
+  let restartedGateway = false;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     await waitForActionSurface(page, expectedCount, serviceId);
@@ -263,11 +294,12 @@ async function revealAllActionCards(page, expectedCount, serviceId) {
       const inventoryRecovery = await waitForServiceInventory(page, expectedCount, serviceId);
       recoveredBridge = recoveredBridge || inventoryRecovery.recoveredBridge;
       reloadedRoute = reloadedRoute || inventoryRecovery.reloadedRoute;
+      restartedGateway = restartedGateway || inventoryRecovery.restartedGateway;
       continue;
     }
 
     if (snapshot.toolCards === expectedCount) {
-      return { expandedActions: false, recoveredBridge, reloadedRoute };
+      return { expandedActions: false, recoveredBridge, reloadedRoute, restartedGateway };
     }
 
     if (!snapshot.actionDrawerAvailable) {
@@ -287,15 +319,12 @@ async function revealAllActionCards(page, expectedCount, serviceId) {
       throw new Error(`${serviceId}: action drawer did not expose all ${expectedCount} cards; observed ${JSON.stringify(afterExpand)}`);
     });
 
-    return { expandedActions: true, recoveredBridge, reloadedRoute };
+    return { expandedActions: true, recoveredBridge, reloadedRoute, restartedGateway };
   }
 
   const finalSnapshot = await readRouteSnapshot(page);
   throw new Error(`${serviceId}: action surface did not recover after Retry connection; observed ${JSON.stringify(finalSnapshot)}`);
 }
-
-const gateway = launchGateway();
-let browser;
 
 try {
   await waitForGateway();
@@ -328,6 +357,7 @@ try {
     const actionSurface = await revealAllActionCards(page, target.tools, target.service);
     const recoveredBridge = inventoryRecovery.recoveredBridge || actionSurface.recoveredBridge;
     const reloadedRoute = inventoryRecovery.reloadedRoute || actionSurface.reloadedRoute;
+    const restartedGateway = inventoryRecovery.restartedGateway || actionSurface.restartedGateway;
     const expandedActions = actionSurface.expandedActions;
     await delay(350);
 
@@ -353,12 +383,13 @@ try {
       ...snapshot,
       recoveredBridge,
       reloadedRoute,
+      restartedGateway,
       authoritativeCount: inventoryRecovery.authoritativeCount,
       expandedActions,
       expectedUnavailableConsoleErrors: classifiedConsole.expectedUnavailable.length,
       screenshot: fileName,
     });
-    console.log(`Verified ${target.service}: ${target.tools} tools${expandedActions ? ' (action drawer expanded)' : ''}${recoveredBridge ? ' (bridge recovered through Retry connection)' : ''}${reloadedRoute ? ' (same route reloaded after authoritative backend proof)' : ''}.`);
+    console.log(`Verified ${target.service}: ${target.tools} tools${expandedActions ? ' (action drawer expanded)' : ''}${recoveredBridge ? ' (bridge recovery exercised)' : ''}${reloadedRoute ? ' (same route reloaded after recovery proof)' : ''}${restartedGateway ? ' (gateway/bridge restarted once)' : ''}.`);
     await page.close();
   }
 
@@ -374,10 +405,11 @@ try {
     verifiedFamilies: families.size,
     verifiedServices: results.length,
     verifiedServiceToolTotal: toolTotal,
+    gatewayRestartCount,
     results,
   };
   fs.writeFileSync(path.join(OUT_DIR, 'service-route-matrix.json'), `${JSON.stringify(matrix, null, 2)}\n`, 'utf8');
-  console.log(`Verified ${results.length} canonical service routes across ${families.size} families (${toolTotal} tools).`);
+  console.log(`Verified ${results.length} canonical service routes across ${families.size} families (${toolTotal} tools); controlled gateway restarts=${gatewayRestartCount}.`);
 } finally {
   await browser?.close().catch(() => {});
   await stopGateway(gateway);
