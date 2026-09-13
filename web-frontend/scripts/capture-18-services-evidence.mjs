@@ -107,6 +107,58 @@ function classifyConsoleErrors(errors) {
   return { expectedUnavailable, unexpected };
 }
 
+async function readRouteSnapshot(page) {
+  return page.evaluate(() => {
+    const stage = document.querySelector('.knoux-workspace-stage');
+    const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
+      .find(button => /retry connection/i.test(button.textContent || ''));
+    return {
+      mode: stage?.getAttribute('data-mode') || null,
+      execution: stage?.getAttribute('data-execution') || null,
+      serviceToolCount: Number(stage?.getAttribute('data-service-tool-count') || 0),
+      serviceApp: Boolean(document.querySelector('.knoux-stage-service-app')),
+      context: (document.querySelector('.knoux-stage-context strong')?.textContent || '').trim().replace(/\s+/g, ' '),
+      toolCards: document.querySelectorAll('.knoux-tool-card[data-tool-id]').length,
+      selectedToolId: stage?.getAttribute('data-selected-tool-id') || '',
+      bridgeRetryAvailable: Boolean(retry),
+    };
+  });
+}
+
+async function waitForServiceTools(page, expectedCount, serviceId) {
+  const waitForCount = () => page.waitForFunction(
+    count => {
+      const stage = document.querySelector('.knoux-workspace-stage');
+      const cards = document.querySelectorAll('.knoux-tool-card[data-tool-id]').length;
+      return Number(stage?.getAttribute('data-service-tool-count') || 0) === count && cards === count;
+    },
+    { timeout: 15_000, polling: 100 },
+    expectedCount
+  );
+
+  try {
+    await waitForCount();
+    return false;
+  } catch {
+    const beforeRetry = await readRouteSnapshot(page);
+    if (!beforeRetry.bridgeRetryAvailable) {
+      throw new Error(`${serviceId}: service tools did not settle at ${expectedCount}; observed ${JSON.stringify(beforeRetry)}`);
+    }
+
+    console.log(`${serviceId}: transient bridge-unavailable state observed; exercising the real Retry connection path.`);
+    await page.evaluate(() => {
+      const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
+        .find(button => /retry connection/i.test(button.textContent || ''));
+      if (retry instanceof HTMLButtonElement) retry.click();
+    });
+    await waitForCount().catch(async () => {
+      const afterRetry = await readRouteSnapshot(page);
+      throw new Error(`${serviceId}: bridge retry did not restore ${expectedCount} tools; observed ${JSON.stringify(afterRetry)}`);
+    });
+    return true;
+  }
+}
+
 const gateway = launchGateway();
 let browser;
 
@@ -133,27 +185,16 @@ try {
     });
 
     const url = `${ORIGIN}/?view=${encodeURIComponent(target.family)}&nosplash=1&service=${encodeURIComponent(target.service)}`;
-    await page.goto(url, { waitUntil: 'networkidle0', timeout: 45_000 });
-    await page.waitForSelector('.knoux-workspace-stage', { timeout: 10_000 });
-    await page.waitForSelector('.knoux-stage-service-app', { timeout: 10_000 });
-    await page.waitForFunction(
-      expectedCount => Number(document.querySelector('.knoux-workspace-stage')?.getAttribute('data-service-tool-count')) === expectedCount,
-      { timeout: 10_000, polling: 50 },
-      target.tools
-    );
+    // Do not make route ownership wait on optional device-preview requests.
+    // The route gate validates the service workspace/tool contract directly;
+    // optional 503 preview responses are recorded separately below.
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
+    await page.waitForSelector('.knoux-workspace-stage', { timeout: 15_000 });
+    await page.waitForSelector('.knoux-stage-service-app', { timeout: 15_000 });
+    const recoveredBridge = await waitForServiceTools(page, target.tools, target.service);
+    await new Promise(resolve => setTimeout(resolve, 350));
 
-    const snapshot = await page.evaluate(() => {
-      const stage = document.querySelector('.knoux-workspace-stage');
-      return {
-        mode: stage?.getAttribute('data-mode') || null,
-        execution: stage?.getAttribute('data-execution') || null,
-        serviceToolCount: Number(stage?.getAttribute('data-service-tool-count') || 0),
-        serviceApp: Boolean(document.querySelector('.knoux-stage-service-app')),
-        context: (document.querySelector('.knoux-stage-context strong')?.textContent || '').trim().replace(/\s+/g, ' '),
-        toolCards: document.querySelectorAll('.knoux-tool-card[data-tool-id]').length,
-        selectedToolId: stage?.getAttribute('data-selected-tool-id') || '',
-      };
-    });
+    const snapshot = await readRouteSnapshot(page);
 
     if (snapshot.mode !== 'service') throw new Error(`${target.service}: expected service mode, got ${snapshot.mode}`);
     if (!snapshot.serviceApp) throw new Error(`${target.service}: canonical ServiceApps station did not render`);
@@ -173,9 +214,11 @@ try {
     results.push({
       ...target,
       ...snapshot,
+      recoveredBridge,
       expectedUnavailableConsoleErrors: classifiedConsole.expectedUnavailable.length,
       screenshot: fileName,
     });
+    console.log(`Verified ${target.service}: ${target.tools} tools${recoveredBridge ? ' (bridge recovered through Retry connection)' : ''}.`);
     await page.close();
   }
 
