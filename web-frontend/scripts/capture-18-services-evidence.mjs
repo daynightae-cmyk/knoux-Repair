@@ -157,28 +157,68 @@ async function waitForServiceInventory(page, expectedCount, serviceId) {
   }
 }
 
-async function revealAllActionCards(page, expectedCount, serviceId) {
-  const initial = await readRouteSnapshot(page);
-  if (initial.toolCards === expectedCount) return false;
-
-  if (!initial.actionDrawerAvailable) {
-    throw new Error(`${serviceId}: ${expectedCount} tools are loaded but only ${initial.toolCards} action cards are visible and no action drawer exists.`);
-  }
-
-  if (!initial.actionDrawerExpanded) {
-    await page.click('.knoux-command-tool-drawer');
-  }
-
+async function waitForActionSurface(page, expectedCount, serviceId) {
   await page.waitForFunction(
-    count => document.querySelectorAll('.knoux-tool-card[data-tool-id]').length === count,
-    { timeout: 10_000, polling: 50 },
+    count => {
+      const cards = document.querySelectorAll('.knoux-tool-card[data-tool-id]').length;
+      const drawer = document.querySelector('.knoux-command-tool-drawer');
+      const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
+        .find(button => /retry connection/i.test(button.textContent || ''));
+      return cards === count || Boolean(drawer) || Boolean(retry);
+    },
+    { timeout: 15_000, polling: 100 },
     expectedCount
   ).catch(async () => {
-    const afterExpand = await readRouteSnapshot(page);
-    throw new Error(`${serviceId}: action drawer did not expose all ${expectedCount} cards; observed ${JSON.stringify(afterExpand)}`);
+    const snapshot = await readRouteSnapshot(page);
+    throw new Error(`${serviceId}: action surface never became ready; observed ${JSON.stringify(snapshot)}`);
   });
+}
 
-  return true;
+async function revealAllActionCards(page, expectedCount, serviceId) {
+  let recoveredBridge = false;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await waitForActionSurface(page, expectedCount, serviceId);
+    const snapshot = await readRouteSnapshot(page);
+
+    if (snapshot.bridgeRetryAvailable) {
+      recoveredBridge = true;
+      console.log(`${serviceId}: action rail entered bridge-unavailable state; exercising Retry connection before verification.`);
+      await page.evaluate(() => {
+        const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
+          .find(button => /retry connection/i.test(button.textContent || ''));
+        if (retry instanceof HTMLButtonElement) retry.click();
+      });
+      await waitForServiceInventory(page, expectedCount, serviceId);
+      continue;
+    }
+
+    if (snapshot.toolCards === expectedCount) {
+      return { expandedActions: false, recoveredBridge };
+    }
+
+    if (!snapshot.actionDrawerAvailable) {
+      throw new Error(`${serviceId}: ${expectedCount} tools are loaded but only ${snapshot.toolCards} action cards are visible and no action drawer exists after readiness settled.`);
+    }
+
+    if (!snapshot.actionDrawerExpanded) {
+      await page.click('.knoux-command-tool-drawer');
+    }
+
+    await page.waitForFunction(
+      count => document.querySelectorAll('.knoux-tool-card[data-tool-id]').length === count,
+      { timeout: 10_000, polling: 50 },
+      expectedCount
+    ).catch(async () => {
+      const afterExpand = await readRouteSnapshot(page);
+      throw new Error(`${serviceId}: action drawer did not expose all ${expectedCount} cards; observed ${JSON.stringify(afterExpand)}`);
+    });
+
+    return { expandedActions: true, recoveredBridge };
+  }
+
+  const finalSnapshot = await readRouteSnapshot(page);
+  throw new Error(`${serviceId}: action surface did not recover after Retry connection; observed ${JSON.stringify(finalSnapshot)}`);
 }
 
 const gateway = launchGateway();
@@ -210,8 +250,10 @@ try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
     await page.waitForSelector('.knoux-workspace-stage', { timeout: 15_000 });
     await page.waitForSelector('.knoux-stage-service-app', { timeout: 15_000 });
-    const recoveredBridge = await waitForServiceInventory(page, target.tools, target.service);
-    const expandedActions = await revealAllActionCards(page, target.tools, target.service);
+    const inventoryRecoveredBridge = await waitForServiceInventory(page, target.tools, target.service);
+    const actionSurface = await revealAllActionCards(page, target.tools, target.service);
+    const recoveredBridge = inventoryRecoveredBridge || actionSurface.recoveredBridge;
+    const expandedActions = actionSurface.expandedActions;
     await new Promise(resolve => setTimeout(resolve, 350));
 
     const snapshot = await readRouteSnapshot(page);
@@ -219,7 +261,7 @@ try {
     if (snapshot.mode !== 'service') throw new Error(`${target.service}: expected service mode, got ${snapshot.mode}`);
     if (!snapshot.serviceApp) throw new Error(`${target.service}: canonical ServiceApps station did not render`);
     if (snapshot.serviceToolCount !== target.tools) throw new Error(`${target.service}: expected ${target.tools} service tools, got ${snapshot.serviceToolCount}`);
-    if (snapshot.toolCards !== target.tools) throw new Error(`${target.service}: expected ${target.tools} action cards after expanding the real action drawer, got ${snapshot.toolCards}`);
+    if (snapshot.toolCards !== target.tools) throw new Error(`${target.service}: expected ${target.tools} action cards after exercising the real action surface, got ${snapshot.toolCards}`);
     if (normalizeText(snapshot.context) !== target.name) throw new Error(`${target.service}: expected context '${target.name}', got '${snapshot.context}'`);
     if (snapshot.selectedToolId) throw new Error(`${target.service}: route should open service workspace before a tool is selected`);
     if (pageErrors.length > 0) throw new Error(`${target.service}: page errors: ${pageErrors.join(' | ')}`);
