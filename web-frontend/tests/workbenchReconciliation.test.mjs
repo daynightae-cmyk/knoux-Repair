@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..');
-const REPO_ROOT = path.resolve(WEB_ROOT, '..');
 
 function readWeb(relativePath) {
   return fs.readFileSync(path.join(WEB_ROOT, relativePath), 'utf8');
@@ -41,7 +40,7 @@ test('workbench station is mounted only as the idle service surface and preserve
   assert.match(familyPage, /executionTool=\{executionTool\}/);
 });
 
-test('workbench station delegates to the real existing service applications', () => {
+test('workbench station delegates to real service applications and preserves service-route evidence contract', () => {
   const station = readWeb('src/components/premium/workbench/EngineeringWorkbenchStation.tsx');
 
   assert.match(station, /import ServiceApps from '\.\.\/\.\.\/ServiceApps'/);
@@ -52,6 +51,15 @@ test('workbench station delegates to the real existing service applications', ()
   assert.match(station, /onRunTool=\{onRunTool\}/);
   assert.match(station, /onCancelTool=\{onCancelTool\}/);
   assert.match(station, /onRetryBridge=\{onRetryBridge\}/);
+
+  // Keep the canonical service-route DOM/evidence contract used by Windows Edge verification.
+  assert.match(station, /className="knoux-workspace-stage/);
+  assert.match(station, /data-mode="service"/);
+  assert.match(station, /data-execution="idle"/);
+  assert.match(station, /data-selected-tool-id=""/);
+  assert.match(station, /data-service-tool-count=\{bridgeOnline === true \? serviceTools\.length : ''\}/);
+  assert.match(station, /className="knoux-stage-service-app/);
+  assert.match(station, /className="knoux-stage-context"/);
 
   // No fake workstation metrics or browser-persisted premium state in this surface.
   assert.doesNotMatch(station, /sessionStorage|localStorage/);
