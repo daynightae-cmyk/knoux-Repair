@@ -406,6 +406,44 @@
 
 .knoux-command-tool-scroll { padding-top: 8px; }
 .knoux-command-tool-list { display: flex; flex-direction: column; gap: 7px; }
+.knoux-command-tool-controls {
+  display: grid;
+  gap: 7px;
+  padding: 9px 9px 0;
+}
+.knoux-command-tool-search,
+.knoux-command-tool-drawer {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(129,148,202,.13);
+  border-radius: 10px;
+  color: #8190ab;
+  background: rgba(255,255,255,.025);
+}
+.knoux-command-tool-search { padding: 0 9px; }
+.knoux-command-tool-search:focus-within { border-color: rgba(103,232,249,.34); box-shadow: 0 0 0 2px rgba(34,211,238,.05); }
+.knoux-command-tool-search input {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  border: 0;
+  outline: 0;
+  color: #e7eefc;
+  background: transparent;
+  font-size: 9px;
+}
+.knoux-command-tool-search input::placeholder { color: #586780; }
+.knoux-command-tool-drawer {
+  justify-content: space-between;
+  padding: 9px;
+  cursor: pointer;
+  font: 700 8px/1 var(--knoux-font-mono);
+}
+.knoux-command-tool-drawer:hover { color: #c8f7ff; border-color: rgba(103,232,249,.24); background: rgba(34,211,238,.045); }
+.knoux-command-tool-drawer svg:last-child { transition: transform .18s ease; }
+.knoux-command-tool-drawer[data-expanded='true'] svg:last-child { transform: rotate(180deg); }
 .knoux-command-tool-rail .knoux-tool-card {
   min-height: 116px;
   padding: 10px;
