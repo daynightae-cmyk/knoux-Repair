@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Search, Bell, Shield, Wifi, WifiOff, Settings, UserRound, CloudCog, BrainCircuit } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -23,11 +24,29 @@ export default function TopBar({
   onAccountOpen,
 }: TopBarProps) {
   const isRtl = lang === 'ar';
+  // Real PNG identity first; the text lockup is strictly a fallback for a
+  // missing/failed asset, never the primary brand.
+  const [brandImgOk, setBrandImgOk] = useState(true);
   return (
     <header className="knoux-topbar" style={{ height: '52px', WebkitAppRegion: 'drag' } as React.CSSProperties} dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="flex items-center gap-2 px-4 h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-        <span className="text-white font-bold tracking-widest text-lg">KNOUX</span>
-        <span className="text-[#A855F7] font-light text-lg">Repair</span>
+        <span className="knoux-brand">
+          {brandImgOk ? (
+            <img
+              className="knoux-brand__img"
+              src="/brand/knoux-repair-logo.png"
+              alt="KNOUX Repair"
+              draggable={false}
+              onError={() => setBrandImgOk(false)}
+            />
+          ) : (
+            <span className="knoux-brand__text">
+              <span className="text-white font-bold tracking-widest text-lg">KNOUX</span>
+              <span className="text-[#A855F7] font-light text-lg">Repair</span>
+            </span>
+          )}
+          <span className="knoux-brand__compact" aria-hidden="true">K</span>
+        </span>
       </div>
 
       <div className="flex-1 flex justify-center items-center h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
