@@ -2,6 +2,7 @@
 Reports/
 QA-Screenshots/
 Quarantine/
+Data/
 publish-tmp/
 
 # Build and staging artifacts

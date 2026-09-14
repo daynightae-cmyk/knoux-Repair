@@ -702,6 +702,25 @@ export const api = {
   duplicatesEngineQuarantine: (paths: string[], hashes?: Record<string, string>) =>
     request<{ moved: Array<{ path: string; quarantineId: string; quarantinePath: string; size: number }>; failed: Array<{ path: string; error: string }>; movedCount: number; failedCount: number }>(
       '/api/duplicates/engine-quarantine', { method: 'POST', body: JSON.stringify({ paths, hashes }) }, 125000),
+  duplicatesScanJob: (roots: string[], options: { minSizeBytes?: number; types?: DuplicateFileType[]; excludeSubfolders?: string[]; keeperPolicy?: DuplicateKeeperPolicy; includeHidden?: boolean } = {}) =>
+    request<{ scanId: string; status: string }>('/api/duplicates/jobs', {
+      method: 'POST', body: JSON.stringify({ roots, ...options }),
+    }, 30000),
+  duplicatesJob: (scanId: string) =>
+    request<{ job: { scanId: string; status: string; phase: string; progress: Record<string, number>; result: { summary: Record<string, number | boolean>; groups: DuplicatePreviewGroup[] } | null; error: string | null; startedAt: string; finishedAt: string | null } }>(
+      `/api/duplicates/jobs/${encodeURIComponent(scanId)}`, undefined, 30000),
+  duplicatesJobCancel: (scanId: string) =>
+    request<{ cancelled: boolean }>(`/api/duplicates/jobs/${encodeURIComponent(scanId)}/cancel`, { method: 'POST' }, 30000),
+  duplicatesLatestScan: () =>
+    request<{ scan: Record<string, string | number | null> | null; preview: DuplicatePreview | null }>('/api/duplicates/scans?latest=1', undefined, 60000),
+  duplicatesHistory: (limit = 30) =>
+    request<{ history: Array<Record<string, string | number | null>> }>(`/api/duplicates/history?limit=${limit}`, undefined, 30000),
+  duplicatesRestore: (quarantineIds: string[]) =>
+    request<{ restored: Array<{ quarantineId: string; restoredPath: string; verified: boolean; collision: boolean }>; failed: Array<{ quarantineId: string; error: string }>; restoredCount: number; failedCount: number }>(
+      '/api/duplicates/engine-restore', { method: 'POST', body: JSON.stringify({ quarantineIds }) }, 125000),
+  duplicatesVerify: (quarantineIds: string[]) =>
+    request<{ verified: Array<{ quarantineId: string; size: number }>; failed: Array<{ quarantineId: string; error: string }>; verifiedCount: number; failedCount: number }>(
+      '/api/duplicates/engine-verify', { method: 'POST', body: JSON.stringify({ quarantineIds }) }, 60000),
 
   softwarePreview: () => request<{ preview: SoftwarePreview }>('/api/software/preview', undefined, 125000),
   networkPreview: () => request<{ preview: NetworkPreview }>('/api/network/preview', undefined, 125000),

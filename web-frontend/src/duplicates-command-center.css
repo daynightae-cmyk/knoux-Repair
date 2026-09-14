@@ -179,8 +179,70 @@
   padding: 0.3rem 0.45rem;
 }
 
+/* Async job progress (non-blocking scan lifecycle) */
+.duplicate-job-progress {
+  margin-top: 0.9rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  background: rgba(4, 10, 26, 0.78);
+  min-width: min(26rem, 100%);
+}
+
+.duplicate-job-progress-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.duplicate-job-phase {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #67e8f9;
+  font-family: ui-monospace, monospace;
+}
+
+.duplicate-job-counts {
+  font-size: 0.68rem;
+  color: #aebfda;
+}
+
+.duplicate-job-progress-head .duplicate-secondary-cta { margin-inline-start: auto; }
+
+.duplicate-job-bar {
+  margin-top: 0.55rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.15);
+  overflow: hidden;
+}
+
+.duplicate-job-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #7c3aed, #22d3ee);
+  animation: knoux-dup-pulse 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes knoux-dup-pulse {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+/* Recent operations inside the scan log card */
+.duplicate-op-history { margin-top: 0.6rem; }
+.duplicate-op-history small { color: #7d93b5; font-size: 0.62rem; }
+.duplicate-op-history ul { margin-top: 0.3rem; }
+.duplicate-op-history li code { color: #c4b5fd; }
+.duplicate-op-history li span:last-child { margin-inline-start: auto; color: #64748b; }
+
 @media (prefers-reduced-motion: reduce) {
   .duplicate-group-main > svg {
     transition: none;
+  }
+  .duplicate-job-bar i {
+    animation: none;
   }
 }

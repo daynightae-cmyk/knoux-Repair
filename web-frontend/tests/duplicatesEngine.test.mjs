@@ -157,7 +157,9 @@ test('api client offers engine scan and quarantine calls', () => {
 test('station defaults to the node engine and keeps the DF11 fallback', () => {
   const station = fs.readFileSync(path.join(webRoot, 'src', 'features', 'stations', 'station05', 'DuplicateStation.tsx'), 'utf8');
   assert.match(station, /scanSource/);
-  assert.match(station, /duplicatesEngineScan/);
+  assert.match(station, /duplicatesScanJob/);
+  assert.match(station, /duplicatesJobCancel/);
+  assert.match(station, /duplicatesLatestScan/);
   assert.match(station, /duplicatesEngineQuarantine/);
   assert.match(station, /duplicatePreview\(folderToScan/);
   assert.match(station, /SHA-256/);

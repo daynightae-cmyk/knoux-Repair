@@ -14,6 +14,31 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { scanDuplicateRoots, quarantineDuplicatePaths } from './duplicatesEngine.mjs';
+import {
+  openIndex,
+  runIndexedScan,
+  reconcileScan,
+  getScanState,
+  getScanPreview,
+  getLatestScan,
+  recordDecision,
+  recordHistory,
+  finishHistory,
+  listHistory,
+  restoreQuarantineEntries,
+  verifyQuarantineEntries,
+  createJobStore,
+  ScanCancelled,
+} from './duplicatesJobs.mjs';
+
+let duplicateIndexDb = null;
+function duplicateDb() {
+  if (!duplicateIndexDb) {
+    duplicateIndexDb = openIndex(path.join(DATA_ROOT, 'Data', 'duplicates-index.db'));
+  }
+  return duplicateIndexDb;
+}
+const duplicateJobs = createJobStore();
 
 const SERVER_DIR = path.dirname(fileURLToPath(import.meta.url));
 const LOCAL_ENV_PATH = path.join(SERVER_DIR, '..', '.env.local');
@@ -1662,10 +1687,148 @@ const server = http.createServer(async (req, res) => {
       }
       try {
         const result = quarantineDuplicatePaths(REPO_ROOT, body.paths, { hashes: body.hashes });
+        try {
+          const operationId = crypto.randomUUID();
+          recordHistory(duplicateDb(), { operationId, action: 'quarantine', status: result.failedCount === 0 ? 'success' : result.movedCount === 0 ? 'error' : 'partial' });
+          finishHistory(duplicateDb(), operationId, {
+            status: result.failedCount === 0 ? 'success' : result.movedCount === 0 ? 'error' : 'partial',
+            bytesMoved: result.moved.reduce((acc, m) => acc + (m.size || 0), 0),
+          });
+        } catch { /* history best effort */ }
         return sendJson(res, 200, { ok: true, ...result }, corsHeaders);
       } catch (e) {
         return sendError(res, e.status || 500, e.code || 'ENGINE_QUARANTINE_FAILED', e.message, corsHeaders);
       }
+    }
+
+    // Indexed async scan jobs (staged, cancellable, persisted).
+    if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'jobs' && pathParts.length === 3) {
+      let body = {};
+      try {
+        const raw = await new Promise((resolve, reject) => {
+          let data = '';
+          req.on('data', (chunk) => { data += chunk; if (data.length > 16 * 1024) reject(new Error('body too large')); });
+          req.on('end', () => resolve(data));
+          req.on('error', reject);
+        });
+        body = JSON.parse(raw || '{}');
+      } catch { return sendError(res, 400, 'BAD_REQUEST', 'Invalid duplicate scan job request.', corsHeaders); }
+      if (!Array.isArray(body.roots) || body.roots.length === 0 || body.roots.length > 16) {
+        return sendError(res, 400, 'ROOTS_INVALID', 'A non-empty array of up to 16 scan roots is required.', corsHeaders);
+      }
+      const scanId = crypto.randomUUID();
+      const job = duplicateJobs.create(scanId);
+      const operationId = crypto.randomUUID();
+      try {
+        recordHistory(duplicateDb(), { operationId, scanId, action: 'scan', status: 'running' });
+      } catch { /* history best effort */ }
+      setImmediate(async () => {
+        const db = duplicateDb();
+        const hooks = {
+          onPhase: (phase, progress) => duplicateJobs.setRunning(job, phase, progress || {}),
+          shouldCancel: () => job.cancelRequested,
+        };
+        try {
+          const outcome = await runIndexedScan(db, scanId, body.roots, {
+            minSizeBytes: body.minSizeBytes,
+            types: body.types,
+            excludeSubfolders: body.excludeSubfolders,
+            keeperPolicy: body.keeperPolicy,
+            includeHidden: body.includeHidden,
+          }, hooks);
+          duplicateJobs.settle(job, outcome.status, { summary: outcome.summary, groups: outcome.groups }, null);
+          try { finishHistory(db, operationId, { status: outcome.status === 'COMPLETED' ? 'success' : outcome.status.toLowerCase() }); } catch { /* best effort */ }
+        } catch (err) {
+          if (err instanceof ScanCancelled || err?.code === 'SCAN_CANCELLED') {
+            duplicateJobs.settle(job, 'CANCELLED', null, 'Cancelled by user.');
+            try { finishHistory(db, operationId, { status: 'cancelled' }); } catch { /* best effort */ }
+          } else {
+            duplicateJobs.settle(job, 'FAILED', null, err?.message || String(err));
+            try { finishHistory(db, operationId, { status: 'error', error: err?.message || String(err) }); } catch { /* best effort */ }
+          }
+        }
+      });
+      return sendJson(res, 202, { ok: true, scanId, status: 'PREPARING' }, corsHeaders);
+    }
+
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'jobs' && pathParts.length === 4) {
+      const job = duplicateJobs.get(pathParts[3]);
+      if (!job) return sendError(res, 404, 'JOB_NOT_FOUND', 'Unknown duplicate scan job.', corsHeaders);
+      const { task, ...publicJob } = job;
+      return sendJson(res, 200, { ok: true, job: publicJob }, corsHeaders);
+    }
+
+    if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'jobs' && pathParts.length === 5 && pathParts[4] === 'cancel') {
+      const ok = duplicateJobs.requestCancel(pathParts[3]);
+      if (!ok) return sendError(res, 404, 'JOB_NOT_FOUND', 'Unknown or already settled duplicate scan job.', corsHeaders);
+      return sendJson(res, 200, { ok: true, cancelled: true }, corsHeaders);
+    }
+
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'scans') {
+      try {
+        if (url.searchParams.get('latest') === '1') {
+          const scan = getLatestScan(duplicateDb());
+          if (!scan) return sendJson(res, 200, { ok: true, scan: null, preview: null }, corsHeaders);
+          return sendJson(res, 200, { ok: true, scan, preview: getScanPreview(duplicateDb(), scan.scanId) }, corsHeaders);
+        }
+        return sendError(res, 400, 'QUERY_INVALID', 'Only ?latest=1 is supported.', corsHeaders);
+      } catch (e) {
+        return sendError(res, 500, 'SCAN_INDEX_FAILED', e.message, corsHeaders);
+      }
+    }
+
+    if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'history') {
+      try {
+        const limit = Math.max(1, Math.min(200, Number(url.searchParams.get('limit')) || 30));
+        return sendJson(res, 200, { ok: true, history: listHistory(duplicateDb(), limit) }, corsHeaders);
+      } catch (e) {
+        return sendError(res, 500, 'HISTORY_FAILED', e.message, corsHeaders);
+      }
+    }
+
+    if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'engine-restore') {
+      const guard = checkMutationGuard(req);
+      if (guard) return sendError(res, guard.status, guard.code, guard.message, corsHeaders);
+      let body = {};
+      try {
+        const raw = await new Promise((resolve, reject) => {
+          let data = '';
+          req.on('data', (chunk) => { data += chunk; if (data.length > 64 * 1024) reject(new Error('body too large')); });
+          req.on('end', () => resolve(data));
+          req.on('error', reject);
+        });
+        body = JSON.parse(raw || '{}');
+      } catch { return sendError(res, 400, 'BAD_REQUEST', 'Invalid duplicate restore request.', corsHeaders); }
+      if (!Array.isArray(body.quarantineIds) || body.quarantineIds.length === 0 || body.quarantineIds.length > 200) {
+        return sendError(res, 400, 'IDS_INVALID', 'A non-empty array of up to 200 quarantine IDs is required.', corsHeaders);
+      }
+      const operationId = crypto.randomUUID();
+      try { recordHistory(duplicateDb(), { operationId, action: 'restore', status: 'running' }); } catch { /* best effort */ }
+      const result = restoreQuarantineEntries(duplicateDb(), REPO_ROOT, body.quarantineIds);
+      try {
+        finishHistory(duplicateDb(), operationId, {
+          status: result.failedCount === 0 ? 'success' : result.restoredCount === 0 ? 'error' : 'partial',
+          bytesMoved: result.restored.reduce((acc, r) => acc + 0, 0),
+        });
+      } catch { /* best effort */ }
+      return sendJson(res, 200, { ok: true, ...result }, corsHeaders);
+    }
+
+    if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'engine-verify') {
+      let body = {};
+      try {
+        const raw = await new Promise((resolve, reject) => {
+          let data = '';
+          req.on('data', (chunk) => { data += chunk; if (data.length > 64 * 1024) reject(new Error('body too large')); });
+          req.on('end', () => resolve(data));
+          req.on('error', reject);
+        });
+        body = JSON.parse(raw || '{}');
+      } catch { return sendError(res, 400, 'BAD_REQUEST', 'Invalid duplicate verify request.', corsHeaders); }
+      if (!Array.isArray(body.quarantineIds) || body.quarantineIds.length === 0 || body.quarantineIds.length > 200) {
+        return sendError(res, 400, 'IDS_INVALID', 'A non-empty array of up to 200 quarantine IDs is required.', corsHeaders);
+      }
+      return sendJson(res, 200, { ok: true, ...verifyQuarantineEntries(REPO_ROOT, body.quarantineIds) }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'sonar' && pathParts[2] === 'preview') {

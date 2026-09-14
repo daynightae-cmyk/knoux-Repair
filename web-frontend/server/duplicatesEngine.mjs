@@ -1,5 +1,6 @@
 /**
- * KNOUX Repair — Node-native duplicate-file engine (no PowerShell dependency).
+ * KNOUX Repair — Node-native duplicate-file engine (self-contained: only
+ * Node builtins, no child processes, no external scripts).
  *
  * Professional rules base:
  *  - READ-ONLY scan: sizes first, SHA-256 streaming hash only for same-size
