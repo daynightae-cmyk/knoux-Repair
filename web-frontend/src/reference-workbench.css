@@ -1,0 +1,167 @@
+/* KNOUX Repair — Engineering Workbench reference skin
+   Visual-only layer: all actions still flow through the existing bridge contracts. */
+:root {
+  --ref-bg: #020716;
+  --ref-panel: rgba(5, 17, 39, .88);
+  --ref-panel-2: rgba(7, 24, 53, .78);
+  --ref-border: rgba(24, 128, 255, .62);
+  --ref-border-soft: rgba(60, 123, 214, .28);
+  --ref-blue: #27a9ff;
+  --ref-cyan: #44f4ff;
+  --ref-violet: #8f48ff;
+  --ref-text: #e8f1ff;
+  --ref-muted: #8aa0c4;
+}
+
+.knoux-shell {
+  background:
+    radial-gradient(900px 520px at 54% 28%, rgba(0, 92, 255, .12), transparent 70%),
+    radial-gradient(700px 500px at 100% 100%, rgba(82, 0, 255, .12), transparent 72%),
+    linear-gradient(135deg, #020617 0%, #030c1e 46%, #020617 100%) !important;
+}
+.knoux-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .24;
+  background-image: linear-gradient(rgba(49, 131, 255, .11) 1px, transparent 1px), linear-gradient(90deg, rgba(49, 131, 255, .11) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,.8), transparent 92%);
+}
+.knoux-topbar {
+  position: relative;
+  z-index: 30;
+  min-height: 68px !important;
+  border: 1px solid rgba(35, 150, 255, .74) !important;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(180deg, rgba(5, 17, 44, .98), rgba(2, 10, 29, .94)) !important;
+  box-shadow: 0 0 28px rgba(0, 94, 255, .22), inset 0 1px rgba(151, 219, 255, .2);
+}
+.knoux-topbar::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ref-cyan), var(--ref-violet), transparent);
+  box-shadow: 0 0 14px rgba(68,244,255,.8);
+}
+.knoux-body { gap: 8px !important; padding: 7px 8px 0; }
+.knoux-sidebar,
+.knoux-command-rail,
+.knoux-sentinel-panel,
+.knoux-workspace-stage,
+.knoux-preview-hero {
+  border-color: var(--ref-border) !important;
+  background-color: var(--ref-panel) !important;
+  box-shadow: 0 0 24px rgba(0, 91, 255, .17), inset 0 1px rgba(131, 214, 255, .15) !important;
+}
+.knoux-sidebar {
+  width: 226px !important;
+  border-radius: 10px !important;
+  background: linear-gradient(180deg, rgba(3, 19, 46, .97), rgba(2, 11, 29, .96)) !important;
+}
+.knoux-sidebar .category-nav-item { min-height: 43px; border-radius: 8px; }
+.knoux-sidebar .category-nav-item.is-active {
+  color: #fff;
+  background: linear-gradient(90deg, rgba(46, 105, 255, .74), rgba(62, 39, 184, .54)) !important;
+  border-color: #6b6cff !important;
+  box-shadow: 0 0 20px rgba(65, 72, 255, .55), inset 0 0 18px rgba(0, 219, 255, .12);
+}
+.knoux-workspace { padding: 6px !important; }
+.knoux-family-page.knoux-command-center { gap: 8px !important; }
+.knoux-family-page:has(.knoux-engineering-workbench) > .knoux-command-service-rail,
+.knoux-family-page:has(.knoux-engineering-workbench) > .knoux-command-tool-rail { display: none !important; }
+.knoux-family-page:has(.knoux-engineering-workbench) { display: block !important; }
+.knoux-family-page:has(.knoux-engineering-workbench) > .knoux-command-live-column { width: 100%; }
+
+.knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-hero {
+  display: block !important;
+  min-height: 400px !important;
+  border-radius: 9px !important;
+  background:
+    radial-gradient(380px 250px at 78% 46%, rgba(20, 110, 255, .28), transparent 72%),
+    linear-gradient(125deg, rgba(4, 19, 49, .98), rgba(2, 8, 24, .98)) !important;
+}
+.knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-grid {
+  opacity: .85;
+  background-size: 26px 26px;
+  background-image: linear-gradient(rgba(34, 140, 255, .08) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 140, 255, .08) 1px, transparent 1px);
+}
+.knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-body { min-height: 318px; grid-template-columns: minmax(300px, .9fr) minmax(420px, 1.1fr); }
+.knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-copy { padding: 30px 28px; }
+.knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-copy h1 { font-size: clamp(34px, 4vw, 58px); letter-spacing: -.06em; }
+.knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-copy h1 > span { color: #f5f8ff; background: none; }
+.knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-copy h1 > strong {
+  color: #bcb1ff;
+  text-shadow: 0 0 18px rgba(132, 77, 255, .62);
+}
+.knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-description { max-width: 430px; color: #c8d7ee; font-size: 13px; }
+.knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-scene { min-height: 318px; }
+.knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-scene-frame { inset: 20px 18px 28px; }
+.knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-scene-frame > div { transform: scale(1.06); filter: drop-shadow(0 0 28px rgba(0, 139, 255, .5)); }
+.knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-context-card { border-color: rgba(45, 159, 255, .55); background: rgba(2, 13, 35, .78); }
+.knoux-family-page:has(.knoux-engineering-workbench) .knoux-command-preview-footer { min-height: 47px; background: rgba(2, 12, 31, .82); }
+
+.knoux-engineering-workbench {
+  min-height: 420px !important;
+  margin-top: 8px;
+  border-radius: 9px !important;
+  background:
+    radial-gradient(500px 220px at 50% 0%, rgba(30, 88, 255, .18), transparent 75%),
+    linear-gradient(180deg, rgba(4, 16, 41, .96), rgba(2, 8, 23, .98)) !important;
+}
+.knoux-engineering-workbench .knoux-stage-header {
+  min-height: 46px;
+  padding: 8px 14px;
+  border-bottom-color: rgba(40, 140, 255, .35);
+  background: rgba(2, 12, 32, .8);
+}
+.knoux-engineering-workbench .knoux-stage-kicker { color: #8beeff; letter-spacing: .16em; font-size: 10px; }
+.knoux-engineering-workbench .knoux-stage-kicker svg { color: var(--ref-cyan); filter: drop-shadow(0 0 8px var(--ref-cyan)); }
+.knoux-engineering-workbench .knoux-stage-context { color: #7188ad; font-size: 10px; }
+.knoux-engineering-workbench .knoux-stage-context strong { color: #c6bcff; }
+.knoux-engineering-workbench > .border-b {
+  padding: 10px 14px !important;
+  border-bottom-color: rgba(29, 126, 255, .28) !important;
+  background: rgba(3, 16, 42, .74) !important;
+}
+.knoux-engineering-workbench > .border-b button[aria-pressed='true'] {
+  border-color: #765dff !important;
+  color: #fff !important;
+  background: linear-gradient(100deg, rgba(52, 116, 255, .5), rgba(127, 50, 255, .34)) !important;
+  box-shadow: 0 0 18px rgba(85, 83, 255, .38);
+}
+.knoux-engineering-workbench .knoux-stage-service-app { padding: 10px !important; }
+.knoux-engineering-workbench .service-app {
+  border-color: rgba(40, 145, 255, .5) !important;
+  border-radius: 8px !important;
+  background: rgba(3, 15, 37, .86) !important;
+}
+.knoux-engineering-workbench .service-app > header {
+  background: linear-gradient(90deg, rgba(12, 45, 99, .68), rgba(17, 22, 68, .7)) !important;
+  border-bottom-color: rgba(53, 151, 255, .32) !important;
+}
+.knoux-engineering-workbench .service-app button:not(:disabled):hover,
+.knoux-engineering-workbench .service-app [role='button']:hover {
+  border-color: #5c9dff;
+  box-shadow: 0 0 16px rgba(23, 136, 255, .2);
+}
+
+.knoux-sentinel-panel { width: 292px !important; border-radius: 10px !important; background: linear-gradient(180deg, rgba(3, 17, 42, .97), rgba(2, 10, 28, .96)) !important; }
+.knoux-footer { height: 29px !important; border-top-color: rgba(41, 135, 255, .5) !important; background: rgba(2, 9, 24, .96) !important; }
+
+@media (max-width: 1180px) {
+  .knoux-sidebar { width: 196px !important; }
+  .knoux-sentinel-panel { width: 250px !important; }
+}
+@media (max-width: 860px) {
+  .knoux-sentinel-panel { display: none !important; }
+  .knoux-sidebar { width: 72px !important; }
+  .knoux-sidebar .category-nav-item span:not(.category-nav-icon) { display: none; }
+  .knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-body { grid-template-columns: 1fr; }
+  .knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-scene { min-height: 240px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .knoux-preview-beam { animation: none !important; }
+}
