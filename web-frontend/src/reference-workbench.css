@@ -71,10 +71,19 @@
 }
 .knoux-workspace { padding: 6px !important; }
 .knoux-family-page.knoux-command-center { gap: 8px !important; }
-.knoux-family-page:has(.knoux-engineering-workbench) > .knoux-command-service-rail,
-.knoux-family-page:has(.knoux-engineering-workbench) > .knoux-command-tool-rail { display: none !important; }
-.knoux-family-page:has(.knoux-engineering-workbench) { display: block !important; }
-.knoux-family-page:has(.knoux-engineering-workbench) > .knoux-command-live-column { width: 100%; }
+.knoux-family-page:has(.knoux-engineering-workbench) > .knoux-command-service-rail { display: none !important; }
+.knoux-family-page:has(.knoux-engineering-workbench) {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) clamp(250px, 21vw, 330px) !important;
+}
+.knoux-family-page:has(.knoux-engineering-workbench) > .knoux-command-live-column {
+  width: auto;
+  min-width: 0;
+}
+.knoux-family-page:has(.knoux-engineering-workbench) > .knoux-command-tool-rail {
+  display: flex !important;
+  min-width: 0;
+}
 
 .knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-hero {
   display: block !important;
@@ -157,12 +166,24 @@
   .knoux-sidebar { width: 196px !important; }
   .knoux-sentinel-panel,
   .knoux-sentinel { width: 250px !important; }
+  .knoux-family-page:has(.knoux-engineering-workbench) {
+    grid-template-columns: minmax(0, 1fr) minmax(238px, 28vw) !important;
+  }
 }
 @media (max-width: 860px) {
   .knoux-sentinel-panel,
   .knoux-sentinel { display: none !important; }
   .knoux-sidebar { width: 72px !important; }
   .knoux-sidebar .category-nav-item span:not(.category-nav-icon) { display: none; }
+  .knoux-family-page:has(.knoux-engineering-workbench) {
+    display: block !important;
+  }
+  .knoux-family-page:has(.knoux-engineering-workbench) > .knoux-command-tool-rail {
+    display: flex !important;
+    width: 100%;
+    max-height: 260px;
+    margin-top: 8px;
+  }
   .knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-body { grid-template-columns: 1fr; }
   .knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-scene { min-height: 240px; }
 }
