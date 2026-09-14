@@ -297,11 +297,15 @@ export function scanDuplicateRoots(options = {}) {
     PreviewId: `eng-${crypto.randomUUID()}`,
     PreviewExpiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     Folder: validatedRoots.join('; '),
+    ScannedRoots: validatedRoots,
     FileTypes: acceptAll ? ['all'] : safeTypes,
     KeeperPolicy: safePolicy,
+    MinSizeBytes: minSize,
     FilesObserved: scannedFiles,
     SkippedFiles: skippedFiles,
+    HashedBytes: budget.used,
     RejectedRoots: rejectedRoots,
+    DurationMs: Date.now() - startedAt,
     Groups: groups,
     GroupCount: groups.length,
     DuplicateCopies: duplicateCopies,
@@ -360,7 +364,22 @@ export function quarantineDuplicatePaths(repoRoot, paths, extra = {}) {
     const destPath = path.join(destDir, path.basename(resolved));
     try {
       fs.mkdirSync(destDir, { recursive: true });
-      fs.renameSync(resolved, destPath);
+      try {
+        fs.renameSync(resolved, destPath);
+      } catch (moveErr) {
+        // Cross-device move (EXDEV): copy the bytes, verify size, then unlink.
+        // Never delete the original unless the copy is verified.
+        if (moveErr?.code !== 'EXDEV') throw moveErr;
+        fs.copyFileSync(resolved, destPath);
+        const copied = fs.statSync(destPath);
+        if (copied.size !== stat.size) {
+          try { fs.unlinkSync(destPath); } catch { /* best effort */ }
+          const sizeErr = new Error('COPY_VERIFY_FAILED');
+          sizeErr.code = 'COPY_VERIFY_FAILED';
+          throw sizeErr;
+        }
+        fs.unlinkSync(resolved);
+      }
       const meta = {
         SchemaVersion: '2.0.2',
         QuarantineId: id,

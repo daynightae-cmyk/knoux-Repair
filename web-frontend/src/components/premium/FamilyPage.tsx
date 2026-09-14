@@ -9,6 +9,8 @@ import ServiceCard from './ServiceCard';
 import ToolCard from './ToolCard';
 import FamilyLiveStage from './FamilyLiveStage';
 import EngineeringWorkbenchStation from './workbench/EngineeringWorkbenchStation';
+import DuplicateStation from '../../features/stations/station05/DuplicateStation';
+import ExecutionConfirmDialog from '../ExecutionConfirmDialog';
 
 interface FamilyPageProps {
   family: FamilyDefinition;
@@ -96,6 +98,10 @@ export default function FamilyPage({
   const isRtl = lang === 'ar';
   const serviceAppActive = !selectedTool;
   const showWorkbenchStation = family.id === 'workbench' && !selectedTool && !executionTool;
+  const showDuplicateStudio = activeService.id === '05-Duplicate-Files' && !selectedTool && !executionTool;
+  const [duplicatePending, setDuplicatePending] = useState<{
+    tool: BridgeTool; mode: 'run' | 'analyze' | 'preview'; options: ToolRunOptions;
+  } | null>(null);
 
   return (
     <div className={`knoux-family-page knoux-command-center${serviceAppActive ? ' knoux-service-app-active' : ''}`} dir={isRtl ? 'rtl' : 'ltr'}>
@@ -125,7 +131,7 @@ export default function FamilyPage({
       </aside>
 
       <main className="knoux-command-live-column">
-        {family.id !== 'workbench' && (
+        {family.id !== 'workbench' && !showDuplicateStudio && (
         <HeroSection
           family={family}
           service={activeService}
@@ -158,6 +164,12 @@ export default function FamilyPage({
             onCancelTool={onCancelTool}
             onRetryBridge={onRetryBridge}
           />
+        ) : showDuplicateStudio ? (
+          <DuplicateStation
+            lang={lang}
+            tools={serviceTools}
+            onPrepareRun={(tool, mode, options) => setDuplicatePending({ tool, mode, options })}
+          />
         ) : (
           <FamilyLiveStage
             family={family}
@@ -179,6 +191,20 @@ export default function FamilyPage({
           />
         )}
       </main>
+
+      {duplicatePending && (
+        <ExecutionConfirmDialog
+          tool={duplicatePending.tool}
+          mode={duplicatePending.mode}
+          lang={lang}
+          initialOptions={duplicatePending.options}
+          onCancel={() => setDuplicatePending(null)}
+          onConfirm={(options, confirmation) => {
+            onRunTool(duplicatePending.tool, duplicatePending.mode, options, confirmation);
+            setDuplicatePending(null);
+          }}
+        />
+      )}
 
       <aside className="knoux-command-rail knoux-command-tool-rail" aria-label={isRtl ? 'إجراءات الخدمة' : 'Service actions'}>
         <header className="knoux-command-rail-header">

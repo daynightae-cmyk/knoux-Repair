@@ -308,6 +308,7 @@ export default function DuplicateStation({
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
   const [keepPaths, setKeepPaths] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortKey, setSortKey] = useState<'recoverable' | 'size' | 'name'>('recoverable');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [quarantineEntries, setQuarantineEntries] = useState<DuplicateQuarantineEntry[]>([]);
@@ -436,11 +437,49 @@ export default function DuplicateStation({
 
   const filteredGroups = useMemo(() => {
     if (!preview) return [];
-    return filterGroupsByQuery(preview.Groups, searchQuery);
-  }, [preview, searchQuery]);
+    const matched = filterGroupsByQuery(preview.Groups, searchQuery);
+    const sorted = [...matched];
+    if (sortKey === 'name') {
+      sorted.sort((a, b) => {
+        const nameA = a.Files.find((f) => f.Path === (keepPaths[a.Id] || a.KeepPath))?.Name || a.Files[0]?.Name || '';
+        const nameB = b.Files.find((f) => f.Path === (keepPaths[b.Id] || b.KeepPath))?.Name || b.Files[0]?.Name || '';
+        return nameA.localeCompare(nameB);
+      });
+    } else if (sortKey === 'size') {
+      sorted.sort((a, b) => (b.Files[0]?.SizeBytes || 0) - (a.Files[0]?.SizeBytes || 0));
+    } else {
+      sorted.sort((a, b) => b.RecoverableBytes - a.RecoverableBytes);
+    }
+    return sorted;
+  }, [preview, searchQuery, sortKey, keepPaths]);
 
   const selectedGroups = preview?.Groups.filter((group) => selectedGroupIds.has(group.Id)) || [];
   const selectedBytes = selectedGroups.reduce((total, group) => total + group.RecoverableBytes, 0);
+
+  const typeImpact = useMemo(() => {
+    if (!preview) return [];
+    const byType = new Map<string, { bytes: number; files: number }>();
+    for (const group of preview.Groups) {
+      for (const file of group.Files) {
+        if (file.Path === (keepPaths[group.Id] || group.KeepPath)) continue;
+        const ext = (file.Name.split('.').pop() || 'file').toLowerCase();
+        const entry = byType.get(ext) || { bytes: 0, files: 0 };
+        entry.bytes += file.SizeBytes;
+        entry.files += 1;
+        byType.set(ext, entry);
+      }
+    }
+    return [...byType.entries()]
+      .map(([ext, value]) => ({ ext, ...value }))
+      .sort((a, b) => b.bytes - a.bytes)
+      .slice(0, 6);
+  }, [preview, keepPaths]);
+
+  const pipelineStep = !preview
+    ? (appState === 'SCANNING' ? 1 : 0)
+    : currentTab === 'quarantine' || currentTab === 'recovery'
+      ? 3
+      : selectedGroups.length > 0 ? 2 : 1;
 
   const matchedSelectedCount = useMemo(() => {
     return filteredGroups.filter((g) => selectedGroupIds.has(g.Id)).length;
@@ -1011,6 +1050,25 @@ export default function DuplicateStation({
         {/* RESULTS & WORKSPACE STAGE */}
         {(appState === 'RESULTS' || currentTab === 'duplicates') && preview && (
           <>
+            {/* Command pipeline: honest stage tracker */}
+            <ol className="duplicate-pipeline" aria-label={lang === 'ar' ? 'مراحل سير العمل' : 'Workflow stages'}>
+              {[
+                { en: 'Configure', ar: 'الإعداد' },
+                { en: 'Scan', ar: 'الفحص' },
+                { en: 'Review', ar: 'المراجعة' },
+                { en: 'Quarantine', ar: 'العزل' },
+              ].map((step, index) => (
+                <li
+                  key={step.en}
+                  data-state={index < pipelineStep ? 'done' : index === pipelineStep ? 'current' : 'todo'}
+                  aria-current={index === pipelineStep ? 'step' : undefined}
+                >
+                  <b>{index + 1}</b>
+                  <span>{lang === 'ar' ? step.ar : step.en}</span>
+                </li>
+              ))}
+            </ol>
+
             {/* Compact Header */}
             <div className="duplicate-command-hero" style={{ minHeight: 'auto', padding: '0.85rem 1.15rem' }}>
               <DuplicateHeroVisual lang={lang} stage="results" className="compact" />
@@ -1049,6 +1107,40 @@ export default function DuplicateStation({
                   {lang === 'ar' ? 'إعادة الفحص' : 'Rescan'}
                 </button>
               </div>
+            </div>
+
+            {/* Evidence stat cards: every number comes from the live scan */}
+            <div className="duplicate-evidence-grid" role="list">
+              <div className="duplicate-evidence-card" role="listitem">
+                <small>{lang === 'ar' ? 'مجموعات مكررة' : 'Duplicate groups'}</small>
+                <strong>{preview.GroupCount.toLocaleString(lang)}</strong>
+              </div>
+              <div className="duplicate-evidence-card" role="listitem">
+                <small>{lang === 'ar' ? 'قابل للاسترداد' : 'Recoverable'}</small>
+                <strong>{formatBytes(preview.RecoverableBytes, lang)}</strong>
+              </div>
+              <div className="duplicate-evidence-card" role="listitem">
+                <small>{lang === 'ar' ? 'ملفات مفحوصة' : 'Files scanned'}</small>
+                <strong>{preview.FilesObserved.toLocaleString(lang)}</strong>
+              </div>
+              {typeof preview.SkippedFiles === 'number' && (
+                <div className="duplicate-evidence-card" role="listitem">
+                  <small>{lang === 'ar' ? 'ملفات متجاوزة' : 'Skipped files'}</small>
+                  <strong>{preview.SkippedFiles.toLocaleString(lang)}</strong>
+                </div>
+              )}
+              {typeof preview.DurationMs === 'number' && (
+                <div className="duplicate-evidence-card" role="listitem">
+                  <small>{lang === 'ar' ? 'مدة الفحص' : 'Scan duration'}</small>
+                  <strong>{(preview.DurationMs / 1000).toFixed(1)}s</strong>
+                </div>
+              )}
+              {preview.Truncated && (
+                <div className="duplicate-evidence-card is-warning" role="listitem">
+                  <small>{lang === 'ar' ? 'تغطية جزئية' : 'Partial coverage'}</small>
+                  <strong>{lang === 'ar' ? 'حدود مطبقة' : 'Limits hit'}</strong>
+                </div>
+              )}
             </div>
 
             {/* Recharts Reclaimed Space Visual */}
@@ -1139,6 +1231,18 @@ export default function DuplicateStation({
                 </div>
 
                 <div className="duplicate-batch-actions">
+                  <label className="duplicate-sort-box">
+                    <span>{lang === 'ar' ? 'الفرز:' : 'Sort:'}</span>
+                    <select
+                      value={sortKey}
+                      onChange={(event) => setSortKey(event.target.value as 'recoverable' | 'size' | 'name')}
+                      aria-label={lang === 'ar' ? 'فرز المجموعات' : 'Sort groups'}
+                    >
+                      <option value="recoverable">{lang === 'ar' ? 'الأعلى استرداداً' : 'Largest reclaim'}</option>
+                      <option value="size">{lang === 'ar' ? 'الأكبر حجماً' : 'Largest files'}</option>
+                      <option value="name">{lang === 'ar' ? 'الاسم أبجدياً' : 'Name A–Z'}</option>
+                    </select>
+                  </label>
                   <button
                     type="button"
                     className={`duplicate-filter-toggle-btn ${
@@ -1203,8 +1307,50 @@ export default function DuplicateStation({
               )}
             </section>
 
-            {/* Bottom Floating Action Bar */}
-            <section className="duplicate-action-dock">
+            {/* Storage impact by type + honest scan log */}
+            <div className="duplicate-insight-grid">
+              <section className="duplicate-insight-card" aria-label={lang === 'ar' ? 'التأثير حسب النوع' : 'Impact by type'}>
+                <header>
+                  <strong>{lang === 'ar' ? 'التأثير التخزيني حسب النوع' : 'Storage impact by type'}</strong>
+                  <small>{lang === 'ar' ? 'محسوب من النسخ غير المحتفظ بها' : 'Computed from non-keeper copies'}</small>
+                </header>
+                {typeImpact.length === 0 ? (
+                  <p className="duplicate-insight-empty">{lang === 'ar' ? 'لا توجد نسخ إضافية.' : 'No extra copies.'}</p>
+                ) : (
+                  <ul>
+                    {typeImpact.map((entry) => (
+                      <li key={entry.ext}>
+                        <code>.{entry.ext}</code>
+                        <span>{entry.files.toLocaleString(lang)} {lang === 'ar' ? 'ملف' : 'files'}</span>
+                        <b>{formatBytes(entry.bytes, lang)}</b>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+              <section className="duplicate-insight-card" aria-label={lang === 'ar' ? 'سجل الفحص' : 'Scan log'}>
+                <header>
+                  <strong>{lang === 'ar' ? 'سجل الفحص' : 'Scan log'}</strong>
+                  <small>{engineSource ? (lang === 'ar' ? 'محرك Node الأصلي' : 'Native Node engine') : (lang === 'ar' ? 'مسار DF11' : 'DF11 path')}</small>
+                </header>
+                <ul className="duplicate-scan-log">
+                  <li><span>{lang === 'ar' ? 'المجلد' : 'Folder'}</span><b className="duplicate-scan-log-path">{preview.Folder}</b></li>
+                  <li><span>{lang === 'ar' ? 'المحافظة' : 'Keeper rule'}</span><b>{preview.KeeperPolicy}</b></li>
+                  {typeof preview.MinSizeBytes === 'number' && (
+                    <li><span>{lang === 'ar' ? 'أصغر حجم' : 'Min size'}</span><b>{formatBytes(preview.MinSizeBytes, lang)}</b></li>
+                  )}
+                  {typeof preview.HashedBytes === 'number' && (
+                    <li><span>{lang === 'ar' ? 'بايتات مبصومة' : 'Bytes hashed'}</span><b>{formatBytes(preview.HashedBytes, lang)}</b></li>
+                  )}
+                  {preview.RejectedRoots && preview.RejectedRoots.length > 0 && (
+                    <li><span>{lang === 'ar' ? 'جذور مرفوضة' : 'Rejected roots'}</span><b>{preview.RejectedRoots.map((r) => `${r.path} (${r.error})`).join('; ')}</b></li>
+                  )}
+                  <li><span>{lang === 'ar' ? 'التغطية' : 'Coverage'}</span><b>{preview.Truncated ? (lang === 'ar' ? 'جزئية — طبقت الحدود' : 'Partial — limits applied') : (lang === 'ar' ? 'كاملة' : 'Full')}</b></li>
+                </ul>
+              </section>
+            </div>
+
+            {/* Bottom Floating Action Bar */}            <section className="duplicate-action-dock">
               <div>
                 <span>{lang === 'ar' ? 'خطة العزل الآمن المختارة' : 'Selected Safe Quarantine Plan'}</span>
                 <strong>

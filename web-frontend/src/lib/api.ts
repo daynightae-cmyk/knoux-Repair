@@ -510,6 +510,15 @@ export interface DuplicatePreview {
   FileTypes: DuplicateFileType[];
   KeeperPolicy: DuplicateKeeperPolicy;
   FilesObserved: number;
+  /** Node-engine evidence fields (absent on DF11 previews). */
+  ScannedRoots?: string[];
+  MinSizeBytes?: number;
+  SkippedFiles?: number;
+  HashedBytes?: number;
+  RejectedRoots?: Array<{ path: string; error: string }>;
+  DurationMs?: number;
+  PartialHash?: boolean;
+  Engine?: string;
 
   Groups: DuplicatePreviewGroup[];
   GroupCount: number;

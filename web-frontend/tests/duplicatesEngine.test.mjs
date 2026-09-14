@@ -48,6 +48,10 @@ test('engine finds exact duplicates and skips unique and tiny files', () => {
 test('engine keeper policy keeps oldest-then-alphabetical by default, newest on demand', () => {
   const root = makeFixture();
   try {
+    const now = Date.now() / 1000;
+    fs.utimesSync(path.join(root, 'a.txt'), now - 300, now - 300);
+    fs.utimesSync(path.join(root, 'b-copy.txt'), now - 200, now - 200);
+    fs.utimesSync(path.join(root, 'sub', 'c-copy.txt'), now - 100, now - 100);
     const oldest = scanDuplicateRoots({ roots: [root], minSizeBytes: 1024 });
     assert.ok(oldest.Groups[0].KeepPath.endsWith('a.txt'));
     const newest = scanDuplicateRoots({ roots: [root], minSizeBytes: 1024, keeperPolicy: 'Newest' });
@@ -162,4 +166,34 @@ test('station defaults to the node engine and keeps the DF11 fallback', () => {
 test('main entry loads the duplicates command-center styles', () => {
   const entry = fs.readFileSync(path.join(webRoot, 'src', 'main.tsx'), 'utf8');
   assert.match(entry, /duplicates-command-center\.css/);
+});
+
+test('engine reports honest duration and min-size evidence', () => {
+  const root = makeFixture();
+  try {
+    const preview = scanDuplicateRoots({ roots: [root], minSizeBytes: 2048 });
+    assert.equal(typeof preview.DurationMs, 'number');
+    assert.ok(preview.DurationMs >= 0);
+    assert.equal(preview.MinSizeBytes, 2048);
+    assert.deepEqual(preview.ScannedRoots, [root]);
+    assert.equal(preview.GroupCount, 1);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('duplicates owns a full-column studio without the generic hero', () => {
+  const familyPage = fs.readFileSync(path.join(webRoot, 'src', 'components', 'premium', 'FamilyPage.tsx'), 'utf8');
+  assert.match(familyPage, /showDuplicateStudio/);
+  assert.match(familyPage, /05-Duplicate-Files/);
+  assert.match(familyPage, /DuplicateStation/);
+  assert.match(familyPage, /ExecutionConfirmDialog/);
+});
+
+test('station renders pipeline, evidence, sort and scan-log from live data', () => {
+  const station = fs.readFileSync(path.join(webRoot, 'src', 'features', 'stations', 'station05', 'DuplicateStation.tsx'), 'utf8');
+  for (const marker of ['duplicate-pipeline', 'pipelineStep', 'duplicate-evidence-grid', 'duplicate-sort-box', 'setSortKey', 'duplicate-insight-grid', 'typeImpact', 'duplicate-scan-log', 'DurationMs']) {
+    assert.match(station, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `station must contain ${marker}`);
+  }
+  assert.doesNotMatch(station, /Similar Files|perceptual|AI-recommended/i);
 });
