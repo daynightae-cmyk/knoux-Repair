@@ -289,6 +289,11 @@ export default function DuplicateStation({
   // Application lifecycle flow
   const [appState, setAppState] = useState<DuplicateAppState>('LANDING');
 
+  // Scan engine: Node-native (default, no PowerShell) or legacy DF11 script.
+  const [scanSource, setScanSource] = useState<'node' | 'df11'>('node');
+  const [minSizeKB, setMinSizeKB] = useState<number>(1);
+  const [engineNotice, setEngineNotice] = useState('');
+
   // Core scan parameters
   const [folderPath, setFolderPath] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -357,17 +362,25 @@ export default function DuplicateStation({
     setLoading(true);
     setAppState('SCANNING');
     setError('');
+    setEngineNotice('');
     setPreview(null);
     setSelectedGroupIds(new Set());
     setKeepPaths({});
     setSearchQuery('');
 
     try {
-      const { preview: next } = await api.duplicatePreview(folderToScan, {
-        types: types.length ? types : ['all'],
-        keeperPolicy,
-        excludeSubfolders: excludedSubfolders,
-      });
+      const { preview: next } = scanSource === 'node'
+        ? await api.duplicatesEngineScan([folderToScan], {
+          minSizeBytes: Math.max(1, Math.round(minSizeKB * 1024)),
+          types: types.length ? types : ['all'],
+          keeperPolicy,
+          excludeSubfolders: excludedSubfolders,
+        })
+        : await api.duplicatePreview(folderToScan, {
+          types: types.length ? types : ['all'],
+          keeperPolicy,
+          excludeSubfolders: excludedSubfolders,
+        });
 
       const sanitizedGroups = next.Groups.map((grp) => {
         const remainingFiles = grp.Files.filter((f) => {
@@ -417,7 +430,9 @@ export default function DuplicateStation({
     } finally {
       setLoading(false);
     }
-  }, [excludedSubfolders, folderPath, keeperPolicy, lang, loadQuarantine, types]);
+  }, [excludedSubfolders, folderPath, keeperPolicy, lang, loadQuarantine, minSizeKB, scanSource, types]);
+
+  const engineSource = preview && (preview as DuplicatePreview & { Engine?: string }).Engine === 'node';
 
   const filteredGroups = useMemo(() => {
     if (!preview) return [];
@@ -484,7 +499,12 @@ export default function DuplicateStation({
   };
 
   const prepareQuarantine = () => {
-    if (!preview || !cleanupTool || !selectedGroups.length) return;
+    if (!preview || !selectedGroups.length) return;
+    if (engineSource) {
+      void quarantineViaEngine();
+      return;
+    }
+    if (!cleanupTool) return;
     onPrepareRun(cleanupTool, 'run', {
       duplicatePreviewId: preview.PreviewId,
       duplicateKeepPaths: selectedGroups.map((group) => ({
@@ -492,6 +512,37 @@ export default function DuplicateStation({
         keepPath: keepPaths[group.Id] || group.KeepPath,
       })),
     });
+  };
+
+  const quarantineViaEngine = async () => {
+    if (!preview || !selectedGroups.length) return;
+    setEngineNotice('');
+    const paths: string[] = [];
+    const hashes: Record<string, string> = {};
+    for (const group of selectedGroups) {
+      const keeper = keepPaths[group.Id] || group.KeepPath;
+      for (const file of group.Files) {
+        if (file.Path !== keeper) {
+          paths.push(file.Path);
+          hashes[file.Path] = group.Hash;
+        }
+      }
+    }
+    if (!paths.length) return;
+    try {
+      const result = await api.duplicatesEngineQuarantine(paths, hashes);
+      setEngineNotice(
+        lang === 'ar'
+          ? `تم عزل ${result.movedCount} ملف بنجاح${result.failedCount ? ` وتعذر ${result.failedCount}` : ''}.`
+          : `${result.movedCount} file(s) quarantined${result.failedCount ? `, ${result.failedCount} failed` : ''}.`
+      );
+      await loadQuarantine();
+      await triggerScan();
+    } catch {
+      setEngineNotice(
+        lang === 'ar' ? 'تعذر إتمام العزل عبر المحرك.' : 'Engine quarantine could not be completed.'
+      );
+    }
   };
 
   return (
@@ -752,8 +803,45 @@ export default function DuplicateStation({
               })}
             </div>
 
-            {/* Keeper policy buttons */}
+            {/* Scan engine + hash mode */}
             <div className="duplicate-policy-row">
+              <span>{lang === 'ar' ? 'محرك الفحص:' : 'Scan engine:'}</span>
+              <button
+                type="button"
+                className={scanSource === 'node' ? 'is-active' : ''}
+                onClick={() => setScanSource('node')}
+                title={lang === 'ar' ? 'محرك Node الأصلي — سريع ولا يعتمد على PowerShell' : 'Native Node engine — fast, no PowerShell dependency'}
+              >
+                {lang === 'ar' ? 'Node الأصلي (موصى به)' : 'Native Node (Recommended)'}
+              </button>
+              <button
+                type="button"
+                className={scanSource === 'df11' ? 'is-active' : ''}
+                onClick={() => setScanSource('df11')}
+                title={lang === 'ar' ? 'مسار DF11 الاحتياطي عبر PowerShell' : 'Legacy DF11 PowerShell fallback path'}
+              >
+                {lang === 'ar' ? 'DF11 الاحتياطي' : 'DF11 Fallback'}
+              </button>
+              <span className="duplicate-hash-badge">SHA-256 · {lang === 'ar' ? 'تطابق تام' : 'Exact'}</span>
+            </div>
+
+            {/* Minimum size (native engine) */}
+            <div className="duplicate-policy-row">
+              <span>{lang === 'ar' ? 'أصغر حجم للفحص:' : 'Minimum file size:'}</span>
+              {[1, 100, 1024, 10240].map((kb) => (
+                <button
+                  type="button"
+                  key={kb}
+                  className={minSizeKB === kb && scanSource === 'node' ? 'is-active' : ''}
+                  disabled={scanSource !== 'node'}
+                  onClick={() => setMinSizeKB(kb)}
+                >
+                  {kb >= 1024 ? `${kb / 1024} MB` : `${kb} KB`}
+                </button>
+              ))}
+            </div>
+
+            {/* Keeper policy buttons */}            <div className="duplicate-policy-row">
               <span>{lang === 'ar' ? 'قاعدة تفضيل النسخة الأصلية:' : 'Keeper preference:'}</span>
               <button
                 type="button"
@@ -927,7 +1015,10 @@ export default function DuplicateStation({
             <div className="duplicate-command-hero" style={{ minHeight: 'auto', padding: '0.85rem 1.15rem' }}>
               <DuplicateHeroVisual lang={lang} stage="results" className="compact" />
               <div>
-                <p>{lang === 'ar' ? 'نتائج الفحص التكراري' : 'Duplicate Scan Workspace'}</p>
+                <p>
+                  {lang === 'ar' ? 'نتائج الفحص التكراري' : 'Duplicate Scan Workspace'}
+                  {engineSource ? (lang === 'ar' ? ' · محرك Node' : ' · Node engine') : (lang === 'ar' ? ' · مسار DF11' : ' · DF11 path')}
+                </p>
                 <h2>
                   {lang === 'ar'
                     ? `${preview.GroupCount} مجموعة مكررة مكتشفة`
@@ -1131,11 +1222,14 @@ export default function DuplicateStation({
                   type="button"
                   className="duplicate-quarantine-button"
                   onClick={prepareQuarantine}
-                  disabled={!cleanupTool || !selectedGroups.length}
+                  disabled={(!cleanupTool && !engineSource) || !selectedGroups.length}
                 >
                   <ShieldCheck size={15} />
                   <span>{lang === 'ar' ? 'مراجعة العزل الآمن' : 'REVIEW CLEANUP'}</span>
                 </button>
+                {engineNotice && (
+                  <span className="duplicate-engine-notice" role="status">{engineNotice}</span>
+                )}
               </div>
             </section>
           </>

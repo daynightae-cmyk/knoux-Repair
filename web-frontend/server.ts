@@ -210,6 +210,24 @@ function proxyBridgeRequest(targetPath: string, req: Request, res: Response): vo
     });
   });
 
+  // express.json() (customRouter) already consumed JSON bodies before the
+  // request reaches this proxy. Piping an ended stream would forward headers
+  // (with content-length) but zero bytes, hanging the bridge forever.
+  // Re-serialize the parsed body instead; stream only when unparsed.
+  const contentType = String(req.headers['content-type'] || '');
+  const hasParsedJsonBody =
+    req.method !== 'GET' && req.method !== 'HEAD' &&
+    contentType.includes('application/json') &&
+    (req as unknown as { body?: unknown }).body !== undefined;
+  if (hasParsedJsonBody) {
+    let serialized = '{}';
+    try {
+      serialized = JSON.stringify((req as unknown as { body?: unknown }).body ?? {});
+    } catch { /* keep '{}' */ }
+    proxyRequest.setHeader('content-length', Buffer.byteLength(serialized));
+    proxyRequest.end(serialized);
+    return;
+  }
   req.pipe(proxyRequest);
 }
 

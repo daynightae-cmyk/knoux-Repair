@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { scanDuplicateRoots, quarantineDuplicatePaths } from './duplicatesEngine.mjs';
 
 const SERVER_DIR = path.dirname(fileURLToPath(import.meta.url));
 const LOCAL_ENV_PATH = path.join(SERVER_DIR, '..', '.env.local');
@@ -1614,6 +1615,57 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'quarantine') {
       return sendJson(res, 200, { ok: true, quarantine: getDuplicateQuarantine() }, corsHeaders);
+    }
+
+    // Node-native duplicate engine (no PowerShell): exact SHA-256 scan.
+    if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'engine-scan') {
+      let body = {};
+      try {
+        const raw = await new Promise((resolve, reject) => {
+          let data = '';
+          req.on('data', (chunk) => { data += chunk; if (data.length > 16 * 1024) reject(new Error('body too large')); });
+          req.on('end', () => resolve(data));
+          req.on('error', reject);
+        });
+        body = JSON.parse(raw || '{}');
+      } catch { return sendError(res, 400, 'BAD_REQUEST', 'Invalid duplicate engine scan request.', corsHeaders); }
+      try {
+        const preview = scanDuplicateRoots({
+          roots: body.roots,
+          minSizeBytes: body.minSizeBytes,
+          types: body.types,
+          excludeSubfolders: body.excludeSubfolders,
+          keeperPolicy: body.keeperPolicy,
+        });
+        return sendJson(res, 200, { ok: true, preview }, corsHeaders);
+      } catch (e) {
+        return sendError(res, e.status || 500, e.code || 'ENGINE_SCAN_FAILED', e.message, corsHeaders);
+      }
+    }
+
+    // Node-native quarantine for engine scans (moves files, never deletes).
+    if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'engine-quarantine') {
+      const guard = checkMutationGuard(req);
+      if (guard) return sendError(res, guard.status, guard.code, guard.message, corsHeaders);
+      let body = {};
+      try {
+        const raw = await new Promise((resolve, reject) => {
+          let data = '';
+          req.on('data', (chunk) => { data += chunk; if (data.length > 256 * 1024) reject(new Error('body too large')); });
+          req.on('end', () => resolve(data));
+          req.on('error', reject);
+        });
+        body = JSON.parse(raw || '{}');
+      } catch { return sendError(res, 400, 'BAD_REQUEST', 'Invalid duplicate engine quarantine request.', corsHeaders); }
+      if (!Array.isArray(body.paths) || body.paths.length === 0 || body.paths.length > 500) {
+        return sendError(res, 400, 'PATHS_INVALID', 'A non-empty array of up to 500 file paths is required.', corsHeaders);
+      }
+      try {
+        const result = quarantineDuplicatePaths(REPO_ROOT, body.paths, { hashes: body.hashes });
+        return sendJson(res, 200, { ok: true, ...result }, corsHeaders);
+      } catch (e) {
+        return sendError(res, e.status || 500, e.code || 'ENGINE_QUARANTINE_FAILED', e.message, corsHeaders);
+      }
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'sonar' && pathParts[2] === 'preview') {

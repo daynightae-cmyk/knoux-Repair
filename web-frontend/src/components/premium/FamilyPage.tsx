@@ -125,6 +125,7 @@ export default function FamilyPage({
       </aside>
 
       <main className="knoux-command-live-column">
+        {family.id !== 'workbench' && (
         <HeroSection
           family={family}
           service={activeService}
@@ -140,6 +141,7 @@ export default function FamilyPage({
           systemSnapshot={systemSnapshot}
           onClearTool={() => onSelectTool(null)}
         />
+        )}
 
         {showWorkbenchStation ? (
           <EngineeringWorkbenchStation
