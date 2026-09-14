@@ -50,6 +50,7 @@
 .knoux-sidebar,
 .knoux-command-rail,
 .knoux-sentinel-panel,
+.knoux-sentinel,
 .knoux-workspace-stage,
 .knoux-preview-hero {
   border-color: var(--ref-border) !important;
@@ -148,15 +149,18 @@
   box-shadow: 0 0 16px rgba(23, 136, 255, .2);
 }
 
-.knoux-sentinel-panel { width: 292px !important; border-radius: 10px !important; background: linear-gradient(180deg, rgba(3, 17, 42, .97), rgba(2, 10, 28, .96)) !important; }
+.knoux-sentinel-panel,
+.knoux-sentinel { width: 292px !important; border-radius: 10px !important; background: linear-gradient(180deg, rgba(3, 17, 42, .97), rgba(2, 10, 28, .96)) !important; }
 .knoux-footer { height: 29px !important; border-top-color: rgba(41, 135, 255, .5) !important; background: rgba(2, 9, 24, .96) !important; }
 
 @media (max-width: 1180px) {
   .knoux-sidebar { width: 196px !important; }
-  .knoux-sentinel-panel { width: 250px !important; }
+  .knoux-sentinel-panel,
+  .knoux-sentinel { width: 250px !important; }
 }
 @media (max-width: 860px) {
-  .knoux-sentinel-panel { display: none !important; }
+  .knoux-sentinel-panel,
+  .knoux-sentinel { display: none !important; }
   .knoux-sidebar { width: 72px !important; }
   .knoux-sidebar .category-nav-item span:not(.category-nav-icon) { display: none; }
   .knoux-family-page:has(.knoux-engineering-workbench) .knoux-preview-body { grid-template-columns: 1fr; }
