@@ -1,0 +1,371 @@
+/* KNOUX Repair — Engineering Workbench final visual finish
+   Visual overrides only. Runtime, routing, canonical ToolIds and ServiceApps remain untouched. */
+
+.knoux-command-deck {
+  position: relative;
+  isolation: isolate;
+  --wb-glass: rgba(5, 12, 32, 0.72);
+  --wb-glass-strong: rgba(6, 16, 42, 0.88);
+  --wb-line: rgba(90, 170, 255, 0.18);
+  --wb-line-hot: rgba(70, 210, 255, 0.5);
+  --wb-violet: rgba(139, 61, 255, 0.55);
+  --wb-cyan: #67e8f9;
+  --wb-text: #f7fbff;
+  --wb-muted: #8ca4c7;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   CINEMATIC ENGINEERING HERO
+   The old marketing copy stays in DOM for accessibility/contract stability,
+   but the visible surface becomes a quiet engineering atmosphere.
+   ───────────────────────────────────────────────────────────── */
+.knoux-command-deck .knoux-deck-hero {
+  min-height: 172px;
+  max-height: 190px;
+  position: relative;
+  display: block;
+  margin: 0.75rem 0.8rem 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(80, 185, 255, 0.28);
+  background:
+    radial-gradient(650px 220px at 52% 115%, rgba(0, 207, 255, 0.14), transparent 68%),
+    radial-gradient(500px 190px at 78% 38%, rgba(139, 61, 255, 0.1), transparent 72%),
+    linear-gradient(120deg, #020916 0%, #041126 45%, #050b1b 100%);
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(126, 220, 255, 0.08),
+    inset 0 0 55px rgba(18, 86, 154, 0.08);
+}
+
+.knoux-command-deck .knoux-deck-hero::before,
+.knoux-command-deck .knoux-deck-hero::after {
+  content: '';
+  position: absolute;
+  inset: -38%;
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(34px);
+  opacity: 0.58;
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+}
+
+.knoux-command-deck .knoux-deck-hero::before {
+  background:
+    radial-gradient(ellipse at 28% 52%, rgba(50, 220, 255, 0.34) 0 10%, rgba(17, 112, 190, 0.14) 25%, transparent 54%),
+    radial-gradient(ellipse at 68% 44%, rgba(73, 192, 255, 0.24) 0 12%, rgba(46, 90, 255, 0.1) 28%, transparent 58%);
+  animation: knoux-cyan-smoke-a 24s ease-in-out infinite alternate;
+}
+
+.knoux-command-deck .knoux-deck-hero::after {
+  background:
+    radial-gradient(ellipse at 44% 58%, rgba(22, 235, 255, 0.22) 0 9%, rgba(99, 102, 241, 0.11) 25%, transparent 55%),
+    radial-gradient(ellipse at 80% 52%, rgba(167, 82, 255, 0.14) 0 8%, transparent 44%);
+  animation: knoux-cyan-smoke-b 31s ease-in-out infinite alternate-reverse;
+}
+
+.knoux-command-deck .knoux-deck-hero__copy {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: block;
+  max-width: none;
+  pointer-events: none;
+}
+
+.knoux-command-deck .knoux-deck-hero__kicker {
+  position: absolute;
+  inset-inline-start: 18px;
+  top: 15px;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: rgba(185, 229, 255, 0.68);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.knoux-command-deck .knoux-deck-hero__title,
+.knoux-command-deck .knoux-deck-hero__subtitle,
+.knoux-command-deck .knoux-deck-hero__meta {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* repurpose the existing art wrapper as a pure 3D holographic engineering core */
+.knoux-command-deck .knoux-deck-hero__art {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  perspective: 900px;
+}
+
+.knoux-command-deck .knoux-deck-hero__art img {
+  display: none;
+}
+
+.knoux-command-deck .knoux-deck-hero__art::before {
+  content: '';
+  width: 126px;
+  height: 82px;
+  border-radius: 18px;
+  border: 1px solid rgba(114, 228, 255, 0.52);
+  background:
+    linear-gradient(145deg, rgba(103, 232, 249, 0.16), rgba(62, 80, 255, 0.06) 45%, rgba(139, 61, 255, 0.14)),
+    rgba(3, 16, 38, 0.46);
+  box-shadow:
+    0 -19px 0 -1px rgba(6, 23, 55, 0.76),
+    0 -19px 0 0 rgba(98, 218, 255, 0.32),
+    0 -38px 0 -1px rgba(8, 28, 67, 0.68),
+    0 -38px 0 0 rgba(100, 143, 255, 0.24),
+    0 0 32px rgba(44, 207, 255, 0.2),
+    inset 0 0 26px rgba(85, 210, 255, 0.1);
+  transform: rotateX(58deg) rotateZ(-3deg);
+  animation: knoux-core-float 19s ease-in-out infinite;
+}
+
+.knoux-command-deck .knoux-deck-hero__art::after {
+  content: '';
+  position: absolute;
+  width: min(52vw, 520px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(75, 210, 255, 0.55), rgba(139, 61, 255, 0.36), transparent);
+  box-shadow:
+    0 -32px 54px rgba(41, 199, 255, 0.18),
+    0 22px 60px rgba(117, 68, 255, 0.12);
+  opacity: 0.78;
+  animation: knoux-horizon-breathe 9s ease-in-out infinite;
+}
+
+/* faint engineering grid, deliberately quiet */
+.knoux-command-deck .knoux-deck-hero .knoux-deck-hero__art {
+  background-image:
+    linear-gradient(rgba(92, 174, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(92, 174, 255, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(to bottom, transparent 5%, black 52%, transparent 100%);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   SERVICE CARDS — Anima glass language, live counts retained
+   ───────────────────────────────────────────────────────────── */
+.knoux-command-deck .knoux-deck-services {
+  gap: 10px;
+  padding: 10px 0.8rem 0;
+}
+
+.knoux-command-deck .knoux-deck-service {
+  min-height: 82px;
+  padding: 13px 15px;
+  border-radius: 16px;
+  border: 1px solid var(--wb-line);
+  background:
+    linear-gradient(135deg, rgba(12, 30, 67, 0.82), rgba(5, 14, 36, 0.9)),
+    var(--wb-glass);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(133, 219, 255, 0.045);
+}
+
+.knoux-command-deck .knoux-deck-service:hover {
+  transform: translateY(-2px);
+  border-color: rgba(80, 205, 255, 0.46);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24), 0 0 24px rgba(40, 177, 255, 0.08);
+}
+
+.knoux-command-deck .knoux-deck-service[data-active='true'] {
+  border-color: rgba(92, 221, 255, 0.62);
+  background:
+    radial-gradient(340px 120px at 15% 10%, rgba(34, 211, 238, 0.14), transparent 70%),
+    linear-gradient(135deg, rgba(15, 39, 83, 0.92), rgba(7, 17, 42, 0.92));
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.12), 0 14px 38px rgba(0, 0, 0, 0.26);
+}
+
+.knoux-command-deck .knoux-deck-service__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  border-color: rgba(65, 208, 255, 0.34);
+  background: linear-gradient(145deg, rgba(32, 149, 220, 0.16), rgba(102, 54, 255, 0.1));
+}
+
+.knoux-command-deck .knoux-deck-service__text strong {
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.knoux-command-deck .knoux-deck-service__text small {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--wb-muted);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   TOOL DOCK — compact glass cards, active/running status glows
+   ───────────────────────────────────────────────────────────── */
+.knoux-command-deck .knoux-deck-strip {
+  margin: 10px 0.8rem 0;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(4, 12, 31, 0.72);
+  border-color: rgba(90, 170, 255, 0.14);
+  backdrop-filter: blur(18px);
+}
+
+.knoux-command-deck .knoux-deck-strip__head {
+  margin-bottom: 8px;
+}
+
+.knoux-command-deck .knoux-deck-strip__row {
+  gap: 7px;
+}
+
+.knoux-command-deck .knoux-deck-chip {
+  min-height: 64px;
+  padding: 10px 7px 8px;
+  border-radius: 13px;
+  border-color: rgba(91, 163, 255, 0.17);
+  background: linear-gradient(155deg, rgba(13, 31, 66, 0.84), rgba(5, 14, 34, 0.9));
+  box-shadow: inset 0 1px 0 rgba(113, 211, 255, 0.04);
+}
+
+.knoux-command-deck .knoux-deck-chip:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(80, 211, 255, 0.48);
+  box-shadow: 0 9px 22px rgba(0, 0, 0, 0.22), 0 0 20px rgba(59, 197, 255, 0.06);
+}
+
+.knoux-command-deck .knoux-deck-chip[data-tool-status='running'] {
+  border-color: rgba(56, 189, 248, 0.62);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.15), 0 0 24px rgba(56, 189, 248, 0.14);
+}
+
+.knoux-command-deck .knoux-deck-chip[data-tool-status='success'] {
+  border-color: rgba(52, 211, 153, 0.42);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   ACTIVE WORKSPACE — let real ServiceApps own the center stage
+   ───────────────────────────────────────────────────────────── */
+.knoux-command-deck .knoux-deck-context {
+  padding-top: 8px;
+  gap: 6px;
+}
+
+.knoux-command-deck .knoux-deck-pill {
+  padding: 6px 9px;
+  border-radius: 10px;
+  background: rgba(4, 14, 35, 0.62);
+  border-color: rgba(90, 170, 255, 0.14);
+  backdrop-filter: blur(12px);
+}
+
+.knoux-command-deck .knoux-deck-preview-label {
+  margin-top: 10px;
+  color: rgba(158, 193, 229, 0.58);
+}
+
+.knoux-command-deck .knoux-stage-service-app {
+  margin: 8px 0.8rem 0.8rem;
+  padding: 0 !important;
+  border: 1px solid rgba(77, 169, 255, 0.17);
+  border-radius: 18px;
+  background: rgba(3, 11, 28, 0.5);
+  overflow: hidden;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(111, 210, 255, 0.035);
+}
+
+/* Designer signature — deliberately subtle, never part of functional UI. */
+.knoux-command-deck::after {
+  content: 'ENG SADEK ELGAZAR';
+  display: block;
+  width: max-content;
+  margin: 2px 14px 9px auto;
+  padding-left: 42px;
+  font-family: 'Segoe Script', 'Brush Script MT', cursive;
+  font-size: 11px;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: 0.075em;
+  color: rgba(112, 225, 255, 0.64);
+  text-shadow: 0 0 12px rgba(61, 202, 255, 0.3), 18px 0 18px rgba(139, 61, 255, 0.18);
+  background: linear-gradient(90deg, rgba(80, 205, 255, 0.0), rgba(80, 205, 255, 0.48) 70%, rgba(139, 61, 255, 0.38)) left center / 34px 1px no-repeat;
+  pointer-events: none;
+  user-select: none;
+}
+
+@keyframes knoux-cyan-smoke-a {
+  0% { transform: translate3d(-7%, 5%, 0) scale(0.92) rotate(-4deg); opacity: 0.38; }
+  48% { transform: translate3d(4%, -3%, 0) scale(1.08) rotate(3deg); opacity: 0.62; }
+  100% { transform: translate3d(9%, 4%, 0) scale(0.98) rotate(7deg); opacity: 0.45; }
+}
+
+@keyframes knoux-cyan-smoke-b {
+  0% { transform: translate3d(9%, -5%, 0) scale(1.03) rotate(6deg); opacity: 0.28; }
+  55% { transform: translate3d(-5%, 4%, 0) scale(0.93) rotate(-3deg); opacity: 0.52; }
+  100% { transform: translate3d(-9%, -2%, 0) scale(1.08) rotate(-7deg); opacity: 0.34; }
+}
+
+@keyframes knoux-core-float {
+  0%, 100% { transform: translateY(5px) rotateX(58deg) rotateZ(-3deg) scale(0.96); }
+  50% { transform: translateY(-8px) rotateX(58deg) rotateZ(3deg) scale(1.03); }
+}
+
+@keyframes knoux-horizon-breathe {
+  0%, 100% { transform: scaleX(0.88); opacity: 0.42; }
+  50% { transform: scaleX(1.05); opacity: 0.82; }
+}
+
+@media (max-width: 1180px) {
+  .knoux-command-deck .knoux-deck-hero {
+    min-height: 150px;
+  }
+  .knoux-command-deck .knoux-deck-services {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .knoux-command-deck .knoux-deck-hero {
+    min-height: 132px;
+    margin-inline: 0.5rem;
+  }
+  .knoux-command-deck .knoux-deck-services {
+    grid-template-columns: 1fr;
+    padding-inline: 0.5rem;
+  }
+  .knoux-command-deck .knoux-deck-strip {
+    margin-inline: 0.5rem;
+  }
+  .knoux-command-deck .knoux-stage-service-app {
+    margin-inline: 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knoux-command-deck .knoux-deck-hero::before,
+  .knoux-command-deck .knoux-deck-hero::after,
+  .knoux-command-deck .knoux-deck-hero__art::before,
+  .knoux-command-deck .knoux-deck-hero__art::after {
+    animation: none !important;
+    transform: none;
+  }
+  .knoux-command-deck .knoux-deck-service,
+  .knoux-command-deck .knoux-deck-chip {
+    transition: none;
+  }
+}
