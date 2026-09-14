@@ -510,6 +510,15 @@ export interface DuplicatePreview {
   FileTypes: DuplicateFileType[];
   KeeperPolicy: DuplicateKeeperPolicy;
   FilesObserved: number;
+  /** Node-engine evidence fields (absent on DF11 previews). */
+  ScannedRoots?: string[];
+  MinSizeBytes?: number;
+  SkippedFiles?: number;
+  HashedBytes?: number;
+  RejectedRoots?: Array<{ path: string; error: string }>;
+  DurationMs?: number;
+  PartialHash?: boolean;
+  Engine?: string;
 
   Groups: DuplicatePreviewGroup[];
   GroupCount: number;
@@ -685,6 +694,14 @@ export const api = {
     return request<{ preview: DuplicatePreview }>(`/api/duplicates/preview?${query.toString()}`, undefined, 125000);
   },
   duplicateQuarantine: () => request<{ quarantine: DuplicateQuarantinePreview }>('/api/duplicates/quarantine', undefined, 30000),
+  duplicatesEngineScan: (roots: string[], options: { minSizeBytes?: number; types?: DuplicateFileType[]; excludeSubfolders?: string[]; keeperPolicy?: DuplicateKeeperPolicy } = {}) =>
+    request<{ preview: DuplicatePreview }>('/api/duplicates/engine-scan', {
+      method: 'POST',
+      body: JSON.stringify({ roots, ...options }),
+    }, 125000),
+  duplicatesEngineQuarantine: (paths: string[], hashes?: Record<string, string>) =>
+    request<{ moved: Array<{ path: string; quarantineId: string; quarantinePath: string; size: number }>; failed: Array<{ path: string; error: string }>; movedCount: number; failedCount: number }>(
+      '/api/duplicates/engine-quarantine', { method: 'POST', body: JSON.stringify({ paths, hashes }) }, 125000),
 
   softwarePreview: () => request<{ preview: SoftwarePreview }>('/api/software/preview', undefined, 125000),
   networkPreview: () => request<{ preview: NetworkPreview }>('/api/network/preview', undefined, 125000),

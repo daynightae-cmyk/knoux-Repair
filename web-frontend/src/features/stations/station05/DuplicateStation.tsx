@@ -289,6 +289,11 @@ export default function DuplicateStation({
   // Application lifecycle flow
   const [appState, setAppState] = useState<DuplicateAppState>('LANDING');
 
+  // Scan engine: Node-native (default, no PowerShell) or legacy DF11 script.
+  const [scanSource, setScanSource] = useState<'node' | 'df11'>('node');
+  const [minSizeKB, setMinSizeKB] = useState<number>(1);
+  const [engineNotice, setEngineNotice] = useState('');
+
   // Core scan parameters
   const [folderPath, setFolderPath] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -303,6 +308,7 @@ export default function DuplicateStation({
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
   const [keepPaths, setKeepPaths] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortKey, setSortKey] = useState<'recoverable' | 'size' | 'name'>('recoverable');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [quarantineEntries, setQuarantineEntries] = useState<DuplicateQuarantineEntry[]>([]);
@@ -357,17 +363,25 @@ export default function DuplicateStation({
     setLoading(true);
     setAppState('SCANNING');
     setError('');
+    setEngineNotice('');
     setPreview(null);
     setSelectedGroupIds(new Set());
     setKeepPaths({});
     setSearchQuery('');
 
     try {
-      const { preview: next } = await api.duplicatePreview(folderToScan, {
-        types: types.length ? types : ['all'],
-        keeperPolicy,
-        excludeSubfolders: excludedSubfolders,
-      });
+      const { preview: next } = scanSource === 'node'
+        ? await api.duplicatesEngineScan([folderToScan], {
+          minSizeBytes: Math.max(1, Math.round(minSizeKB * 1024)),
+          types: types.length ? types : ['all'],
+          keeperPolicy,
+          excludeSubfolders: excludedSubfolders,
+        })
+        : await api.duplicatePreview(folderToScan, {
+          types: types.length ? types : ['all'],
+          keeperPolicy,
+          excludeSubfolders: excludedSubfolders,
+        });
 
       const sanitizedGroups = next.Groups.map((grp) => {
         const remainingFiles = grp.Files.filter((f) => {
@@ -417,15 +431,55 @@ export default function DuplicateStation({
     } finally {
       setLoading(false);
     }
-  }, [excludedSubfolders, folderPath, keeperPolicy, lang, loadQuarantine, types]);
+  }, [excludedSubfolders, folderPath, keeperPolicy, lang, loadQuarantine, minSizeKB, scanSource, types]);
+
+  const engineSource = preview && (preview as DuplicatePreview & { Engine?: string }).Engine === 'node';
 
   const filteredGroups = useMemo(() => {
     if (!preview) return [];
-    return filterGroupsByQuery(preview.Groups, searchQuery);
-  }, [preview, searchQuery]);
+    const matched = filterGroupsByQuery(preview.Groups, searchQuery);
+    const sorted = [...matched];
+    if (sortKey === 'name') {
+      sorted.sort((a, b) => {
+        const nameA = a.Files.find((f) => f.Path === (keepPaths[a.Id] || a.KeepPath))?.Name || a.Files[0]?.Name || '';
+        const nameB = b.Files.find((f) => f.Path === (keepPaths[b.Id] || b.KeepPath))?.Name || b.Files[0]?.Name || '';
+        return nameA.localeCompare(nameB);
+      });
+    } else if (sortKey === 'size') {
+      sorted.sort((a, b) => (b.Files[0]?.SizeBytes || 0) - (a.Files[0]?.SizeBytes || 0));
+    } else {
+      sorted.sort((a, b) => b.RecoverableBytes - a.RecoverableBytes);
+    }
+    return sorted;
+  }, [preview, searchQuery, sortKey, keepPaths]);
 
   const selectedGroups = preview?.Groups.filter((group) => selectedGroupIds.has(group.Id)) || [];
   const selectedBytes = selectedGroups.reduce((total, group) => total + group.RecoverableBytes, 0);
+
+  const typeImpact = useMemo(() => {
+    if (!preview) return [];
+    const byType = new Map<string, { bytes: number; files: number }>();
+    for (const group of preview.Groups) {
+      for (const file of group.Files) {
+        if (file.Path === (keepPaths[group.Id] || group.KeepPath)) continue;
+        const ext = (file.Name.split('.').pop() || 'file').toLowerCase();
+        const entry = byType.get(ext) || { bytes: 0, files: 0 };
+        entry.bytes += file.SizeBytes;
+        entry.files += 1;
+        byType.set(ext, entry);
+      }
+    }
+    return [...byType.entries()]
+      .map(([ext, value]) => ({ ext, ...value }))
+      .sort((a, b) => b.bytes - a.bytes)
+      .slice(0, 6);
+  }, [preview, keepPaths]);
+
+  const pipelineStep = !preview
+    ? (appState === 'SCANNING' ? 1 : 0)
+    : currentTab === 'quarantine' || currentTab === 'recovery'
+      ? 3
+      : selectedGroups.length > 0 ? 2 : 1;
 
   const matchedSelectedCount = useMemo(() => {
     return filteredGroups.filter((g) => selectedGroupIds.has(g.Id)).length;
@@ -484,7 +538,12 @@ export default function DuplicateStation({
   };
 
   const prepareQuarantine = () => {
-    if (!preview || !cleanupTool || !selectedGroups.length) return;
+    if (!preview || !selectedGroups.length) return;
+    if (engineSource) {
+      void quarantineViaEngine();
+      return;
+    }
+    if (!cleanupTool) return;
     onPrepareRun(cleanupTool, 'run', {
       duplicatePreviewId: preview.PreviewId,
       duplicateKeepPaths: selectedGroups.map((group) => ({
@@ -492,6 +551,37 @@ export default function DuplicateStation({
         keepPath: keepPaths[group.Id] || group.KeepPath,
       })),
     });
+  };
+
+  const quarantineViaEngine = async () => {
+    if (!preview || !selectedGroups.length) return;
+    setEngineNotice('');
+    const paths: string[] = [];
+    const hashes: Record<string, string> = {};
+    for (const group of selectedGroups) {
+      const keeper = keepPaths[group.Id] || group.KeepPath;
+      for (const file of group.Files) {
+        if (file.Path !== keeper) {
+          paths.push(file.Path);
+          hashes[file.Path] = group.Hash;
+        }
+      }
+    }
+    if (!paths.length) return;
+    try {
+      const result = await api.duplicatesEngineQuarantine(paths, hashes);
+      setEngineNotice(
+        lang === 'ar'
+          ? `تم عزل ${result.movedCount} ملف بنجاح${result.failedCount ? ` وتعذر ${result.failedCount}` : ''}.`
+          : `${result.movedCount} file(s) quarantined${result.failedCount ? `, ${result.failedCount} failed` : ''}.`
+      );
+      await loadQuarantine();
+      await triggerScan();
+    } catch {
+      setEngineNotice(
+        lang === 'ar' ? 'تعذر إتمام العزل عبر المحرك.' : 'Engine quarantine could not be completed.'
+      );
+    }
   };
 
   return (
@@ -752,8 +842,45 @@ export default function DuplicateStation({
               })}
             </div>
 
-            {/* Keeper policy buttons */}
+            {/* Scan engine + hash mode */}
             <div className="duplicate-policy-row">
+              <span>{lang === 'ar' ? 'محرك الفحص:' : 'Scan engine:'}</span>
+              <button
+                type="button"
+                className={scanSource === 'node' ? 'is-active' : ''}
+                onClick={() => setScanSource('node')}
+                title={lang === 'ar' ? 'محرك Node الأصلي — سريع ولا يعتمد على PowerShell' : 'Native Node engine — fast, no PowerShell dependency'}
+              >
+                {lang === 'ar' ? 'Node الأصلي (موصى به)' : 'Native Node (Recommended)'}
+              </button>
+              <button
+                type="button"
+                className={scanSource === 'df11' ? 'is-active' : ''}
+                onClick={() => setScanSource('df11')}
+                title={lang === 'ar' ? 'مسار DF11 الاحتياطي عبر PowerShell' : 'Legacy DF11 PowerShell fallback path'}
+              >
+                {lang === 'ar' ? 'DF11 الاحتياطي' : 'DF11 Fallback'}
+              </button>
+              <span className="duplicate-hash-badge">SHA-256 · {lang === 'ar' ? 'تطابق تام' : 'Exact'}</span>
+            </div>
+
+            {/* Minimum size (native engine) */}
+            <div className="duplicate-policy-row">
+              <span>{lang === 'ar' ? 'أصغر حجم للفحص:' : 'Minimum file size:'}</span>
+              {[1, 100, 1024, 10240].map((kb) => (
+                <button
+                  type="button"
+                  key={kb}
+                  className={minSizeKB === kb && scanSource === 'node' ? 'is-active' : ''}
+                  disabled={scanSource !== 'node'}
+                  onClick={() => setMinSizeKB(kb)}
+                >
+                  {kb >= 1024 ? `${kb / 1024} MB` : `${kb} KB`}
+                </button>
+              ))}
+            </div>
+
+            {/* Keeper policy buttons */}            <div className="duplicate-policy-row">
               <span>{lang === 'ar' ? 'قاعدة تفضيل النسخة الأصلية:' : 'Keeper preference:'}</span>
               <button
                 type="button"
@@ -923,11 +1050,33 @@ export default function DuplicateStation({
         {/* RESULTS & WORKSPACE STAGE */}
         {(appState === 'RESULTS' || currentTab === 'duplicates') && preview && (
           <>
+            {/* Command pipeline: honest stage tracker */}
+            <ol className="duplicate-pipeline" aria-label={lang === 'ar' ? 'مراحل سير العمل' : 'Workflow stages'}>
+              {[
+                { en: 'Configure', ar: 'الإعداد' },
+                { en: 'Scan', ar: 'الفحص' },
+                { en: 'Review', ar: 'المراجعة' },
+                { en: 'Quarantine', ar: 'العزل' },
+              ].map((step, index) => (
+                <li
+                  key={step.en}
+                  data-state={index < pipelineStep ? 'done' : index === pipelineStep ? 'current' : 'todo'}
+                  aria-current={index === pipelineStep ? 'step' : undefined}
+                >
+                  <b>{index + 1}</b>
+                  <span>{lang === 'ar' ? step.ar : step.en}</span>
+                </li>
+              ))}
+            </ol>
+
             {/* Compact Header */}
             <div className="duplicate-command-hero" style={{ minHeight: 'auto', padding: '0.85rem 1.15rem' }}>
               <DuplicateHeroVisual lang={lang} stage="results" className="compact" />
               <div>
-                <p>{lang === 'ar' ? 'نتائج الفحص التكراري' : 'Duplicate Scan Workspace'}</p>
+                <p>
+                  {lang === 'ar' ? 'نتائج الفحص التكراري' : 'Duplicate Scan Workspace'}
+                  {engineSource ? (lang === 'ar' ? ' · محرك Node' : ' · Node engine') : (lang === 'ar' ? ' · مسار DF11' : ' · DF11 path')}
+                </p>
                 <h2>
                   {lang === 'ar'
                     ? `${preview.GroupCount} مجموعة مكررة مكتشفة`
@@ -958,6 +1107,40 @@ export default function DuplicateStation({
                   {lang === 'ar' ? 'إعادة الفحص' : 'Rescan'}
                 </button>
               </div>
+            </div>
+
+            {/* Evidence stat cards: every number comes from the live scan */}
+            <div className="duplicate-evidence-grid" role="list">
+              <div className="duplicate-evidence-card" role="listitem">
+                <small>{lang === 'ar' ? 'مجموعات مكررة' : 'Duplicate groups'}</small>
+                <strong>{preview.GroupCount.toLocaleString(lang)}</strong>
+              </div>
+              <div className="duplicate-evidence-card" role="listitem">
+                <small>{lang === 'ar' ? 'قابل للاسترداد' : 'Recoverable'}</small>
+                <strong>{formatBytes(preview.RecoverableBytes, lang)}</strong>
+              </div>
+              <div className="duplicate-evidence-card" role="listitem">
+                <small>{lang === 'ar' ? 'ملفات مفحوصة' : 'Files scanned'}</small>
+                <strong>{preview.FilesObserved.toLocaleString(lang)}</strong>
+              </div>
+              {typeof preview.SkippedFiles === 'number' && (
+                <div className="duplicate-evidence-card" role="listitem">
+                  <small>{lang === 'ar' ? 'ملفات متجاوزة' : 'Skipped files'}</small>
+                  <strong>{preview.SkippedFiles.toLocaleString(lang)}</strong>
+                </div>
+              )}
+              {typeof preview.DurationMs === 'number' && (
+                <div className="duplicate-evidence-card" role="listitem">
+                  <small>{lang === 'ar' ? 'مدة الفحص' : 'Scan duration'}</small>
+                  <strong>{(preview.DurationMs / 1000).toFixed(1)}s</strong>
+                </div>
+              )}
+              {preview.Truncated && (
+                <div className="duplicate-evidence-card is-warning" role="listitem">
+                  <small>{lang === 'ar' ? 'تغطية جزئية' : 'Partial coverage'}</small>
+                  <strong>{lang === 'ar' ? 'حدود مطبقة' : 'Limits hit'}</strong>
+                </div>
+              )}
             </div>
 
             {/* Recharts Reclaimed Space Visual */}
@@ -1048,6 +1231,18 @@ export default function DuplicateStation({
                 </div>
 
                 <div className="duplicate-batch-actions">
+                  <label className="duplicate-sort-box">
+                    <span>{lang === 'ar' ? 'الفرز:' : 'Sort:'}</span>
+                    <select
+                      value={sortKey}
+                      onChange={(event) => setSortKey(event.target.value as 'recoverable' | 'size' | 'name')}
+                      aria-label={lang === 'ar' ? 'فرز المجموعات' : 'Sort groups'}
+                    >
+                      <option value="recoverable">{lang === 'ar' ? 'الأعلى استرداداً' : 'Largest reclaim'}</option>
+                      <option value="size">{lang === 'ar' ? 'الأكبر حجماً' : 'Largest files'}</option>
+                      <option value="name">{lang === 'ar' ? 'الاسم أبجدياً' : 'Name A–Z'}</option>
+                    </select>
+                  </label>
                   <button
                     type="button"
                     className={`duplicate-filter-toggle-btn ${
@@ -1112,8 +1307,50 @@ export default function DuplicateStation({
               )}
             </section>
 
-            {/* Bottom Floating Action Bar */}
-            <section className="duplicate-action-dock">
+            {/* Storage impact by type + honest scan log */}
+            <div className="duplicate-insight-grid">
+              <section className="duplicate-insight-card" aria-label={lang === 'ar' ? 'التأثير حسب النوع' : 'Impact by type'}>
+                <header>
+                  <strong>{lang === 'ar' ? 'التأثير التخزيني حسب النوع' : 'Storage impact by type'}</strong>
+                  <small>{lang === 'ar' ? 'محسوب من النسخ غير المحتفظ بها' : 'Computed from non-keeper copies'}</small>
+                </header>
+                {typeImpact.length === 0 ? (
+                  <p className="duplicate-insight-empty">{lang === 'ar' ? 'لا توجد نسخ إضافية.' : 'No extra copies.'}</p>
+                ) : (
+                  <ul>
+                    {typeImpact.map((entry) => (
+                      <li key={entry.ext}>
+                        <code>.{entry.ext}</code>
+                        <span>{entry.files.toLocaleString(lang)} {lang === 'ar' ? 'ملف' : 'files'}</span>
+                        <b>{formatBytes(entry.bytes, lang)}</b>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+              <section className="duplicate-insight-card" aria-label={lang === 'ar' ? 'سجل الفحص' : 'Scan log'}>
+                <header>
+                  <strong>{lang === 'ar' ? 'سجل الفحص' : 'Scan log'}</strong>
+                  <small>{engineSource ? (lang === 'ar' ? 'محرك Node الأصلي' : 'Native Node engine') : (lang === 'ar' ? 'مسار DF11' : 'DF11 path')}</small>
+                </header>
+                <ul className="duplicate-scan-log">
+                  <li><span>{lang === 'ar' ? 'المجلد' : 'Folder'}</span><b className="duplicate-scan-log-path">{preview.Folder}</b></li>
+                  <li><span>{lang === 'ar' ? 'المحافظة' : 'Keeper rule'}</span><b>{preview.KeeperPolicy}</b></li>
+                  {typeof preview.MinSizeBytes === 'number' && (
+                    <li><span>{lang === 'ar' ? 'أصغر حجم' : 'Min size'}</span><b>{formatBytes(preview.MinSizeBytes, lang)}</b></li>
+                  )}
+                  {typeof preview.HashedBytes === 'number' && (
+                    <li><span>{lang === 'ar' ? 'بايتات مبصومة' : 'Bytes hashed'}</span><b>{formatBytes(preview.HashedBytes, lang)}</b></li>
+                  )}
+                  {preview.RejectedRoots && preview.RejectedRoots.length > 0 && (
+                    <li><span>{lang === 'ar' ? 'جذور مرفوضة' : 'Rejected roots'}</span><b>{preview.RejectedRoots.map((r) => `${r.path} (${r.error})`).join('; ')}</b></li>
+                  )}
+                  <li><span>{lang === 'ar' ? 'التغطية' : 'Coverage'}</span><b>{preview.Truncated ? (lang === 'ar' ? 'جزئية — طبقت الحدود' : 'Partial — limits applied') : (lang === 'ar' ? 'كاملة' : 'Full')}</b></li>
+                </ul>
+              </section>
+            </div>
+
+            {/* Bottom Floating Action Bar */}            <section className="duplicate-action-dock">
               <div>
                 <span>{lang === 'ar' ? 'خطة العزل الآمن المختارة' : 'Selected Safe Quarantine Plan'}</span>
                 <strong>
@@ -1131,11 +1368,14 @@ export default function DuplicateStation({
                   type="button"
                   className="duplicate-quarantine-button"
                   onClick={prepareQuarantine}
-                  disabled={!cleanupTool || !selectedGroups.length}
+                  disabled={(!cleanupTool && !engineSource) || !selectedGroups.length}
                 >
                   <ShieldCheck size={15} />
                   <span>{lang === 'ar' ? 'مراجعة العزل الآمن' : 'REVIEW CLEANUP'}</span>
                 </button>
+                {engineNotice && (
+                  <span className="duplicate-engine-notice" role="status">{engineNotice}</span>
+                )}
               </div>
             </section>
           </>
