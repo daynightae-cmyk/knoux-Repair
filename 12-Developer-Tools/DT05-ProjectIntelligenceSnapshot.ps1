@@ -30,7 +30,16 @@ try {
     } catch { Write-KnouxLog -Session $Session -Message 'Git metadata could not be collected.' -Level WARN }
   }
   $topDirectories = @(Get-ChildItem -LiteralPath $workspace -Directory -Force -ErrorAction SilentlyContinue | Select-Object -First 80 | ForEach-Object { [pscustomobject]@{ Name=$_.Name; LastWriteTime=$_.LastWriteTime.ToString('o') } })
-  $snapshot = [pscustomobject]@{ Workspace=$workspace; CapturedAt=(Get-Date).ToString('o'); Markers=$markerRows; PackageName=if($package){$package.name}else{''}; PackageVersion=if($package){$package.version}else{''}; PackageScripts=if($package -and $package.scripts){$package.scripts.PSObject.Properties | ForEach-Object { $_.Name }}else{@()}; Git=$gitState; TopDirectories=$topDirectories }
+  # StrictMode-safe manifest reads: a package.json without name/version/scripts
+  # must yield empty evidence, never a terminating property error.
+  # NOTE: assign the Properties collection directly (an if-expression would
+  # unwrap it into Object[], breaking string indexing).
+  $packageProps = $null
+  if ($package) { $packageProps = $package.PSObject.Properties }
+  $packageName = if ($packageProps -and $packageProps['name']) { [string]$package.name } else { '' }
+  $packageVersion = if ($packageProps -and $packageProps['version']) { [string]$package.version } else { '' }
+  $packageScripts = if ($packageProps -and $packageProps['scripts'] -and $package.scripts) { @($package.scripts.PSObject.Properties | ForEach-Object { $_.Name }) } else { @() }
+  $snapshot = [pscustomobject]@{ Workspace=$workspace; CapturedAt=(Get-Date).ToString('o'); Markers=$markerRows; PackageName=$packageName; PackageVersion=$packageVersion; PackageScripts=$packageScripts; Git=$gitState; TopDirectories=$topDirectories }
   $snapshot | ConvertTo-Json -Depth 7 | Set-Content (Join-Path $Session.RawDir 'project-intelligence.json') -Encoding UTF8
   $Session.ItemsFound = $markerRows.Count + $topDirectories.Count
   $Session.VerificationPerformed = $true

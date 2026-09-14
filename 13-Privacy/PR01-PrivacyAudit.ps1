@@ -9,7 +9,7 @@ $Session = Start-KnouxSession -ToolId 'PR01' -ToolName 'Privacy Audit' -Category
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf
 try {
 $paths = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Privacy','HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-  $rows = foreach ($path in $paths) { if (Test-Path $path) { Get-ItemProperty -Path $path | Select-Object PSPath,* } }
+  $rows = foreach ($path in $paths) { if (Test-Path $path) { Get-ItemProperty -Path $path | Select-Object * } }
   $rows | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Session.RawDir 'privacy-audit.json') -Encoding UTF8
   $Session.ItemsFound = @($rows).Count; $Session.VerificationPerformed = $true; $Session.VerificationResult = 'Privacy registry values exported'; Write-Host '[OK] Privacy audit exported.' -ForegroundColor Green
 } catch {
