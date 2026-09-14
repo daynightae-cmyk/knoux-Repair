@@ -1,0 +1,52 @@
+/* KNOUX Repair — Programs Golden Master CI/runtime compatibility.
+   Keep the canonical action rail present so the 18-service verification contract
+   remains executable, while still widening the center workspace relative to the
+   pre-Grok shell. */
+
+.knoux-command-center.knoux-service-app-active:has(.programs-station) {
+  --command-rail-width: clamp(176px, 12vw, 206px);
+  --command-tool-width: clamp(190px, 14vw, 228px);
+  grid-template-columns: var(--command-rail-width) minmax(0, 1fr) var(--command-tool-width) !important;
+  gap: 9px !important;
+}
+
+.knoux-command-center.knoux-service-app-active:has(.programs-station) > .knoux-command-tool-rail {
+  display: flex !important;
+  max-height: calc(100vh - 124px);
+}
+
+.knoux-command-center:has(.programs-station) .knoux-command-tool-rail .knoux-command-rail-header {
+  min-height: 54px;
+  padding: 9px 10px;
+}
+
+.knoux-command-center:has(.programs-station) .knoux-command-tool-rail .knoux-command-selected-service {
+  padding: 9px 10px;
+}
+
+.knoux-command-center:has(.programs-station) .knoux-command-tool-rail .knoux-command-tool-controls {
+  padding-inline: 8px;
+}
+
+.knoux-command-center:has(.programs-station) .knoux-command-tool-rail .knoux-command-rail-scroll {
+  padding: 7px;
+}
+
+@media (max-width: 1180px) {
+  .knoux-command-center.knoux-service-app-active:has(.programs-station) {
+    --command-rail-width: 168px;
+    --command-tool-width: 204px;
+  }
+}
+
+@media (max-width: 980px) {
+  .knoux-command-center.knoux-service-app-active:has(.programs-station) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .knoux-command-center.knoux-service-app-active:has(.programs-station) > .knoux-command-service-rail,
+  .knoux-command-center.knoux-service-app-active:has(.programs-station) > .knoux-command-tool-rail {
+    display: flex !important;
+    max-height: none;
+  }
+}
