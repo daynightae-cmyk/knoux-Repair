@@ -66,6 +66,54 @@
   font-weight: 700;
 }
 
+/* ── TopBar brand lockup: real PNG identity, text fallback, compact K ── */
+.knoux-brand {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+.knoux-brand__img {
+  display: block;
+  height: 28px;
+  width: auto;
+  max-width: 196px;
+  object-fit: contain;
+  user-select: none;
+}
+.knoux-brand__text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.knoux-brand__compact {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 0.6rem;
+  font-weight: 800;
+  font-size: 1rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--knoux-violet), var(--knoux-cyan));
+  box-shadow: 0 0 14px rgba(var(--knoux-violet-rgb), 0.35);
+  user-select: none;
+}
+@media (max-width: 640px) {
+  .knoux-brand__img,
+  .knoux-brand__text {
+    display: none !important;
+  }
+  .knoux-brand__compact {
+    display: inline-flex;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .knoux-brand__compact {
+    box-shadow: none;
+  }
+}
+
 /* ── Layout ── */
 .knoux-body {
   display: flex;
