@@ -146,6 +146,7 @@ export default function FamilyPage({
             family={family}
             activeService={activeService}
             serviceTools={serviceTools}
+            familyTools={familyTools}
             lang={lang}
             bridgeOnline={bridgeOnline}
             bridgeElevated={bridgeElevated}

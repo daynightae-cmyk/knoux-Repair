@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 620" role="img" aria-label="Engineering workbench visual">
+  <defs>
+    <linearGradient id="kwb-cyan" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#67e8f9"/>
+      <stop offset="0.55" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="kwb-violet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c4b5fd"/>
+      <stop offset="0.55" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#6d28d9"/>
+    </linearGradient>
+    <linearGradient id="kwb-beam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="kwb-beamV" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a78bfa" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#a78bfa" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="kwb-glass" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.28"/>
+      <stop offset="0.5" stop-color="#818cf8" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#a855f7" stop-opacity="0.28"/>
+    </linearGradient>
+    <radialGradient id="kwb-floor" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#2563eb" stop-opacity="0.35"/>
+      <stop offset="0.6" stop-color="#1d4ed8" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#1d4ed8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="kwb-glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- floor glow -->
+  <ellipse cx="430" cy="520" rx="300" ry="70" fill="url(#kwb-floor)"/>
+
+  <!-- perspective grid -->
+  <g stroke="#38bdf8" stroke-opacity="0.22" stroke-width="1.5">
+    <path d="M60 520 L430 420 L800 520" fill="none"/>
+    <path d="M130 560 L430 445 L730 560" fill="none" stroke-opacity="0.14"/>
+    <path d="M210 600 L430 470 L650 600" fill="none" stroke-opacity="0.09"/>
+    <path d="M430 420 L430 600" stroke-opacity="0.16"/>
+    <path d="M300 456 L300 600" stroke-opacity="0.1"/>
+    <path d="M560 456 L560 600" stroke-opacity="0.1"/>
+    <path d="M180 492 L180 580" stroke-opacity="0.07"/>
+    <path d="M680 492 L680 580" stroke-opacity="0.07"/>
+  </g>
+
+  <!-- light beams -->
+  <g>
+    <rect x="240" y="60" width="5" height="330" rx="2.5" fill="url(#kwb-beam)" opacity="0.7"/>
+    <rect x="300" y="20" width="3" height="380" rx="1.5" fill="url(#kwb-beamV)" opacity="0.55"/>
+    <rect x="560" y="40" width="4" height="360" rx="2" fill="url(#kwb-beam)" opacity="0.6"/>
+    <rect x="620" y="90" width="3" height="300" rx="1.5" fill="url(#kwb-beamV)" opacity="0.5"/>
+    <rect x="180" y="140" width="2.5" height="240" rx="1.2" fill="url(#kwb-beam)" opacity="0.4"/>
+  </g>
+
+  <!-- orbit rings -->
+  <g fill="none" filter="url(#kwb-glow)">
+    <ellipse cx="430" cy="330" rx="215" ry="62" stroke="#22d3ee" stroke-opacity="0.55" stroke-width="2.5" transform="rotate(-8 430 330)"/>
+    <ellipse cx="430" cy="330" rx="258" ry="80" stroke="#a855f7" stroke-opacity="0.4" stroke-width="2" transform="rotate(6 430 330)"/>
+  </g>
+  <g fill="#67e8f9" filter="url(#kwb-glow)">
+    <circle cx="222" cy="352" r="7"/>
+    <circle cx="640" cy="300" r="9"/>
+  </g>
+  <g fill="#c4b5fd" filter="url(#kwb-glow)">
+    <circle cx="560" cy="392" r="6"/>
+    <circle cx="330" cy="272" r="5"/>
+  </g>
+
+  <!-- base platform -->
+  <g filter="url(#kwb-glow)">
+    <polygon points="430,430 610,480 430,530 250,480" fill="#0b1530" fill-opacity="0.85" stroke="url(#kwb-violet)" stroke-width="2.5"/>
+    <polygon points="430,440 590,482 430,524 270,482" fill="none" stroke="#22d3ee" stroke-opacity="0.5" stroke-width="1.5"/>
+  </g>
+
+  <!-- stacked glass slabs -->
+  <g filter="url(#kwb-glow)">
+    <polygon points="430,400 560,440 430,480 300,440" fill="url(#kwb-glass)" stroke="url(#kwb-cyan)" stroke-width="2.5"/>
+    <polygon points="430,352 545,386 430,420 315,386" fill="url(#kwb-glass)" stroke="url(#kwb-violet)" stroke-width="2.5"/>
+    <polygon points="430,304 530,332 430,360 330,332" fill="url(#kwb-glass)" stroke="url(#kwb-cyan)" stroke-width="2.5"/>
+    <!-- top slab -->
+    <polygon points="430,238 522,272 430,306 338,272" fill="#0b1a3a" fill-opacity="0.9" stroke="url(#kwb-cyan)" stroke-width="3"/>
+    <polygon points="430,248 508,274 430,300 352,274" fill="none" stroke="#a5f3fc" stroke-opacity="0.65" stroke-width="1.5"/>
+  </g>
+
+  <!-- code mark drawn as strokes (no embedded text) -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#kwb-glow)">
+    <polyline points="398,262 382,274 398,286" stroke="#67e8f9" stroke-width="7"/>
+    <polyline points="462,262 478,274 462,286" stroke="#c4b5fd" stroke-width="7"/>
+    <line x1="440" y1="256" x2="420" y2="292" stroke="#e0f2fe" stroke-width="6"/>
+  </g>
+
+  <!-- floating cubes -->
+  <g filter="url(#kwb-glow)">
+    <g>
+      <polygon points="150,470 172,482 150,494 128,482" fill="#0b1a3a" stroke="#22d3ee" stroke-width="2"/>
+      <polygon points="128,482 150,494 150,516 128,504" fill="#0b1a3a" stroke="#22d3ee" stroke-opacity="0.6" stroke-width="2"/>
+      <polygon points="150,494 172,482 172,504 150,516" fill="#0b1a3a" stroke="#22d3ee" stroke-opacity="0.35" stroke-width="2"/>
+    </g>
+    <g>
+      <polygon points="690,430 712,442 690,454 668,442" fill="#0b1a3a" stroke="#a855f7" stroke-width="2"/>
+      <polygon points="668,442 690,454 690,476 668,464" fill="#0b1a3a" stroke="#a855f7" stroke-opacity="0.6" stroke-width="2"/>
+      <polygon points="690,454 712,442 712,464 690,476" fill="#0b1a3a" stroke="#a855f7" stroke-opacity="0.35" stroke-width="2"/>
+    </g>
+  </g>
+
+  <!-- rising particles -->
+  <g fill="#67e8f9">
+    <circle cx="250" cy="220" r="3" opacity="0.8"/>
+    <circle cx="610" cy="180" r="3.5" opacity="0.8"/>
+    <circle cx="540" cy="120" r="2.5" opacity="0.6"/>
+    <circle cx="350" cy="140" r="2.5" opacity="0.6"/>
+    <circle cx="150" cy="300" r="3" opacity="0.5"/>
+    <circle cx="700" cy="250" r="2.5" opacity="0.5"/>
+  </g>
+  <g fill="#c4b5fd">
+    <circle cx="290" cy="180" r="2.5" opacity="0.7"/>
+    <circle cx="580" cy="230" r="3" opacity="0.6"/>
+    <circle cx="660" cy="140" r="2.5" opacity="0.6"/>
+    <circle cx="200" cy="250" r="2" opacity="0.5"/>
+  </g>
+</svg>
