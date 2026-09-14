@@ -1,0 +1,641 @@
+/* ========================================================================== 
+   KNOUX Repair — Grok visual integration / Station 04 Golden Master
+   Presentation-only layer. No tool, bridge, execution, or evidence logic here.
+   ========================================================================== */
+
+/* Give Programs & Applications the room it needs while the canonical service
+   app is mounted. The tool rail returns automatically when a concrete tool is
+   selected because .programs-station is no longer in the live stage. */
+.knoux-command-center.knoux-service-app-active:has(.programs-station) {
+  --command-rail-width: clamp(188px, 13.5vw, 224px);
+  grid-template-columns: var(--command-rail-width) minmax(0, 1fr);
+  gap: 10px !important;
+}
+
+.knoux-command-center.knoux-service-app-active:has(.programs-station) > .knoux-command-tool-rail {
+  display: none;
+}
+
+.knoux-command-center:has(.programs-station) .knoux-command-live-column {
+  max-height: calc(100vh - 124px);
+  gap: 8px;
+}
+
+.knoux-command-center:has(.programs-station) .knoux-command-preview {
+  min-height: 208px !important;
+  border-radius: 20px !important;
+  border-color: rgba(147, 112, 255, 0.18) !important;
+  background:
+    radial-gradient(560px 210px at 75% 12%, rgba(96, 81, 255, 0.16), transparent 68%),
+    radial-gradient(420px 220px at 20% 120%, rgba(35, 211, 238, 0.08), transparent 70%),
+    linear-gradient(145deg, rgba(7, 10, 25, 0.95), rgba(4, 6, 17, 0.98)) !important;
+  box-shadow:
+    0 26px 70px rgba(0, 0, 0, 0.38),
+    inset 0 1px rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(93, 71, 255, 0.035);
+}
+
+.knoux-command-center:has(.programs-station) .knoux-command-preview-body {
+  min-height: 150px !important;
+  grid-template-columns: minmax(320px, 0.96fr) minmax(360px, 1.04fr) !important;
+}
+
+.knoux-command-center:has(.programs-station) .knoux-command-preview .knoux-preview-scene-frame > div {
+  height: 202px !important;
+  transform: scale(.72);
+}
+
+.knoux-command-center:has(.programs-station) .knoux-command-service-rail .knoux-service-card {
+  min-height: 94px;
+  padding: 10px;
+  border-radius: 14px;
+}
+
+.knoux-command-center:has(.programs-station) .knoux-stage-header,
+.knoux-command-center:has(.programs-station) .knoux-live-hud {
+  background: rgba(4, 7, 19, 0.72);
+  backdrop-filter: blur(22px);
+}
+
+.knoux-command-center:has(.programs-station) .knoux-live-hud {
+  min-height: 54px;
+  padding-block: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   Station shell
+   -------------------------------------------------------------------------- */
+.programs-station {
+  --programs-accent: #9b7cff;
+  --programs-accent-2: #61e7ff;
+  --programs-warm: #ff9b63;
+  --programs-panel: rgba(8, 11, 27, 0.72);
+  --programs-panel-strong: rgba(6, 9, 23, 0.9);
+  --programs-border: rgba(159, 142, 255, 0.14);
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  padding: 2px;
+  isolation: isolate;
+}
+
+.programs-station::before,
+.programs-station::after {
+  position: absolute;
+  z-index: -1;
+  content: '';
+  pointer-events: none;
+  filter: blur(4px);
+}
+
+.programs-station::before {
+  width: 460px;
+  height: 460px;
+  top: -240px;
+  right: -110px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(119, 86, 255, 0.16), transparent 68%);
+}
+
+.programs-station::after {
+  width: 360px;
+  height: 360px;
+  left: -170px;
+  bottom: -190px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(62, 219, 245, 0.075), transparent 70%);
+}
+
+.programs-station > header:first-child {
+  position: relative;
+  min-height: 58px;
+  padding: 9px 12px !important;
+  overflow: hidden;
+  border: 1px solid var(--programs-border) !important;
+  border-radius: 15px !important;
+  background:
+    linear-gradient(90deg, rgba(131, 87, 255, 0.075), transparent 42%),
+    rgba(5, 8, 21, 0.76) !important;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(22px) !important;
+}
+
+.programs-station > header:first-child::before {
+  position: absolute;
+  inset-inline: 16px;
+  top: 0;
+  height: 1px;
+  content: '';
+  background: linear-gradient(90deg, transparent, rgba(103, 232, 249, .7), rgba(155, 124, 255, .75), transparent);
+}
+
+.programs-station > header:first-child h1 {
+  color: #f5f7ff !important;
+  font-family: var(--knoux-font-display);
+  font-size: 13px !important;
+  letter-spacing: -.01em;
+}
+
+.programs-station > header:first-child p {
+  color: #71819e !important;
+  font-size: 9px !important;
+}
+
+.programs-station > header:first-child svg.text-orange-400 {
+  color: var(--programs-accent-2) !important;
+  filter: drop-shadow(0 0 10px rgba(97, 231, 255, .38));
+}
+
+.programs-station > header:first-child .btn {
+  min-height: 31px;
+  border-radius: 9px;
+  font-size: 9px !important;
+}
+
+.programs-station > header:first-child .btn-primary {
+  color: #f6f3ff;
+  border: 1px solid rgba(156, 124, 255, .34);
+  background: linear-gradient(135deg, rgba(127, 88, 255, .86), rgba(83, 64, 216, .82));
+  box-shadow: 0 6px 20px rgba(102, 73, 239, .18);
+}
+
+/* --------------------------------------------------------------------------
+   Mini navigation: compact glass command strip
+   -------------------------------------------------------------------------- */
+.programs-mini-nav {
+  position: relative;
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid rgba(142, 158, 218, .1);
+  border-radius: 13px;
+  background:
+    linear-gradient(90deg, rgba(74, 55, 176, .05), rgba(255,255,255,.012), rgba(20, 159, 189, .025)),
+    rgba(4, 7, 18, .76);
+  box-shadow: inset 0 1px rgba(255,255,255,.035);
+  backdrop-filter: blur(20px);
+  scrollbar-width: none;
+}
+
+.programs-mini-nav::-webkit-scrollbar { display: none; }
+
+.programs-mini-nav-btn {
+  position: relative;
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: #7786a3;
+  background: transparent;
+  font: 700 8px/1.1 var(--knoux-font-mono);
+  letter-spacing: .025em;
+  white-space: nowrap;
+  transition: color .16s ease, border-color .16s ease, background .16s ease, transform .16s ease;
+}
+
+.programs-mini-nav-btn svg { width: 13px; height: 13px; }
+.programs-mini-nav-btn:hover {
+  color: #dbe7ff;
+  border-color: rgba(112, 230, 245, .12);
+  background: rgba(255,255,255,.025);
+  transform: translateY(-1px);
+}
+
+.programs-mini-nav-btn.is-active {
+  color: #f3f5ff;
+  border-color: rgba(151, 123, 255, .26);
+  background:
+    linear-gradient(135deg, rgba(124, 86, 255, .15), rgba(76, 214, 236, .045)),
+    rgba(255,255,255,.025);
+  box-shadow: inset 0 1px rgba(255,255,255,.045), 0 0 18px rgba(118, 81, 255, .08);
+}
+
+.programs-mini-nav-btn.is-active::after {
+  position: absolute;
+  right: 8px;
+  bottom: 2px;
+  left: 8px;
+  height: 1px;
+  content: '';
+  background: linear-gradient(90deg, transparent, var(--programs-accent), var(--programs-accent-2), transparent);
+  box-shadow: 0 0 8px rgba(97, 231, 255, .4);
+}
+
+/* --------------------------------------------------------------------------
+   Context header
+   -------------------------------------------------------------------------- */
+.programs-tab-header {
+  position: relative;
+  padding: 9px 12px;
+  border: 1px solid rgba(147, 133, 199, .105);
+  border-radius: 13px;
+  background:
+    radial-gradient(280px 100px at 0% 0%, rgba(132, 91, 255, .065), transparent 74%),
+    rgba(6, 9, 22, .7);
+  backdrop-filter: blur(18px);
+}
+
+.programs-tab-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: #eef3ff;
+  font-size: 11px;
+}
+
+.programs-tab-header h3 svg { color: var(--programs-accent-2); }
+.programs-tab-header p {
+  max-width: 920px;
+  margin: 3px 0 0;
+  color: #6f819e;
+  font-size: 8.5px;
+  line-height: 1.45;
+}
+
+/* --------------------------------------------------------------------------
+   Golden-master landing deck
+   -------------------------------------------------------------------------- */
+.programs-station > .space-y-6,
+.programs-station > div.space-y-6 {
+  min-height: 0;
+}
+
+.programs-landing-canvas {
+  position: relative;
+  display: grid;
+  min-height: clamp(250px, 38vh, 350px);
+  grid-template-columns: minmax(300px, .95fr) minmax(360px, 1.05fr);
+  align-items: center;
+  gap: clamp(18px, 3vw, 44px);
+  overflow: hidden;
+  padding: clamp(20px, 2.8vw, 38px);
+  border: 1px solid rgba(151, 123, 255, .22);
+  border-radius: 22px;
+  background:
+    linear-gradient(90deg, rgba(7, 10, 24, .97) 0%, rgba(8, 10, 27, .91) 42%, rgba(6, 8, 22, .68) 100%),
+    rgba(4, 6, 17, .95);
+  box-shadow:
+    0 26px 70px rgba(0,0,0,.36),
+    inset 0 1px rgba(255,255,255,.05),
+    inset 0 -40px 80px rgba(40, 25, 110, .035);
+  isolation: isolate;
+}
+
+.programs-landing-canvas::before {
+  position: absolute;
+  z-index: -1;
+  width: 520px;
+  height: 520px;
+  top: -180px;
+  right: -40px;
+  border-radius: 50%;
+  content: '';
+  background:
+    radial-gradient(circle, rgba(102, 70, 255, .18) 0 12%, rgba(73, 214, 239, .06) 24%, transparent 65%);
+  filter: blur(2px);
+}
+
+.programs-landing-canvas::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: '';
+  opacity: .23;
+  background-image:
+    linear-gradient(rgba(126, 148, 203, .11) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(126, 148, 203, .085) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to right, transparent, black 54%, black);
+}
+
+.programs-landing-copy {
+  z-index: 2;
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+[dir='rtl'] .programs-landing-copy { align-items: flex-start; }
+
+.programs-landing-copy::before {
+  content: 'APPLICATION COMMAND DECK';
+  color: #7be9f5;
+  font: 800 8px/1 var(--knoux-font-mono);
+  letter-spacing: .18em;
+  text-shadow: 0 0 14px rgba(97,231,255,.25);
+}
+
+[dir='rtl'] .programs-landing-copy::before { content: 'APPLICATION COMMAND DECK'; }
+
+.programs-landing-copy h2 {
+  max-width: 620px;
+  margin: 0;
+  color: #f6f7ff;
+  font-family: var(--knoux-font-display);
+  font-size: clamp(24px, 2.6vw, 38px);
+  font-weight: 760;
+  line-height: .98;
+  letter-spacing: -.035em;
+  text-wrap: balance;
+}
+
+.programs-landing-copy p {
+  max-width: 610px;
+  margin: 2px 0 0;
+  color: #8999b5;
+  font-size: clamp(10px, .78vw, 12px);
+  line-height: 1.65;
+}
+
+.programs-landing-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.programs-landing-primary-cta,
+.programs-landing-secondary-cta {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border-radius: 10px;
+  font: 800 8.5px/1 var(--knoux-font-mono);
+  letter-spacing: .045em;
+  transition: transform .16s ease, filter .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+
+.programs-landing-primary-cta {
+  color: #fbfbff;
+  border: 1px solid rgba(164, 137, 255, .42);
+  background: linear-gradient(135deg, #7657e9, #5545c5 60%, #3f399c);
+  box-shadow: 0 10px 30px rgba(95, 67, 220, .2), inset 0 1px rgba(255,255,255,.16);
+}
+
+.programs-landing-secondary-cta {
+  color: #b9c6dd;
+  border: 1px solid rgba(115, 139, 198, .16);
+  background: rgba(255,255,255,.025);
+}
+
+.programs-landing-primary-cta:hover:not(:disabled),
+.programs-landing-secondary-cta:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.programs-landing-primary-cta:hover:not(:disabled) {
+  box-shadow: 0 13px 34px rgba(95, 67, 220, .3), 0 0 24px rgba(97, 231, 255, .07);
+}
+
+.programs-landing-hero-visual {
+  position: relative;
+  z-index: 1;
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  transform: perspective(900px) rotateY(-2deg);
+  transform-origin: center;
+}
+
+[dir='rtl'] .programs-landing-hero-visual { transform: perspective(900px) rotateY(2deg); }
+
+.knoux-programs-hero-container {
+  position: relative;
+  width: min(100%, 620px);
+  max-width: none;
+  isolation: isolate;
+}
+
+.knoux-programs-hero-container::before {
+  position: absolute;
+  inset: 16% 14%;
+  z-index: -1;
+  border-radius: 50%;
+  content: '';
+  background: radial-gradient(circle, rgba(117, 82, 255, .25), rgba(71, 219, 241, .065) 42%, transparent 72%);
+  filter: blur(22px);
+}
+
+.knoux-programs-hero-container svg {
+  width: 100%;
+  height: auto;
+  max-height: 320px;
+  filter:
+    drop-shadow(0 16px 32px rgba(0,0,0,.42))
+    drop-shadow(0 0 22px rgba(117,82,255,.12));
+}
+
+/* --------------------------------------------------------------------------
+   Active scan state
+   -------------------------------------------------------------------------- */
+.programs-scanning-banner {
+  position: relative;
+  min-height: 210px;
+  overflow: hidden;
+  padding: 16px;
+  border: 1px solid rgba(109, 222, 245, .2);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 52%, rgba(87, 199, 246, .09), transparent 44%),
+    radial-gradient(circle at 72% 40%, rgba(119, 78, 255, .12), transparent 38%),
+    rgba(5, 8, 20, .82);
+}
+
+.programs-scanning-banner::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 46%, rgba(97,231,255,.13) 50%, transparent 54%);
+  animation: programs-scanline 2.4s linear infinite;
+}
+
+.programs-scanning-hero-visual {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  justify-content: center;
+}
+
+@keyframes programs-scanline {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(100%); }
+}
+
+/* --------------------------------------------------------------------------
+   Content cards/tables: same visual DNA, no invented evidence
+   -------------------------------------------------------------------------- */
+.programs-station .bg-slate-900\/60,
+.programs-station .bg-slate-900\/40,
+.programs-station .bg-slate-950\/50,
+.programs-station .bg-slate-950\/40 {
+  border-color: rgba(136, 150, 203, .1) !important;
+  background: rgba(6, 9, 22, .68) !important;
+  box-shadow: inset 0 1px rgba(255,255,255,.025);
+}
+
+.programs-station .border-slate-800,
+.programs-station .border-slate-800\/60,
+.programs-station .divide-slate-800\/60 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(128, 144, 196, .105) !important;
+}
+
+.programs-station table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.programs-station thead {
+  background: rgba(4, 7, 18, .78) !important;
+}
+
+.programs-station th {
+  color: #697b9a !important;
+  font: 750 8px/1.2 var(--knoux-font-mono);
+  letter-spacing: .065em;
+  text-transform: uppercase;
+}
+
+.programs-station td {
+  font-size: 9px !important;
+}
+
+.programs-station tbody tr {
+  transition: background .14s ease;
+}
+
+.programs-station tbody tr:hover {
+  background: rgba(113, 91, 219, .055) !important;
+}
+
+.programs-station input[type='text'] {
+  min-height: 34px;
+  border-color: rgba(126, 145, 196, .14) !important;
+  border-radius: 10px !important;
+  color: #e6edff !important;
+  background: rgba(5, 8, 19, .82) !important;
+  box-shadow: inset 0 1px rgba(255,255,255,.025);
+}
+
+.programs-station input[type='text']:focus {
+  border-color: rgba(97,231,255,.36) !important;
+  box-shadow: 0 0 0 3px rgba(97,231,255,.045);
+}
+
+.programs-station .text-orange-400 { color: var(--programs-accent-2) !important; }
+.programs-station .text-cyan-300,
+.programs-station .text-cyan-400 { color: #8cecf7 !important; }
+.programs-station .border-cyan-400,
+.programs-station .border-cyan-500\/50 { border-color: rgba(97,231,255,.28) !important; }
+.programs-station .bg-cyan-950\/20 { background: rgba(65, 194, 217, .055) !important; }
+
+/* Elevation/offline/error remain semantically distinct; styling never hides them. */
+.programs-station .bg-amber-950\/40,
+.programs-station .bg-red-950\/40 {
+  backdrop-filter: blur(16px);
+}
+
+/* Let the actual station own scrolling instead of stacking several scroll panes. */
+.knoux-command-center:has(.programs-station) .knoux-stage-service-app {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.knoux-command-center:has(.programs-station) .programs-station > div.space-y-6.flex-1 {
+  min-height: 0;
+  padding-right: 2px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(151,123,255,.25) transparent;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive behavior
+   -------------------------------------------------------------------------- */
+@media (max-width: 1180px) {
+  .knoux-command-center.knoux-service-app-active:has(.programs-station) {
+    --command-rail-width: 178px;
+  }
+
+  .programs-landing-canvas {
+    grid-template-columns: minmax(270px, 1fr) minmax(300px, .9fr);
+    padding: 22px;
+  }
+
+  .programs-landing-copy h2 { font-size: clamp(22px, 2.8vw, 31px); }
+}
+
+@media (max-width: 940px) {
+  .knoux-command-center.knoux-service-app-active:has(.programs-station) {
+    grid-template-columns: 1fr;
+  }
+
+  .knoux-command-center:has(.programs-station) > .knoux-command-service-rail {
+    display: none;
+  }
+
+  .programs-landing-canvas {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    gap: 14px;
+  }
+
+  .programs-landing-copy,
+  .programs-landing-hero-visual {
+    grid-column: 1;
+  }
+
+  .programs-landing-copy { grid-row: 1; }
+  .programs-landing-hero-visual { grid-row: 2; }
+  .knoux-programs-hero-container svg { max-height: 240px; }
+}
+
+@media (max-width: 680px) {
+  .programs-station > header:first-child {
+    align-items: flex-start !important;
+    flex-direction: column;
+  }
+
+  .programs-station > header:first-child > div:last-child {
+    width: 100%;
+  }
+
+  .programs-station > header:first-child .btn { flex: 1; }
+  .programs-landing-canvas { padding: 17px; border-radius: 17px; }
+  .programs-landing-copy h2 { font-size: 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .programs-scanning-banner::after,
+  .programs-mini-nav-btn,
+  .programs-landing-primary-cta,
+  .programs-landing-secondary-cta {
+    animation: none !important;
+    transition-duration: .01ms !important;
+  }
+}
