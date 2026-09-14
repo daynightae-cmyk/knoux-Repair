@@ -656,7 +656,6 @@ export interface AiGenerateRequest {
   modelId: string;
   prompt: string;
   systemPrompt?: string;
-  customApiKey?: string;
   templateId?: string;
   parameters?: Record<string, string>;
   uid?: string;

@@ -1108,8 +1108,9 @@ async function getProjectSonarAiAnalysis(value, language) {
 /* ---------------- AI provider endpoints (explicit routing, no fabrication) ----------------
  * Provider routing is explicit and never crosses keys between providers:
  *   Google model ids  -> Google Generative Language REST API with GEMINI_API_KEY only.
- *   OpenRouter ids     -> OpenRouter chat API with the OpenRouter key only
- *                        (server key or the caller-supplied OpenRouter key field).
+ *   OpenRouter ids     -> OpenRouter chat API with the server OPENROUTER_API_KEY only.
+ * Renderer-supplied keys are NEVER accepted: any customApiKey field is rejected
+ * with 400 RENDERER_KEY_NOT_ACCEPTED. Secrets live in bridge env, never the DOM.
  * When no usable key exists the bridge returns a structured unavailable
  * response (503 AI_PROVIDER_NOT_CONFIGURED) — it never invents an answer.
  */
@@ -1194,7 +1195,7 @@ async function generateWithGemini({ model, prompt, systemPrompt }) {
   return { ok: true, model: safeModel, provider: 'google', text: text.trim(), codeSnippets: extractCodeSnippets(text), executionTimeMs: Date.now() - startedAt };
 }
 
-async function generateAiText({ modelId, prompt, systemPrompt, customApiKey }) {
+async function generateAiText({ modelId, prompt, systemPrompt }) {
   const cleanPrompt = String(prompt || '').trim();
   if (!cleanPrompt) throw Object.assign(new Error('Prompt is required.'), { status: 400, code: 'AI_PROMPT_REQUIRED' });
   if (cleanPrompt.length > 12000) throw Object.assign(new Error('Prompt exceeds the maximum supported length.'), { status: 400, code: 'AI_PROMPT_TOO_LONG' });
@@ -1203,9 +1204,7 @@ async function generateAiText({ modelId, prompt, systemPrompt, customApiKey }) {
   const provider = catalogEntry ? catalogEntry.provider : (requested.includes('/') ? 'openrouter' : 'google');
 
   if (provider === 'openrouter') {
-    const key = (typeof customApiKey === 'string' && /^sk-or-v1-[A-Za-z0-9]+$/.test(customApiKey.trim()))
-      ? customApiKey.trim()
-      : (OPENROUTER_CONFIGURED ? process.env.OPENROUTER_API_KEY : '');
+    const key = OPENROUTER_CONFIGURED ? process.env.OPENROUTER_API_KEY : '';
     if (!key) {
       throw Object.assign(new Error('AI is unavailable: no OpenRouter key is configured on this local bridge.'), { status: 503, code: 'AI_PROVIDER_NOT_CONFIGURED' });
     }
@@ -1857,12 +1856,14 @@ const server = http.createServer(async (req, res) => {
         });
         body = JSON.parse(raw || '{}');
       } catch { return sendError(res, 400, 'BAD_REQUEST', 'Invalid AI generation request.', corsHeaders); }
+      if (body.customApiKey !== undefined) {
+        return sendError(res, 400, 'RENDERER_KEY_NOT_ACCEPTED', 'Renderer-supplied API keys are not accepted. Configure OPENROUTER_API_KEY on the local bridge.', corsHeaders);
+      }
       try {
         const result = await generateAiText({
           modelId: body.modelId,
           prompt: body.prompt,
           systemPrompt: body.systemPrompt,
-          customApiKey: body.customApiKey,
         });
         return sendJson(res, 200, result, corsHeaders);
       } catch (e) {
