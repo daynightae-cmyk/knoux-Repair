@@ -1,0 +1,172 @@
+/* KNOUX Repair — Developer Tools operational closure.
+   Loaded after the Anima finish so the entered Developer Tools workspace,
+   not the family landing chrome, owns the primary 1366x768 viewport. */
+
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The family landing already introduced the product. Inside Developer Tools,
+   keep only a compact engineering command strip and let the IDE center win. */
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-hero {
+  flex: 0 0 46px !important;
+  min-height: 46px !important;
+  max-height: 46px !important;
+  margin: 0 0 6px !important;
+  padding: 0 12px !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+}
+
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-hero::before,
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-hero::after,
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-hero__art,
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] > .knoux-deck-services,
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] > .knoux-deck-strip,
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] > .knoux-deck-context,
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] > .knoux-deck-preview-label,
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] > .knoux-deck-tabs {
+  display: none !important;
+}
+
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-hero__copy {
+  position: static !important;
+  inset: auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  pointer-events: auto !important;
+}
+
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-hero__kicker {
+  position: static !important;
+  inset: auto !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+}
+
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-hero__title,
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-hero__subtitle,
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-stage-context,
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-hero__count {
+  display: none !important;
+}
+
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-hero__meta {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 0 0 auto !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  clip: auto !important;
+  white-space: normal !important;
+  border: 0 !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 6px !important;
+  pointer-events: auto !important;
+}
+
+[dir='rtl'] .knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-hero__meta {
+  margin: 0 auto 0 0 !important;
+}
+
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-workspace {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  gap: 7px !important;
+  grid-template-columns: 11rem minmax(0, 1fr) 12.5rem !important;
+  align-items: stretch !important;
+  overflow: hidden !important;
+}
+
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-center,
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-stage-service-app,
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .service-app-embedded,
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .developer-station-root {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-stage-service-app {
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .service-app-embedded {
+  overflow: auto !important;
+  overscroll-behavior: contain;
+}
+
+/* ToolIds remain data/evidence metadata. Human names own the visible explorer. */
+.knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-explorer__tool-id {
+  display: none !important;
+}
+
+/* Compact the canonical DeveloperStation without replacing any runtime owner. */
+.knoux-engineering-workbench[data-service-id='12-Developer-Tools'] .developer-workbench-station {
+  padding: 8px 10px !important;
+  gap: 10px !important;
+}
+.knoux-engineering-workbench[data-service-id='12-Developer-Tools'] .developer-workbench-station__header {
+  align-items: center !important;
+  gap: 10px !important;
+}
+.knoux-engineering-workbench[data-service-id='12-Developer-Tools'] .developer-workbench-station__header h2 {
+  font-size: 16px !important;
+  margin-block: 2px 0 !important;
+}
+.knoux-engineering-workbench[data-service-id='12-Developer-Tools'] .developer-workbench-station__header p {
+  display: none !important;
+}
+.knoux-engineering-workbench[data-service-id='12-Developer-Tools'] .developer-workbench-station__hero {
+  max-height: 72px;
+  overflow: hidden;
+  padding: 8px !important;
+}
+.knoux-engineering-workbench[data-service-id='12-Developer-Tools'] .developer-workbench-station__metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+}
+.knoux-engineering-workbench[data-service-id='12-Developer-Tools'] .developer-workbench-station__metrics > div {
+  padding: 8px !important;
+}
+.knoux-engineering-workbench[data-service-id='12-Developer-Tools'] .developer-workbench-station__tabs {
+  scrollbar-width: none;
+}
+.knoux-engineering-workbench[data-service-id='12-Developer-Tools'] .developer-workbench-station__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 1450px) {
+  .knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-workspace {
+    grid-template-columns: 9.5rem minmax(0, 1fr) 11rem !important;
+  }
+  .knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-side__block[data-block='assistant'] {
+    display: none !important;
+  }
+  .knoux-engineering-workbench[data-service-id='12-Developer-Tools'] .developer-workbench-station__hero {
+    max-height: 60px;
+  }
+}
+
+@container knoux-deck (max-width: 900px) {
+  .knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-workspace {
+    grid-template-columns: 9rem minmax(0, 1fr) !important;
+  }
+  .knoux-engineering-workbench[data-operational='true'][data-service-id='12-Developer-Tools'] .knoux-deck-side {
+    display: none !important;
+  }
+}

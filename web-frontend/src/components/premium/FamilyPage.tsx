@@ -99,7 +99,7 @@ export default function FamilyPage({
 
   const isRtl = lang === 'ar';
   const serviceAppActive = !selectedTool;
-  const showWorkbenchStation = family.id === 'workbench' && !selectedTool && !executionTool;
+  const showWorkbenchStation = family.id === 'workbench' && selectedService !== null;
   const showDuplicateStudio = activeService.id === '05-Duplicate-Files' && !selectedTool && !executionTool;
   const [duplicatePending, setDuplicatePending] = useState<{
     tool: BridgeTool; mode: 'run' | 'analyze' | 'preview'; options: ToolRunOptions;
@@ -142,6 +142,7 @@ export default function FamilyPage({
 
   return (
     <div className={`knoux-family-page knoux-command-center${serviceAppActive ? ' knoux-service-app-active' : ''}`} data-family={family.id} data-service={activeService.id} dir={isRtl ? 'rtl' : 'ltr'}>
+      {!showWorkbenchStation && (
       <aside className="knoux-command-rail knoux-command-service-rail" aria-label={isRtl ? 'خدمات العائلة' : 'Family services'}>
         <header className="knoux-command-rail-header">
           <span>{isRtl ? 'الخدمات' : 'SERVICES'}</span>
@@ -166,6 +167,7 @@ export default function FamilyPage({
           })}
         </div>
       </aside>
+      )}
 
       <main className="knoux-command-live-column">
         {family.id !== 'workbench' && !showDuplicateStudio && (
@@ -243,6 +245,7 @@ export default function FamilyPage({
         />
       )}
 
+      {!showWorkbenchStation && (
       <aside className="knoux-command-rail knoux-command-tool-rail" aria-label={isRtl ? 'إجراءات الخدمة' : 'Service actions'}>
         <header className="knoux-command-rail-header">
           <span>{isRtl ? 'الإجراءات' : 'ACTIONS'}</span>
@@ -295,7 +298,7 @@ export default function FamilyPage({
             <div className="knoux-tool-empty-state">
               <p>{bridgeOnline === null
                 ? (isRtl ? 'جارٍ تحميل الإجراءات...' : 'Loading actions...')
-                : (isRtl ? 'لا توجد إجراءات محمّلة لهذه الخدمة.' : 'No loaded actions are available for this service.')}
+                : (isRtl ? 'لا توجد إجراءات محمكلة لهذه الخدمة.' : 'No loaded actions are available for this service.')}
               </p>
             </div>
           ) : (
@@ -330,6 +333,7 @@ export default function FamilyPage({
           )}
         </div>
       </aside>
+      )}
     </div>
   );
 }

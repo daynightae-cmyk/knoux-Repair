@@ -14,6 +14,7 @@ const serviceApps = read('src/components/ServiceApps.tsx');
 const workbench = read('src/components/premium/workbench/EngineeringWorkbenchStation.tsx');
 const deckCss = read('src/workbench-command-deck.css');
 const developer = read('src/features/stations/station12/DeveloperStation.tsx');
+const familyPage = read('src/components/premium/FamilyPage.tsx');
 
 test('entered Engineering services expose operational mode without changing the family landing contract', () => {
   assert.match(app, /data-workbench-operational=\{Boolean\(activeFamily\?\.id === 'workbench' && selectedService !== null\)\}/);
@@ -46,26 +47,19 @@ test('Workbench tabs are service-specific while retaining the canonical engineer
   assert.match(workbench, /\['overview', 'code', 'dependencies', 'scripts', 'environment', 'output'\]/);
 });
 
-test('Developer station keeps its post-Visual human labels and gains only the embedded layout hook', () => {
-  assert.match(developer, /className="developer-workbench-station developer-station-root"/);
-  for (const primaryLeak of [
-    'Environment Audit (DT01)',
-    'Toolchain Doctor (DT04)',
-    'Port Observatory (DT06)',
-    'Release Servers (DT10)',
-    'Git Workspace Insight (DT08)',
-    'Project Intelligence (DT05)',
-  ]) {
-    assert.equal(developer.includes(primaryLeak), false, `primary UI leaked ToolId: ${primaryLeak}`);
-  }
+test('Developer Tools keeps the first-class Workbench mounted during execution and drops duplicate family rails', () => {
+  assert.match(familyPage, /const showWorkbenchStation = family\.id === 'workbench' && selectedService !== null/);
+  assert.match(familyPage, /\{!showWorkbenchStation && \(\s*<aside className="knoux-command-rail knoux-command-service-rail"/s);
+  assert.match(familyPage, /\{!showWorkbenchStation && \(\s*<aside className="knoux-command-rail knoux-command-tool-rail"/s);
+  assert.doesNotMatch(familyPage, /showWorkbenchStation = family\.id === 'workbench' && !selectedTool && !executionTool/);
 });
 
-test('Software and Investigation defer to real station controls instead of the generic outer action rail', () => {
-  const integrationCss = read('src/service-station-integration.css');
-  for (const family of ['software', 'investigation']) {
-    assert.match(
-      integrationCss,
-      new RegExp(`knoux-command-center\\.knoux-service-app-active\\[data-family='${family}'\\][\\s\\S]*?knoux-command-tool-rail[\\s\\S]*?display:\\s*none`),
-    );
-  }
+test('late Developer operational layer wins the Anima cascade and keeps ToolIds out of the visible explorer', () => {
+  const main = read('src/main.tsx');
+  const developerCss = read('src/workbench-developer-operational.css');
+  assert.match(main, /workbench-anima-finish\.css'[\s\S]*workbench-developer-operational\.css'/);
+  assert.match(developerCss, /data-service-id='12-Developer-Tools'[\s\S]*knoux-deck-tabs[\s\S]*display:\s*none/s);
+  assert.match(developerCss, /knoux-deck-explorer__tool-id[\s\S]*display:\s*none/s);
+  assert.match(developerCss, /grid-template-columns:\s*9\.5rem minmax\(0, 1fr\) 11rem/);
+  assert.match(developerCss, /developer-workbench-station__metrics[\s\S]*repeat\(4, minmax\(0, 1fr\)\)/s);
 });
