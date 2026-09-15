@@ -625,6 +625,41 @@
   .knoux-deck-explorer, .knoux-deck-side { max-height: none; }
 }
 
+/* ── Container-driven collapse: viewport width alone cannot tell whether the
+ * CENTER has room, because the deck lives inside FamilyPage rails. The live
+ * column IS the deck budget, so it is the query container. Below ~980px the
+ * context rail drops to a full row (mirrors the 1100px viewport rule);
+ * below ~620px the workspace stacks in a single column. ── */
+.knoux-command-live-column { container-type: inline-size; container-name: knoux-deck; }
+@container knoux-deck (max-width: 980px) {
+  .knoux-deck-workspace { grid-template-columns: 13rem minmax(0, 1fr); }
+  .knoux-deck-side { grid-column: 1 / -1; max-height: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container knoux-deck (max-width: 620px) {
+  .knoux-deck-workspace { grid-template-columns: minmax(0, 1fr); }
+  .knoux-deck-side { grid-template-columns: minmax(0, 1fr); }
+  .knoux-deck-explorer, .knoux-deck-side { max-height: none; }
+}
+
+/* ── Family level: at viewport widths where the shell cannot host five side
+ * bands (LeftRail + service rail + deck + tool rail + Sentinel), the
+ * workbench tool rail stacks below the live column instead of suffocating
+ * the CENTER. This keeps 1366x768 (primary reference) usable: the deck then
+ * owns the full family width and the container rules above protect CENTER. ── */
+@media (max-width: 1500px) {
+  .knoux-family-page:has(.knoux-engineering-workbench) { grid-template-columns: minmax(0, 1fr) !important; }
+  /* The base command-center layer turns the tool rail into a fixed overlay
+   * drawer at narrow container widths. For the workbench it must rejoin the
+   * normal flow below the deck instead of permanently covering CENTER. */
+  .knoux-family-page:has(.knoux-engineering-workbench) > .knoux-command-tool-rail {
+    position: static;
+    inset: auto;
+    width: auto;
+    max-height: 22rem;
+    z-index: auto;
+  }
+}
+
 /* ── Reduced motion ───────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .knoux-deck-service,
