@@ -5,30 +5,34 @@ import type { PerformanceCondition } from './performanceModel';
 interface PerformanceHeroVisualProps {
   lang: Lang;
   stage?: 'idle' | 'sampling';
-  cpuPercent?: number;
-  memoryPercent?: number;
-  condition?: PerformanceCondition;
+  cpuPercent?: number | null;
+  memoryPercent?: number | null;
+  condition?: PerformanceCondition | 'INCONCLUSIVE';
   className?: string;
 }
 
 export const PerformanceHeroVisual: React.FC<PerformanceHeroVisualProps> = ({
   lang,
   stage = 'idle',
-  cpuPercent = 28,
-  memoryPercent = 45,
-  condition = 'OPTIMAL',
+  cpuPercent = null,
+  memoryPercent = null,
+  condition = 'INCONCLUSIVE',
   className = '',
 }) => {
   const isSampling = stage === 'sampling';
+  const hasCpuEvidence = cpuPercent !== null;
+  const hasMemoryEvidence = memoryPercent !== null;
+  const safeCpuPercent = cpuPercent ?? 0;
+  const safeMemoryPercent = memoryPercent ?? 0;
 
-  // Arc calculations for CPU and Memory rings
+  // Arc calculations use zero only as an invisible geometry fallback until real counters exist.
   const cpuRadius = 85;
   const cpuCircumference = 2 * Math.PI * cpuRadius;
-  const cpuOffset = cpuCircumference - (Math.min(100, Math.max(0, cpuPercent)) / 100) * cpuCircumference;
+  const cpuOffset = cpuCircumference - (Math.min(100, Math.max(0, safeCpuPercent)) / 100) * cpuCircumference;
 
   const memRadius = 65;
   const memCircumference = 2 * Math.PI * memRadius;
-  const memOffset = memCircumference - (Math.min(100, Math.max(0, memoryPercent)) / 100) * memCircumference;
+  const memOffset = memCircumference - (Math.min(100, Math.max(0, safeMemoryPercent)) / 100) * memCircumference;
 
   // Condition color
   const conditionColor =
@@ -38,7 +42,12 @@ export const PerformanceHeroVisual: React.FC<PerformanceHeroVisualProps> = ({
       ? '#f59e0b'
       : condition === 'MODERATE'
       ? '#38bdf8'
-      : '#10b981';
+      : condition === 'OPTIMAL'
+      ? '#10b981'
+      : '#6366f1';
+  const conditionText = condition === 'INCONCLUSIVE'
+    ? (lang === 'ar' ? 'لم يتم القياس بعد' : 'NOT CHECKED YET')
+    : condition;
 
   return (
     <div
@@ -84,7 +93,7 @@ export const PerformanceHeroVisual: React.FC<PerformanceHeroVisualProps> = ({
           {/* Pulse Beam Gradient */}
           <linearGradient id="pfCpuGradient" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#38bdf8" />
-            <stop offset="100%" stopColor={cpuPercent > 80 ? '#f43f5e' : '#6366f1'} />
+            <stop offset="100%" stopColor={hasCpuEvidence && safeCpuPercent > 80 ? '#f43f5e' : '#6366f1'} />
           </linearGradient>
 
           <linearGradient id="pfMemGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -126,29 +135,33 @@ export const PerformanceHeroVisual: React.FC<PerformanceHeroVisualProps> = ({
           <circle r={cpuRadius} stroke="rgba(255, 255, 255, 0.08)" strokeWidth="6" />
           <circle r={memRadius} stroke="rgba(255, 255, 255, 0.08)" strokeWidth="5" />
 
-          {/* Dynamic CPU Arc */}
-          <circle
-            r={cpuRadius}
-            stroke="url(#pfCpuGradient)"
-            strokeWidth="6"
-            strokeLinecap="round"
-            strokeDasharray={cpuCircumference}
-            strokeDashoffset={cpuOffset}
-            transform="rotate(-90)"
-            style={{ transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)' }}
-          />
+          {/* Dynamic CPU Arc — only when a real counter was observed. */}
+          {hasCpuEvidence && (
+            <circle
+              r={cpuRadius}
+              stroke="url(#pfCpuGradient)"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray={cpuCircumference}
+              strokeDashoffset={cpuOffset}
+              transform="rotate(-90)"
+              style={{ transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)' }}
+            />
+          )}
 
-          {/* Dynamic Memory Arc */}
-          <circle
-            r={memRadius}
-            stroke="url(#pfMemGradient)"
-            strokeWidth="5"
-            strokeLinecap="round"
-            strokeDasharray={memCircumference}
-            strokeDashoffset={memOffset}
-            transform="rotate(-90)"
-            style={{ transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)' }}
-          />
+          {/* Dynamic Memory Arc — only when a real counter was observed. */}
+          {hasMemoryEvidence && (
+            <circle
+              r={memRadius}
+              stroke="url(#pfMemGradient)"
+              strokeWidth="5"
+              strokeLinecap="round"
+              strokeDasharray={memCircumference}
+              strokeDashoffset={memOffset}
+              transform="rotate(-90)"
+              style={{ transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)' }}
+            />
+          )}
 
           {/* Inner Processing Core */}
           <circle r="44" fill="url(#pfCoreFill)" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="1.5" />
@@ -156,7 +169,7 @@ export const PerformanceHeroVisual: React.FC<PerformanceHeroVisualProps> = ({
 
           {/* Center Text */}
           <text y="-2" textAnchor="middle" fill="#ffffff" fontSize="12" fontWeight="bold" fontFamily="monospace">
-            {cpuPercent}%
+            {hasCpuEvidence ? `${cpuPercent}%` : '—'}
           </text>
           <text y="12" textAnchor="middle" fill="#94a3b8" fontSize="8" fontFamily="sans-serif">
             CPU LOAD
@@ -188,7 +201,7 @@ export const PerformanceHeroVisual: React.FC<PerformanceHeroVisualProps> = ({
             CPU Pulse
           </text>
           <text x="32" y="34" fill="#94a3b8" fontSize="9" fontFamily="monospace">
-            {cpuPercent}% Active Load
+            {hasCpuEvidence ? `${cpuPercent}% Active Load` : (lang === 'ar' ? 'لم يتم القياس بعد' : 'Not checked yet')}
           </text>
           {/* Connector Line */}
           <path d="M 130 24 L 175 24 L 205 60" stroke="rgba(56, 189, 248, 0.25)" strokeDasharray="3 3" fill="none" />
@@ -202,7 +215,7 @@ export const PerformanceHeroVisual: React.FC<PerformanceHeroVisualProps> = ({
             Memory Pressure
           </text>
           <text x="32" y="34" fill="#94a3b8" fontSize="9" fontFamily="monospace">
-            {memoryPercent}% Utilization
+            {hasMemoryEvidence ? `${memoryPercent}% Utilization` : (lang === 'ar' ? 'لم يتم القياس بعد' : 'Not checked yet')}
           </text>
           {/* Connector Line */}
           <path d="M 0 24 L -40 24 L -65 -5" stroke="rgba(168, 85, 247, 0.25)" strokeDasharray="3 3" fill="none" />
@@ -212,7 +225,7 @@ export const PerformanceHeroVisual: React.FC<PerformanceHeroVisualProps> = ({
         <g transform="translate(240, 208)">
           <rect width="100" height="22" rx="6" fill="rgba(15, 23, 42, 0.85)" stroke={conditionColor} strokeWidth="1" />
           <text x="50" y="15" textAnchor="middle" fill={conditionColor} fontSize="9" fontWeight="bold" fontFamily="monospace">
-            {condition}
+            {conditionText}
           </text>
         </g>
       </svg>

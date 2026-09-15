@@ -369,3 +369,198 @@
     transition: none;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   FINAL ENGINEERING CLOSURE
+   Restore a compact truthful engineering identity in the hero. The previous
+   finish visually clipped all real text/status; this keeps the same cinematic
+   atmosphere while surfacing only runtime-backed bridge/action/provider state.
+   ───────────────────────────────────────────────────────────── */
+.knoux-command-deck .knoux-deck-hero__copy {
+  pointer-events: none;
+}
+
+.knoux-command-deck .knoux-deck-hero__title,
+.knoux-command-deck .knoux-deck-hero__subtitle,
+.knoux-command-deck .knoux-deck-hero__meta {
+  clip: auto !important;
+  clip-path: none !important;
+  inline-size: auto !important;
+  block-size: auto !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  border: 0 !important;
+}
+
+.knoux-command-deck .knoux-deck-hero__title {
+  inset-inline-start: 18px;
+  top: 39px;
+  max-inline-size: 31rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .18em;
+  font-size: clamp(25px, 2.2vw, 34px);
+  line-height: .98;
+  letter-spacing: -.045em;
+  color: #f7fbff;
+  text-shadow: 0 10px 30px rgba(0,0,0,.38);
+}
+.knoux-command-deck .knoux-deck-hero__title em {
+  color: #b56cff;
+  font-style: normal;
+  text-shadow: 0 0 22px rgba(139,61,255,.32);
+}
+.knoux-command-deck .knoux-deck-hero__subtitle {
+  inset-inline-start: 18px;
+  top: 78px;
+  max-inline-size: 31rem;
+  color: rgba(202,221,244,.76);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.knoux-command-deck .knoux-deck-hero__meta {
+  inset-inline-start: 18px;
+  inset-inline-end: auto;
+  bottom: 14px;
+  display: flex !important;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-inline-size: min(54rem, 70%);
+  pointer-events: auto;
+}
+.knoux-command-deck .knoux-deck-hero__meta > * {
+  min-height: 26px;
+  border-radius: 9px;
+  background: rgba(3,14,34,.66);
+  backdrop-filter: blur(12px);
+}
+.knoux-command-deck .knoux-deck-hero__art {
+  place-items: center end;
+  padding-inline-end: 12%;
+}
+.knoux-command-deck .knoux-deck-hero__art::before {
+  transform: translateX(8px) rotateX(58deg) rotateZ(-3deg);
+}
+
+/* Human actions stay primary. ToolIds remain secondary engineering metadata. */
+.knoux-command-deck .knoux-deck-chip small,
+.knoux-command-deck .knoux-deck-explorer__tool-id,
+.knoux-command-deck .knoux-deck-tabview__row .knoux-deck-explorer__tool-id {
+  opacity: .48;
+  font-size: 9px;
+  letter-spacing: .04em;
+}
+
+/* The operational workspace receives more visual weight than the hero/cards. */
+.knoux-command-deck .knoux-deck-workspace {
+  grid-template-columns: 13.5rem minmax(0, 1fr) 16.5rem;
+  gap: 7px;
+  padding: 7px 10px 10px;
+}
+.knoux-command-deck .knoux-deck-center {
+  min-height: 25rem;
+  border-radius: 13px;
+  background: linear-gradient(160deg, rgba(3,11,29,.58), rgba(2,7,20,.35));
+  box-shadow: 0 20px 48px rgba(0,0,0,.18);
+}
+.knoux-command-deck .knoux-deck-explorer,
+.knoux-command-deck .knoux-deck-side {
+  border-radius: 12px;
+  background: rgba(3,11,28,.76);
+  border-color: rgba(88,169,255,.14);
+}
+.knoux-command-deck .knoux-deck-side {
+  gap: 7px;
+}
+.knoux-command-deck .knoux-deck-side__block {
+  border-radius: 9px;
+  background: rgba(6,17,40,.6);
+}
+
+@media (max-width: 1500px), (max-height: 820px) {
+  .knoux-command-deck .knoux-deck-hero {
+    min-height: 138px;
+    max-height: 148px;
+    margin-top: 6px;
+  }
+  .knoux-command-deck .knoux-deck-hero__title {
+    top: 34px;
+    font-size: clamp(22px, 2vw, 30px);
+  }
+  .knoux-command-deck .knoux-deck-hero__subtitle {
+    top: 68px;
+    max-inline-size: 28rem;
+  }
+  .knoux-command-deck .knoux-deck-hero__meta {
+    bottom: 9px;
+  }
+  .knoux-command-deck .knoux-deck-services {
+    padding-top: 7px;
+  }
+  .knoux-command-deck .knoux-deck-service {
+    min-height: 68px;
+    padding: 9px 12px;
+  }
+  .knoux-command-deck .knoux-deck-strip {
+    margin-top: 7px;
+    padding: 7px;
+  }
+  .knoux-command-deck .knoux-deck-chip {
+    min-height: 52px;
+    padding-block: 7px;
+  }
+  .knoux-command-deck .knoux-deck-context {
+    padding-top: 5px;
+  }
+  .knoux-command-deck .knoux-deck-tabs {
+    padding-top: 5px;
+  }
+  .knoux-command-deck .knoux-deck-workspace {
+    grid-template-columns: 12rem minmax(0, 1fr) 14rem;
+  }
+}
+
+@container knoux-deck (max-width: 1040px) {
+  .knoux-command-deck .knoux-deck-workspace {
+    grid-template-columns: 11rem minmax(0, 1fr);
+  }
+  .knoux-command-deck .knoux-deck-side {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: none;
+  }
+}
+
+@container knoux-deck (max-width: 700px) {
+  .knoux-command-deck .knoux-deck-hero__art {
+    opacity: .42;
+    padding-inline-end: 4%;
+  }
+  .knoux-command-deck .knoux-deck-hero__meta {
+    max-inline-size: 92%;
+  }
+  .knoux-command-deck .knoux-deck-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .knoux-command-deck .knoux-deck-explorer {
+    max-height: 13rem;
+  }
+  .knoux-command-deck .knoux-deck-side {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+[dir='rtl'] .knoux-command-deck .knoux-deck-hero__art {
+  place-items: center start;
+  padding-inline-start: 12%;
+  padding-inline-end: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knoux-command-deck .knoux-deck-hero__art::before {
+    transform: translateX(8px) rotateX(58deg) rotateZ(-3deg) !important;
+  }
+}

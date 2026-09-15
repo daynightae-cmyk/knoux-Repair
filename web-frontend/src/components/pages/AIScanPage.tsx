@@ -149,8 +149,8 @@ export default function AIScanPage({ lang, bridgeOnline, toolCount, onNavigate }
               detailAr: `استهلاك الذاكرة النشط وصل إلى ${ramPct}٪ (${usedGB.toFixed(1)} جيجابايت من أصل ${sys.TotalRamGB.toFixed(1)} جيجابايت).`,
               metric: `${ramPct}% RAM`,
               dest: { family: 'vitality', service: '08-Performance', toolId: 'PF01' },
-              actionLabelEn: 'Optimize Performance (PF01)',
-              actionLabelAr: 'تحسين الأداء (PF01)',
+              actionLabelEn: 'Optimize Performance',
+              actionLabelAr: 'تحسين الأداء',
             });
           }
         }
@@ -168,8 +168,8 @@ export default function AIScanPage({ lang, bridgeOnline, toolCount, onNavigate }
               detailAr: `قرص النظام (${sysDrive.Name || 'C:'}) يتبقى به ${sysDrive.FreeGB.toFixed(1)} جيجابايت فقط (${usedPct}٪ مستغل).`,
               metric: `${sysDrive.FreeGB.toFixed(1)} GB Free`,
               dest: { family: 'recovery', service: '06-Disk-Space', toolId: 'DS01' },
-              actionLabelEn: 'Audit Disk Space (DS01)',
-              actionLabelAr: 'فحص مساحة القرص (DS01)',
+              actionLabelEn: 'Audit Disk Space',
+              actionLabelAr: 'فحص مساحة القرص',
             });
           }
         }
@@ -184,8 +184,8 @@ export default function AIScanPage({ lang, bridgeOnline, toolCount, onNavigate }
             detailAr: 'الحماية الفورية لويندوز ديفندر متوقفة حالياً، مما يجعل النظام غير محمي.',
             metric: 'Security Alert',
             dest: { family: 'assurance', service: '09-Security', toolId: 'SE04' },
-            actionLabelEn: 'Check Security Posture (SE04)',
-            actionLabelAr: 'فحص إعدادات الأمان (SE04)',
+            actionLabelEn: 'Check Security Posture',
+            actionLabelAr: 'فحص إعدادات الأمان',
           });
         }
       }
@@ -206,8 +206,8 @@ export default function AIScanPage({ lang, bridgeOnline, toolCount, onNavigate }
             detailAr: `تم العثور على ما يقارب ${mb >= 1024 ? `${(mb / 1024).toFixed(1)} جيجابايت` : `${mb} ميجابايت`} من الملفات المؤقتة والذاكرة المخبأة الآمن حذفها.`,
             metric: mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`,
             dest: { family: 'recovery', service: '02-System-Cleanup', toolId: 'SC01' },
-            actionLabelEn: 'Clean System Junk (SC01)',
-            actionLabelAr: 'تنظيف المخلفات (SC01)',
+            actionLabelEn: 'Clean System Junk',
+            actionLabelAr: 'تنظيف المخلفات',
           });
         }
       }
@@ -227,8 +227,8 @@ export default function AIScanPage({ lang, bridgeOnline, toolCount, onNavigate }
             detailAr: `تم رصد ${problems.length} جهاز يعاني من تعارض أو نقص في برامج التشغيل.`,
             metric: `${problems.length} Device Alert`,
             dest: { family: 'assurance', service: '14-Driver-Management', toolId: 'DM02' },
-            actionLabelEn: 'Audit Device Problems (DM02)',
-            actionLabelAr: 'تشخيص أخطاء الأجهزة (DM02)',
+            actionLabelEn: 'Audit Device Problems',
+            actionLabelAr: 'تشخيص أخطاء الأجهزة',
           });
         }
       }

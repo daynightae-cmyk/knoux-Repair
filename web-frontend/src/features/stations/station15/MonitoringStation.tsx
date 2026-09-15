@@ -54,9 +54,9 @@ const COPY = {
     topMemoryConsumer: 'Top Memory Task',
     runningServices: 'Running Services',
     stoppedAutoServices: 'Stopped Auto Services',
-    quickSnapshot: 'Resource Snapshot (MO01)',
-    quickTopProcesses: 'Top Processes (MO02)',
-    quickProcessWatch: 'Process & Memory Watch (MO04)',
+    quickSnapshot: 'Resource Snapshot',
+    quickTopProcesses: 'Top Processes',
+    quickProcessWatch: 'Process & Memory Watch',
     signalsTitle: 'Observatory Findings & Process Signals',
     noSignals: 'All monitored processes are responding and memory consumption is nominal.',
     processesTitle: 'Active Windows Processes',
@@ -99,9 +99,9 @@ const COPY = {
     topMemoryConsumer: 'أعلى عملية استهلاكاً',
     runningServices: 'الخدمات قيد التشغيل',
     stoppedAutoServices: 'خدمات تلقائية متوقفة',
-    quickSnapshot: 'لقطة الموارد (MO01)',
-    quickTopProcesses: 'أعلى العمليات استهلاكاً (MO02)',
-    quickProcessWatch: 'مراقبة العمليات والذاكرة (MO04)',
+    quickSnapshot: 'لقطة الموارد',
+    quickTopProcesses: 'أعلى العمليات استهلاكاً',
+    quickProcessWatch: 'مراقبة العمليات والذاكرة',
     signalsTitle: 'إشارات المرصد وتنبيهات الأداء',
     noSignals: 'كافة العمليات مستجيبة واستهلاك الذاكرة يعمل ضمن الحدود الطبيعية.',
     processesTitle: 'عمليات ويندوز النشطة',
@@ -362,7 +362,7 @@ function MonitoringStationContent({
   }
 
   return (
-    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="monitoring-observatory-station" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Top Banner & Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
         <div>
@@ -597,9 +597,9 @@ function MonitoringStationContent({
               {t.signalsTitle}
             </h3>
             {signals.length === 0 ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#10b981', fontSize: 13 }}>
-                <CheckCircle2 size={16} />
-                <span>{t.noSignals}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: summary.condition === 'INCONCLUSIVE' ? '#94a3b8' : '#10b981', fontSize: 13 }}>
+                {summary.condition === 'INCONCLUSIVE' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
+                <span>{summary.condition === 'INCONCLUSIVE' ? (lang === 'ar' ? 'لم يتم جمع عينة المراقبة بعد.' : 'A live monitoring sample has not been collected yet.') : t.noSignals}</span>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -867,7 +867,6 @@ function MonitoringStationContent({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: '#38bdf8' }}>{tool.ToolId}</span>
                     <h4 style={{ margin: '2px 0 0 0', fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>
                       {pickName(tool, lang)}
                     </h4>

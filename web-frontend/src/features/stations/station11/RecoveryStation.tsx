@@ -57,9 +57,9 @@ const COPY = {
     localBackups: 'Local Archives',
     latestBackup: 'Latest Local Archive',
     sourcesVerified: 'User Folders Verified',
-    quickRestorePoint: 'Create Restore Point (BR01)',
-    quickBackupProfile: 'Backup Profile (BR02)',
-    quickVerifyBackup: 'Verify Latest (BR03)',
+    quickRestorePoint: 'Create Restore Point',
+    quickBackupProfile: 'Backup Profile',
+    quickVerifyBackup: 'Verify Latest',
     signalsTitle: 'Recovery Findings & Continuity Signals',
     noSignals: 'System recovery mechanisms and local archives are operating within nominal thresholds.',
     restorePointsTitle: 'Windows System Restore Point History',
@@ -98,9 +98,9 @@ const COPY = {
     localBackups: 'النسخ المحلية',
     latestBackup: 'أحدث نسخة محلية',
     sourcesVerified: 'المجلدات التي تم التحقق منها',
-    quickRestorePoint: 'إنشاء نقطة استعادة (BR01)',
-    quickBackupProfile: 'نسخ ملف المستخدم (BR02)',
-    quickVerifyBackup: 'التحقق من النسخة (BR03)',
+    quickRestorePoint: 'إنشاء نقطة استعادة',
+    quickBackupProfile: 'نسخ ملف المستخدم',
+    quickVerifyBackup: 'التحقق من النسخة',
     signalsTitle: 'ملاحظات وإشارات الاستعادة',
     noSignals: 'خطوط الاستعادة والنسخ الاحتياطي في حالة سليمة وضمن الحدود الطبيعية.',
     restorePointsTitle: 'سجل نقاط استعادة نظام ويندوز',
@@ -234,7 +234,7 @@ function RecoveryStationContent({
   }
 
   return (
-    <div className="flex flex-col w-full min-h-[680px] p-4 lg:p-6 text-slate-100 bg-slate-950/80 backdrop-blur-md rounded-2xl border border-slate-800/60 shadow-2xl">
+    <div className="recovery-vault-station flex flex-col w-full min-h-[680px] p-4 lg:p-6 text-slate-100 bg-slate-950/80 backdrop-blur-md rounded-2xl border border-slate-800/60 shadow-2xl">
       {/* Header */}
       <header className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-800/80">
         <div className="flex items-center gap-3">
@@ -347,7 +347,9 @@ function RecoveryStationContent({
                     ? text.readyDesc
                     : summary.state === 'PARTIAL_COVERAGE'
                     ? text.partialDesc
-                    : text.unprotectedDesc}
+                    : summary.state === 'UNPROTECTED'
+                    ? text.unprotectedDesc
+                    : text.unknownDesc}
                 </p>
                 <small className="text-[11px] text-slate-400 block mt-1">
                   {preview?.Storage?.ProjectDrive
@@ -469,11 +471,16 @@ function RecoveryStationContent({
                             onClick={() => launchAction(sig.suggestedTool)}
                             className="shrink-0 px-2.5 py-1 text-[11px] font-semibold rounded bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
                           >
-                            {sig.suggestedTool}
+                            {lang === 'ar' ? 'مراجعة الإجراء' : 'Review action'}
                           </button>
                         )}
                       </div>
                     ))}
+                  </div>
+                ) : summary.state === 'INCONCLUSIVE' ? (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-slate-900/60 border border-slate-700 text-slate-300 text-xs">
+                    <AlertTriangle size={16} className="text-slate-400" />
+                    <span>{text.unknownDesc}</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-950/20 border border-emerald-800/40 text-emerald-300 text-xs">
@@ -548,7 +555,7 @@ function RecoveryStationContent({
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white"
               >
                 <RefreshCw size={13} />
-                <span>{lang === 'ar' ? 'تحديث الفحص (BR04)' : 'Refresh VSS (BR04)'}</span>
+                <span>{lang === 'ar' ? 'تحديث الفحص' : 'Refresh VSS'}</span>
               </button>
             </div>
 
@@ -611,7 +618,7 @@ function RecoveryStationContent({
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
                 >
                   <ArchiveRestore size={13} />
-                  <span>{lang === 'ar' ? 'استعادة المفقود (BR05)' : 'Restore Missing (BR05)'}</span>
+                  <span>{lang === 'ar' ? 'استعادة المفقود' : 'Restore Missing'}</span>
                 </button>
               </div>
             </div>
@@ -686,7 +693,6 @@ function RecoveryStationContent({
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono font-bold text-sky-400">{t.ToolId}</span>
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                             t.RiskLevel === 'READ_ONLY'
@@ -753,7 +759,7 @@ function RecoveryStationContent({
                 onClick={() => launchAction('BR04')}
                 className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white"
               >
-                {lang === 'ar' ? 'فحص شامل (BR04)' : 'Audit Vault (BR04)'}
+                {lang === 'ar' ? 'فحص شامل' : 'Audit Vault'}
               </button>
             </div>
 

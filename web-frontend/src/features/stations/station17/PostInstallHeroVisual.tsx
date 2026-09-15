@@ -7,8 +7,10 @@ interface PostInstallHeroVisualProps {
   catalogDetected: number;
   catalogTotal: number;
   driverOffersCount: number;
+  driverOffersAvailable: boolean;
   pendingRestartCount: number;
   wingetAvailable: boolean;
+  hasPreview: boolean;
   lang: Lang;
 }
 
@@ -18,12 +20,18 @@ export default function PostInstallHeroVisual({
   catalogDetected,
   catalogTotal,
   driverOffersCount,
+  driverOffersAvailable,
   wingetAvailable,
+  hasPreview,
   lang,
 }: PostInstallHeroVisualProps) {
   const isReady = readiness === 'ready';
   const isPendingRestart = readiness === 'pending_restart';
   const isAttention = readiness === 'attention';
+  const baselineColor = hasPreview ? '#10b981' : '#64748b';
+  const driverColor = !hasPreview || !driverOffersAvailable ? '#64748b' : driverOffersCount > 0 ? '#38bdf8' : '#10b981';
+  const catalogColor = !hasPreview ? '#64748b' : catalogDetected < catalogTotal ? '#f59e0b' : '#10b981';
+  const readinessColor = !hasPreview ? '#64748b' : isPendingRestart ? '#ef4444' : isReady ? '#10b981' : '#64748b';
 
   const primaryColor = isPendingRestart ? '#f59e0b' : isReady ? '#10b981' : isAttention ? '#3b82f6' : '#64748b';
   const glowColor = isPendingRestart ? 'rgba(245, 158, 11, 0.25)' : isReady ? 'rgba(16, 185, 129, 0.25)' : 'rgba(59, 130, 246, 0.25)';
@@ -61,7 +69,7 @@ export default function PostInstallHeroVisual({
         {/* Stage 1: Baseline */}
         <path
           d="M 175 140 A 85 85 0 0 1 260 55"
-          stroke="#10b981"
+          stroke={baselineColor}
           strokeWidth="3.5"
           fill="none"
           strokeLinecap="round"
@@ -69,7 +77,7 @@ export default function PostInstallHeroVisual({
         {/* Stage 2: Drivers */}
         <path
           d="M 260 55 A 85 85 0 0 1 345 140"
-          stroke={driverOffersCount > 0 ? '#38bdf8' : '#10b981'}
+          stroke={driverColor}
           strokeWidth="3.5"
           fill="none"
           strokeLinecap="round"
@@ -77,7 +85,7 @@ export default function PostInstallHeroVisual({
         {/* Stage 3: Catalog */}
         <path
           d="M 345 140 A 85 85 0 0 1 260 225"
-          stroke={catalogDetected < catalogTotal ? '#f59e0b' : '#10b981'}
+          stroke={catalogColor}
           strokeWidth="3.5"
           fill="none"
           strokeLinecap="round"
@@ -85,7 +93,7 @@ export default function PostInstallHeroVisual({
         {/* Stage 4: Ready */}
         <path
           d="M 260 225 A 85 85 0 0 1 175 140"
-          stroke={isPendingRestart ? '#ef4444' : '#10b981'}
+          stroke={readinessColor}
           strokeWidth="3.5"
           fill="none"
           strokeLinecap="round"
@@ -115,8 +123,8 @@ export default function PostInstallHeroVisual({
 
         {/* Stage Node 1: Top (Baseline) */}
         <g transform="translate(260, 55)">
-          <circle cx="0" cy="0" r="14" fill="#0f172a" stroke="#10b981" strokeWidth="2" />
-          <text x="0" y="4" textAnchor="middle" fill="#10b981" fontSize="10" fontWeight="700">✓</text>
+          <circle cx="0" cy="0" r="14" fill="#0f172a" stroke={baselineColor} strokeWidth="2" />
+          <text x="0" y="4" textAnchor="middle" fill={baselineColor} fontSize="10" fontWeight="700">{hasPreview ? '✓' : '—'}</text>
           <text x="0" y="-18" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="600">
             {lang === 'ar' ? 'الأساس' : 'Baseline'}
           </text>
@@ -124,9 +132,9 @@ export default function PostInstallHeroVisual({
 
         {/* Stage Node 2: Right (Drivers) */}
         <g transform="translate(345, 140)">
-          <circle cx="0" cy="0" r="14" fill="#0f172a" stroke={driverOffersCount > 0 ? '#38bdf8' : '#10b981'} strokeWidth="2" />
+          <circle cx="0" cy="0" r="14" fill="#0f172a" stroke={driverColor} strokeWidth="2" />
           <text x="0" y="4" textAnchor="middle" fill="#f8fafc" fontSize="9" fontWeight="700">
-            {driverOffersCount > 0 ? `${driverOffersCount}` : '✓'}
+            {!hasPreview || !driverOffersAvailable ? '—' : driverOffersCount > 0 ? `${driverOffersCount}` : '✓'}
           </text>
           <text x="20" y="4" textAnchor="start" fill="#94a3b8" fontSize="10" fontWeight="600">
             {lang === 'ar' ? 'التعريفات' : 'Drivers'}
@@ -135,9 +143,9 @@ export default function PostInstallHeroVisual({
 
         {/* Stage Node 3: Bottom (Catalog) */}
         <g transform="translate(260, 225)">
-          <circle cx="0" cy="0" r="14" fill="#0f172a" stroke={catalogDetected === catalogTotal ? '#10b981' : '#f59e0b'} strokeWidth="2" />
+          <circle cx="0" cy="0" r="14" fill="#0f172a" stroke={catalogColor} strokeWidth="2" />
           <text x="0" y="4" textAnchor="middle" fill="#f8fafc" fontSize="8" fontWeight="700">
-            {catalogDetected}/{catalogTotal}
+            {hasPreview ? `${catalogDetected}/${catalogTotal}` : '—'}
           </text>
           <text x="0" y="24" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="600">
             {lang === 'ar' ? 'التطبيقات' : 'Apps'}
@@ -146,9 +154,9 @@ export default function PostInstallHeroVisual({
 
         {/* Stage Node 4: Left (Readiness / Reboot) */}
         <g transform="translate(175, 140)">
-          <circle cx="0" cy="0" r="14" fill="#0f172a" stroke={isPendingRestart ? '#ef4444' : '#10b981'} strokeWidth="2" />
-          <text x="0" y="4" textAnchor="middle" fill={isPendingRestart ? '#ef4444' : '#10b981'} fontSize="9" fontWeight="700">
-            {isPendingRestart ? '!' : 'OK'}
+          <circle cx="0" cy="0" r="14" fill="#0f172a" stroke={readinessColor} strokeWidth="2" />
+          <text x="0" y="4" textAnchor="middle" fill={readinessColor} fontSize="9" fontWeight="700">
+            {!hasPreview ? '—' : isPendingRestart ? '!' : isReady ? 'OK' : '…'}
           </text>
           <text x="-20" y="4" textAnchor="end" fill="#94a3b8" fontSize="10" fontWeight="600">
             {lang === 'ar' ? 'الجاهزية' : 'Readiness'}
@@ -171,8 +179,8 @@ export default function PostInstallHeroVisual({
           <text x="12" y="15" fill="#94a3b8" fontSize="9" fontWeight="500">
             {lang === 'ar' ? 'بيئة Winget' : 'Winget Client'}
           </text>
-          <text x="12" y="27" fill={wingetAvailable ? '#10b981' : '#f59e0b'} fontSize="11" fontWeight="700">
-            {wingetAvailable ? (lang === 'ar' ? 'جاهز' : 'Available') : (lang === 'ar' ? 'غير متوفر' : 'Missing')}
+          <text x="12" y="27" fill={!hasPreview ? '#94a3b8' : wingetAvailable ? '#10b981' : '#f59e0b'} fontSize="11" fontWeight="700">
+            {!hasPreview ? (lang === 'ar' ? 'غير مفحوص' : 'Not checked') : wingetAvailable ? (lang === 'ar' ? 'متوفر' : 'Available') : (lang === 'ar' ? 'غير متوفر' : 'Missing')}
           </text>
         </g>
       </svg>

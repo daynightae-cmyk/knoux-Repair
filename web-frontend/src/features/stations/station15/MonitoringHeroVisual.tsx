@@ -45,15 +45,15 @@ export default function MonitoringHeroVisual({
       color: '#6366f1',
       glow: 'rgba(99, 102, 241, 0.35)',
       badge: '#6366f1',
-      label: isRtl ? 'بانتظار الرصد' : 'OBSERVATORY READY',
-      subtitle: isRtl ? 'جاهز لرصد العمليات والذاكرة' : 'Telemetry Ready',
+      label: isRtl ? 'لم يتم الرصد بعد' : 'NOT CHECKED YET',
+      subtitle: isRtl ? 'بانتظار عينة عمليات حقيقية' : 'Awaiting a real process sample',
     },
   }[condition] || {
     color: '#6366f1',
     glow: 'rgba(99, 102, 241, 0.35)',
     badge: '#6366f1',
     label: 'OBSERVATORY',
-    subtitle: 'Telemetry Ready',
+    subtitle: isRtl ? 'الدليل غير متاح' : 'Evidence unavailable',
   };
 
   return (
@@ -113,13 +113,13 @@ export default function MonitoringHeroVisual({
         {/* Orbiting Process Beacons */}
         <g transform="translate(260, 116)">
           <circle cx="56" cy="-28" r="4.5" fill="#38bdf8" />
-          <text x="64" y="-24" fill="#94a3b8" fontSize="8" fontFamily="monospace">Proc A</text>
+          <text x="64" y="-24" fill="#94a3b8" fontSize="8" fontFamily="monospace">{topMemoryProcessName ? topMemoryProcessName.slice(0, 12) : 'PROCESS'}</text>
 
           <circle cx="-42" cy="46" r="4.5" fill="#a855f7" />
-          <text x="-40" y="58" fill="#94a3b8" fontSize="8" fontFamily="monospace">Proc B</text>
+          <text x="-40" y="58" fill="#94a3b8" fontSize="8" fontFamily="monospace">PROCESS</text>
 
           <circle cx="34" cy="54" r="5" fill="#10b981" />
-          <text x="42" y="60" fill="#94a3b8" fontSize="8" fontFamily="monospace">Proc C</text>
+          <text x="42" y="60" fill="#94a3b8" fontSize="8" fontFamily="monospace">PROCESS</text>
 
           {unresponsiveCount > 0 && (
             <g transform="translate(-55, -35)">

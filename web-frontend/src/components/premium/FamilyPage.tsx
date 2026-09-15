@@ -11,6 +11,8 @@ import FamilyLiveStage from './FamilyLiveStage';
 import EngineeringWorkbenchStation from './workbench/EngineeringWorkbenchStation';
 import DuplicateStation from '../../features/stations/station05/DuplicateStation';
 import ExecutionConfirmDialog from '../ExecutionConfirmDialog';
+import SoftwareLibraryPage from '../pages/SoftwareLibraryPage';
+import FamilyOverviewPage from '../pages/FamilyOverviewPage';
 
 interface FamilyPageProps {
   family: FamilyDefinition;
@@ -103,8 +105,43 @@ export default function FamilyPage({
     tool: BridgeTool; mode: 'run' | 'analyze' | 'preview'; options: ToolRunOptions;
   } | null>(null);
 
+  const showFamilyOverview = selectedService === null && selectedTool === null && executionTool === null;
+  if (showFamilyOverview) {
+    const selectOverviewService = (serviceId: ServiceId) => {
+      onSelectService(serviceId);
+      onSelectTool(null);
+      setToolQuery('');
+      setToolsExpanded(false);
+    };
+
+    if (family.id === 'software') {
+      return (
+        <SoftwareLibraryPage
+          family={family}
+          tools={tools}
+          lang={lang}
+          bridgeOnline={bridgeOnline}
+          bridgeElevated={bridgeElevated}
+          onSelectService={selectOverviewService}
+        />
+      );
+    }
+
+    return (
+      <FamilyOverviewPage
+        family={family}
+        tools={tools}
+        lang={lang}
+        bridgeOnline={bridgeOnline}
+        bridgeElevated={bridgeElevated}
+        systemSnapshot={systemSnapshot}
+        onSelectService={selectOverviewService}
+      />
+    );
+  }
+
   return (
-    <div className={`knoux-family-page knoux-command-center${serviceAppActive ? ' knoux-service-app-active' : ''}`} dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className={`knoux-family-page knoux-command-center${serviceAppActive ? ' knoux-service-app-active' : ''}`} data-family={family.id} data-service={activeService.id} dir={isRtl ? 'rtl' : 'ltr'}>
       <aside className="knoux-command-rail knoux-command-service-rail" aria-label={isRtl ? 'خدمات العائلة' : 'Family services'}>
         <header className="knoux-command-rail-header">
           <span>{isRtl ? 'الخدمات' : 'SERVICES'}</span>

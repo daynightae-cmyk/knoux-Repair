@@ -1,13 +1,13 @@
 import { useCallback } from 'react';
 import {
   Sparkles, Activity, Database, Shield, Package,
-  Code2, Search, Bell, Settings, LayoutGrid,
+  Code2, Search, Bell, Settings, LayoutGrid, House,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import type { FamilyId } from '../../data/family-map';
 
-export type ActiveView = FamilyId | 'ai-scan' | 'action-center' | 'settings' | 'navigator';
+export type ActiveView = FamilyId | 'home' | 'ai-scan' | 'action-center' | 'settings' | 'navigator';
 
 export interface LeftRailProps {
   activeView: ActiveView;
@@ -24,6 +24,7 @@ interface NavItem {
 }
 
 const MAIN_ITEMS: NavItem[] = [
+  { id: 'home', icon: House, labelEn: 'Home', labelAr: 'الرئيسية' },
   { id: 'ai-scan', icon: Sparkles, labelEn: 'AI Scan', labelAr: 'فحص ذكي' },
   { id: 'vitality', icon: Activity, labelEn: 'System Vitality', labelAr: 'حيوية النظام' },
   { id: 'recovery', icon: Database, labelEn: 'Recovery & Storage', labelAr: 'الاستعادة والتخزين' },
@@ -86,6 +87,12 @@ export default function LeftRail({ activeView, onSelect, lang, bridgeOnline }: L
 
       <div className="knoux-rail-section flex flex-col gap-0.5">
         {BOTTOM_ITEMS.map(renderItem)}
+      </div>
+
+      <div className="knoux-rail-brand-card" aria-label="KNOUX Repair version 2.0.2">
+        <strong>KNOUX Repair</strong>
+        <span>v2.0.2</span>
+        <small>{lang === 'ar' ? 'جهاز أكثر صحة. غدٌ أكثر إشراقًا.' : 'A Healthier PC. A Brighter Tomorrow.'}</small>
       </div>
 
       {/* Bridge status indicator at bottom */}

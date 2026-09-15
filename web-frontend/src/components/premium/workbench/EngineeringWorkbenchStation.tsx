@@ -213,18 +213,22 @@ export default function EngineeringWorkbenchStation({
   }, [activeTab, workbenchPool, effectiveStatuses]);
   const tabs: Array<{ id: WorkbenchTab; labelEn: string; labelAr: string }> = [
     { id: 'overview', labelEn: 'Overview', labelAr: 'نظرة عامة' },
-    { id: 'code', labelEn: 'Code', labelAr: 'الكود' },
+    { id: 'code', labelEn: 'Developer Tools', labelAr: 'أدوات المطور' },
     { id: 'dependencies', labelEn: 'Dependencies', labelAr: 'الاعتماديات' },
     { id: 'scripts', labelEn: 'Scripts', labelAr: 'السكربتات' },
     { id: 'environment', labelEn: 'Environment', labelAr: 'البيئة' },
-    { id: 'insights', labelEn: 'Insights', labelAr: 'الرؤى' },
-    { id: 'output', labelEn: 'Output', labelAr: 'المخرجات' },
+    { id: 'insights', labelEn: 'Sonar Insights', labelAr: 'رؤى سونار' },
+    { id: 'output', labelEn: 'Run Activity', labelAr: 'نشاط التشغيل' },
   ];
+  const visibleTabs = activeService.id === '18-Project-Sonar'
+    ? tabs.filter(tab => ['overview', 'dependencies', 'insights', 'output'].includes(tab.id))
+    : tabs.filter(tab => ['overview', 'code', 'dependencies', 'scripts', 'environment', 'output'].includes(tab.id));
 
   return (
     <section
       className="knoux-workspace-stage knoux-command-workspace knoux-engineering-workbench knoux-command-deck"
       data-mode="service"
+      data-operational="true"
       data-execution="idle"
       data-selected-tool-id=""
       data-execution-tool-id=""
@@ -379,7 +383,7 @@ export default function EngineeringWorkbenchStation({
       {/* ── Adaptive IDE workspace: explorer / dominant preview / context ─── */}
       <p className="knoux-deck-preview-label">{text.previewLabel}</p>
       <div className="knoux-deck-tabs" role="tablist" aria-label={isRtl ? 'تبويبات مساحة العمل' : 'Workspace tabs'}>
-        {tabs.map(tab => {
+        {visibleTabs.map(tab => {
           const selected = tab.id === activeTab;
           return (
             <button
@@ -453,6 +457,7 @@ export default function EngineeringWorkbenchStation({
                 }}
                 onRunTool={onRunTool}
                 onCancelTool={onCancelTool}
+                embedded
               />
             </div>
           ) : (

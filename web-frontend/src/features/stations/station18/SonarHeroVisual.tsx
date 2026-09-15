@@ -27,9 +27,16 @@ export default function SonarHeroVisual({
   const isCritical = condition === 'critical';
   const isAttention = condition === 'attention';
   const isHealthy = condition === 'healthy';
+  const isScanned = condition !== 'unscanned';
 
-  const primaryColor = isCritical ? '#ef4444' : isAttention ? '#f59e0b' : isHealthy ? '#10b981' : '#38bdf8';
-  const glowColor = isCritical ? 'rgba(239, 68, 68, 0.25)' : isAttention ? 'rgba(245, 158, 11, 0.25)' : 'rgba(16, 185, 129, 0.25)';
+  const primaryColor = isCritical ? '#ef4444' : isAttention ? '#f59e0b' : isHealthy ? '#10b981' : '#64748b';
+  const glowColor = isCritical
+    ? 'rgba(239, 68, 68, 0.25)'
+    : isAttention
+    ? 'rgba(245, 158, 11, 0.25)'
+    : isHealthy
+    ? 'rgba(16, 185, 129, 0.25)'
+    : 'rgba(100, 116, 139, 0.18)';
 
   return (
     <div className="sonar-hero-visual-root" style={{ width: '100%', maxWidth: '520px', margin: '0 auto' }}>
@@ -88,10 +95,10 @@ export default function SonarHeroVisual({
 
         {/* Target 1: Git Branch Node (Top Right) */}
         <g transform="translate(330, 80)">
-          <circle cx="0" cy="0" r="12" fill="#0f172a" stroke={isGitRepo ? '#10b981' : '#64748b'} strokeWidth="1.8" />
+          <circle cx="0" cy="0" r="12" fill="#0f172a" stroke={!isScanned ? '#64748b' : isGitRepo ? '#10b981' : '#64748b'} strokeWidth="1.8" />
           <text x="0" y="4" textAnchor="middle" fill="#f8fafc" fontSize="8" fontWeight="700">GIT</text>
           <text x="18" y="4" textAnchor="start" fill="#94a3b8" fontSize="9" fontWeight="600">
-            {gitBranch || (isGitRepo ? 'Repo' : 'No Git')}
+            {!isScanned ? '—' : gitBranch || (isGitRepo ? 'Repo' : 'No Git')}
           </text>
         </g>
 
@@ -106,9 +113,9 @@ export default function SonarHeroVisual({
 
         {/* Target 3: Findings Radar Blip (Top Left) */}
         <g transform="translate(190, 80)">
-          <circle cx="0" cy="0" r="12" fill="#0f172a" stroke={isCritical ? '#ef4444' : isAttention ? '#f59e0b' : '#10b981'} strokeWidth="1.8" />
+          <circle cx="0" cy="0" r="12" fill="#0f172a" stroke={!isScanned ? '#64748b' : isCritical ? '#ef4444' : isAttention ? '#f59e0b' : '#10b981'} strokeWidth="1.8" />
           <text x="0" y="4" textAnchor="middle" fill="#f8fafc" fontSize="8" fontWeight="700">
-            {totalFindings}
+            {isScanned ? totalFindings : '—'}
           </text>
           <text x="-16" y="4" textAnchor="end" fill="#94a3b8" fontSize="9" fontWeight="600">
             {lang === 'ar' ? 'نتائج الفحص' : 'Findings'}
@@ -131,7 +138,7 @@ export default function SonarHeroVisual({
             {lang === 'ar' ? 'حالة السونار' : 'Sonar State'}
           </text>
           <text x="12" y="27" fill={primaryColor} fontSize="11" fontWeight="700">
-            {condition.toUpperCase()}
+            {isScanned ? condition.toUpperCase() : (lang === 'ar' ? 'لم يتم الفحص' : 'NOT SCANNED')}
           </text>
         </g>
 
@@ -140,8 +147,8 @@ export default function SonarHeroVisual({
           <text x="12" y="15" fill="#94a3b8" fontSize="9" fontWeight="500">
             {lang === 'ar' ? 'النتائج الحرجة' : 'Critical Issues'}
           </text>
-          <text x="12" y="27" fill={criticalCount > 0 ? '#ef4444' : '#10b981'} fontSize="11" fontWeight="700">
-            {criticalCount > 0 ? `${criticalCount} / ${criticalCount + highCount}` : '0 Clean'}
+          <text x="12" y="27" fill={!isScanned ? '#94a3b8' : criticalCount > 0 ? '#ef4444' : '#10b981'} fontSize="11" fontWeight="700">
+            {!isScanned ? '—' : criticalCount > 0 ? `${criticalCount} / ${criticalCount + highCount}` : (lang === 'ar' ? '0 حرج' : '0 critical')}
           </text>
         </g>
       </svg>

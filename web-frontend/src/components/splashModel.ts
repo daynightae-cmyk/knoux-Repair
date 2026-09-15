@@ -3,7 +3,6 @@ import type { Lang } from '../lib/i18n';
 export const SPLASH_TIMING = {
   minimumVisualMs: 1300,
   unresolvedBridgeTimeoutMs: 3000,
-  completionHoldMs: 300,
   exitMs: 720,
 } as const;
 
@@ -27,10 +26,15 @@ const COPY = {
     bridgeConnected: 'CONNECTED',
     bridgeConnecting: 'CONNECTING',
     bridgeOffline: 'OFFLINE',
-    toolsReady: (count: number) => `${count.toLocaleString('en')} TOOLS READY`,
+    toolsRegistered: (count: number) => `${count.toLocaleString('en')} TOOLS REGISTERED`,
     toolsSyncing: 'TOOLS SYNCING',
     localBridge: 'LOCAL BRIDGE',
     footer: 'LOCAL-FIRST WINDOWS ENGINEERING',
+    action: 'Enter Workstation',
+    waitingAction: 'CORE INITIALIZING',
+    readyInstruction: 'READY — PRESS ENTER',
+    offlineInstruction: 'BRIDGE OFFLINE — ENTER LOCAL WORKSPACE',
+    continuingInstruction: 'BRIDGE STILL CONNECTING — ENTER WORKSPACE',
   },
   ar: {
     subtitle: 'محطة إصلاح وتشخيص النظام',
@@ -42,12 +46,35 @@ const COPY = {
     bridgeConnected: 'متصل',
     bridgeConnecting: 'جارٍ الاتصال',
     bridgeOffline: 'غير متصل',
-    toolsReady: (count: number) => `${count.toLocaleString('ar')} أداة جاهزة`,
+    toolsRegistered: (count: number) => `${count.toLocaleString('ar')} أداة مسجلة`,
     toolsSyncing: 'جارٍ مزامنة الأدوات',
     localBridge: 'المحرك المحلي',
     footer: 'هندسة ويندوز محلية أولًا',
+    action: 'دخول محطة العمل',
+    waitingAction: 'جارٍ تهيئة المحرك',
+    readyInstruction: 'جاهز — اضغط ENTER',
+    offlineInstruction: 'المحرك غير متصل — دخول الوضع المحلي',
+    continuingInstruction: 'الاتصال ما زال جاريًا — دخول مساحة العمل',
   },
 } satisfies Record<Lang, Record<string, string | ((count: number) => string)>>;
+
+export function isSplashActivationKey(key: string, code = ''): boolean {
+  return key === 'Enter' || code === 'NumpadEnter';
+}
+
+export function canActivateSplash({
+  progress,
+  bridgeOnline,
+  timedOut,
+  imageSettled,
+}: {
+  progress: number;
+  bridgeOnline: boolean | null;
+  timedOut: boolean;
+  imageSettled: boolean;
+}): boolean {
+  return progress >= 100 && imageSettled && (bridgeOnline !== null || timedOut);
+}
 
 export function resolveSplashStage(
   progress: number,
@@ -85,7 +112,14 @@ export function getSplashPresentation({
       : c.bridgeConnecting;
   const toolsLabel = bridgeOnline === false
     ? (c.bridgeOffline as string)
-    : toolCount > 0 ? c.toolsReady(toolCount) : c.toolsSyncing;
+    : toolCount > 0 ? c.toolsRegistered(toolCount) : c.toolsSyncing;
+  const instruction = stage === 'ready'
+    ? c.readyInstruction
+    : stage === 'offline'
+      ? c.offlineInstruction
+      : stage === 'continuing'
+        ? c.continuingInstruction
+        : c.waitingAction;
 
   return {
     stage,
@@ -95,5 +129,7 @@ export function getSplashPresentation({
     toolsLabel,
     localBridge: c.localBridge,
     footer: c.footer,
+    action: c.action,
+    instruction,
   };
 }

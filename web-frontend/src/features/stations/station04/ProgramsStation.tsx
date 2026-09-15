@@ -419,7 +419,7 @@ export default function ProgramsStation({
     <StationErrorBoundary>
       <div className="programs-station" dir={isAr ? 'rtl' : 'ltr'}>
         {/* Topbar */}
-        <header className="flex items-center justify-between gap-4 p-3 bg-slate-900/60 border border-slate-800/80 rounded-xl backdrop-blur-md">
+        <header className="programs-station-header flex items-center justify-between gap-4 p-3 bg-slate-900/60 border border-slate-800/80 rounded-xl backdrop-blur-md">
           <div className="flex items-center gap-3">
             <AppWindow size={22} className="text-orange-400" />
             <div>
@@ -512,7 +512,7 @@ export default function ProgramsStation({
         )}
 
         {/* Main Tab Content */}
-        <div className="space-y-6 flex-1 overflow-y-auto">
+        <div className="programs-station-content space-y-6 flex-1 overflow-y-auto">
           {/* TAB 1: OVERVIEW & HEALTH */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
@@ -854,7 +854,7 @@ export default function ProgramsStation({
               <section className="p-4 bg-slate-900/60 border border-slate-800 rounded-lg space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-slate-200">
-                    {isAr ? 'محرك مطابقة ملكية بقايا البرامج (PA03)' : 'Orphan Ownership Correlation Engine (PA03)'}
+                    {isAr ? 'محرك مطابقة ملكية بقايا البرامج' : 'Orphan Ownership Correlation Engine'}
                   </h3>
                   <button
                     type="button"
@@ -885,7 +885,7 @@ export default function ProgramsStation({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-slate-200">{isAr ? 'إصلاح تثبيت البرامج (PA02)' : 'Repair Program Installations (PA02)'}</h3>
+                    <h3 className="text-sm font-semibold text-slate-200">{isAr ? 'إصلاح تثبيت البرامج' : 'Repair Program Installations'}</h3>
                     <span className="badge text-[10px] px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-500/30">Admin</span>
                   </div>
                   <p className="text-xs text-slate-400">
@@ -903,7 +903,7 @@ export default function ProgramsStation({
 
                 <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-slate-200">{isAr ? 'إصلاح أداة إلغاء التثبيت (PA08)' : 'Repair Program Uninstaller (PA08)'}</h3>
+                    <h3 className="text-sm font-semibold text-slate-200">{isAr ? 'إصلاح أداة إلغاء التثبيت' : 'Repair Program Uninstaller'}</h3>
                     <span className="badge text-[10px] px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30">Offline OK</span>
                   </div>
                   <p className="text-xs text-slate-400">
@@ -1070,7 +1070,7 @@ export default function ProgramsStation({
                 <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-slate-200">
-                      {isAr ? 'إصلاح اختصارات قائمة ابدأ (PA04)' : 'Start Menu Shortcut Integrity (PA04)'}
+                      {isAr ? 'إصلاح اختصارات قائمة ابدأ' : 'Start Menu Shortcut Integrity'}
                     </h3>
                     <span className="badge text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
                       {evidence.brokenShortcutsCount} broken
@@ -1094,7 +1094,7 @@ export default function ProgramsStation({
                 <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-slate-200">
-                      {isAr ? 'فحص مكونات التشغيل (PA06)' : 'Runtime Components Diagnosis (PA06)'}
+                      {isAr ? 'فحص مكونات التشغيل' : 'Runtime Components Diagnosis'}
                     </h3>
                     <span className="badge text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-mono">
                       Read Only

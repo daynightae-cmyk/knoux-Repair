@@ -23,7 +23,7 @@ export default function DeveloperHeroVisual({
     OPTIMAL: { stroke: '#10b981', glow: 'rgba(16, 185, 129, 0.35)', badge: '#10b981', text: isRtl ? 'بيئة مثالية' : 'OPTIMAL WORKBENCH' },
     ATTENTION_NEEDED: { stroke: '#f59e0b', glow: 'rgba(245, 158, 11, 0.35)', badge: '#f59e0b', text: isRtl ? 'تنبيهات مسارات' : 'ATTENTION NEEDED' },
     DEGRADED: { stroke: '#ef4444', glow: 'rgba(239, 68, 68, 0.35)', badge: '#ef4444', text: isRtl ? 'أدوات مفقودة' : 'TOOLCHAIN DEGRADED' },
-    INCONCLUSIVE: { stroke: '#6366f1', glow: 'rgba(99, 102, 241, 0.35)', badge: '#6366f1', text: isRtl ? 'بانتظار الفحص' : 'AUDIT READY' },
+    INCONCLUSIVE: { stroke: '#6366f1', glow: 'rgba(99, 102, 241, 0.35)', badge: '#6366f1', text: isRtl ? 'لم يتم الفحص بعد' : 'NOT CHECKED YET' },
   }[state] || { stroke: '#6366f1', glow: 'rgba(99, 102, 241, 0.35)', badge: '#6366f1', text: 'DEVELOPER LAB' };
 
   return (

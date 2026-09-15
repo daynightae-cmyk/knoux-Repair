@@ -64,10 +64,10 @@ const COPY = {
     servicesStatus: 'Update Services',
     signalsTitle: 'Provisioning Signals & Recommendations',
     noSignals: 'All post-install baseline checks and essential utilities are satisfied.',
-    quickDiscoverDrivers: 'Discover Drivers (PI01)',
-    quickCatalog: 'Catalog Export (PI03)',
-    quickRefreshSources: 'Refresh Sources (PI05)',
-    quickPreview: 'Full Preview (PI06)',
+    quickDiscoverDrivers: 'Discover Drivers',
+    quickCatalog: 'Catalog Export',
+    quickRefreshSources: 'Refresh Sources',
+    quickPreview: 'Full Preview',
     baselineTitle: 'Operating System Baseline & Services',
     baselineSubtitle: 'Core Windows OS edition, build metrics, pending restart flags, and servicing subsystems.',
     catalogTitle: 'Essential Applications Catalog',
@@ -77,9 +77,9 @@ const COPY = {
     wingetTitle: 'Windows Package Manager Setup',
     wingetSubtitle: 'Winget client version, package source health, and catalog connectivity.',
     searchPlaceholder: 'Search catalog by name, category, or ID...',
-    installSelectedApps: 'Install Selected Apps via PI04',
-    installSelectedDrivers: 'Install Selected Drivers via PI02',
-    refreshSourcesAction: 'Refresh Sources via PI05',
+    installSelectedApps: 'Install Selected Apps',
+    installSelectedDrivers: 'Install Selected Drivers',
+    refreshSourcesAction: 'Refresh Package Sources',
     adminRequiredNotice: 'Administrator privileges are required to install driver updates.',
     noSelection: 'Please select at least one item.',
     noDriversAvailable: 'Zero driver updates offered by Windows Update for this device.',
@@ -109,10 +109,10 @@ const COPY = {
     servicesStatus: 'خدمات التحديث',
     signalsTitle: 'مؤشرات التجهيز والتوصيات الهندسية',
     noSignals: 'جميع فحوصات جاهزية النظام والبرامج الأساسية مستوفاة بحالة ممتازة.',
-    quickDiscoverDrivers: 'استكشاف التعريفات (PI01)',
-    quickCatalog: 'كتالوج التطبيقات (PI03)',
-    quickRefreshSources: 'تحديث المصادر (PI05)',
-    quickPreview: 'معاينة شاملة (PI06)',
+    quickDiscoverDrivers: 'استكشاف التعريفات',
+    quickCatalog: 'كتالوج التطبيقات',
+    quickRefreshSources: 'تحديث المصادر',
+    quickPreview: 'معاينة شاملة',
     baselineTitle: 'أساس نظام التشغيل والخدمات',
     baselineSubtitle: 'إصدار ويندوز، رقم البناء، مؤشرات إعادة التشغيل المعلقة، وخدمات التحديث.',
     catalogTitle: 'كتالوج التطبيقات الأساسية المعتمدة',
@@ -122,9 +122,9 @@ const COPY = {
     wingetTitle: 'تهيئة مدير حزم ويندوز (Winget)',
     wingetSubtitle: 'إصدار عميل Winget وصحة مصادر الحزم والاتصال بالكتالوج.',
     searchPlaceholder: 'بحث في الكتالوج بالاسم أو الفئة أو المعرف...',
-    installSelectedApps: 'تثبيت التطبيقات المختارة عبر PI04',
-    installSelectedDrivers: 'تثبيت التعريفات المختارة عبر PI02',
-    refreshSourcesAction: 'تحديث مصادر Winget عبر PI05',
+    installSelectedApps: 'تثبيت التطبيقات المختارة',
+    installSelectedDrivers: 'تثبيت التعريفات المختارة',
+    refreshSourcesAction: 'تحديث مصادر الحزم',
     adminRequiredNotice: 'صلاحيات المسؤول مطلوبة لتثبيت تحديثات التعريفات.',
     noSelection: 'يرجى اختيار عنصر واحد على الأقل.',
     noDriversAvailable: 'لا توجد عروض تحديث تعريفات معلقة من Windows Update لهذا الجهاز.',
@@ -551,8 +551,10 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                   catalogDetected={summary.catalogDetected}
                   catalogTotal={summary.catalogTotal}
                   driverOffersCount={summary.driverOffersCount}
+                  driverOffersAvailable={summary.driverOffersAvailable}
                   pendingRestartCount={summary.pendingRestartCount}
                   wingetAvailable={summary.wingetAvailable}
+                  hasPreview={Boolean(previewData)}
                   lang={lang}
                 />
               </div>
@@ -561,32 +563,32 @@ export default function PostInstallStation(props: PostInstallStationProps) {
               <div className="metrics-grid">
                 <div className="metric-card">
                   <span className="metric-label">{t.installedApps}</span>
-                  <span className="metric-value primary">{summary.installedAppsCount}</span>
+                  <span className="metric-value primary">{previewData ? summary.installedAppsCount : '—'}</span>
                   <span className="metric-sub">{summary.systemCaption}</span>
                 </div>
                 <div className="metric-card">
                   <span className="metric-label">{t.pendingReboot}</span>
                   <span className={`metric-value ${summary.pendingRestartCount > 0 ? 'danger' : 'success'}`}>
-                    {summary.pendingRestartCount > 0 ? `${summary.pendingRestartCount} signals` : 'None'}
+                    {!previewData ? '—' : summary.pendingRestartCount > 0 ? `${summary.pendingRestartCount} signals` : 'None'}
                   </span>
-                  <span className="metric-sub">{summary.pendingRestartCount > 0 ? 'Reboot recommended' : 'Clean state'}</span>
+                  <span className="metric-sub">{!previewData ? (lang === 'ar' ? 'لم يتم الفحص بعد' : 'Not checked yet') : summary.pendingRestartCount > 0 ? 'Reboot recommended' : 'No restart signal observed'}</span>
                 </div>
                 <div className="metric-card">
                   <span className="metric-label">{t.missingApps}</span>
                   <span className={`metric-value ${summary.catalogMissing > 0 ? 'warning' : 'success'}`}>
-                    {summary.catalogMissing} / {summary.catalogTotal}
+                    {previewData ? `${summary.catalogMissing} / ${summary.catalogTotal}` : '—'}
                   </span>
                   <span className="metric-sub">Catalog utilities</span>
                 </div>
                 <div className="metric-card">
                   <span className="metric-label">{t.driverOffers}</span>
-                  <span className="metric-value info">{summary.driverOffersCount}</span>
+                  <span className="metric-value info">{previewData && summary.driverOffersAvailable ? summary.driverOffersCount : '—'}</span>
                   <span className="metric-sub">Windows Update</span>
                 </div>
                 <div className="metric-card">
                   <span className="metric-label">{t.wingetStatus}</span>
-                  <span className="metric-value">{summary.wingetAvailable ? (summary.wingetVersion || 'Ready') : 'Missing'}</span>
-                  <span className="metric-sub">{summary.wingetSourcesCount} sources active</span>
+                  <span className="metric-value">{!previewData ? '—' : summary.wingetAvailable ? (summary.wingetVersion || 'Available') : 'Missing'}</span>
+                  <span className="metric-sub">{!previewData ? (lang === 'ar' ? 'لم يتم الفحص بعد' : 'Not checked yet') : `${summary.wingetSourcesCount} sources observed`}</span>
                 </div>
               </div>
 
@@ -639,8 +641,8 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                 <h3 className="section-title">{t.signalsTitle}</h3>
                 {signals.length === 0 ? (
                   <div className="empty-state-notice">
-                    <CheckCircle2 size={24} className="text-success" />
-                    <span>{t.noSignals}</span>
+                    {previewData ? <CheckCircle2 size={24} className="text-success" /> : <Search size={24} className="text-slate-400" />}
+                    <span>{previewData ? t.noSignals : (lang === 'ar' ? 'لم يتم فحص جاهزية ما بعد التثبيت بعد.' : 'Post-install readiness has not been checked yet.')}</span>
                   </div>
                 ) : (
                   <div className="signals-list">
@@ -659,7 +661,7 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                               className="signal-action-btn"
                               onClick={() => handleLaunchTool(recTool, recTool.RiskLevel === 'READ_ONLY' ? 'analyze' : 'preview')}
                             >
-                              <span>{recTool.ToolId}: {lang === 'ar' ? (recTool.ArabicName || recTool.EnglishName) : recTool.EnglishName}</span>
+                              <span>{lang === 'ar' ? (recTool.ArabicName || recTool.EnglishName) : recTool.EnglishName}</span>
                               <ArrowUpRight size={13} />
                             </button>
                           )}
@@ -1018,7 +1020,6 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                   return (
                     <div key={tool.ToolId} className="tool-card">
                       <div className="tool-card-header">
-                        <span className="tool-id-badge">{tool.ToolId}</span>
                         <strong className="tool-name">{lang === 'ar' ? (tool.ArabicName || tool.EnglishName) : tool.EnglishName}</strong>
                         <span className={`risk-pill ${tool.RiskLevel.toLowerCase()}`}>{tool.RiskLevel}</span>
                       </div>

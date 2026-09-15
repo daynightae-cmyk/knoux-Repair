@@ -19,7 +19,8 @@ export const DiskSpaceHeroVisual: React.FC<DiskSpaceHeroVisualProps> = ({
 
   // Compute primary system drive or first volume for topology projection
   const primary = volumes.find((v) => v.isSystem) || volumes[0];
-  const usedPercent = primary ? primary.usedPercent : 68;
+  const usedPercent = primary ? primary.usedPercent : 0;
+  const hasVolumeEvidence = Boolean(primary);
 
   // Arc calculation for radial segmented gauge
   const radius = 90;
@@ -119,19 +120,21 @@ export const DiskSpaceHeroVisual: React.FC<DiskSpaceHeroVisualProps> = ({
           <circle r="52" stroke="rgba(255, 255, 255, 0.06)" strokeWidth="1" />
           <circle r="32" stroke="rgba(129, 140, 248, 0.2)" strokeWidth="1.5" />
 
-          {/* Segmented Volume Arc */}
-          <circle
-            r={radius}
-            stroke="url(#dsUsageArc)"
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
-            transform="rotate(-90)"
-            style={{
-              transition: 'stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)',
-            }}
-          />
+          {/* Segmented Volume Arc — only when a real volume has been observed. */}
+          {hasVolumeEvidence && (
+            <circle
+              r={radius}
+              stroke="url(#dsUsageArc)"
+              strokeWidth="8"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              transform="rotate(-90)"
+              style={{
+                transition: 'stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+            />
+          )}
 
           {/* Hub Core */}
           <circle r="20" fill="rgba(15, 23, 42, 0.95)" stroke="#38bdf8" strokeWidth="2" />
@@ -163,7 +166,7 @@ export const DiskSpaceHeroVisual: React.FC<DiskSpaceHeroVisualProps> = ({
             fontWeight="bold"
             fontFamily="monospace"
           >
-            {usedPercent}%
+            {hasVolumeEvidence ? `${usedPercent}%` : '—'}
           </text>
         </g>
 
@@ -179,10 +182,10 @@ export const DiskSpaceHeroVisual: React.FC<DiskSpaceHeroVisualProps> = ({
           />
           <circle cx="20" cy="25" r="8" fill="rgba(56, 189, 248, 0.2)" stroke="#38bdf8" strokeWidth="1.5" />
           <text x="36" y="22" fill="#f8fafc" fontSize="11" fontWeight="600">
-            {primary ? primary.name : 'C:'} (System)
+            {primary ? `${primary.name}${primary.isSystem ? ' (System)' : ''}` : (lang === 'ar' ? 'لم يتم اكتشاف قرص بعد' : 'No volume observed yet')}
           </text>
           <text x="36" y="36" fill="#94a3b8" fontSize="9">
-            {primary ? `${primary.usedPercent}% used` : 'Primary Volume'}
+            {primary ? `${primary.usedPercent}% used` : (lang === 'ar' ? 'بانتظار دليل التخزين' : 'Awaiting storage evidence')}
           </text>
           {/* Connector Line to Platter */}
           <path
@@ -209,7 +212,7 @@ export const DiskSpaceHeroVisual: React.FC<DiskSpaceHeroVisualProps> = ({
             {lang === 'ar' ? 'طوبولوجيا التخزين' : 'Atlas Topology'}
           </text>
           <text x="36" y="36" fill="#94a3b8" fontSize="9">
-            {volumes.length ? `${volumes.length} ${lang === 'ar' ? 'أقراص نشطة' : 'volumes mapped'}` : (lang === 'ar' ? 'في انتظار الفحص' : 'Ready for scan')}
+            {volumes.length ? `${volumes.length} ${lang === 'ar' ? 'أقراص نشطة' : 'volumes mapped'}` : (lang === 'ar' ? 'لم يتم الفحص بعد' : 'Not checked yet')}
           </text>
           {/* Connector Line */}
           <path

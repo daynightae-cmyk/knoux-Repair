@@ -16,10 +16,11 @@ export const ServicesHeroVisual: React.FC<ServicesHeroVisualProps> = ({
   className = '',
 }) => {
   const isScanning = stage === 'scanning';
-  const running = topology ? topology.running : 85;
-  const stopped = topology ? topology.stopped : 32;
-  const total = topology ? topology.total : 117;
-  const attention = topology ? topology.attentionCount : 4;
+  const hasTopologyEvidence = Boolean(topology && topology.total > 0);
+  const running = topology?.running ?? 0;
+  const stopped = topology?.stopped ?? 0;
+  const total = topology?.total ?? 0;
+  const attention = topology?.attentionCount ?? 0;
 
   return (
     <div
@@ -112,7 +113,7 @@ export const ServicesHeroVisual: React.FC<ServicesHeroVisualProps> = ({
             />
           )}
           <text y="-4" textAnchor="middle" fill="#ffffff" fontSize="13" fontWeight="bold" fontFamily="monospace">
-            {running}
+            {hasTopologyEvidence ? running : '—'}
           </text>
           <text y="10" textAnchor="middle" fill="#94a3b8" fontSize="8" fontFamily="sans-serif">
             ACTIVE
@@ -125,7 +126,7 @@ export const ServicesHeroVisual: React.FC<ServicesHeroVisualProps> = ({
           <circle r="12" fill="url(#spRunningNode)" />
           <circle r="16" stroke="#10b981" strokeWidth="1" strokeOpacity="0.4" />
           <text x="18" y="4" fill="#e2e8f0" fontSize="9" fontWeight="600">
-            RPCSS
+            RUNNING
           </text>
         </g>
 
@@ -134,7 +135,7 @@ export const ServicesHeroVisual: React.FC<ServicesHeroVisualProps> = ({
           <circle r="12" fill="url(#spRunningNode)" />
           <circle r="16" stroke="#10b981" strokeWidth="1" strokeOpacity="0.4" />
           <text x="18" y="4" fill="#e2e8f0" fontSize="9" fontWeight="600">
-            WMI
+            RUNNING
           </text>
         </g>
 
@@ -142,7 +143,7 @@ export const ServicesHeroVisual: React.FC<ServicesHeroVisualProps> = ({
         <g transform="translate(160, 170)">
           <circle r="10" fill="url(#spStoppedNode)" />
           <text x="16" y="4" fill="#94a3b8" fontSize="9">
-            Spooler
+            STOPPED
           </text>
         </g>
 
@@ -151,7 +152,7 @@ export const ServicesHeroVisual: React.FC<ServicesHeroVisualProps> = ({
           <circle r="12" fill="url(#spAttentionNode)" />
           <circle r="16" stroke="#f59e0b" strokeWidth="1" strokeOpacity="0.5" />
           <text x="18" y="4" fill="#fcd34d" fontSize="9" fontWeight="600">
-            {attention > 0 ? `${attention} Review` : 'WU'}
+            {hasTopologyEvidence ? (attention > 0 ? `${attention} REVIEW` : 'NO FLAGS') : 'UNOBSERVED'}
           </text>
         </g>
 
@@ -159,7 +160,7 @@ export const ServicesHeroVisual: React.FC<ServicesHeroVisualProps> = ({
         <g transform="translate(100, 110)">
           <circle r="8" fill="url(#spRunningNode)" />
           <text x="-4" y="-12" textAnchor="middle" fill="#64748b" fontSize="8">
-            DCOM
+            SERVICE
           </text>
         </g>
 
@@ -167,7 +168,7 @@ export const ServicesHeroVisual: React.FC<ServicesHeroVisualProps> = ({
         <g transform="translate(480, 110)">
           <circle r="8" fill="url(#spRunningNode)" />
           <text x="4" y="-12" textAnchor="middle" fill="#64748b" fontSize="8">
-            CryptSvc
+            SERVICE
           </text>
         </g>
 
@@ -176,7 +177,7 @@ export const ServicesHeroVisual: React.FC<ServicesHeroVisualProps> = ({
           <rect width="130" height="24" rx="6" fill="rgba(15, 23, 42, 0.7)" stroke="rgba(255, 255, 255, 0.08)" />
           <circle cx="12" cy="12" r="4" fill="#34d399" />
           <text x="24" y="15" fill="#e2e8f0" fontSize="10" fontFamily="monospace">
-            {running} Running ({total} total)
+            {hasTopologyEvidence ? `${running} Running (${total} total)` : 'Not checked yet'}
           </text>
         </g>
 
@@ -184,7 +185,7 @@ export const ServicesHeroVisual: React.FC<ServicesHeroVisualProps> = ({
           <rect width="130" height="24" rx="6" fill="rgba(15, 23, 42, 0.7)" stroke="rgba(255, 255, 255, 0.08)" />
           <circle cx="12" cy="12" r="4" fill="#94a3b8" />
           <text x="24" y="15" fill="#cbd5e1" fontSize="10" fontFamily="monospace">
-            {stopped} Stopped
+            {hasTopologyEvidence ? `${stopped} Stopped` : 'Awaiting inventory'}
           </text>
         </g>
       </svg>

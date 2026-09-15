@@ -671,3 +671,283 @@
     transform: none;
   }
 }
+
+/* ========================================================================
+   INTERNAL WORKBENCH OPERATIONAL MODE
+   FamilyOverviewPage already owns the cinematic family landing. Once a real
+   Developer Tools / Project Sonar service is entered, the Workbench becomes
+   an IDE surface immediately: one compact command strip, one explorer,
+   dominant live station center, contextual instrumentation. No second hero,
+   card wall, or duplicate family chrome may steal the 1366x768 center.
+   ======================================================================== */
+.knoux-command-center[data-family='workbench'] {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0 !important;
+}
+
+.knoux-command-center[data-family='workbench'] > .knoux-command-service-rail {
+  display: none !important;
+}
+
+.knoux-engineering-workbench[data-operational='true'] {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Convert the Anima hero atmosphere into a compact IDE command bar. */
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-hero {
+  flex: 0 0 auto;
+  min-height: 46px !important;
+  max-height: 46px !important;
+  margin: 0 0 6px !important;
+  padding: 0 12px !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden;
+}
+
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-hero::before,
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-hero::after,
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-hero__art {
+  display: none !important;
+}
+
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-hero__copy {
+  position: static !important;
+  inset: auto !important;
+  width: 100%;
+  max-width: none;
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-hero__kicker {
+  position: static !important;
+  inset: auto !important;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-hero__title,
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-hero__subtitle {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  clip: rect(0 0 0 0) !important;
+  overflow: hidden !important;
+}
+
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-hero__meta {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 0 0 auto !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  clip: auto !important;
+  white-space: normal !important;
+  border: 0 !important;
+  display: flex !important;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+[dir='rtl'] .knoux-engineering-workbench[data-operational='true'] .knoux-deck-hero__meta {
+  margin: 0 auto 0 0 !important;
+}
+
+.knoux-engineering-workbench[data-operational='true'] .knoux-stage-context,
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-hero__count {
+  display: none !important;
+}
+
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-hero__bridge {
+  padding: 4px 8px;
+  font-size: 10px;
+}
+
+/* Service switching and tool execution already exist in the Explorer and the
+   canonical stations. The landing-style cards/dock are intentionally removed
+   from the operational viewport instead of duplicating controls. */
+.knoux-engineering-workbench[data-operational='true'] > .knoux-deck-services,
+.knoux-engineering-workbench[data-operational='true'] > .knoux-deck-strip,
+.knoux-engineering-workbench[data-operational='true'] > .knoux-deck-context,
+.knoux-engineering-workbench[data-operational='true'] > .knoux-deck-preview-label {
+  display: none !important;
+}
+
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-tabs {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 0 0 6px;
+  gap: 4px;
+  scrollbar-width: none;
+}
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-tabs::-webkit-scrollbar { display: none; }
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-tab {
+  padding: 5px 9px;
+  min-height: 28px;
+  border-radius: 7px;
+  font-size: 9px;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+  gap: 7px;
+  grid-template-columns: 12.5rem minmax(0, 1fr) 14.5rem;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-explorer,
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-side {
+  height: 100%;
+  max-height: none;
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-center {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.knoux-engineering-workbench[data-operational='true'] .knoux-stage-service-app {
+  height: 100%;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.knoux-engineering-workbench[data-operational='true'] .service-app-embedded {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(103, 232, 249, .22) transparent;
+}
+
+.knoux-engineering-workbench[data-operational='true'] .service-app-embedded > :first-child {
+  min-height: 100%;
+}
+
+/* Keep internal ToolIds as advanced metadata, never the primary action label. */
+.knoux-engineering-workbench[data-operational='true'] .knoux-deck-explorer__tool-id {
+  opacity: .56;
+  font-size: 8px;
+}
+
+/* At the primary 1366px desktop budget the center wins before auxiliary rails. */
+@media (max-width: 1450px) {
+  .knoux-engineering-workbench[data-operational='true'] .knoux-deck-workspace {
+    grid-template-columns: 11rem minmax(0, 1fr) 12.5rem;
+  }
+  .knoux-engineering-workbench[data-operational='true'] .knoux-deck-side__block[data-block='assistant'] {
+    display: none;
+  }
+}
+
+@container knoux-deck (max-width: 980px) {
+  .knoux-engineering-workbench[data-operational='true'] .knoux-deck-workspace {
+    grid-template-columns: 10.5rem minmax(0, 1fr);
+  }
+  .knoux-engineering-workbench[data-operational='true'] .knoux-deck-side {
+    display: none;
+  }
+}
+
+@container knoux-deck (max-width: 620px) {
+  .knoux-engineering-workbench[data-operational='true'] .knoux-deck-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .knoux-engineering-workbench[data-operational='true'] .knoux-deck-explorer {
+    max-height: 150px;
+  }
+}
+
+/* Canonical station surfaces inside the Workbench center. These rules only
+   manage space/chrome; station runtime and evidence semantics stay untouched. */
+.knoux-engineering-workbench .service-app-embedded--developerTools .developer-station-root {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 10px 12px !important;
+  gap: 10px !important;
+  overflow: auto;
+}
+
+.knoux-engineering-workbench .service-app-embedded--developerTools .developer-station-root > :first-child {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 8px 10px;
+  margin: -2px -2px 0;
+  border: 1px solid rgba(103, 232, 249, .12);
+  border-radius: 9px;
+  background: rgba(3, 10, 26, .9);
+  backdrop-filter: blur(18px);
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .project-sonar-station-root {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .project-sonar-station-root > .station-header,
+.knoux-engineering-workbench .service-app-embedded--projectSonar .project-sonar-station-root > .sonar-workspace-bar,
+.knoux-engineering-workbench .service-app-embedded--projectSonar .project-sonar-station-root > .station-tabs-nav {
+  flex: 0 0 auto;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .project-sonar-station-root > .station-header {
+  padding: 10px 12px;
+  border-radius: 10px 10px 0 0;
+  background: rgba(4, 12, 31, .78);
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .project-sonar-station-root > .sonar-workspace-bar {
+  margin: 0;
+  border-inline: 1px solid rgba(90, 170, 255, .13);
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .project-sonar-station-root > .station-tabs-nav {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.knoux-engineering-workbench .service-app-embedded--projectSonar .project-sonar-station-root > .station-tabs-nav::-webkit-scrollbar { display: none; }
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .project-sonar-station-root > .station-tab-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* Keep the established Home/Sentinel render contract intact, but let the
+   entered Engineering workspace own its right-side context instrumentation. */
+.knoux-body[data-workbench-operational='true'] > .knoux-sentinel {
+  display: none !important;
+}

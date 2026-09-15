@@ -53,19 +53,19 @@ const COPY = {
     allowedCount: 'Active / Permitted',
     runHistoryCount: 'Run Dialog Traces',
     dnsCacheCount: 'DNS Cache Queries',
-    quickAudit: 'Audit Privacy (PR01)',
-    quickClearRun: 'Clear Run History (PR02)',
-    quickFlushDns: 'Flush DNS Cache (PR03)',
+    quickAudit: 'Audit Privacy',
+    quickClearRun: 'Clear Run History',
+    quickFlushDns: 'Flush DNS Cache',
     signalsTitle: 'Privacy Findings & Exposure Vectors',
     noSignals: 'All privacy vectors and permissions are operating within standard hardened baseline.',
     permissionsTitle: 'Hardware & Sensor App Permissions',
     permissionsSubtitle: 'Audited state of Windows CapabilityAccessManager consent store (Camera, Mic, Location).',
     activityTitle: 'User Activity & Execution Footprints',
     activitySubtitle: 'Cached command lines in Explorer RunMRU and local DNS resolver destinations.',
-    clearRunDialogTitle: 'Clear RunMRU Dialog History (PR02)',
+    clearRunDialogTitle: 'Clear RunMRU Dialog History',
     clearRunDialogDesc: 'Removes cached command histories stored in registry HKCU Explorer RunMRU with safe pre-action JSON backup.',
     clearRunDialogBtn: 'Clear Run History',
-    flushDnsTitle: 'Flush DNS Privacy Cache (PR03)',
+    flushDnsTitle: 'Flush DNS Privacy Cache',
     flushDnsDesc: 'Clears the local Windows DNS resolver cache to prevent local inspection of resolved domain names.',
     flushDnsBtn: 'Flush DNS Cache',
     personalizationTitle: 'Advertising & Diagnostics Telemetry',
@@ -97,19 +97,19 @@ const COPY = {
     allowedCount: 'الخيارات المفتوحة',
     runHistoryCount: 'آثار نافذة التشغيل',
     dnsCacheCount: 'استعلامات مخزن DNS',
-    quickAudit: 'تدقيق الخصوصية (PR01)',
-    quickClearRun: 'مسح سجل التشغيل (PR02)',
-    quickFlushDns: 'مسح ذاكرة DNS (PR03)',
+    quickAudit: 'تدقيق الخصوصية',
+    quickClearRun: 'مسح سجل التشغيل',
+    quickFlushDns: 'مسح ذاكرة DNS',
     signalsTitle: 'ملاحظات الخصوصية ومسارات التعرض',
     noSignals: 'كافة إعدادات الخصوصية والأذونات تعمل ضمن المستوى القياسي المحكم.',
     permissionsTitle: 'أذونات المستشعرات والأجهزة',
     permissionsSubtitle: 'الحالة المدققة لمتجر أذونات ويندوز CapabilityAccessManager (الكاميرا، المايك، الموقع).',
     activityTitle: 'النشاط المحلي والأثر الرقمي',
     activitySubtitle: 'الأوامر المخزنة في RunMRU بمستكشف ويندوز وعناوين خوادم DNS المحلية.',
-    clearRunDialogTitle: 'مسح سجل أوامر نافذة التشغيل (PR02)',
+    clearRunDialogTitle: 'مسح سجل أوامر نافذة التشغيل',
     clearRunDialogDesc: 'إزالة سجل الأوامر المنفذة من سجل النظام مع إنشاء نسخة احتياطية آمنة JSON قبل الإزالة.',
     clearRunDialogBtn: 'مسح سجل الأوامر',
-    flushDnsTitle: 'مسح مخزن DNS للخصوصية (PR03)',
+    flushDnsTitle: 'مسح مخزن DNS للخصوصية',
     flushDnsDesc: 'تفريغ الذاكرة المؤقتة لمحلل DNS المحلي لمنع كشف أسماء النطاقات والمواقع التي تمت زيارتها.',
     flushDnsBtn: 'تفريغ مخزن DNS',
     personalizationTitle: 'التخصيص ومحددات التشخيص الإعلانية',
@@ -363,7 +363,7 @@ function PrivacyStationContent({
   }
 
   return (
-    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="privacy-control-station" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Top Banner & Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
         <div>
@@ -595,9 +595,9 @@ function PrivacyStationContent({
               {t.signalsTitle}
             </h3>
             {signals.length === 0 ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#10b981', fontSize: 13 }}>
-                <CheckCircle2 size={16} />
-                <span>{t.noSignals}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: summary.stance === 'INCONCLUSIVE' ? '#94a3b8' : '#10b981', fontSize: 13 }}>
+                {summary.stance === 'INCONCLUSIVE' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
+                <span>{summary.stance === 'INCONCLUSIVE' ? (lang === 'ar' ? 'لم يتم تدقيق إعدادات الخصوصية بعد.' : 'Privacy settings have not been audited yet.') : t.noSignals}</span>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -871,7 +871,6 @@ function PrivacyStationContent({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: '#06b6d4' }}>{tool.ToolId}</span>
                     <h4 style={{ margin: '2px 0 0 0', fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>
                       {pickName(tool, lang)}
                     </h4>

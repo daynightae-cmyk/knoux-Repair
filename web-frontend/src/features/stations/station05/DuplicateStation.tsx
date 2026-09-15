@@ -831,7 +831,7 @@ export default function DuplicateStation({
           <div className="duplicate-system-review-card">
             <ShieldAlert size={26} />
             <div>
-              <strong>{lang === 'ar' ? 'مراجعة ملفات النظام المحمية (DF09)' : 'System Files Duplicate Review (DF09)'}</strong>
+              <strong>{lang === 'ar' ? 'مراجعة ملفات النظام المحمية' : 'System Files Duplicate Review'}</strong>
               <p>
                 {lang === 'ar'
                   ? 'يقوم نظام Windows بإدارة مكونات وملفات نظام مكررة بشكل مقصود (مثل ملفات WinSxS وملفات تعريف الحزم). لا يُسمح بإجراء تنظيف أو عزل مباشر لملفات النظام لحماية استقرار الجهاز.'

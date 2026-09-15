@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Bell, Shield, Wifi, WifiOff, Settings, UserRound, CloudCog, BrainCircuit } from 'lucide-react';
+import { Search, Bell, Shield, Wifi, WifiOff, Settings, UserRound, CloudCog, BrainCircuit, House } from 'lucide-react';
 import clsx from 'clsx';
 
 export interface TopBarProps {
@@ -8,6 +8,8 @@ export interface TopBarProps {
   bridgeElevated: boolean;
   accountLabel: string;
   accountConnected: boolean;
+  homeActive: boolean;
+  onHomeOpen: () => void;
   onSearchOpen: () => void;
   onSettingsOpen: () => void;
   onAccountOpen: () => void;
@@ -19,25 +21,33 @@ export default function TopBar({
   bridgeElevated,
   accountLabel,
   accountConnected,
+  homeActive,
+  onHomeOpen,
   onSearchOpen,
   onSettingsOpen,
   onAccountOpen,
 }: TopBarProps) {
   const isRtl = lang === 'ar';
-  // Real PNG identity first; the text lockup is strictly a fallback for a
-  // missing/failed asset, never the primary brand.
-  const [brandImgOk, setBrandImgOk] = useState(true);
+  const [brandStage, setBrandStage] = useState<'wide' | 'legacy' | 'text'>('wide');
   return (
-    <header className="knoux-topbar" style={{ height: '52px', WebkitAppRegion: 'drag' } as React.CSSProperties} dir={isRtl ? 'rtl' : 'ltr'}>
-      <div className="flex items-center gap-2 px-4 h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-        <span className="knoux-brand">
-          {brandImgOk ? (
+    <header className={clsx('knoux-topbar', homeActive && 'is-home')} style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} dir={isRtl ? 'rtl' : 'ltr'}>
+      <div className="knoux-topbar-brand" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+        <span className="knoux-brand knoux-brand-lockup" aria-label="KNOUX Repair">
+          {brandStage === 'wide' ? (
             <img
-              className="knoux-brand__img"
+              className="knoux-brand__img knoux-brand-lockup__wide"
+              src="/brand/knoux-repair-wordmark-wide.png"
+              alt="KNOUX Repair"
+              draggable={false}
+              onError={() => setBrandStage('legacy')}
+            />
+          ) : brandStage === 'legacy' ? (
+            <img
+              className="knoux-brand__img knoux-brand-lockup__wide"
               src="/brand/knoux-repair-logo.png"
               alt="KNOUX Repair"
               draggable={false}
-              onError={() => setBrandImgOk(false)}
+              onError={() => setBrandStage('text')}
             />
           ) : (
             <span className="knoux-brand__text">
@@ -45,9 +55,21 @@ export default function TopBar({
               <span className="text-[#A855F7] font-light text-lg">Repair</span>
             </span>
           )}
-          <span className="knoux-brand__compact" aria-hidden="true">K</span>
+          <span className="knoux-brand__compact knoux-brand-lockup__compact" aria-hidden="true">K</span>
         </span>
       </div>
+
+      <button
+        type="button"
+        className="knoux-topbar-home"
+        data-active={homeActive}
+        aria-current={homeActive ? 'page' : undefined}
+        aria-label={isRtl ? 'الرئيسية' : 'Home'}
+        onClick={onHomeOpen}
+      >
+        <House size={18} />
+        <span>{isRtl ? 'الرئيسية' : 'Home'}</span>
+      </button>
 
       <div className="flex-1 flex justify-center items-center h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
         <button onClick={onSearchOpen} className="flex items-center gap-3 bg-white/5 hover:bg-white/10 transition-colors border border-white/10 rounded-full px-4 py-1.5 w-80 max-w-full text-sm text-gray-400 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400" aria-label={isRtl ? 'البحث عن الأدوات...' : 'Search tools...'}>
