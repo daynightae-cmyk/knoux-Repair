@@ -49,9 +49,9 @@ jobs:
         working-directory: web-frontend
         run: npm run build
 
-      - name: Capture rendered premium UI evidence
+      - name: Capture Round 1 Developer Tools rendered UI evidence
         working-directory: web-frontend
-        run: node scripts/capture-evidence.mjs
+        run: node scripts/capture-round1-developer.mjs
 
       - name: Verify all 18 canonical service routes in Edge
         working-directory: web-frontend
