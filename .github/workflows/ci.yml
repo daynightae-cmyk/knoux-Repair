@@ -55,7 +55,7 @@ jobs:
 
       - name: Verify all 18 canonical service routes in Edge
         working-directory: web-frontend
-        run: node scripts/capture-18-services-evidence.mjs
+        run: node scripts/run-capture-18-services-evidence-ci.mjs
 
       - name: Capture Mission 02 private MCP evidence
         working-directory: web-frontend
