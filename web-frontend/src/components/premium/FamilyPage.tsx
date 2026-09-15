@@ -298,7 +298,7 @@ export default function FamilyPage({
             <div className="knoux-tool-empty-state">
               <p>{bridgeOnline === null
                 ? (isRtl ? 'جارٍ تحميل الإجراءات...' : 'Loading actions...')
-                : (isRtl ? 'لا توجد إجراءات محمكلة لهذه الخدمة.' : 'No loaded actions are available for this service.')}
+                : (isRtl ? 'لا توجد إجراءات محمّلة لهذه الخدمة.' : 'No loaded actions are available for this service.')}
               </p>
             </div>
           ) : (
