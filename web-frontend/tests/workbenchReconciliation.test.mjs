@@ -25,19 +25,23 @@ function collectTextFiles(root, extensions = new Set(['.ts', '.tsx', '.mjs', '.j
   return output;
 }
 
-test('workbench station is mounted only as the idle service surface and preserves canonical tool execution', () => {
+test('workbench station remains mounted for selected and running engineering tools and preserves canonical execution', () => {
   const familyPage = readWeb('src/components/premium/FamilyPage.tsx');
 
   assert.match(familyPage, /EngineeringWorkbenchStation/);
-  assert.match(familyPage, /family\.id === 'workbench' && !selectedTool && !executionTool/);
+  assert.match(familyPage, /family\.id === 'workbench' && selectedService !== null/);
   assert.match(familyPage, /<EngineeringWorkbenchStation/);
 
-  // Current-main architecture must remain available for selected/running tools.
+  // Non-Workbench services retain the canonical selected/running tool path.
   assert.match(familyPage, /<HeroSection/);
   assert.match(familyPage, /<FamilyLiveStage/);
   assert.match(familyPage, /<ToolCard/);
   assert.match(familyPage, /selectedTool=\{selectedTool\}/);
   assert.match(familyPage, /executionTool=\{executionTool\}/);
+
+  // Engineering owns its internal rails while entered, instead of remounting the generic family rails.
+  assert.match(familyPage, /\{!showWorkbenchStation && \(\s*<aside className="knoux-command-rail knoux-command-service-rail"/s);
+  assert.match(familyPage, /\{!showWorkbenchStation && \(\s*<aside className="knoux-command-rail knoux-command-tool-rail"/s);
 });
 
 test('workbench station delegates to real service applications and preserves service-route evidence contract', () => {
