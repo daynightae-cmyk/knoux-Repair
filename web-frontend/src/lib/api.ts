@@ -743,8 +743,7 @@ export const api = {
   cancelRun: (runId: string) =>
     request<{ ok: boolean }>(`/api/runs/${runId}/cancel`, { method: 'POST' }, 15000),
 
-  // Open Code Zen & AI Models API
+  // Open Code Zen & AI Models API (no /api/ai/templates: certified templates are a local static catalog)
   aiModels: () => request<{ models: any[]; hasGeminiKey: boolean; hasOpenRouterKey: boolean }>('/api/ai/models'),
-  aiTemplates: () => request<{ templates: any[] }>('/api/ai/templates'),
   aiGenerate: (data: AiGenerateRequest) => request<AiGenerateResponse>('/api/ai/generate', { method: 'POST', body: JSON.stringify(data) }, 120000),
 };

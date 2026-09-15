@@ -257,7 +257,7 @@ export default function OpenCodeZenHub({
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
                 <Sparkles size={11} />
-                {lang === 'ar' ? 'موديلات مجانية مدعومة فعلياً' : 'FREE PRODUCTION AI MODELS'}
+                {lang === 'ar' ? 'استوديو الذكاء — كتالوج فقط' : 'AI STUDIO — CATALOG ONLY'}
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                 OPEN CODE ZEN 2.0
@@ -268,12 +268,12 @@ export default function OpenCodeZenHub({
             </div>
 
             <h2 className="text-2xl font-black text-white tracking-tight">
-              {lang === 'ar' ? 'محرك كود زن والموديلات المجانية' : 'Open Code Zen & Free Models Studio'}
+              {lang === 'ar' ? 'محرك كود زن (كتالوج)' : 'Open Code Zen Studio (catalog)'}
             </h2>
             <p className="text-sm text-slate-300 mt-1 max-w-2xl">
               {lang === 'ar'
-                ? 'استغل القوة القصوى لموديلات الذكاء الاصطناعي المجانية (Gemini 3.8 Flash, DeepSeek R1, Qwen 2.5 Coder, Llama 3) لتوليد سكربتات الصيانة والإصلاح وتشخيص الأخطاء فورياً.'
-                : 'Harness the full capabilities of free AI models (Gemini 3.8 Flash, DeepSeek R1, Qwen 2.5 Coder, Llama 3) to generate bulletproof Windows repair scripts, debug errors, and automate workstation health.'}
+                ? 'كتالوج موديلات للاختيار. التوليد يعمل فقط عند طلب صريح عبر الجسر المحلي، والتهيئة لا تعني التوفر.'
+                : 'Model catalog for selection. Generation runs only on explicit request via the local bridge. Configured does not mean available.'}
             </p>
           </div>
 
@@ -283,7 +283,7 @@ export default function OpenCodeZenHub({
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
               <div>
                 <p className="text-[10px] text-slate-400 uppercase tracking-wider font-mono">
-                  {lang === 'ar' ? 'الموديل النشط' : 'Active Model'}
+                  {lang === 'ar' ? 'الموديل المحدد (كتالوج)' : 'Selected catalog model'}
                 </p>
                 <p className="text-xs font-bold text-white flex items-center gap-1.5">
                   {activeModel.name}
@@ -398,9 +398,9 @@ export default function OpenCodeZenHub({
               <label className="text-xs font-bold text-slate-200 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <Cpu size={14} className="text-indigo-400" />
-                  {lang === 'ar' ? 'اختر الموديل المجاني' : 'Select Free AI Model'}
+                  {lang === 'ar' ? 'اختر موديل الكتالوج' : 'Select catalog AI model'}
                 </span>
-                <span className="text-[10px] font-mono text-emerald-400">Free-tier models</span>
+                <span className="text-[10px] font-mono text-slate-400">Catalog only — explicit generation</span>
               </label>
 
               <div className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
@@ -623,8 +623,8 @@ export default function OpenCodeZenHub({
                     <Terminal size={32} className="opacity-40" />
                     <p className="text-xs">
                       {lang === 'ar'
-                        ? 'اختر موديلاً أو نموذجاً، واضغط "توليد كود الإصلاح" لبدء هندسة الأكواد.'
-                        : 'Select a free model, enter your requirements, and click "Generate Repair Script".'}
+                        ? 'اختر موديلاً من الكتالوج، واضغط "توليد كود الإصلاح" لبدء هندسة الأكواد عند الطلب الصريح.'
+                        : 'Select a catalog model, enter your requirements, and click "Generate Repair Script".'}
                     </p>
                   </div>
                 )}
