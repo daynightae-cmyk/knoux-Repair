@@ -170,3 +170,9 @@
     display: none !important;
   }
 }
+
+/* Developer Tools owns its own operational controls. The outer FamilyPage
+   ACTIONS rail duplicates the canonical station and steals center width. */
+.knoux-command-center[data-family='workbench'][data-service='12-Developer-Tools'] > .knoux-command-tool-rail {
+  display: none !important;
+}
