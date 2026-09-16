@@ -27,6 +27,17 @@ if (patched === source || !patched.includes('devHmrCspBlocked')) {
 }
 
 const countOccurrences = (text, needle) => text.split(needle).length - 1;
+
+const inventoryProbeTimeoutAnchor = `      signal: AbortSignal.timeout(5_000),
+      headers: { Accept: 'application/json' },`;
+const inventoryProbeTimeoutReplacement = `      signal: AbortSignal.timeout(15_000),
+      headers: { Accept: 'application/json' },`;
+
+if (countOccurrences(patched, inventoryProbeTimeoutAnchor) !== 1) {
+  throw new Error('18-service authoritative inventory probe timeout changed; refusing to apply the CI timeout-alignment shim.');
+}
+patched = patched.replace(inventoryProbeTimeoutAnchor, inventoryProbeTimeoutReplacement);
+
 const hydrationFunctionAnchor = 'async function ensureInventory(page, target) {';
 const hydrationReloadBranch = `    if (probe.ok && probe.count === target.tools && probe.category === target.service) {
       reloadedRoute = true;
@@ -109,6 +120,7 @@ if (
   !patched.includes('waitForUiInventoryHydration')
   || !patched.includes('standardActionsReady')
   || !patched.includes('command drawer that proves bridgeOnline')
+  || countOccurrences(patched, inventoryProbeTimeoutReplacement) !== 1
   || countOccurrences(patched, primaryReadinessReplacement) !== 1
   || countOccurrences(patched, retryReadinessReplacement) !== 1
 ) {
