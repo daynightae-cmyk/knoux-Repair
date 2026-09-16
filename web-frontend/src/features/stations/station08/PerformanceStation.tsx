@@ -44,7 +44,7 @@ const COPY = {
     tabActions: 'Lab Actions',
     tabReport: 'Report',
     tabHistory: 'History',
-    sampleAction: 'Sample Resources (PF07)',
+    sampleAction: 'Sample Resources',
     sampling: 'Sampling telemetry...',
     cpuLoad: 'CPU Load',
     memoryPressure: 'Memory Pressure',
@@ -75,7 +75,7 @@ const COPY = {
     tabActions: 'إجراءات المختبر',
     tabReport: 'التقرير',
     tabHistory: 'السجل',
-    sampleAction: 'أخذ عينات الموارد (PF07)',
+    sampleAction: 'أخذ عينات الموارد',
     sampling: 'جارٍ أخذ العينات...',
     cpuLoad: 'تحميل المعالج',
     memoryPressure: 'ضغط الذاكرة',
@@ -183,16 +183,20 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
   };
 
   // Derived metrics
-  const cpuPercent = data?.Cpu?.LoadPercent ?? 25;
-  const memPercent = data?.Memory?.LoadPercent ?? 42;
-  const condition: PerformanceCondition = useMemo(
-    () => derivePerformanceCondition(cpuPercent, memPercent),
-    [cpuPercent, memPercent]
-  );
-  const bottlenecks: BottleneckItem[] = useMemo(
-    () => analyzeBottlenecks(cpuPercent, memPercent, data?.Disks?.[0]?.ActiveTimePercent, data?.Signals),
-    [cpuPercent, memPercent, data]
-  );
+  const cpuPercent = data?.Cpu?.LoadPercent ?? null;
+  const memPercent = data?.Memory?.LoadPercent ?? null;
+  const condition: PerformanceCondition | 'INCONCLUSIVE' = useMemo(() => {
+    if (cpuPercent === null || memPercent === null) return 'INCONCLUSIVE';
+    return derivePerformanceCondition(cpuPercent, memPercent);
+  }, [cpuPercent, memPercent]);
+  const bottlenecks: BottleneckItem[] = useMemo(() => {
+    if (cpuPercent === null || memPercent === null) return [];
+    return analyzeBottlenecks(cpuPercent, memPercent, data?.Disks?.[0]?.ActiveTimePercent, data?.Signals);
+  }, [cpuPercent, memPercent, data]);
+  const percentText = (value: number | null) => value === null ? '—' : `${value}%`;
+  const conditionText = condition === 'INCONCLUSIVE'
+    ? (lang === 'ar' ? 'لم يتم القياس بعد' : 'NOT CHECKED YET')
+    : condition.replace(/_/g, ' ');
   const topProcesses: TopConsumerProcess[] = useMemo(
     () => parseTopConsumers(data?.TopProcesses),
     [data]
@@ -211,7 +215,7 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
 
   return (
     <StationErrorBoundary>
-      <div className="knoux-station-workspace flex flex-col flex-1 gap-6 p-6">
+      <div className="knoux-station-workspace performance-observatory-station flex flex-col flex-1 gap-6 p-6">
         {/* Top Product Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
           <div>
@@ -276,7 +280,7 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
                   <span>{lang === 'ar' ? 'نبض معالجة الموارد الحية' : 'Live Resource Core Pulse'}</span>
                 </div>
                 <h2 className="text-xl font-bold text-white tracking-wide">
-                  {condition} · {cpuPercent}% {lang === 'ar' ? 'تحميل المعالج' : 'CPU Load'}
+                  {conditionText} · {percentText(cpuPercent)} {lang === 'ar' ? 'تحميل المعالج' : 'CPU Load'}
                 </h2>
                 <p className="text-xs text-slate-300 max-w-md leading-relaxed">
                   {lang === 'ar'
@@ -287,11 +291,11 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
                 <div className="grid grid-cols-3 gap-3 mt-2 font-mono">
                   <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
                     <span className="text-[10px] text-slate-400 block">{t.cpuLoad}</span>
-                    <strong className="text-base text-cyan-400">{cpuPercent}%</strong>
+                    <strong className="text-base text-cyan-400">{percentText(cpuPercent)}</strong>
                   </div>
                   <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
                     <span className="text-[10px] text-slate-400 block">{t.memoryPressure}</span>
-                    <strong className="text-base text-purple-400">{memPercent}%</strong>
+                    <strong className="text-base text-purple-400">{percentText(memPercent)}</strong>
                   </div>
                   <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
                     <span className="text-[10px] text-slate-400 block">{t.processCount}</span>
@@ -378,7 +382,7 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
               </div>
               <strong className="text-sm text-white">{data?.Cpu?.Name || 'Windows Processor'}</strong>
               <span className="text-xs text-slate-400">{data?.Cpu?.LogicalProcessors || 0} Logical Cores</span>
-              <div className="mt-2 text-lg font-bold text-cyan-300">{cpuPercent}% Active</div>
+              <div className="mt-2 text-lg font-bold text-cyan-300">{cpuPercent === null ? '—' : `${cpuPercent}% Active`}</div>
             </div>
 
             <div className="glass-panel p-4 rounded-xl border border-white/10 flex flex-col gap-2 font-mono">
@@ -388,7 +392,7 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
               </div>
               <strong className="text-sm text-white">{data?.Memory?.TotalGB || 0} GB Total</strong>
               <span className="text-xs text-slate-400">{data?.Memory?.FreeGB || 0} GB Free</span>
-              <div className="mt-2 text-lg font-bold text-purple-300">{memPercent}% Used</div>
+              <div className="mt-2 text-lg font-bold text-purple-300">{memPercent === null ? '—' : `${memPercent}% Used`}</div>
             </div>
 
             <div className="glass-panel p-4 rounded-xl border border-white/10 flex flex-col gap-2 font-mono">
@@ -574,7 +578,6 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
                   >
                     <div>
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs text-rose-400 font-bold">{tool.ToolId}</span>
                         <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-300">
                           {tool.RiskLevel}
                         </span>
@@ -616,7 +619,7 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
                 className="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <FileText size={13} />
-                <span>{lang === 'ar' ? 'توليد تقرير الأداء (PF10)' : 'Generate Performance Report (PF10)'}</span>
+                <span>{lang === 'ar' ? 'توليد تقرير الأداء' : 'Generate Performance Report'}</span>
               </button>
             </div>
 
@@ -624,8 +627,8 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
               <p>PERFORMANCE BENCHMARK AUDIT SUMMARY</p>
               <p>----------------------------------------</p>
               <p>Condition Status: {condition}</p>
-              <p>CPU Load: {cpuPercent}%</p>
-              <p>Memory Load: {memPercent}%</p>
+              <p>CPU Load: {percentText(cpuPercent)}</p>
+              <p>Memory Load: {percentText(memPercent)}</p>
               <p>Logical Processors: {data?.Cpu?.LogicalProcessors || 'N/A'}</p>
               <p>Physical Disks Active: {data?.Disks?.length || 0}</p>
               <p>Detected Bottlenecks: {bottlenecks.length}</p>

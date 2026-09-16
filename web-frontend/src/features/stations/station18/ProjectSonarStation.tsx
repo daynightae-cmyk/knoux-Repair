@@ -818,7 +818,6 @@ export default function ProjectSonarStation(props: ProjectSonarStationProps) {
                   return (
                     <div key={tool.ToolId} className="tool-card">
                       <div className="tool-card-header">
-                        <span className="tool-id-badge">{tool.ToolId}</span>
                         <strong className="tool-name">{lang === 'ar' ? (tool.ArabicName || tool.EnglishName) : tool.EnglishName}</strong>
                         <span className={`risk-pill ${tool.RiskLevel.toLowerCase()}`}>{tool.RiskLevel}</span>
                       </div>

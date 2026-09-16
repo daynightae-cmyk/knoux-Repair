@@ -66,10 +66,10 @@ const COPY = {
     wingetStatus: 'Winget Status',
     signalsTitle: 'Environment Findings & Telemetry Signals',
     noSignals: 'All software inventories, runtimes, and package environments are operating normally.',
-    quickCatalog: 'Inventory Software (SW01)',
-    quickRuntimes: 'Audit Dev Runtimes (SW02)',
-    quickQuarantine: 'Quarantine Caches (SW04)',
-    quickUpgrade: 'Upgrade Winget (SW05)',
+    quickCatalog: 'Inventory Software',
+    quickRuntimes: 'Audit Dev Runtimes',
+    quickQuarantine: 'Quarantine Caches',
+    quickUpgrade: 'Upgrade Winget',
     runtimesTitle: 'Installed Runtimes, Interpreters & Package Managers',
     runtimesSubtitle: 'Audited executables on Windows PATH with resolved versions and physical paths.',
     catalogTitle: 'Installed Desktop & Appx Applications',
@@ -88,9 +88,9 @@ const COPY = {
     cannotUninstall: 'System/Protected',
     available: 'Installed',
     missing: 'Not Detected',
-    quarantineAction: 'Quarantine Caches via SW04',
-    upgradeAction: 'Check Upgrades via SW05',
-    uninstallAction: 'Uninstall Package via SW06',
+    quarantineAction: 'Quarantine Caches',
+    upgradeAction: 'Check Upgrades',
+    uninstallAction: 'Uninstall Package',
     packageIdPrompt: 'Enter exact Winget Package ID (e.g. Git.Git):',
     confirmText: 'Type UNINSTALL to confirm destructive removal:',
     noHistory: 'No tools executed in this session yet.',
@@ -119,10 +119,10 @@ const COPY = {
     wingetStatus: 'حالة Winget',
     signalsTitle: 'ملاحظات البيئة ومؤشرات القياس',
     noSignals: 'جميع جرد البرامج وبيئات التشغيل وأطر العمل تعمل بحالة مثالية.',
-    quickCatalog: 'جرد البرامج (SW01)',
-    quickRuntimes: 'تدقيق بيئات التطوير (SW02)',
-    quickQuarantine: 'عزل الذاكرة المؤقتة (SW04)',
-    quickUpgrade: 'تحديث الحزم (SW05)',
+    quickCatalog: 'جرد البرامج',
+    quickRuntimes: 'تدقيق بيئات التطوير',
+    quickQuarantine: 'عزل الذاكرة المؤقتة',
+    quickUpgrade: 'تحديث الحزم',
     runtimesTitle: 'بيئات التشغيل والمفسرات ومديرو الحزم',
     runtimesSubtitle: 'تدقيق البرامج التنفيذية في مسار النظام مع تحديد المسار الفعلي والإصدار بدقة.',
     catalogTitle: 'تطبيقات سطح المكتب والمتجر المثبتة',
@@ -141,9 +141,9 @@ const COPY = {
     cannotUninstall: 'نظام / محمي',
     available: 'مثبت ومتاح',
     missing: 'غير مكتشف',
-    quarantineAction: 'عزل الذاكرة المؤقتة عبر SW04',
-    upgradeAction: 'فحص التحديثات عبر SW05',
-    uninstallAction: 'إزالة حزمة عبر SW06',
+    quarantineAction: 'عزل الذاكرة المؤقتة',
+    upgradeAction: 'فحص التحديثات',
+    uninstallAction: 'إزالة الحزمة',
     packageIdPrompt: 'أدخل معرف الحزمة الدقيق (مثال: Git.Git):',
     confirmText: 'اكتب UNINSTALL لتأكيد الإزالة:',
     noHistory: 'لم يتم تشغيل أدوات في هذه الجلسة بعد.',
@@ -652,8 +652,8 @@ export default function SoftwareStation(props: SoftwareStationProps) {
                 <h3 className="section-title">{t.signalsTitle}</h3>
                 {signals.length === 0 ? (
                   <div className="empty-state-notice">
-                    <CheckCircle2 size={24} className="text-success" />
-                    <span>{t.noSignals}</span>
+                    {summary.condition === 'inconclusive' ? <Search size={24} className="text-slate-400" /> : <CheckCircle2 size={24} className="text-success" />}
+                    <span>{summary.condition === 'inconclusive' ? (lang === 'ar' ? 'لم يتم جمع جرد البرامج وبيئات التشغيل بعد.' : 'Software and runtime inventory has not been collected yet.') : t.noSignals}</span>
                   </div>
                 ) : (
                   <div className="signals-list">
@@ -672,7 +672,7 @@ export default function SoftwareStation(props: SoftwareStationProps) {
                               className="signal-action-btn"
                               onClick={() => handleLaunchTool(recTool, recTool.RiskLevel === 'READ_ONLY' ? 'analyze' : 'preview')}
                             >
-                              <span>{recTool.ToolId}: {lang === 'ar' ? (recTool.ArabicName || recTool.EnglishName) : recTool.EnglishName}</span>
+                              <span>{lang === 'ar' ? (recTool.ArabicName || recTool.EnglishName) : recTool.EnglishName}</span>
                               <ArrowUpRight size={13} />
                             </button>
                           )}
@@ -965,7 +965,6 @@ export default function SoftwareStation(props: SoftwareStationProps) {
                   return (
                     <div key={tool.ToolId} className="tool-card">
                       <div className="tool-card-header">
-                        <span className="tool-id-badge">{tool.ToolId}</span>
                         <strong className="tool-name">{lang === 'ar' ? (tool.ArabicName || tool.EnglishName) : tool.EnglishName}</strong>
                         <span className={`risk-pill ${tool.RiskLevel.toLowerCase()}`}>{tool.RiskLevel}</span>
                       </div>

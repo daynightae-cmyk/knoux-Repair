@@ -278,7 +278,7 @@ export const ProgramsHeroVisual: React.FC<ProgramsHeroVisualProps> = ({
           <text x="24" y="15" fill="#fed7aa" fontSize="7.5" fontWeight="600" fontFamily="monospace">
             {appCount !== null
               ? `${appCount} APPS`
-              : (lang === 'ar' ? 'جرد البرامج' : 'INVENTORY READY')}
+              : (lang === 'ar' ? 'لم يتم الجرد' : 'NOT SCANNED')}
           </text>
         </g>
 
@@ -288,7 +288,7 @@ export const ProgramsHeroVisual: React.FC<ProgramsHeroVisualProps> = ({
           <text x="15" y="15" fill="#fb923c" fontSize="7.5" fontWeight="600" fontFamily="monospace">
             {startupCount !== null
               ? `${startupCount} STARTUP ITEMS`
-              : (lang === 'ar' ? '١٠ خدمات معتمدة' : '10 SERVICES')}
+              : (lang === 'ar' ? 'لم يتم الفحص' : 'NOT SCANNED')}
           </text>
         </g>
       </svg>

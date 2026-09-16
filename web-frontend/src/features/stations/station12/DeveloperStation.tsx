@@ -57,11 +57,11 @@ const COPY = {
     gitWorktree: 'Git Worktree',
     activeBranch: 'Active Branch',
     dockerStatus: 'Docker Engine',
-    quickAudit: 'Environment Audit (DT01)',
-    quickDoctor: 'Toolchain Doctor (DT04)',
-    quickPorts: 'Port Observatory (DT06)',
-    quickQuarantineCache: 'Quarantine Caches (DT02)',
-    quickReleaseServers: 'Release Servers (DT10)',
+    quickAudit: 'Environment Audit',
+    quickDoctor: 'Toolchain Doctor',
+    quickPorts: 'Port Observatory',
+    quickQuarantineCache: 'Quarantine Caches',
+    quickReleaseServers: 'Release Servers',
     signalsTitle: 'Workbench Findings & Signals',
     noSignals: 'No developer environment warnings detected. Toolchain and ports are operating normally.',
     runtimesTitle: 'Installed Runtimes & Compilers',
@@ -69,7 +69,7 @@ const COPY = {
     portsTitle: 'Active Developer Listeners',
     portsSubtitle: 'Local TCP ports currently held by developer runtimes (Node, Python, Bun, DotNet, etc.).',
     noPorts: 'No active developer process listeners found on monitored local ports.',
-    releasePortBtn: 'Release Dev Servers (DT10)',
+    releasePortBtn: 'Release Dev Servers',
     workspaceTitle: 'Git & Project Intelligence',
     workspaceSubtitle: 'Telemetry regarding active repository, modified files, remotes, and build configurations.',
     cleanupsTitle: 'Developer Cache & Artifact Quarantine',
@@ -105,11 +105,11 @@ const COPY = {
     gitWorktree: 'مستودع Git',
     activeBranch: 'الفرع النشط',
     dockerStatus: 'محرك Docker',
-    quickAudit: 'تدقيق بيئة المطور (DT01)',
-    quickDoctor: 'طبيب بيئة وأدوات المطور (DT04)',
-    quickPorts: 'مرصد منافذ وخوادم التطوير (DT06)',
-    quickQuarantineCache: 'عزل ذواكر التخزين المؤقت (DT02)',
-    quickReleaseServers: 'تحرير خوادم التطوير (DT10)',
+    quickAudit: 'تدقيق بيئة المطور',
+    quickDoctor: 'طبيب بيئة وأدوات المطور',
+    quickPorts: 'مرصد منافذ وخوادم التطوير',
+    quickQuarantineCache: 'عزل ذواكر التخزين المؤقت',
+    quickReleaseServers: 'تحرير خوادم التطوير',
     signalsTitle: 'إشارات وتنبيهات بيئة التطوير',
     noSignals: 'لا توجد تحذيرات في بيئة التطوير. الأدوات والمنافذ تعمل بالشكل المعتاد.',
     runtimesTitle: 'بيئات ولغات البرمجة المثبتة',
@@ -117,7 +117,7 @@ const COPY = {
     portsTitle: 'خوادم وعمليات التطوير النشطة',
     portsSubtitle: 'منافذ TCP المحلية المشغولة حالياً بواسطة برمجيات التطوير (Node، Python، Bun، DotNet...).',
     noPorts: 'لا توجد عمليات تطوير نشطة تستمع للمنافذ المحلية حالياً.',
-    releasePortBtn: 'تحرير خوادم التطوير (DT10)',
+    releasePortBtn: 'تحرير خوادم التطوير',
     workspaceTitle: 'بيانات Git واستخبارات المشروع',
     workspaceSubtitle: 'مؤشرات المستودع النشط، الملفات المعدلة، المستودعات البعيدة، وملفات الإعداد.',
     cleanupsTitle: 'عزل مخلفات وذواكر التطوير',
@@ -423,9 +423,9 @@ function DeveloperStationContent({
   }
 
   return (
-    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="developer-workbench-station developer-station-root" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Top Banner & Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+      <div className="developer-workbench-station__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#38bdf8', fontSize: 11, fontWeight: 700, letterSpacing: '1px' }}>
             <Terminal size={14} />
@@ -485,6 +485,7 @@ function DeveloperStationContent({
 
       {/* Hero Visual Block */}
       <div
+        className="developer-workbench-station__hero"
         style={{
           background: 'radial-gradient(ellipse at 50% 0%, rgba(14, 165, 233, 0.12), transparent 70%), rgba(15, 23, 42, 0.65)',
           borderRadius: 14,
@@ -504,7 +505,7 @@ function DeveloperStationContent({
       </div>
 
       {/* Station Metric Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
+      <div className="developer-workbench-station__metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
         <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid #1e293b', borderRadius: 10, padding: 14 }}>
           <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{t.runtimesAvailable}</div>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#38bdf8', marginTop: 4 }}>
@@ -542,7 +543,7 @@ function DeveloperStationContent({
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #1e293b', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+      <div className="developer-workbench-station__tabs" style={{ display: 'flex', borderBottom: '1px solid #1e293b', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
         {[
           { key: 'overview', label: t.tabOverview, icon: Cpu },
           { key: 'runtimes', label: t.tabRuntimes, icon: Code },
@@ -684,9 +685,9 @@ function DeveloperStationContent({
               {t.signalsTitle}
             </h3>
             {signals.length === 0 ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#10b981', fontSize: 13 }}>
-                <CheckCircle2 size={16} />
-                <span>{t.noSignals}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: summary.state === 'INCONCLUSIVE' ? '#94a3b8' : '#10b981', fontSize: 13 }}>
+                {summary.state === 'INCONCLUSIVE' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
+                <span>{summary.state === 'INCONCLUSIVE' ? (lang === 'ar' ? 'لم يتم تدقيق بيئة التطوير بعد.' : 'Developer environment has not been audited yet.') : t.noSignals}</span>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -908,7 +909,7 @@ function DeveloperStationContent({
                   }}
                 >
                   <Play size={13} />
-                  <span>Git Workspace Insight (DT08)</span>
+                  <span>Git Workspace Insight</span>
                 </button>
               )}
               {tools.find((t) => t.ToolId === 'DT05') && (
@@ -930,7 +931,7 @@ function DeveloperStationContent({
                   }}
                 >
                   <Play size={13} />
-                  <span>Project Intelligence (DT05)</span>
+                  <span>Project Intelligence</span>
                 </button>
               )}
             </div>
@@ -950,7 +951,7 @@ function DeveloperStationContent({
             <div style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid #1e293b', borderRadius: 8, padding: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Trash2 size={18} color="#f59e0b" />
-                <h4 style={{ margin: 0, fontSize: 14, color: '#f8fafc' }}>Quarantine Developer Caches (DT02)</h4>
+                <h4 style={{ margin: 0, fontSize: 14, color: '#f8fafc' }}>Quarantine Developer Caches</h4>
               </div>
               <p style={{ fontSize: 12, color: '#94a3b8', margin: '8px 0 12px 0', lineHeight: 1.4 }}>
                 Isolate bloated npm, yarn, pnpm, pip, cargo, and gradle cache structures into Knoux Quarantine safely.
@@ -982,7 +983,7 @@ function DeveloperStationContent({
             <div style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid #1e293b', borderRadius: 8, padding: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Layers size={18} color="#38bdf8" />
-                <h4 style={{ margin: 0, fontSize: 14, color: '#f8fafc' }}>Project Artifact Quarantine (DT09)</h4>
+                <h4 style={{ margin: 0, fontSize: 14, color: '#f8fafc' }}>Project Artifact Quarantine</h4>
               </div>
               <p style={{ fontSize: 12, color: '#94a3b8', margin: '8px 0 12px 0', lineHeight: 1.4 }}>
                 Safely quarantine intermediate build outputs (.next, dist, build, target) to recover critical local disk space.
@@ -1006,7 +1007,7 @@ function DeveloperStationContent({
                   }}
                 >
                   <Play size={13} />
-                  <span>Execute Artifact Quarantine (DT09)</span>
+                  <span>Execute Artifact Quarantine</span>
                 </button>
               )}
             </div>
@@ -1062,7 +1063,6 @@ function DeveloperStationContent({
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: '#38bdf8' }}>{tool.ToolId}</span>
                         <h4 style={{ margin: '2px 0 0 0', fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>
                           {pickName(tool, lang)}
                         </h4>

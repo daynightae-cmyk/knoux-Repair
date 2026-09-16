@@ -1,5 +1,6 @@
 import { Bell, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
 import type { ToolStatus } from '../../types';
+import { FAMILIES } from '../../data/family-map';
 import type { NavDestination } from '../../data/family-map';
 import type { BridgeTool, ExecutionMode } from '../../lib/api';
 
@@ -14,17 +15,26 @@ interface ActionCenterPageProps {
   lang: 'en' | 'ar';
   activeTasks: ActiveTask[];
   toolStatuses: Record<string, ToolStatus>;
+  tools: BridgeTool[];
   onNavigate: (dest: NavDestination) => void;
 }
 
-export default function ActionCenterPage({ lang, activeTasks, toolStatuses, onNavigate }: ActionCenterPageProps) {
+function destinationForTool(tool: BridgeTool): NavDestination | null {
+  for (const family of FAMILIES) {
+    const service = family.services.find(candidate => candidate.id === tool.Category);
+    if (service) return { family: family.id, service: service.id, toolId: tool.ToolId };
+  }
+  return null;
+}
+
+export default function ActionCenterPage({ lang, activeTasks, toolStatuses, tools, onNavigate }: ActionCenterPageProps) {
   const runningTasks = activeTasks.filter(t => t.status === 'running');
   const completedTasks = activeTasks.filter(t => t.status !== 'running');
-  const warningCount = Object.values(toolStatuses).filter(s => s === 'error' || s === 'inconclusive').length;
+  const attentionEntries = Object.entries(toolStatuses).filter(([, status]) => status === 'error' || status === 'inconclusive');
+  const warningCount = attentionEntries.length;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="knoux-hero" style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(var(--knoux-violet-rgb),0.06))' }}>
         <div className="knoux-hero-content">
           <div className="flex items-center gap-3 mb-2">
@@ -41,13 +51,10 @@ export default function ActionCenterPage({ lang, activeTasks, toolStatuses, onNa
         </div>
       </div>
 
-      {/* Active Tasks */}
       <section>
         <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--knoux-text-secondary)' }}>
           {lang === 'ar' ? 'المهام النشطة' : 'Active Tasks'}
-          {runningTasks.length > 0 && (
-            <span className="ml-2 knoux-badge knoux-badge-caution">{runningTasks.length}</span>
-          )}
+          {runningTasks.length > 0 && <span className="ml-2 knoux-badge knoux-badge-caution">{runningTasks.length}</span>}
         </h2>
         {runningTasks.length > 0 ? (
           <div className="space-y-2">
@@ -64,7 +71,7 @@ export default function ActionCenterPage({ lang, activeTasks, toolStatuses, onNa
                         (lang === 'ar' ? 'قيد التشغيل...' : 'Running...')}
                   </div>
                 </div>
-                <div className="knoux-progress w-24">
+                <div className="knoux-progress w-24" aria-label={lang === 'ar' ? 'قيد التشغيل' : 'Running'}>
                   <div className="knoux-progress-bar knoux-progress-indeterminate" />
                 </div>
               </div>
@@ -80,7 +87,6 @@ export default function ActionCenterPage({ lang, activeTasks, toolStatuses, onNa
         )}
       </section>
 
-      {/* Needs Attention */}
       {warningCount > 0 && (
         <section>
           <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--knoux-text-secondary)' }}>
@@ -89,26 +95,28 @@ export default function ActionCenterPage({ lang, activeTasks, toolStatuses, onNa
           </h2>
           <div className="knoux-glass p-4">
             <p className="text-sm" style={{ color: 'var(--knoux-warning)' }}>
-              {warningCount} {lang === 'ar' ? 'أداة واجهت مشكلات' : 'tool(s) encountered issues'}
+              {warningCount} {lang === 'ar' ? 'إجراء يحتاج مراجعة' : warningCount === 1 ? 'action needs review' : 'actions need review'}
             </p>
           </div>
         </section>
       )}
 
-      {/* Recommendations */}
       <section>
         <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--knoux-text-secondary)' }}>
           {lang === 'ar' ? 'التوصيات والإجراءات المقترحة' : 'Recommendations & Actions'}
         </h2>
         {warningCount > 0 ? (
           <div className="space-y-2">
-            {Object.entries(toolStatuses)
-              .filter(([_, s]) => s === 'error' || s === 'inconclusive')
-              .map(([toolId, status]) => (
-                <div key={toolId} className="knoux-glass p-4 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-medium text-amber-300">
-                      {lang === 'ar' ? `إعادة محاولة الأداة ${toolId}` : `Retry Tool ${toolId}`}
+            {attentionEntries.map(([toolId, status]) => {
+              const tool = tools.find(candidate => candidate.ToolId === toolId) ?? null;
+              const destination = tool ? destinationForTool(tool) : null;
+              return (
+                <div key={toolId} className="knoux-glass p-4 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-amber-300 truncate">
+                      {tool
+                        ? (lang === 'ar' ? tool.ArabicName : tool.EnglishName)
+                        : (lang === 'ar' ? 'إجراء سابق يحتاج مراجعة' : 'A previous action needs review')}
                     </div>
                     <div className="text-xs text-slate-400 mt-0.5">
                       {lang === 'ar' ? `الحالة السابقة: ${status}` : `Prior run status: ${status}`}
@@ -116,15 +124,17 @@ export default function ActionCenterPage({ lang, activeTasks, toolStatuses, onNa
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      onNavigate({ family: 'vitality', toolId });
-                    }}
-                    className="knoux-btn knoux-btn-secondary text-xs"
+                    disabled={!destination}
+                    onClick={() => { if (destination) onNavigate(destination); }}
+                    className="knoux-btn knoux-btn-secondary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {lang === 'ar' ? 'فتح الأداة' : 'Open Tool'}
+                    {destination
+                      ? (lang === 'ar' ? 'فتح الإجراء' : 'Open Action')
+                      : (lang === 'ar' ? 'غير متاح' : 'Unavailable')}
                   </button>
                 </div>
-              ))}
+              );
+            })}
           </div>
         ) : (
           <div className="knoux-glass p-6 text-center">
@@ -134,14 +144,13 @@ export default function ActionCenterPage({ lang, activeTasks, toolStatuses, onNa
             </p>
             <p className="text-xs mt-1 text-slate-500">
               {lang === 'ar'
-                ? 'شغّل الفحص الذكي AI Scan أو قم بتشغيل أدوات التشخيص لتوليد توصيات مبنية على أدلة حقيقية.'
-                : 'Run an AI Scan or execute diagnostics to generate evidence-backed recommendations.'}
+                ? 'شغّل الفحص الذكي أو أدوات التشخيص لإنشاء توصيات مبنية على أدلة حقيقية.'
+                : 'Run the intelligent scan or diagnostics to generate evidence-backed recommendations.'}
             </p>
           </div>
         )}
       </section>
 
-      {/* Recently Completed */}
       {completedTasks.length > 0 && (
         <section>
           <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--knoux-text-secondary)' }}>
@@ -153,14 +162,12 @@ export default function ActionCenterPage({ lang, activeTasks, toolStatuses, onNa
                 {task.status === 'success' ? (
                   <CheckCircle2 size={16} style={{ color: 'var(--knoux-success)' }} />
                 ) : (
-                  <AlertTriangle size={16} style={{ color: 'var(--knoux-danger)' }} />
+                  <AlertTriangle size={16} style={{ color: task.status === 'cancelled' ? 'var(--knoux-text-muted)' : 'var(--knoux-danger)' }} />
                 )}
                 <span className="text-sm flex-1 truncate" style={{ color: 'var(--knoux-text-secondary)' }}>
                   {lang === 'ar' ? task.tool.ArabicName : task.tool.EnglishName}
                 </span>
-                <span className="text-xs" style={{ color: 'var(--knoux-text-faint)' }}>
-                  {task.status}
-                </span>
+                <span className="text-xs uppercase" style={{ color: 'var(--knoux-text-faint)' }}>{task.status}</span>
               </div>
             ))}
           </div>

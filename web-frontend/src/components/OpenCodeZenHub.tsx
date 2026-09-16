@@ -46,10 +46,12 @@ export default function OpenCodeZenHub({
 }: OpenCodeZenHubProps) {
   const [activeTab, setActiveTab] = useState<TabType>('studio');
 
-  // Model Selection
+  // Model Selection — server-side provider truth only. Renderer never holds secrets.
   const [selectedModelId, setSelectedModelId] = useState<string>('gemini-3.8-flash');
-  const [customOpenRouterKey, setCustomOpenRouterKey] = useState<string>(() => {
-    return localStorage.getItem('knoux-openrouter-key') || '';
+  const [providerTruth, setProviderTruth] = useState<{ loading: boolean; hasGeminiKey: boolean; hasOpenRouterKey: boolean }>({
+    loading: true,
+    hasGeminiKey: false,
+    hasOpenRouterKey: false,
   });
 
   // Studio inputs
@@ -75,11 +77,20 @@ export default function OpenCodeZenHub({
 
   const activeModel = FREE_AI_MODELS.find((m) => m.id === selectedModelId) || FREE_AI_MODELS[0];
 
-  // Save custom OpenRouter key to localStorage
-  const handleSaveOpenRouterKey = (key: string) => {
-    setCustomOpenRouterKey(key);
-    localStorage.setItem('knoux-openrouter-key', key);
-  };
+  // Provider truth is server-side only (local bridge env). Explicit fetch, never auto-paid.
+  const refreshProviderTruth = useCallback(async () => {
+    setProviderTruth((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await api.aiModels();
+      setProviderTruth({ loading: false, hasGeminiKey: Boolean(res.hasGeminiKey), hasOpenRouterKey: Boolean(res.hasOpenRouterKey) });
+    } catch {
+      setProviderTruth({ loading: false, hasGeminiKey: false, hasOpenRouterKey: false });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'providers') void refreshProviderTruth();
+  }, [activeTab, refreshProviderTruth]);
 
   // Fetch Cloud SQL repair logs for history tab
   const fetchLogs = useCallback(async () => {
@@ -122,7 +133,6 @@ export default function OpenCodeZenHub({
         modelId: selectedModelId,
         prompt: promptToUse,
         systemPrompt: systemInstructions,
-        customApiKey: customOpenRouterKey.trim() || undefined,
         templateId: templateOverrideId || selectedTemplateId || undefined,
         uid,
       });
@@ -247,7 +257,7 @@ export default function OpenCodeZenHub({
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
                 <Sparkles size={11} />
-                {lang === 'ar' ? 'موديلات مجانية مدعومة فعلياً' : 'FREE PRODUCTION AI MODELS'}
+                {lang === 'ar' ? 'استوديو الذكاء — كتالوج فقط' : 'AI STUDIO — CATALOG ONLY'}
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                 OPEN CODE ZEN 2.0
@@ -258,12 +268,12 @@ export default function OpenCodeZenHub({
             </div>
 
             <h2 className="text-2xl font-black text-white tracking-tight">
-              {lang === 'ar' ? 'محرك كود زن والموديلات المجانية' : 'Open Code Zen & Free Models Studio'}
+              {lang === 'ar' ? 'محرك كود زن (كتالوج)' : 'Open Code Zen Studio (catalog)'}
             </h2>
             <p className="text-sm text-slate-300 mt-1 max-w-2xl">
               {lang === 'ar'
-                ? 'استغل القوة القصوى لموديلات الذكاء الاصطناعي المجانية (Gemini 3.8 Flash, DeepSeek R1, Qwen 2.5 Coder, Llama 3) لتوليد سكربتات الصيانة والإصلاح وتشخيص الأخطاء فورياً.'
-                : 'Harness the full capabilities of free AI models (Gemini 3.8 Flash, DeepSeek R1, Qwen 2.5 Coder, Llama 3) to generate bulletproof Windows repair scripts, debug errors, and automate workstation health.'}
+                ? 'كتالوج موديلات للاختيار. التوليد يعمل فقط عند طلب صريح عبر الجسر المحلي، والتهيئة لا تعني التوفر.'
+                : 'Model catalog for selection. Generation runs only on explicit request via the local bridge. Configured does not mean available.'}
             </p>
           </div>
 
@@ -273,7 +283,7 @@ export default function OpenCodeZenHub({
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
               <div>
                 <p className="text-[10px] text-slate-400 uppercase tracking-wider font-mono">
-                  {lang === 'ar' ? 'الموديل النشط' : 'Active Model'}
+                  {lang === 'ar' ? 'الموديل المحدد (كتالوج)' : 'Selected catalog model'}
                 </p>
                 <p className="text-xs font-bold text-white flex items-center gap-1.5">
                   {activeModel.name}
@@ -388,9 +398,9 @@ export default function OpenCodeZenHub({
               <label className="text-xs font-bold text-slate-200 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <Cpu size={14} className="text-indigo-400" />
-                  {lang === 'ar' ? 'اختر الموديل المجاني' : 'Select Free AI Model'}
+                  {lang === 'ar' ? 'اختر موديل الكتالوج' : 'Select catalog AI model'}
                 </span>
-                <span className="text-[10px] font-mono text-emerald-400">Free-tier models</span>
+                <span className="text-[10px] font-mono text-slate-400">Catalog only — explicit generation</span>
               </label>
 
               <div className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
@@ -613,8 +623,8 @@ export default function OpenCodeZenHub({
                     <Terminal size={32} className="opacity-40" />
                     <p className="text-xs">
                       {lang === 'ar'
-                        ? 'اختر موديلاً أو نموذجاً، واضغط "توليد كود الإصلاح" لبدء هندسة الأكواد.'
-                        : 'Select a free model, enter your requirements, and click "Generate Repair Script".'}
+                        ? 'اختر موديلاً من الكتالوج، واضغط "توليد كود الإصلاح" لبدء هندسة الأكواد عند الطلب الصريح.'
+                        : 'Select a catalog model, enter your requirements, and click "Generate Repair Script".'}
                     </p>
                   </div>
                 )}
@@ -739,10 +749,10 @@ export default function OpenCodeZenHub({
         </div>
       )}
 
-      {/* TAB 3: PROVIDERS & OPENROUTER HUB */}
+      {/* TAB 3: PROVIDERS — server-side truth only, no renderer secrets */}
       {activeTab === 'providers' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* Provider Card: Google AI Studio (Native) */}
+          {/* Provider Card: Google AI (server env GEMINI_API_KEY) */}
           <div className="p-5 rounded-2xl bg-slate-900/70 border border-emerald-500/30 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -751,18 +761,22 @@ export default function OpenCodeZenHub({
                 </span>
                 <div>
                   <h4 className="text-sm font-bold text-white">Google AI Studio</h4>
-                  <p className="text-xs text-slate-400">{lang === 'ar' ? 'المحرك السحابي الافتراضي' : 'Default Server Engine'}</p>
+                  <p className="text-xs text-slate-400">{lang === 'ar' ? 'مفتاح الخادم فقط' : 'Server key only (GEMINI_API_KEY)'}</p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                ACTIVE & OPERATIONAL
+              <span
+                data-provider="gemini"
+                data-state={providerTruth.loading ? 'checking' : providerTruth.hasGeminiKey ? 'configured' : 'unconfigured'}
+                className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold border bg-slate-800 text-slate-300 border-white/10"
+              >
+                {providerTruth.loading ? (lang === 'ar' ? 'يفحص…' : 'CHECKING…') : providerTruth.hasGeminiKey ? (lang === 'ar' ? 'مُعد' : 'CONFIGURED') : (lang === 'ar' ? 'غير مُعد' : 'UNCONFIGURED')}
               </span>
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">
               {lang === 'ar'
-                ? 'يعمل محرك Google Gemini تلقائياً وبشكل مجاني تماماً على الخادم، مما يتيح لك سرعة فائقة في معالجة الأوامر دون الحاجة لأي مفاتيح أو ضبط يدوي.'
-                : 'Native server-side Google Gemini integration provides blazing-fast reasoning, large context windows, and zero-configuration execution directly out of the box.'}
+                ? 'يُدار مفتاح Gemini على الجسر المحلي فقط ولا يظهر في المتصفح. التهيئة لا تعني التوفر — يتطلب التوليد محاولة صريحة.'
+                : 'Gemini key lives on the local bridge only and never reaches the renderer. Configured does not mean available — generation requires an explicit attempt.'}
             </p>
 
             <div className="p-3 rounded-xl bg-slate-950/60 border border-white/[0.06] space-y-2">
@@ -771,17 +785,23 @@ export default function OpenCodeZenHub({
                 <span className="font-mono text-white font-bold">Gemini 3.8 Flash</span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">{lang === 'ar' ? 'حجم نافذة السياق' : 'Context Window'}</span>
-                <span className="font-mono text-emerald-400 font-bold">1,000,000 Tokens</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">{lang === 'ar' ? 'التكلفة' : 'Cost'}</span>
-                <span className="font-mono text-emerald-400 font-bold">$0.00 (Free Tier)</span>
+                <span className="text-slate-400">{lang === 'ar' ? 'الحالة' : 'Status'}</span>
+                <span className="font-mono font-bold text-slate-300">
+                  {providerTruth.loading ? 'UNKNOWN' : providerTruth.hasGeminiKey ? 'CONFIGURED' : 'UNCONFIGURED'}
+                </span>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => void refreshProviderTruth()}
+              className="px-3 py-1.5 rounded-xl text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1.5 transition-colors"
+            >
+              <RefreshCw size={12} className={providerTruth.loading ? 'animate-spin' : ''} />
+              <span>{lang === 'ar' ? 'إعادة فحص التهيئة' : 'Recheck configuration'}</span>
+            </button>
           </div>
 
-          {/* Provider Card: OpenRouter Free Models */}
+          {/* Provider Card: OpenRouter (server env OPENROUTER_API_KEY) */}
           <div className="p-5 rounded-2xl bg-slate-900/70 border border-indigo-500/30 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -790,32 +810,32 @@ export default function OpenCodeZenHub({
                 </span>
                 <div>
                   <h4 className="text-sm font-bold text-white">OpenRouter Gateway</h4>
-                  <p className="text-xs text-slate-400">{lang === 'ar' ? 'بوابة الموديلات المفتوحة والمجانية' : 'Open Source Free Models'}</p>
+                  <p className="text-xs text-slate-400">{lang === 'ar' ? 'مفتاح الخادم فقط' : 'Server key only (OPENROUTER_API_KEY)'}</p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                MULTI-MODEL
+              <span
+                data-provider="openrouter"
+                data-state={providerTruth.loading ? 'checking' : providerTruth.hasOpenRouterKey ? 'configured' : 'unconfigured'}
+                className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold border bg-slate-800 text-slate-300 border-white/10"
+              >
+                {providerTruth.loading ? (lang === 'ar' ? 'يفحص…' : 'CHECKING…') : providerTruth.hasOpenRouterKey ? (lang === 'ar' ? 'مُعد' : 'CONFIGURED') : (lang === 'ar' ? 'غير مُعد' : 'UNCONFIGURED')}
               </span>
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">
               {lang === 'ar'
-                ? 'يدعم تطبيقك تشغيل موديلات DeepSeek R1 و Qwen 2.5 Coder 32B و Meta Llama مجاناً. يمكنك إدخال مفتاح OpenRouter الخاص بك إذا رغبت، أو الاعتماد على التوجيه التلقائي المدمج.'
-                : 'Supports community open models (DeepSeek R1, Qwen 2.5 Coder 32B, Llama 3.2). You can enter an optional OpenRouter API key, or enjoy zero-config autonomous synthesis.'}
+                ? 'لا يُقبل أي مفتاح من المتصفح. أضف OPENROUTER_API_KEY إلى بيئة الجسر المحلي ثم أعد الفحص. الأسرار لا تُخزن في المتصفح ولا تُرسل من الواجهة.'
+                : 'No browser-supplied key is accepted. Set OPENROUTER_API_KEY in the local bridge environment, then recheck. Secrets are never stored in the browser nor sent from the renderer.'}
             </p>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                <span>{lang === 'ar' ? 'مفتاح OpenRouter API (اختياري)' : 'OpenRouter API Key (Optional)'}</span>
-                <span className="text-[10px] text-slate-400">{lang === 'ar' ? 'يحفظ محلياً في متصفحك' : 'Stored locally in browser'}</span>
-              </label>
-              <input
-                type="password"
-                value={customOpenRouterKey}
-                onChange={(e) => handleSaveOpenRouterKey(e.target.value)}
-                placeholder="sk-or-v1-..."
-                className="w-full rounded-xl bg-slate-950/80 border border-white/[0.1] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-              />
+            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/[0.06] space-y-2" data-secret-boundary="server-only">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">{lang === 'ar' ? 'الحالة' : 'Status'}</span>
+                <span className="font-mono font-bold text-slate-300">
+                  {providerTruth.loading ? 'UNKNOWN' : providerTruth.hasOpenRouterKey ? 'CONFIGURED' : 'UNCONFIGURED'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-mono">OPENROUTER_API_KEY=•••• (server env only)</p>
             </div>
           </div>
         </div>

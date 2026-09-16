@@ -155,6 +155,7 @@ export function formatBytes(bytes: number, lang: 'en' | 'ar'): string {
  * Detects recovery risk signals with suggested tools
  */
 export function detectRecoverySignals(summary: RecoveryReadinessSummary): RecoverySignal[] {
+  if (summary.state === 'INCONCLUSIVE') return [];
   const signals: RecoverySignal[] = [];
 
   if (summary.restorePointsCount === 0) {

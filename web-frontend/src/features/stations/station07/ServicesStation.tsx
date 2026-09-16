@@ -67,7 +67,7 @@ const COPY = {
     emptyHistory: 'No service actions executed yet during this session.',
     dependenciesTitle: 'Service Dependency Graph & Blast Radius',
     dependenciesSubtitle: 'Analyze what other services depend on a target before stopping or restarting.',
-    queryDependencies: 'Inspect Service Dependencies (SP07)',
+    queryDependencies: 'Inspect Service Dependencies',
   },
   ar: {
     eyebrow: 'مركز عمليات الخدمات والعمليات',
@@ -105,7 +105,7 @@ const COPY = {
     emptyHistory: 'لم يتم تنفيذ أي إجراء في الخدمات خلال هذه الجلسة حتى الآن.',
     dependenciesTitle: 'مخطط تبعيات الخدمات ونطاق الأثر',
     dependenciesSubtitle: 'تحليل الخدمات التي تعتمد على خدمة معينة قبل إيقافها أو إعادة تشغيلها لمنع انقطاع النظام.',
-    queryDependencies: 'فحص تبعيات الخدمات (SP07)',
+    queryDependencies: 'فحص تبعيات الخدمات',
   },
 };
 
@@ -259,7 +259,7 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
 
   return (
     <StationErrorBoundary>
-      <div className="knoux-station-workspace flex flex-col flex-1 gap-6 p-6">
+      <div className="knoux-station-workspace services-topology-station flex flex-col flex-1 gap-6 p-6">
         {/* Top Product Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
           <div>
@@ -415,7 +415,7 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
                 className="px-3 py-1.5 rounded-lg text-xs font-medium text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <RefreshCw size={13} className={isScanning ? 'animate-spin' : ''} />
-                <span>{lang === 'ar' ? 'جرد الخدمات بالكامل (SP01)' : 'Scan All Services (SP01)'}</span>
+                <span>{lang === 'ar' ? 'جرد الخدمات بالكامل' : 'Scan All Services'}</span>
               </button>
             </div>
 
@@ -529,7 +529,7 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
                 className="px-3 py-1.5 rounded-lg text-xs font-medium text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <RefreshCw size={13} className={isScanning ? 'animate-spin' : ''} />
-                <span>{lang === 'ar' ? 'جرد العمليات الحية (SP02)' : 'Scan Active Processes (SP02)'}</span>
+                <span>{lang === 'ar' ? 'جرد العمليات الحية' : 'Scan Active Processes'}</span>
               </button>
             </div>
 
@@ -663,7 +663,6 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
                   >
                     <div>
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs text-amber-400 font-bold">{tool.ToolId}</span>
                         <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/20 text-indigo-300">
                           {tool.RiskLevel}
                         </span>
@@ -712,7 +711,7 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
                 className="px-3 py-1.5 rounded-lg text-xs font-medium text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <FileText size={13} />
-                <span>{lang === 'ar' ? 'توليد تقرير العمليات (SP10)' : 'Generate Operations Report (SP10)'}</span>
+                <span>{lang === 'ar' ? 'توليد تقرير العمليات' : 'Generate Operations Report'}</span>
               </button>
             </div>
 

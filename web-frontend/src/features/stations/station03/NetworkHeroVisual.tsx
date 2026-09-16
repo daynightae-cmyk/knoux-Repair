@@ -353,7 +353,7 @@ export const NetworkHeroVisual: React.FC<NetworkHeroVisualProps> = ({
           <text x="24" y="15" fill="#a5f3fc" fontSize="7.5" fontWeight="600" fontFamily="monospace">
             {avgMs !== null
               ? `LATENCY ${avgMs}ms`
-              : (lang === 'ar' ? 'جاهز للفحص' : 'PROBE READY')}
+              : (lang === 'ar' ? 'لم يتم الفحص بعد' : 'NOT CHECKED YET')}
           </text>
           {lossPercent !== null && (
             <text x="95" y="15" fill="#fed7aa" fontSize="7.5" fontWeight="600" fontFamily="monospace">

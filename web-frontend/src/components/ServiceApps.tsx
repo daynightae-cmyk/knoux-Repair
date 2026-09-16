@@ -46,6 +46,8 @@ interface ServiceAppsProps {
   onToolStatus?: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
   onRunTool: (tool: BridgeTool, mode: ExecutionMode, options?: ToolRunOptions, confirmation?: ToolRunConfirmation) => void;
   onCancelTool: () => void;
+  /** Render only the canonical station surface when a parent workspace already owns the chrome. */
+  embedded?: boolean;
 }
 
 type Localized = Record<Lang, string>;
@@ -104,11 +106,11 @@ function useServiceData(section: ActiveSection) {
 function preferredMode(tool: BridgeTool): ExecutionMode { return tool.AnalyzeOnlySupported ? 'analyze' : tool.WhatIfSupported ? 'preview' : 'run'; }
 function tone(status: ToolStatus | undefined) { return status === 'success' ? 'is-success' : status === 'error' ? 'is-error' : status === 'running' ? 'is-running' : ''; }
 
-function LiveShell({ lang, title, eyebrow, icon: Icon, accent, loading, available, onRefresh, children }: {
-  lang: Lang; title: string; eyebrow: string; icon: ElementType; accent: string; loading: boolean; available: boolean; onRefresh: () => void; children: React.ReactNode;
+function LiveShell({ lang, title, eyebrow, icon: Icon, accent, serviceId, loading, available, onRefresh, children }: {
+  lang: Lang; title: string; eyebrow: string; icon: ElementType; accent: string; serviceId: ActiveSection; loading: boolean; available: boolean; onRefresh: () => void; children: React.ReactNode;
 }) {
   const text = COPY[lang];
-  return <section className="service-app-shell" style={{ '--app-accent': accent } as React.CSSProperties}>
+  return <section className={`service-app-shell service-app-shell--${serviceId}`} data-service-id={serviceId} style={{ '--app-accent': accent } as React.CSSProperties}>
     <header className="service-app-topbar"><div className="service-app-brand"><span className="service-app-icon"><Icon size={20} /></span><div><p>{eyebrow}</p><h1>{title}</h1></div></div><button type="button" className="service-app-refresh" onClick={onRefresh} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} />{text.refresh}</button></header>
     {loading ? <div className="service-app-loading"><LoaderCircle size={20} className="animate-spin" /><span>{text.loading}</span></div> : <>{!available && <div className="service-app-offline-banner"><CloudCog size={17} /><span>{text.unavailable}</span></div>}{children}</>}
   </section>;
@@ -148,7 +150,7 @@ function SafetyNote({ lang }: { lang: Lang }) { const text = COPY[lang]; return 
 function GenericApp({ section, lang }: { section: ActiveSection; lang: Lang }) { const labels: Partial<Record<ActiveSection, Localized>> = { services: { en: 'Device activity room', ar: 'غرفة نشاط الجهاز' }, monitoring: { en: 'Live device monitor', ar: 'مراقب الجهاز الحي' } }; return <div className="generic-app-view"><MonitorCog size={45} /><h2>{labels[section]?.[lang] || (lang === 'ar' ? 'خدمة KNOUX' : 'KNOUX service')}</h2><span>{lang === 'ar' ? 'ستظهر المعلومات الفعلية والخطوات المناسبة هنا عندما تصبح الخدمة جاهزة.' : 'Live information and the right next steps will appear here when the service is ready.'}</span></div>; }
 function OfflineScene({ section, lang, icon: Icon }: { section: ActiveSection; lang: Lang; icon: ElementType }) { const labels: Partial<Record<ActiveSection, Localized>> = { maintenance: { en: 'Ready to measure your device health', ar: 'جاهز لقياس صحة جهازك' }, cleanup: { en: 'Ready to map cleanable space', ar: 'جاهز لرسم المساحة القابلة للتنظيف' }, performance: { en: 'Ready to build a speed picture', ar: 'جاهز لبناء صورة عن أداء الجهاز' }, disk: { en: 'Ready to explore your storage', ar: 'جاهز لاستكشاف مساحة التخزين' }, network: { en: 'Ready to trace your connection', ar: 'جاهز لتتبّع اتصالك' }, security: { en: 'Ready to check your protection', ar: 'جاهز لفحص حمايتك' }, diagnostics: { en: 'Ready to prepare a device checkup', ar: 'جاهز لإعداد فحص للجهاز' }, backupRecovery: { en: 'Ready to open your recovery vault', ar: 'جاهز لفتح خزنة الاستعادة' }, privacy: { en: 'Ready to review your privacy choices', ar: 'جاهز لمراجعة خيارات الخصوصية' }, softwareEnvironment: { en: 'Ready to organise your software library', ar: 'جاهز لتنظيم مكتبة برامجك' }, postInstall: { en: 'Ready to prepare a new device', ar: 'جاهز لتجهيز جهاز جديد' } }; const title = labels[section]?.[lang] || (lang === 'ar' ? 'جاهز لعرض بيانات هذه الخدمة' : 'Ready to show this service'); return <section className={`offline-scene offline-${section}`}><div className="offline-scene-motif"><i /><i /><i /><Icon size={34} /></div><div><p>{lang === 'ar' ? 'تجربة الخدمة' : 'Service experience'}</p><h2>{title}</h2><span>{lang === 'ar' ? 'سيظهر مخطط الخدمة وبيانات جهازك الحقيقية فور جاهزية الاتصال المحلي.' : 'The service canvas and real device details appear as soon as the local connection is ready.'}</span></div></section>; }
 
-export default function ServiceApps({ activeSection, tools, toolStatuses, lang, bridgeElevated, bridgeOnline = null, onRetryBridge, onToolStatus, onRunTool, onCancelTool }: ServiceAppsProps) {
+export default function ServiceApps({ activeSection, tools, toolStatuses, lang, bridgeElevated, bridgeOnline = null, onRetryBridge, onToolStatus, onRunTool, onCancelTool, embedded = false }: ServiceAppsProps) {
   const [pending, setPending] = useState<{ tool: BridgeTool; mode: ExecutionMode; options?: ToolRunOptions } | null>(null);
   const { data, loading, available, reload } = useServiceData(activeSection);
   const launch = (tool: BridgeTool) => setPending({ tool, mode: preferredMode(tool) });
@@ -159,24 +161,24 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
     if (tool) launch(tool);
   }, [tools]);
   const specs: Partial<Record<ActiveSection, { title: Localized; eyebrow: Localized; icon: ElementType; accent: string }>> = {
-    maintenance: { title: { en: 'Device Health', ar: 'صحة الجهاز' }, eyebrow: { en: 'HEALTH STUDIO', ar: 'استوديو الصحة' }, icon: HeartPulse, accent: '#58a6ff' },
-    cleanup: { title: { en: 'Space Cleaner', ar: 'تنظيف المساحة' }, eyebrow: { en: 'CLEANUP PLAN', ar: 'خطة التنظيف' }, icon: Trash2, accent: '#43c98d' },
-    performance: { title: { en: 'Speed Up', ar: 'تسريع الجهاز' }, eyebrow: { en: 'PERFORMANCE COCKPIT', ar: 'مقصورة الأداء' }, icon: Gauge, accent: '#f07868' },
-    disk: { title: { en: 'Storage Space', ar: 'مساحة التخزين' }, eyebrow: { en: 'STORAGE EXPLORER', ar: 'مستكشف التخزين' }, icon: HardDrive, accent: '#ad79ff' },
-    network: { title: { en: 'Connection Helper', ar: 'مساعد الاتصال' }, eyebrow: { en: 'CONNECTION MAP', ar: 'خريطة الاتصال' }, icon: Network, accent: '#35c9da' },
-    security: { title: { en: 'Protection', ar: 'الحماية' }, eyebrow: { en: 'SECURITY CENTER', ar: 'مركز الحماية' }, icon: ShieldCheck, accent: '#46c5a8' },
-    diagnostics: { title: { en: 'Device Checkup', ar: 'فحص الجهاز' }, eyebrow: { en: 'DIAGNOSTIC REPORT', ar: 'تقرير الفحص' }, icon: ScanSearch, accent: '#9079f5' },
-    backupRecovery: { title: { en: 'Protect & Recover', ar: 'الحماية والاستعادة' }, eyebrow: { en: 'RECOVERY VAULT', ar: 'خزنة الاستعادة' }, icon: ArchiveRestore, accent: '#47c0e7' },
-    programs: { title: { en: 'App Center', ar: 'مركز التطبيقات' }, eyebrow: { en: 'APPLICATION LIBRARY', ar: 'مكتبة التطبيقات' }, icon: AppWindow, accent: '#f19a55' },
-    softwareEnvironment: { title: { en: 'Software Library', ar: 'مكتبة البرامج' }, eyebrow: { en: 'SOFTWARE SHELF', ar: 'رف البرامج' }, icon: PackageCheck, accent: '#5e8ef4' },
-    developerTools: { title: { en: 'Development Environments', ar: 'بيئات التطوير' }, eyebrow: { en: 'WORKSPACE BENCH', ar: 'منضدة العمل' }, icon: FolderKanban, accent: '#a780f6' },
-    privacy: { title: { en: 'Privacy', ar: 'الخصوصية' }, eyebrow: { en: 'PRIVACY CONTROL ROOM', ar: 'غرفة تحكم الخصوصية' }, icon: UserRoundCheck, accent: '#eb75a7' },
-    drivers: { title: { en: 'Drivers & Devices', ar: 'التعريفات والأجهزة' }, eyebrow: { en: 'DEVICE GARAGE', ar: 'مرآب الأجهزة' }, icon: Wrench, accent: '#e5ab57' },
-    monitoring: { title: { en: 'Device Monitor', ar: 'مراقبة الجهاز' }, eyebrow: { en: 'LIVE OPERATIONS', ar: 'العمليات الحية' }, icon: Activity, accent: '#52c89a' },
-    services: { title: { en: 'Device Activity', ar: 'نشاط الجهاز' }, eyebrow: { en: 'ACTIVITY ROOM', ar: 'غرفة النشاط' }, icon: Activity, accent: '#ecb15f' },
-    postInstall: { title: { en: 'New Device Setup', ar: 'إعداد جهاز جديد' }, eyebrow: { en: 'SETUP CHECKLIST', ar: 'قائمة الإعداد' }, icon: Rocket, accent: '#b06cf5' },
-    duplicates: { title: { en: 'Duplicate Organizer', ar: 'منظّم الملفات المكررة' }, eyebrow: { en: 'FILE REVIEW DESK', ar: 'مكتب مراجعة الملفات' }, icon: Copy, accent: '#e76fa5' },
-    projectSonar: { title: { en: 'Project Center', ar: 'مركز المشاريع' }, eyebrow: { en: 'PROJECT COMMAND BOARD', ar: 'لوحة قيادة المشاريع' }, icon: Radar, accent: '#42d4e8' },
+    maintenance: { title: { en: 'KNOUX Care', ar: 'عناية KNOUX' }, eyebrow: { en: 'WINDOWS REPAIR CORE', ar: 'نواة إصلاح ويندوز' }, icon: HeartPulse, accent: '#58a6ff' },
+    cleanup: { title: { en: 'Space Cleaner', ar: 'منظف المساحة' }, eyebrow: { en: 'CLEANUP & RECLAIM', ar: 'تنظيف واستعادة المساحة' }, icon: Trash2, accent: '#43c98d' },
+    performance: { title: { en: 'Performance Observatory', ar: 'مرصد الأداء' }, eyebrow: { en: 'RESOURCE EVIDENCE', ar: 'أدلة الموارد' }, icon: Gauge, accent: '#f07868' },
+    disk: { title: { en: 'Storage Map', ar: 'خريطة التخزين' }, eyebrow: { en: 'DISK & VOLUME EVIDENCE', ar: 'أدلة الأقراص ووحدات التخزين' }, icon: HardDrive, accent: '#ad79ff' },
+    network: { title: { en: 'Connection Map', ar: 'خريطة الاتصال' }, eyebrow: { en: 'NETWORK PATH', ar: 'مسار الشبكة' }, icon: Network, accent: '#35c9da' },
+    security: { title: { en: 'Security Evidence Center', ar: 'مركز أدلة الأمان' }, eyebrow: { en: 'ASSURANCE', ar: 'الضمان والحماية' }, icon: ShieldCheck, accent: '#46c5a8' },
+    diagnostics: { title: { en: 'Diagnostic Evidence Lab', ar: 'مختبر الأدلة التشخيصية' }, eyebrow: { en: 'INVESTIGATION', ar: 'التحقيق' }, icon: ScanSearch, accent: '#9079f5' },
+    backupRecovery: { title: { en: 'Recovery Vault', ar: 'خزنة الاستعادة' }, eyebrow: { en: 'BACKUP & RECOVERY', ar: 'النسخ الاحتياطي والاستعادة' }, icon: ArchiveRestore, accent: '#47c0e7' },
+    programs: { title: { en: 'Application Studio', ar: 'استوديو التطبيقات' }, eyebrow: { en: 'APPLICATION MATRIX', ar: 'مصفوفة التطبيقات' }, icon: AppWindow, accent: '#f19a55' },
+    softwareEnvironment: { title: { en: 'Runtime Matrix', ar: 'مصفوفة بيئات التشغيل' }, eyebrow: { en: 'SOFTWARE ENVIRONMENT', ar: 'بيئة البرامج' }, icon: PackageCheck, accent: '#5e8ef4' },
+    developerTools: { title: { en: 'Engineering Workbench', ar: 'منضدة العمل الهندسية' }, eyebrow: { en: 'DEVELOPER TOOLS', ar: 'أدوات المطور' }, icon: FolderKanban, accent: '#a780f6' },
+    privacy: { title: { en: 'Privacy Control Center', ar: 'مركز التحكم بالخصوصية' }, eyebrow: { en: 'PRIVACY', ar: 'الخصوصية' }, icon: UserRoundCheck, accent: '#eb75a7' },
+    drivers: { title: { en: 'Driver Matrix', ar: 'مصفوفة التعريفات' }, eyebrow: { en: 'DRIVERS & DEVICES', ar: 'التعريفات والأجهزة' }, icon: Wrench, accent: '#e5ab57' },
+    monitoring: { title: { en: 'Live Observatory', ar: 'المرصد الحي' }, eyebrow: { en: 'SYSTEM MONITORING', ar: 'مراقبة النظام' }, icon: Activity, accent: '#52c89a' },
+    services: { title: { en: 'System Topology', ar: 'طوبولوجيا النظام' }, eyebrow: { en: 'SERVICES & PROCESSES', ar: 'الخدمات والعمليات' }, icon: Activity, accent: '#ecb15f' },
+    postInstall: { title: { en: 'Provisioning Pipeline', ar: 'مسار التجهيز' }, eyebrow: { en: 'POST-INSTALL SETUP', ar: 'إعداد ما بعد التثبيت' }, icon: Rocket, accent: '#b06cf5' },
+    duplicates: { title: { en: 'Duplicate Intelligence', ar: 'استخبارات الملفات المكررة' }, eyebrow: { en: 'DUPLICATE FILES', ar: 'الملفات المكررة' }, icon: Copy, accent: '#e76fa5' },
+    projectSonar: { title: { en: 'Project Intelligence Sonar', ar: 'سونار ذكاء المشاريع' }, eyebrow: { en: 'PROJECT SONAR', ar: 'سونار المشاريع' }, icon: Radar, accent: '#42d4e8' },
   };
   const spec = specs[activeSection] || { title: { en: 'KNOUX', ar: 'KNOUX' }, eyebrow: { en: 'SERVICE', ar: 'خدمة' }, icon: Sparkles, accent: '#48c8dd' };
   const content = useMemo(() => {
@@ -411,11 +413,25 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
     ? <DuplicateStation lang={lang} tools={tools} onPrepareRun={prepareToolRun} />
     : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
+  const showSharedActionRail = !specialContent && !content;
+  const confirmDialog = pending && <ExecutionConfirmDialog tool={pending.tool} mode={pending.mode} lang={lang} initialOptions={pending.options} onCancel={() => setPending(null)} onConfirm={(options, confirmation) => { onRunTool(pending.tool, pending.mode, options, confirmation); setPending(null); }} />;
+
+  if (embedded) {
+    return <>
+      <section className={`service-app-embedded service-app-embedded--${activeSection}`} data-service-surface={activeSection}>
+        {appContent || <GenericApp section={activeSection} lang={lang} />}
+      </section>
+      {confirmDialog}
+    </>;
+  }
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || activeSection === 'developerTools' || activeSection === 'privacy' || activeSection === 'drivers' || activeSection === 'monitoring' || activeSection === 'softwareEnvironment' || activeSection === 'postInstall' || activeSection === 'projectSonar' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} serviceId={activeSection} loading={loading} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || activeSection === 'developerTools' || activeSection === 'privacy' || activeSection === 'drivers' || activeSection === 'monitoring' || activeSection === 'softwareEnvironment' || activeSection === 'postInstall' || activeSection === 'projectSonar' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
-      <div className="service-app-bottom"><ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} /><SafetyNote lang={lang} /></div>
+      <div className={`service-app-bottom ${showSharedActionRail ? '' : 'service-app-bottom--contextual'}`}>
+        {showSharedActionRail && <ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} />}
+        <SafetyNote lang={lang} />
+      </div>
     </LiveShell>
-    {pending && <ExecutionConfirmDialog tool={pending.tool} mode={pending.mode} lang={lang} initialOptions={pending.options} onCancel={() => setPending(null)} onConfirm={(options, confirmation) => { onRunTool(pending.tool, pending.mode, options, confirmation); setPending(null); }} />}
+    {confirmDialog}
   </>;
 }

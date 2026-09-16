@@ -23,6 +23,10 @@ export default function DiagnosticsHeroVisual({
       : condition === 'CRITICAL_FINDINGS'
       ? '#f43f5e'
       : '#64748b';
+  const hasEvidence = condition !== 'INCONCLUSIVE';
+  const eventColor = !hasEvidence ? '#64748b' : errorCount > 0 ? '#f59e0b' : '#10b981';
+  const deviceColor = !hasEvidence ? '#64748b' : problemDevices > 0 ? '#f43f5e' : '#10b981';
+  const storageColor = !hasEvidence ? '#64748b' : smartFailures > 0 ? '#f43f5e' : '#10b981';
 
   return (
     <div
@@ -111,16 +115,16 @@ export default function DiagnosticsHeroVisual({
         {/* Diagnostic Probes Nodes */}
         <g filter="url(#diagFilter)">
           {/* Top: Event Log Probe */}
-          <circle cx="200" cy="85" r="7" fill={errorCount > 0 ? '#f59e0b' : '#10b981'} />
-          <circle cx="200" cy="85" r="14" stroke={errorCount > 0 ? '#f59e0b' : '#10b981'} strokeWidth="1.5" opacity="0.4" />
+          <circle cx="200" cy="85" r="7" fill={eventColor} />
+          <circle cx="200" cy="85" r="14" stroke={eventColor} strokeWidth="1.5" opacity="0.4" />
 
           {/* Right: Device Manager Probe */}
-          <circle cx="315" cy="200" r="7" fill={problemDevices > 0 ? '#f43f5e' : '#10b981'} />
-          <circle cx="315" cy="200" r="14" stroke={problemDevices > 0 ? '#f43f5e' : '#10b981'} strokeWidth="1.5" opacity="0.4" />
+          <circle cx="315" cy="200" r="7" fill={deviceColor} />
+          <circle cx="315" cy="200" r="14" stroke={deviceColor} strokeWidth="1.5" opacity="0.4" />
 
           {/* Bottom: Storage SMART Probe */}
-          <circle cx="200" cy="315" r="7" fill={smartFailures > 0 ? '#f43f5e' : '#10b981'} />
-          <circle cx="200" cy="315" r="14" stroke={smartFailures > 0 ? '#f43f5e' : '#10b981'} strokeWidth="1.5" opacity="0.4" />
+          <circle cx="200" cy="315" r="7" fill={storageColor} />
+          <circle cx="200" cy="315" r="14" stroke={storageColor} strokeWidth="1.5" opacity="0.4" />
 
           {/* Left: Memory & Reliability Probe */}
           <circle cx="85" cy="200" r="7" fill={accentColor} />

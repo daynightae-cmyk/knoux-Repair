@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArchiveRestore,
   Check,
@@ -293,6 +293,16 @@ export default function DuplicateStation({
   const [scanSource, setScanSource] = useState<'node' | 'df11'>('node');
   const [minSizeKB, setMinSizeKB] = useState<number>(1);
   const [engineNotice, setEngineNotice] = useState('');
+  // Async indexed job (Node engine): non-blocking lifecycle with cancel.
+  const [jobState, setJobState] = useState<{
+    scanId: string; phase: string; status: string;
+    progress: Record<string, number>; error?: string | null;
+  } | null>(null);
+  const [jobCancelling, setJobCancelling] = useState(false);
+  const [resumeInfo, setResumeInfo] = useState<{ scanId: string; startedAt: string } | null>(null);
+  const [opHistory, setOpHistory] = useState<Array<Record<string, string | number | null>>>([]);
+  const [vaultNotice, setVaultNotice] = useState('');
+  const [vaultBusy, setVaultBusy] = useState(false);
 
   // Core scan parameters
   const [folderPath, setFolderPath] = useState('');
@@ -319,8 +329,7 @@ export default function DuplicateStation({
   const cleanupTool = useMemo(() => tools.find((tool) => tool.ToolId === 'DF02') || null, [tools]);
   const restoreTool = useMemo(() => tools.find((tool) => tool.ToolId === 'DF10') || null, [tools]);
 
-  const loadQuarantine = useCallback(async () => {
-    setQuarantineLoading(true);
+  const loadQuarantine = useCallback(async () => {    setQuarantineLoading(true);
     try {
       const { quarantine } = await api.duplicateQuarantine();
       setQuarantineEntries(quarantine.Entries || []);
@@ -354,6 +363,143 @@ export default function DuplicateStation({
     );
   };
 
+  const applyPreviewGroups = useCallback((next: DuplicatePreview) => {
+    const sanitizedGroups = next.Groups.map((grp) => {
+      const remainingFiles = grp.Files.filter((f) => {
+        const lowerPath = f.Path.toLowerCase().replace(/\\/g, '/');
+        return !excludedSubfolders.some((ex) => {
+          const cleanEx = ex.toLowerCase().replace(/^[\\/]+|[\\/]+$/g, '');
+          return (
+            lowerPath.split('/').includes(cleanEx) ||
+            lowerPath.includes(`/${cleanEx}/`) ||
+            lowerPath.includes(`\\${cleanEx}\\`)
+          );
+        });
+      });
+      if (remainingFiles.length < 2) return null;
+      const duplicateCopies = remainingFiles.length - 1;
+      const recoverableBytes = duplicateCopies * (remainingFiles[0]?.SizeBytes || 0);
+      return {
+        ...grp,
+        Files: remainingFiles,
+        Copies: remainingFiles.length,
+        DuplicateCopies: duplicateCopies,
+        RecoverableBytes: recoverableBytes,
+        KeepPath: remainingFiles.some((f) => f.Path === grp.KeepPath) ? grp.KeepPath : remainingFiles[0].Path,
+      };
+    }).filter((g): g is NonNullable<typeof g> => g !== null);
+
+    const sanitizedPreview: DuplicatePreview = {
+      ...next,
+      GroupCount: sanitizedGroups.length,
+      DuplicateCopies: sanitizedGroups.reduce((acc, g) => acc + g.DuplicateCopies, 0),
+      RecoverableBytes: sanitizedGroups.reduce((acc, g) => acc + g.RecoverableBytes, 0),
+      Groups: sanitizedGroups,
+    };
+
+    setPreview(sanitizedPreview);
+    setKeepPaths(Object.fromEntries(sanitizedPreview.Groups.map((group) => [group.Id, group.KeepPath])));
+    setSelectedGroupIds(new Set(sanitizedPreview.Groups.map((group) => group.Id)));
+    setAppState('RESULTS');
+    void loadQuarantine();
+    void refreshHistory();
+  }, [excludedSubfolders, loadQuarantine]);
+
+  const refreshHistory = useCallback(async () => {
+    try {
+      const { history } = await api.duplicatesHistory(10);
+      setOpHistory(history || []);
+    } catch {
+      setOpHistory([]);
+    }
+  }, []);
+
+  const checkResume = useCallback(async () => {
+    try {
+      const { scan } = await api.duplicatesLatestScan();
+      if (scan && scan.scanId) setResumeInfo({ scanId: String(scan.scanId), startedAt: String(scan.startedAt || '') });
+      else setResumeInfo(null);
+    } catch {
+      setResumeInfo(null);
+    }
+  }, []);
+
+  const resumeLastScan = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    setEngineNotice('');
+    try {
+      const { preview: next } = await api.duplicatesLatestScan();
+      if (!next || !next.Groups) {
+        setError(lang === 'ar' ? 'لا يوجد فحص سابق محفوظ.' : 'No saved scan to resume.');
+        return;
+      }
+      setJobState({ scanId: `resumed`, phase: 'COMPLETED', status: 'COMPLETED', progress: {} });
+      applyPreviewGroups(next);
+    } catch {
+      setError(lang === 'ar' ? 'تعذر استئناف الفحص الأخير.' : 'Could not resume the last scan.');
+    } finally {
+      setLoading(false);
+    }
+  }, [applyPreviewGroups, lang]);
+
+  const pollJob = useCallback(async (scanId: string) => {
+    for (;;) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      let job;
+      try {
+        ({ job } = await api.duplicatesJob(scanId));
+      } catch {
+        setError(lang === 'ar' ? 'انقطع الاتصال أثناء متابعة الفحص.' : 'Connection lost while following the scan.');
+        setAppState('ERROR');
+        setLoading(false);
+        return;
+      }
+      setJobState({ scanId: job.scanId, phase: job.phase, status: job.status, progress: job.progress || {}, error: job.error });
+      if (['COMPLETED', 'INCONCLUSIVE', 'FAILED', 'CANCELLED'].includes(job.status)) {
+        setLoading(false);
+        setJobCancelling(false);
+        if (job.status === 'COMPLETED' || job.status === 'INCONCLUSIVE') {
+          const groups = job.result?.groups || [];
+          const summary = job.result?.summary || {};
+          applyPreviewGroups({
+            PreviewId: `job-${scanId}`,
+            PreviewExpiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+            Folder: folderPath,
+            FileTypes: types.length ? types : ['all'],
+            KeeperPolicy: keeperPolicy,
+            FilesObserved: Number(summary.filesObserved || 0),
+            SkippedFiles: undefined,
+            Groups: groups,
+            GroupCount: groups.length,
+            DuplicateCopies: Number(summary.duplicateGroups ? groups.reduce((a: number, g: DuplicatePreviewGroup) => a + g.DuplicateCopies, 0) : 0),
+            RecoverableBytes: groups.reduce((a: number, g: DuplicatePreviewGroup) => a + g.RecoverableBytes, 0),
+            Truncated: Boolean(summary.truncated),
+            Engine: 'node-index',
+            Safety: { ChangesMade: false, HashByteBudget: '', MaxGroupsShown: groups.length },
+          });
+        } else if (job.status === 'CANCELLED') {
+          setError(lang === 'ar' ? 'أُلغي الفحص بطلب المستخدم.' : 'Scan cancelled by user request.');
+          setAppState('ERROR');
+        } else {
+          setError(job.error || (lang === 'ar' ? 'فشل الفحص.' : 'Scan failed.'));
+          setAppState('ERROR');
+        }
+        return;
+      }
+    }
+  }, [applyPreviewGroups, folderPath, keeperPolicy, lang, types]);
+
+  const cancelJob = useCallback(async () => {
+    if (!jobState) return;
+    setJobCancelling(true);
+    try {
+      await api.duplicatesJobCancel(jobState.scanId);
+    } catch {
+      setJobCancelling(false);
+    }
+  }, [jobState]);
+
   const triggerScan = useCallback(async (targetFolder?: string) => {
     const folderToScan = targetFolder || folderPath;
     if (!folderToScan.trim()) {
@@ -364,63 +510,43 @@ export default function DuplicateStation({
     setAppState('SCANNING');
     setError('');
     setEngineNotice('');
+    setJobState(null);
+    setJobCancelling(false);
     setPreview(null);
     setSelectedGroupIds(new Set());
     setKeepPaths({});
     setSearchQuery('');
 
-    try {
-      const { preview: next } = scanSource === 'node'
-        ? await api.duplicatesEngineScan([folderToScan], {
+    if (scanSource === 'node') {
+      try {
+        const { scanId } = await api.duplicatesScanJob([folderToScan], {
           minSizeBytes: Math.max(1, Math.round(minSizeKB * 1024)),
           types: types.length ? types : ['all'],
           keeperPolicy,
           excludeSubfolders: excludedSubfolders,
-        })
-        : await api.duplicatePreview(folderToScan, {
-          types: types.length ? types : ['all'],
-          keeperPolicy,
-          excludeSubfolders: excludedSubfolders,
         });
+        setJobState({ scanId, phase: 'PREPARING', status: 'PREPARING', progress: {} });
+        await pollJob(scanId);
+      } catch {
+        setError(
+          lang === 'ar'
+            ? 'تعذر بدء مهمة الفحص. تأكد من أن خدمة KNOUX المحلية تعمل وأن المجلد متاح.'
+            : 'KNOUX could not start the scan job. Check that the local service is running and the folder is available.'
+        );
+        setAppState('ERROR');
+        setLoading(false);
+      }
+      return;
+    }
 
-      const sanitizedGroups = next.Groups.map((grp) => {
-        const remainingFiles = grp.Files.filter((f) => {
-          const lowerPath = f.Path.toLowerCase().replace(/\\/g, '/');
-          return !excludedSubfolders.some((ex) => {
-            const cleanEx = ex.toLowerCase().replace(/^[\\/]+|[\\/]+$/g, '');
-            return (
-              lowerPath.split('/').includes(cleanEx) ||
-              lowerPath.includes(`/${cleanEx}/`) ||
-              lowerPath.includes(`\\${cleanEx}\\`)
-            );
-          });
-        });
-        if (remainingFiles.length < 2) return null;
-        const duplicateCopies = remainingFiles.length - 1;
-        const recoverableBytes = duplicateCopies * (remainingFiles[0]?.SizeBytes || 0);
-        return {
-          ...grp,
-          Files: remainingFiles,
-          Copies: remainingFiles.length,
-          DuplicateCopies: duplicateCopies,
-          RecoverableBytes: recoverableBytes,
-          KeepPath: remainingFiles.some((f) => f.Path === grp.KeepPath) ? grp.KeepPath : remainingFiles[0].Path,
-        };
-      }).filter((g): g is NonNullable<typeof g> => g !== null);
+    try {
+      const { preview: next } = await api.duplicatePreview(folderToScan, {
+        types: types.length ? types : ['all'],
+        keeperPolicy,
+        excludeSubfolders: excludedSubfolders,
+      });
 
-      const sanitizedPreview: DuplicatePreview = {
-        ...next,
-        GroupCount: sanitizedGroups.length,
-        DuplicateCopies: sanitizedGroups.reduce((acc, g) => acc + g.DuplicateCopies, 0),
-        RecoverableBytes: sanitizedGroups.reduce((acc, g) => acc + g.RecoverableBytes, 0),
-        Groups: sanitizedGroups,
-      };
-
-      setPreview(sanitizedPreview);
-      setKeepPaths(Object.fromEntries(sanitizedPreview.Groups.map((group) => [group.Id, group.KeepPath])));
-      setSelectedGroupIds(new Set(sanitizedPreview.Groups.map((group) => group.Id)));
-      setAppState('RESULTS');
-      void loadQuarantine();
+      applyPreviewGroups(next);
     } catch {
       setError(
         lang === 'ar'
@@ -431,7 +557,7 @@ export default function DuplicateStation({
     } finally {
       setLoading(false);
     }
-  }, [excludedSubfolders, folderPath, keeperPolicy, lang, loadQuarantine, minSizeKB, scanSource, types]);
+  }, [applyPreviewGroups, excludedSubfolders, folderPath, keeperPolicy, lang, loadQuarantine, minSizeKB, pollJob, scanSource, types]);
 
   const engineSource = preview && (preview as DuplicatePreview & { Engine?: string }).Engine === 'node';
 
@@ -584,9 +710,58 @@ export default function DuplicateStation({
     }
   };
 
+  const restoreVaultEntries = async (ids: string[]) => {
+    if (!ids.length || vaultBusy) return;
+    setVaultBusy(true);
+    setVaultNotice('');
+    try {
+      const result = await api.duplicatesRestore(ids);
+      const parts: string[] = [];
+      if (result.restoredCount) {
+        parts.push(lang === 'ar'
+          ? `تمت استعادة ${result.restoredCount} ملف`
+          : `${result.restoredCount} file(s) restored`);
+        const unverified = result.restored.filter((r) => !r.verified).length;
+        if (unverified) parts.push(lang === 'ar' ? `${unverified} دون تحقق` : `${unverified} unverified`);
+        const collisions = result.restored.filter((r) => r.collision).length;
+        if (collisions) parts.push(lang === 'ar' ? `${collisions} باسم بديل` : `${collisions} renamed (collision)`);
+      }
+      if (result.failedCount) {
+        parts.push(lang === 'ar' ? `تعذر ${result.failedCount}` : `${result.failedCount} failed`);
+      }
+      setVaultNotice(parts.join(' · ') || (lang === 'ar' ? 'لا نتيجة.' : 'No result.'));
+      await loadQuarantine();
+      void refreshHistory();
+    } catch {
+      setVaultNotice(lang === 'ar' ? 'تعذرت الاستعادة.' : 'Restore could not be completed.');
+    } finally {
+      setVaultBusy(false);
+    }
+  };
+
+  const verifyVaultEntries = async (ids: string[]) => {
+    if (!ids.length || vaultBusy) return;
+    setVaultBusy(true);
+    setVaultNotice('');
+    try {
+      const result = await api.duplicatesVerify(ids);
+      setVaultNotice(lang === 'ar'
+        ? `تم التحقق من ${result.verifiedCount} · فشل ${result.failedCount}`
+        : `Verified ${result.verifiedCount} · failed ${result.failedCount}`);
+    } catch {
+      setVaultNotice(lang === 'ar' ? 'تعذر التحقق.' : 'Verification could not be completed.');
+    } finally {
+      setVaultBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    void checkResume();
+    void refreshHistory();
+  }, [checkResume, refreshHistory]);
+
   return (
-    <div className="duplicate-studio-root" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-      {/* ── Mini Navigation Rail ── */}
+    <div className="duplicate-studio-root" dir={lang === 'ar' ? 'rtl' : 'ltr'}>      {/* ── Mini Navigation Rail ── */}
       <nav className="duplicate-mini-nav" aria-label={lang === 'ar' ? 'تنقل ذكاء الملفات المكررة' : 'Duplicate Studio navigation'}>
         <button
           type="button"
@@ -656,7 +831,7 @@ export default function DuplicateStation({
           <div className="duplicate-system-review-card">
             <ShieldAlert size={26} />
             <div>
-              <strong>{lang === 'ar' ? 'مراجعة ملفات النظام المحمية (DF09)' : 'System Files Duplicate Review (DF09)'}</strong>
+              <strong>{lang === 'ar' ? 'مراجعة ملفات النظام المحمية' : 'System Files Duplicate Review'}</strong>
               <p>
                 {lang === 'ar'
                   ? 'يقوم نظام Windows بإدارة مكونات وملفات نظام مكررة بشكل مقصود (مثل ملفات WinSxS وملفات تعريف الحزم). لا يُسمح بإجراء تنظيف أو عزل مباشر لملفات النظام لحماية استقرار الجهاز.'
@@ -678,11 +853,34 @@ export default function DuplicateStation({
                     : (lang === 'ar' ? 'الملفات المعزولة بأمان' : 'Quarantined Duplicate Files')}
                 </h2>
               </div>
-              <button type="button" className="duplicate-export-button" onClick={() => void loadQuarantine()}>
-                <RotateCcw size={13} className={quarantineLoading ? 'animate-spin' : ''} />
-                {lang === 'ar' ? 'تحديث السجل' : 'Refresh list'}
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button type="button" className="duplicate-export-button" onClick={() => void loadQuarantine()}>
+                  <RotateCcw size={13} className={quarantineLoading ? 'animate-spin' : ''} />
+                  {lang === 'ar' ? 'تحديث السجل' : 'Refresh list'}
+                </button>
+                <button
+                  type="button"
+                  className="duplicate-export-button"
+                  disabled={vaultBusy || quarantineEntries.length === 0}
+                  onClick={() => void restoreVaultEntries(quarantineEntries.map((entry) => entry.QuarantineId))}
+                >
+                  <ArchiveRestore size={13} />
+                  {lang === 'ar' ? 'استعادة الكل' : 'Restore all'}
+                </button>
+                <button
+                  type="button"
+                  className="duplicate-export-button"
+                  disabled={vaultBusy || quarantineEntries.length === 0}
+                  onClick={() => void verifyVaultEntries(quarantineEntries.map((entry) => entry.QuarantineId))}
+                >
+                  <ShieldCheck size={13} />
+                  {lang === 'ar' ? 'تحقق من الكل' : 'Verify all'}
+                </button>
+              </div>
             </div>
+            {vaultNotice && (
+              <div className="duplicate-engine-notice" role="status" style={{ marginBottom: '0.6rem' }}>{vaultNotice}</div>
+            )}
 
             {quarantineLoading ? (
               <div className="duplicate-scanning-canvas" style={{ minHeight: '16rem' }}>
@@ -733,6 +931,16 @@ export default function DuplicateStation({
                             {lang === 'ar' ? 'استعادة' : 'Restore'}
                           </button>
                         )}
+                        <button
+                          type="button"
+                          className="duplicate-batch-btn"
+                          style={{ marginTop: '0.2rem' }}
+                          disabled={vaultBusy}
+                          onClick={() => void verifyVaultEntries([entry.QuarantineId])}
+                        >
+                          <ShieldCheck size={12} />
+                          {lang === 'ar' ? 'تحقق' : 'Verify'}
+                        </button>
                       </div>
                     </div>
                   </article>
@@ -790,6 +998,19 @@ export default function DuplicateStation({
                     : (lang === 'ar' ? 'اختيار مجلد' : 'Choose folder')}
                 </span>
               </button>
+
+              {resumeInfo && (
+                <button
+                  type="button"
+                  className="duplicate-secondary-cta"
+                  disabled={loading}
+                  onClick={() => void resumeLastScan()}
+                  title={resumeInfo.startedAt}
+                >
+                  <RotateCcw size={14} />
+                  <span>{lang === 'ar' ? 'استئناف آخر فحص' : 'Resume last scan'}</span>
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -1044,6 +1265,26 @@ export default function DuplicateStation({
                   : 'KNOUX compares exact file sizes and SHA-256 content signatures. No files are moved or changed during this analysis.'}
               </span>
             </div>
+            {jobState && (
+              <div className="duplicate-job-progress" role="status">
+                <div className="duplicate-job-progress-head">
+                  <span className="duplicate-job-phase">{jobState.phase}</span>
+                  <span className="duplicate-job-counts">
+                    {(jobState.progress.filesObserved || 0).toLocaleString(lang)} {lang === 'ar' ? 'ملف' : 'files'}
+                    {' · '}{(jobState.progress.duplicateGroups || 0).toLocaleString(lang)} {lang === 'ar' ? 'مجموعة' : 'groups'}
+                  </span>
+                  <button
+                    type="button"
+                    className="duplicate-secondary-cta"
+                    disabled={jobCancelling || ['COMPLETED', 'INCONCLUSIVE', 'FAILED', 'CANCELLED'].includes(jobState.status)}
+                    onClick={() => void cancelJob()}
+                  >
+                    {jobCancelling ? (lang === 'ar' ? 'جارٍ الإلغاء…' : 'Cancelling…') : (lang === 'ar' ? 'إلغاء الفحص' : 'Cancel scan')}
+                  </button>
+                </div>
+                <div className="duplicate-job-bar" aria-hidden="true"><i style={{ width: '100%' }} /></div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1347,6 +1588,20 @@ export default function DuplicateStation({
                   )}
                   <li><span>{lang === 'ar' ? 'التغطية' : 'Coverage'}</span><b>{preview.Truncated ? (lang === 'ar' ? 'جزئية — طبقت الحدود' : 'Partial — limits applied') : (lang === 'ar' ? 'كاملة' : 'Full')}</b></li>
                 </ul>
+                {opHistory.length > 0 && (
+                  <div className="duplicate-op-history">
+                    <small>{lang === 'ar' ? 'العمليات الأخيرة' : 'Recent operations'}</small>
+                    <ul>
+                      {opHistory.slice(0, 5).map((op) => (
+                        <li key={String(op.operationId)}>
+                          <code>{String(op.action)}</code>
+                          <span>{String(op.status)}</span>
+                          <span>{String(op.startedAt || '').slice(0, 19).replace('T', ' ')}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </section>
             </div>
 

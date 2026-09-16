@@ -53,20 +53,20 @@ const COPY = {
     defenderSignatures: 'Signatures Version',
     firewallActive: 'Firewall Profiles',
     uacState: 'User Account Control',
-    quickScan: 'Run Quick Scan (SE08)',
-    updateSignatures: 'Update Definitions (SE10)',
-    runAudit: 'Security Audit (SE01)',
+    quickScan: 'Run Quick Scan',
+    updateSignatures: 'Update Definitions',
+    runAudit: 'Security Audit',
     signalsTitle: 'Security Signals & Observations',
     noSignals: 'All monitored security baselines are actively enforced without critical exposure.',
     firewallTitle: 'Windows Firewall Profile Enforcement',
     firewallSubtitle: 'Real profile states read via Windows Advanced Firewall API.',
-    enableFirewallAction: 'Enable All Profiles (SE05)',
-    repairFirewallAction: 'Repair Firewall Rules (SE06)',
+    enableFirewallAction: 'Enable All Profiles',
+    repairFirewallAction: 'Repair Firewall Rules',
     uacTitle: 'User Account Control (UAC) Elevation Policy',
     uacSubtitle: 'Protects the Windows security boundary from silent malware privilege escalation.',
     uacActiveDesc: 'UAC is actively enforcing privilege isolation prompts (EnableLUA = 1).',
     uacInactiveDesc: 'UAC is disabled! Standard applications can gain elevated rights without prompt.',
-    repairUacAction: 'Enforce Standard UAC (SE07)',
+    repairUacAction: 'Enforce Standard UAC',
     adminRequired: 'Administrator elevation is required for this action.',
     emptyHistory: 'No security actions executed yet during this session.',
     exportJson: 'Export JSON',
@@ -95,20 +95,20 @@ const COPY = {
     defenderSignatures: 'إصدار التعريفات',
     firewallActive: 'ملفات الجدار الناري',
     uacState: 'التحكم في حساب المستخدم',
-    quickScan: 'فحص سريع (SE08)',
-    updateSignatures: 'تحديث التعريفات (SE10)',
-    runAudit: 'تدقيق أمني (SE01)',
+    quickScan: 'فحص سريع',
+    updateSignatures: 'تحديث التعريفات',
+    runAudit: 'تدقيق أمني',
     signalsTitle: 'إشارات وملاحظات الأمان',
     noSignals: 'جميع خطوط الدفاع المراقبة مفعّلة ونشطة دون ثغرات مكشوفة.',
     firewallTitle: 'حالة ملفات الجدار الناري لويندوز',
     firewallSubtitle: 'الحالات الفعلية لملفات التعريف مقروءة عبر واجهة Netsh وAdvFirewall.',
-    enableFirewallAction: 'تفعيل كل الملفات (SE05)',
-    repairFirewallAction: 'إصلاح قواعد الجدار (SE06)',
+    enableFirewallAction: 'تفعيل كل الملفات',
+    repairFirewallAction: 'إصلاح قواعد الجدار',
     uacTitle: 'سياسة رفع الصلاحيات (UAC)',
     uacSubtitle: 'تحمي حدود أمان ويندوز من تصعيد الصلاحيات الصامت للبرمجيات الخبيثة.',
     uacActiveDesc: 'التحكم في حساب المستخدم مفعّل ويطلب الموافقة لرفع الصلاحيات (EnableLUA = 1).',
     uacInactiveDesc: 'التحكم في حساب المستخدم معطل! يمكن للبرامج رفع صلاحياتها دون إذن.',
-    repairUacAction: 'تفعيل وتأكيد UAC (SE07)',
+    repairUacAction: 'تفعيل وتأكيد UAC',
     adminRequired: 'يتطلب هذا الإجراء صلاحيات المسؤول.',
     emptyHistory: 'لم يتم تنفيذ أي إجراء أمني بعد خلال هذه الجلسة.',
     exportJson: 'تصدير JSON',
@@ -170,17 +170,20 @@ function SecurityStationContent({
   // Pure model evaluations
   const defender = useMemo(() => evaluateDefender(snapshot), [snapshot]);
   const firewall = useMemo(() => evaluateFirewall(snapshot?.Firewall), [snapshot?.Firewall]);
-  // UAC evaluation - assume enabled if not explicitly flagged false, or inspect from snapshot
-  const uac = useMemo(() => evaluateUac(1), []);
+  // SystemSnapshot does not expose UAC. Keep it explicitly unknown until a real source exists.
+  const uac = useMemo(() => evaluateUac(null), []);
+  const defenderRealtimeObserved = snapshot ? defender.realtimeEnabled : null;
+  const defenderRunningObserved = snapshot ? defender.running : null;
+  const firewallObserved = snapshot?.Firewall ? firewall.allEnabled : null;
   const posture: SecurityPostureStatus = useMemo(
     () =>
       deriveSecurityPosture(
-        defender.realtimeEnabled,
-        defender.running,
-        firewall.allEnabled,
+        defenderRealtimeObserved,
+        defenderRunningObserved,
+        firewallObserved,
         uac.enabled
       ),
-    [defender, firewall, uac]
+    [defenderRealtimeObserved, defenderRunningObserved, firewallObserved, uac]
   );
   const signals: SecuritySignal[] = useMemo(
     () => detectSecuritySignals(defender, firewall, uac),
@@ -253,7 +256,7 @@ function SecurityStationContent({
   }
 
   return (
-    <div className="flex flex-col w-full min-h-[680px] p-4 lg:p-6 text-slate-100 bg-slate-950/80 backdrop-blur-md rounded-2xl border border-slate-800/60 shadow-2xl">
+    <div className="security-evidence-station flex flex-col w-full min-h-[680px] p-4 lg:p-6 text-slate-100 bg-slate-950/80 backdrop-blur-md rounded-2xl border border-slate-800/60 shadow-2xl">
       {/* Top Header Bar */}
       <header className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-800/80">
         <div className="flex items-center gap-3">
@@ -353,8 +356,8 @@ function SecurityStationContent({
             <div className="lg:col-span-5 flex flex-col items-center justify-center p-6 rounded-2xl bg-slate-900/40 border border-slate-800/80">
               <SecurityHeroVisual
                 posture={posture}
-                defenderActive={defender.realtimeEnabled}
-                firewallActive={firewall.allEnabled}
+                defenderActive={defenderRealtimeObserved}
+                firewallActive={firewallObserved}
                 uacActive={uac.enabled}
               />
               <div className="mt-4 text-center">
@@ -366,7 +369,9 @@ function SecurityStationContent({
                     ? text.postureSecure
                     : posture === 'PROTECTED_WITH_WARNINGS'
                     ? text.postureWarnings
-                    : text.postureExposed}
+                    : posture === 'EXPOSED'
+                    ? text.postureExposed
+                    : text.postureUnknown}
                 </p>
                 <small className="text-[11px] text-slate-400 block mt-1">
                   {text.safetyDisclaimer}
@@ -381,10 +386,10 @@ function SecurityStationContent({
                 <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
                   <div className="flex items-center justify-between text-slate-400 mb-2">
                     <span className="text-xs">{text.defenderRealtime}</span>
-                    <ShieldCheck size={16} className={defender.realtimeEnabled ? 'text-emerald-400' : 'text-rose-400'} />
+                    <ShieldCheck size={16} className={defenderRealtimeObserved === true ? 'text-emerald-400' : defenderRealtimeObserved === false ? 'text-rose-400' : 'text-slate-500'} />
                   </div>
                   <strong className="text-base font-bold text-white block">
-                    {defender.realtimeEnabled ? (lang === 'ar' ? 'مفعّلة' : 'Active') : (lang === 'ar' ? 'معطلة' : 'Disabled')}
+                    {defenderRealtimeObserved === true ? (lang === 'ar' ? 'مفعّلة' : 'Active') : defenderRealtimeObserved === false ? (lang === 'ar' ? 'معطلة' : 'Disabled') : (lang === 'ar' ? 'غير مفحوصة' : 'Not checked')}
                   </strong>
                   <span className="text-[11px] text-slate-400 truncate block mt-0.5">
                     {defender.signatures ? `${text.defenderSignatures}: ${defender.signatures}` : (lang === 'ar' ? 'التعريفات غير محددة' : 'Signature pending')}
@@ -394,7 +399,7 @@ function SecurityStationContent({
                 <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
                   <div className="flex items-center justify-between text-slate-400 mb-2">
                     <span className="text-xs">{text.firewallActive}</span>
-                    <LockKeyhole size={16} className={firewall.allEnabled ? 'text-teal-400' : 'text-rose-400'} />
+                    <LockKeyhole size={16} className={firewallObserved === true ? 'text-teal-400' : firewallObserved === false ? 'text-rose-400' : 'text-slate-500'} />
                   </div>
                   <strong className="text-base font-bold text-white block">
                     {firewall.totalProfiles > 0
@@ -402,17 +407,17 @@ function SecurityStationContent({
                       : (lang === 'ar' ? 'غير متاح' : 'Unavailable')}
                   </strong>
                   <span className="text-[11px] text-slate-400 block mt-0.5">
-                    {firewall.allEnabled ? (lang === 'ar' ? 'كل الملفات آمنة' : 'All profiles active') : (lang === 'ar' ? 'هناك ملف غير نشط' : 'Profile needs review')}
+                    {firewallObserved === true ? (lang === 'ar' ? 'كل الملفات مفعلة' : 'All profiles active') : firewallObserved === false ? (lang === 'ar' ? 'هناك ملف غير نشط' : 'Profile needs review') : (lang === 'ar' ? 'لم يتم رصد ملفات الجدار بعد' : 'Firewall profiles not observed yet')}
                   </span>
                 </div>
 
                 <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
                   <div className="flex items-center justify-between text-slate-400 mb-2">
                     <span className="text-xs">{text.uacState}</span>
-                    <Lock size={16} className={uac.enabled ? 'text-cyan-400' : 'text-rose-400'} />
+                    <Lock size={16} className={uac.enabled === true ? 'text-cyan-400' : uac.enabled === false ? 'text-rose-400' : 'text-slate-500'} />
                   </div>
                   <strong className="text-base font-bold text-white block">
-                    {uac.enabled ? (lang === 'ar' ? 'نشط (EnableLUA)' : 'Enforced') : (lang === 'ar' ? 'معطل' : 'Disabled')}
+                    {uac.enabled === true ? (lang === 'ar' ? 'نشط (EnableLUA)' : 'Enforced') : uac.enabled === false ? (lang === 'ar' ? 'معطل' : 'Disabled') : (lang === 'ar' ? 'غير مفحوص' : 'Not checked')}
                   </strong>
                   <span className="text-[11px] text-slate-400 block mt-0.5">
                     {lang === 'ar' ? 'حماية حدود الصلاحيات' : 'Privilege boundary'}
@@ -485,11 +490,16 @@ function SecurityStationContent({
                             onClick={() => launchAction(sig.suggestedTool)}
                             className="shrink-0 px-2.5 py-1 text-[11px] font-semibold rounded bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
                           >
-                            {sig.suggestedTool}
+                            {lang === 'ar' ? 'مراجعة الإجراء' : 'Review action'}
                           </button>
                         )}
                       </div>
                     ))}
+                  </div>
+                ) : posture === 'UNKNOWN' ? (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-slate-900/60 border border-slate-700 text-slate-300 text-xs">
+                    <AlertTriangle size={16} className="text-slate-400" />
+                    <span>{lang === 'ar' ? 'لم يتم جمع دليل أمني كافٍ بعد.' : 'Security evidence has not been collected yet.'}</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-950/20 border border-emerald-800/40 text-emerald-300 text-xs">
@@ -518,7 +528,7 @@ function SecurityStationContent({
                 <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800">
                   <span className="text-xs text-slate-400 block">{text.defenderRealtime}</span>
                   <strong className="text-sm font-bold text-white">
-                    {defender.realtimeEnabled ? (lang === 'ar' ? 'مفعّلة' : 'Enabled') : (lang === 'ar' ? 'معطلة' : 'Disabled')}
+                    {defenderRealtimeObserved === true ? (lang === 'ar' ? 'مفعّلة' : 'Enabled') : defenderRealtimeObserved === false ? (lang === 'ar' ? 'معطلة' : 'Disabled') : (lang === 'ar' ? 'غير مفحوصة' : 'Not checked')}
                   </strong>
                 </div>
                 <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800">
@@ -535,7 +545,7 @@ function SecurityStationContent({
                   onClick={() => launchAction('SE02')}
                   className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-500 text-white"
                 >
-                  {lang === 'ar' ? 'تفعيل الحماية الفورية (SE02)' : 'Enable Real-time Protection (SE02)'}
+                  {lang === 'ar' ? 'تفعيل الحماية الفورية' : 'Enable Real-time Protection'}
                 </button>
                 <button
                   type="button"
@@ -556,7 +566,7 @@ function SecurityStationContent({
                   onClick={() => launchAction('SE03')}
                   className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
                 >
-                  {lang === 'ar' ? 'إصلاح خدمة Defender (SE03)' : 'Repair Defender Service (SE03)'}
+                  {lang === 'ar' ? 'إصلاح خدمة Defender' : 'Repair Defender Service'}
                 </button>
               </div>
             </div>
@@ -621,7 +631,7 @@ function SecurityStationContent({
                   onClick={() => launchAction('SE04')}
                   className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
                 >
-                  {lang === 'ar' ? 'فحص حالة الجدار (SE04)' : 'Audit Firewall Status (SE04)'}
+                  {lang === 'ar' ? 'فحص حالة الجدار' : 'Audit Firewall Status'}
                 </button>
               </div>
             </div>
@@ -636,13 +646,13 @@ function SecurityStationContent({
 
               <div className="p-4 rounded-lg bg-slate-950/60 border border-slate-800 mb-4">
                 <div className="flex items-center gap-3">
-                  <Lock size={24} className={uac.enabled ? 'text-cyan-400' : 'text-rose-400'} />
+                  <Lock size={24} className={uac.enabled === true ? 'text-cyan-400' : uac.enabled === false ? 'text-rose-400' : 'text-slate-500'} />
                   <div>
                     <h4 className="text-xs font-bold text-white">
-                      {uac.enabled ? (lang === 'ar' ? 'UAC مفعّل ونشط' : 'UAC Active') : (lang === 'ar' ? 'UAC معطل' : 'UAC Disabled')}
+                      {uac.enabled === true ? (lang === 'ar' ? 'UAC مفعّل ونشط' : 'UAC Active') : uac.enabled === false ? (lang === 'ar' ? 'UAC معطل' : 'UAC Disabled') : (lang === 'ar' ? 'حالة UAC غير مفحوصة' : 'UAC not checked')}
                     </h4>
                     <p className="text-xs text-slate-300 mt-1">
-                      {uac.enabled ? text.uacActiveDesc : text.uacInactiveDesc}
+                      {uac.enabled === true ? text.uacActiveDesc : uac.enabled === false ? text.uacInactiveDesc : (lang === 'ar' ? 'لا يعرض SystemSnapshot الحالي قيمة EnableLUA، لذلك تبقى الحالة غير معروفة.' : 'The current SystemSnapshot does not expose EnableLUA, so this state remains unknown.')}
                     </p>
                     <small className="text-[10px] text-slate-400 font-mono block mt-1">
                       HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System: EnableLUA
@@ -679,7 +689,6 @@ function SecurityStationContent({
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono font-bold text-teal-400">{t.ToolId}</span>
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                             t.RiskLevel === 'READ_ONLY'
@@ -747,7 +756,7 @@ function SecurityStationContent({
                   onClick={() => launchAction('SE09')}
                   className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-500 text-white"
                 >
-                  {lang === 'ar' ? 'توليد تقرير (SE09)' : 'Generate Report (SE09)'}
+                  {lang === 'ar' ? 'توليد تقرير' : 'Generate Report'}
                 </button>
               </div>
             </div>
@@ -764,23 +773,23 @@ function SecurityStationContent({
                 <tbody className="divide-y divide-slate-800/60">
                   <tr>
                     <td className="py-2.5 font-medium text-slate-200">Defender Real-time Protection</td>
-                    <td className="py-2.5 text-slate-300">{defender.realtimeEnabled ? 'Enabled' : 'Disabled'}</td>
+                    <td className="py-2.5 text-slate-300">{defenderRealtimeObserved === true ? 'Enabled' : defenderRealtimeObserved === false ? 'Disabled' : 'Not checked'}</td>
                     <td className="py-2.5 text-right font-bold text-emerald-400">
-                      {defender.realtimeEnabled ? 'PASS' : 'FAIL'}
+                      {defenderRealtimeObserved === true ? 'PASS' : defenderRealtimeObserved === false ? 'FAIL' : 'UNKNOWN'}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 font-medium text-slate-200">Firewall Profiles</td>
-                    <td className="py-2.5 text-slate-300">{firewall.enabledCount}/{firewall.totalProfiles} Active</td>
+                    <td className="py-2.5 text-slate-300">{firewall.totalProfiles > 0 ? `${firewall.enabledCount}/${firewall.totalProfiles} Active` : 'Not checked'}</td>
                     <td className="py-2.5 text-right font-bold text-teal-400">
-                      {firewall.allEnabled ? 'PASS' : 'WARN'}
+                      {firewallObserved === true ? 'PASS' : firewallObserved === false ? 'WARN' : 'UNKNOWN'}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 font-medium text-slate-200">UAC Privilege Guard</td>
-                    <td className="py-2.5 text-slate-300">{uac.enabled ? 'EnableLUA Active' : 'Disabled'}</td>
+                    <td className="py-2.5 text-slate-300">{uac.enabled === true ? 'EnableLUA Active' : uac.enabled === false ? 'Disabled' : 'Not checked'}</td>
                     <td className="py-2.5 text-right font-bold text-cyan-400">
-                      {uac.enabled ? 'PASS' : 'FAIL'}
+                      {uac.enabled === true ? 'PASS' : uac.enabled === false ? 'FAIL' : 'UNKNOWN'}
                     </td>
                   </tr>
                 </tbody>

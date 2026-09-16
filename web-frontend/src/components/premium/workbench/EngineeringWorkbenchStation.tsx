@@ -133,6 +133,8 @@ export default function EngineeringWorkbenchStation({
   const [pending, setPending] = useState<{ tool: BridgeTool; serviceId: ServiceId; mode: ExecutionMode } | null>(null);
   const [heroImg, setHeroImg] = useState('/brand/workbench-hero.png');
   const [sonarAi, setSonarAi] = useState<'configured' | 'missing' | 'unknown'>('unknown');
+  type WorkbenchTab = 'overview' | 'code' | 'dependencies' | 'scripts' | 'environment' | 'insights' | 'output';
+  const [activeTab, setActiveTab] = useState<WorkbenchTab>('overview');
 
   const effectiveStatuses = useMemo<Record<string, ToolStatus>>(
     () => ({ ...toolStatuses, ...serviceToolStatuses }),
@@ -181,10 +183,52 @@ export default function EngineeringWorkbenchStation({
     setPending({ tool, serviceId, mode: preferredMode(tool) });
   };
 
+  // Honest tab views over the same real tool pool. No tab invents data:
+  // every tab filters registered bridge tools or live execution states.
+  const workbenchPool = useMemo(
+    () => pool.filter(tool => WORKBENCH_SERVICES.includes(tool.Category as ServiceId)),
+    [pool],
+  );
+  const tabTools = useMemo(() => {
+    switch (activeTab) {
+      case 'code':
+        return workbenchPool.filter(tool => tool.Category === '12-Developer-Tools');
+      case 'dependencies':
+        return workbenchPool.filter(tool => tool.ToolId === 'SN04' || tool.ToolId === 'DT05' || tool.ToolId === 'SN02');
+      case 'scripts':
+        return workbenchPool.filter(tool => tool.WhatIfSupported || tool.AnalyzeOnlySupported || (tool.Parameters?.length ?? 0) > 0);
+      case 'environment':
+        return workbenchPool.filter(tool => tool.ToolId === 'DT01' || tool.ToolId === 'DT06');
+      case 'insights':
+        return workbenchPool.filter(tool => tool.Category === '18-Project-Sonar');
+      case 'output': {
+        const activeIds = new Set(Object.entries(effectiveStatuses).filter(([, status]) => status !== 'idle').map(([id]) => id));
+        const flagged = workbenchPool.filter(tool => activeIds.has(tool.ToolId));
+        return flagged.length > 0 ? flagged : workbenchPool.slice(0, 3);
+      }
+      case 'overview':
+      default:
+        return workbenchPool;
+    }
+  }, [activeTab, workbenchPool, effectiveStatuses]);
+  const tabs: Array<{ id: WorkbenchTab; labelEn: string; labelAr: string }> = [
+    { id: 'overview', labelEn: 'Overview', labelAr: 'نظرة عامة' },
+    { id: 'code', labelEn: 'Developer Tools', labelAr: 'أدوات المطور' },
+    { id: 'dependencies', labelEn: 'Dependencies', labelAr: 'الاعتماديات' },
+    { id: 'scripts', labelEn: 'Scripts', labelAr: 'السكربتات' },
+    { id: 'environment', labelEn: 'Environment', labelAr: 'البيئة' },
+    { id: 'insights', labelEn: 'Sonar Insights', labelAr: 'رؤى سونار' },
+    { id: 'output', labelEn: 'Run Activity', labelAr: 'نشاط التشغيل' },
+  ];
+  const visibleTabs = activeService.id === '18-Project-Sonar'
+    ? tabs.filter(tab => ['overview', 'dependencies', 'insights', 'output'].includes(tab.id))
+    : tabs.filter(tab => ['overview', 'code', 'dependencies', 'scripts', 'environment', 'output'].includes(tab.id));
+
   return (
     <section
       className="knoux-workspace-stage knoux-command-workspace knoux-engineering-workbench knoux-command-deck"
       data-mode="service"
+      data-operational="true"
       data-execution="idle"
       data-selected-tool-id=""
       data-execution-tool-id=""
@@ -336,23 +380,147 @@ export default function EngineeringWorkbenchStation({
         </span>
       </div>
 
-      {/* ── Live preview workspace (real station screens) ─── */}
+      {/* ── Adaptive IDE workspace: explorer / dominant preview / context ─── */}
       <p className="knoux-deck-preview-label">{text.previewLabel}</p>
-      <div className="knoux-stage-service-app min-h-0 flex-1 overflow-hidden p-3">
-        <ServiceApps
-          activeSection={activeService.legacySection}
-          tools={serviceTools}
-          toolStatuses={effectiveStatuses}
-          lang={lang as Lang}
-          bridgeElevated={bridgeElevated}
-          bridgeOnline={bridgeOnline}
-          onRetryBridge={onRetryBridge}
-          onToolStatus={(toolId, status) => {
-            setServiceToolStatuses(previous => ({ ...previous, [toolId]: status }));
-          }}
-          onRunTool={onRunTool}
-          onCancelTool={onCancelTool}
-        />
+      <div className="knoux-deck-tabs" role="tablist" aria-label={isRtl ? 'تبويبات مساحة العمل' : 'Workspace tabs'}>
+        {visibleTabs.map(tab => {
+          const selected = tab.id === activeTab;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              data-workbench-tab={tab.id}
+              data-active={selected}
+              className="knoux-deck-tab"
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {isRtl ? tab.labelAr : tab.labelEn}
+            </button>
+          );
+        })}
+      </div>
+      <div className="knoux-deck-workspace" data-workspace="ide">
+        {/* LEFT — compact project / service explorer over real registered tools */}
+        <aside className="knoux-deck-explorer" data-zone="explorer" aria-label={isRtl ? 'مستكشف المشروع' : 'Project explorer'}>
+          <p className="knoux-deck-explorer__title">{isRtl ? 'المستكشف' : 'EXPLORER'}</p>
+          {workbenchServices.map(service => {
+            const active = service.id === activeService.id;
+            const count = serviceCounts[service.id];
+            return (
+              <div key={service.id} className="knoux-deck-explorer__service" data-service-id={service.id} data-active={active}>
+                <button type="button" className="knoux-deck-explorer__head" onClick={() => onSelectService(service.id)} aria-pressed={active}>
+                  <strong>{isRtl ? service.name.ar : service.name.en}</strong>
+                  <small>{typeof count === 'number' ? `${count} ${text.toolsLabel}` : '—'}</small>
+                </button>
+                <ul className="knoux-deck-explorer__tools">
+                  {pool.filter(tool => tool.Category === service.id).slice(0, 6).map(tool => {
+                    const status = effectiveStatuses[tool.ToolId] ?? 'idle';
+                    return (
+                      <li key={tool.ToolId}>
+                        <button
+                          type="button"
+                          className="knoux-deck-explorer__tool"
+                          data-tool-id={tool.ToolId}
+                          data-tool-status={status}
+                          title={pickName(tool, lang)}
+                          onClick={() => launchChip(tool, service.id)}
+                        >
+                          <span className="knoux-deck-chip__dot" data-status={status} />
+                          <span className="knoux-deck-explorer__tool-id">{tool.ToolId}</span>
+                          <span className="knoux-deck-explorer__tool-name">{pickName(tool, lang)}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+        </aside>
+
+        {/* CENTER — dominant live preview; tab views filter the same real pool */}
+        <div className="knoux-deck-center" data-zone="center">
+          {activeTab === 'overview' ? (
+            <div className="knoux-stage-service-app min-h-0 flex-1 overflow-hidden p-3">
+              <ServiceApps
+                activeSection={activeService.legacySection}
+                tools={serviceTools}
+                toolStatuses={effectiveStatuses}
+                lang={lang as Lang}
+                bridgeElevated={bridgeElevated}
+                bridgeOnline={bridgeOnline}
+                onRetryBridge={onRetryBridge}
+                onToolStatus={(toolId, status) => {
+                  setServiceToolStatuses(previous => ({ ...previous, [toolId]: status }));
+                }}
+                onRunTool={onRunTool}
+                onCancelTool={onCancelTool}
+                embedded
+              />
+            </div>
+          ) : (
+            <div className="knoux-deck-tabview" data-tabview={activeTab}>
+              <p className="knoux-deck-tabview__meta">
+                {isRtl ? activeService.name.ar : activeService.name.en}
+                <span>{tabTools.length} {text.toolsLabel}</span>
+              </p>
+              {tabTools.length > 0 ? (
+                <ul className="knoux-deck-tabview__list">
+                  {tabTools.map(tool => {
+                    const status = effectiveStatuses[tool.ToolId] ?? 'idle';
+                    const needsPermission = tool.RequiresAdmin && !bridgeElevated;
+                    return (
+                      <li key={tool.ToolId} className="knoux-deck-tabview__row" data-tool-id={tool.ToolId} data-tool-status={status}>
+                        <span className="knoux-deck-chip__dot" data-status={status} />
+                        <span className="knoux-deck-explorer__tool-id">{tool.ToolId}</span>
+                        <span className="knoux-deck-explorer__tool-name">{pickName(tool, lang)}</span>
+                        <button
+                          type="button"
+                          className="knoux-deck-tabview__run"
+                          disabled={bridgeOnline !== true || needsPermission}
+                          onClick={() => launchChip(tool, tool.Category as ServiceId)}
+                        >
+                          {isRtl ? 'تشغيل' : 'Run'}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="knoux-deck-tabview__empty">{bridgeOnline === true ? text.viewAll : text.offlineNote}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT — readable assistant + live instrumentation, no fabricated cards */}
+        <aside className="knoux-deck-side" data-zone="context" aria-label={isRtl ? 'السياق والأدوات' : 'Context and instrumentation'}>
+          <div className="knoux-deck-side__block" data-block="assistant">
+            <p className="knoux-deck-side__title">{isRtl ? 'المساعد' : 'ASSISTANT'}</p>
+            <p className="knoux-deck-side__row">
+              <span>{text.ctxSonarAi}</span>
+              <b data-sonar-ai={sonarAi}>{sonarAi === 'configured' ? text.aiConfigured : sonarAi === 'missing' ? text.aiMissing : text.aiUnknown}</b>
+            </p>
+            <KnouxAiContextButton
+              lang={lang}
+              familyId={family.id}
+              familyName={isRtl ? family.name.ar : family.name.en}
+              serviceId={activeService.id}
+              serviceName={isRtl ? activeService.name.ar : activeService.name.en}
+              toolId={null}
+              toolName={null}
+            />
+          </div>
+          <div className="knoux-deck-side__block" data-block="run-state">
+            <p className="knoux-deck-side__title">{isRtl ? 'حالة التشغيل' : 'RUN STATE'}</p>
+            <p className="knoux-deck-side__row"><span>{text.ctxBridge}</span><b>{bridgeLabel}</b></p>
+            <p className="knoux-deck-side__row"><span>{text.ctxPrivilege}</span><b>{bridgeElevated ? text.elevated : text.standard}</b></p>
+            <p className="knoux-deck-side__row"><span>{text.ctxActions}</span><b>{bridgeOnline === true ? serviceTools.length : '—'}</b></p>
+            <p className="knoux-deck-side__row"><span>{isRtl ? 'الخدمة' : 'Service'}</span><b>{isRtl ? activeService.name.ar : activeService.name.en}</b></p>
+          </div>
+        </aside>
       </div>
 
       {pending && (

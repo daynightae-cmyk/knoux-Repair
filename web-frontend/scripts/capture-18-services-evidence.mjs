@@ -21,27 +21,26 @@ const ROUTES = [
   { family: 'vitality', service: '08-Performance', name: 'Performance', tools: 12 },
   { family: 'vitality', service: '15-System-Monitoring', name: 'System Monitoring', tools: 4 },
   { family: 'recovery', service: '02-System-Cleanup', name: 'System Cleanup', tools: 11 },
-  { family: 'recovery', service: '05-Duplicate-Files', name: 'Duplicate Files', tools: 11 },
+  { family: 'recovery', service: '05-Duplicate-Files', name: 'Duplicate Files', tools: 11, surface: '.duplicate-studio-root', ownsActions: true },
   { family: 'recovery', service: '06-Disk-Space', name: 'Disk Space', tools: 10 },
   { family: 'recovery', service: '11-Backup-Recovery', name: 'Backup & Recovery', tools: 5 },
   { family: 'assurance', service: '03-Network-Internet', name: 'Network & Internet', tools: 11 },
   { family: 'assurance', service: '09-Security', name: 'Security', tools: 10 },
   { family: 'assurance', service: '13-Privacy', name: 'Privacy', tools: 4 },
   { family: 'assurance', service: '14-Driver-Management', name: 'Driver Management', tools: 4 },
-  { family: 'software', service: '04-Programs-Applications', name: 'Programs & Applications', tools: 10 },
-  { family: 'software', service: '16-Software-Environment', name: 'Software Environment', tools: 8 },
-  { family: 'software', service: '17-PostInstall-Setup', name: 'Post-Install Setup', tools: 6 },
-  { family: 'workbench', service: '12-Developer-Tools', name: 'Developer Tools', tools: 13 },
-  { family: 'workbench', service: '18-Project-Sonar', name: 'Project Sonar', tools: 7 },
-  { family: 'investigation', service: '10-Diagnostics-Reports', name: 'Diagnostics & Reports', tools: 11 },
-  { family: 'investigation', service: '07-Services-Processes', name: 'Services & Processes', tools: 11 },
+  { family: 'software', service: '04-Programs-Applications', name: 'Programs & Applications', tools: 10, surface: '.programs-station', ownsActions: true },
+  { family: 'software', service: '16-Software-Environment', name: 'Software Environment', tools: 8, surface: '.software-station-root', ownsActions: true },
+  { family: 'software', service: '17-PostInstall-Setup', name: 'Post-Install Setup', tools: 6, surface: '.post-install-station-root', ownsActions: true },
+  { family: 'workbench', service: '12-Developer-Tools', name: 'Developer Tools', tools: 13, surface: '.developer-station-root', ownsActions: true },
+  { family: 'workbench', service: '18-Project-Sonar', name: 'Project Sonar', tools: 7, surface: '.project-sonar-station-root', ownsActions: true },
+  { family: 'investigation', service: '10-Diagnostics-Reports', name: 'Diagnostics & Reports', tools: 11, surface: '.knoux-stage-service-app', ownsActions: true },
+  { family: 'investigation', service: '07-Services-Processes', name: 'Services & Processes', tools: 11, surface: '.knoux-station-workspace', ownsActions: true },
 ];
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
-
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-const MAX_GATEWAY_RESTARTS = 2;
 let gatewayRestartCount = 0;
+const MAX_GATEWAY_RESTARTS = 2;
 
 function findEdge() {
   const edge = EDGE_CANDIDATES.find(candidate => fs.existsSync(candidate));
@@ -93,102 +92,93 @@ async function waitForGateway(timeoutMs = 45_000) {
   throw new Error(`Gateway did not become ready at ${ORIGIN}: ${lastError}`);
 }
 
+async function restartGateway(serviceId, reason) {
+  if (gatewayRestartCount >= MAX_GATEWAY_RESTARTS) {
+    throw new Error(`${serviceId}: gateway recovery budget exhausted after ${gatewayRestartCount} restart(s); ${reason}`);
+  }
+  gatewayRestartCount += 1;
+  console.warn(`${serviceId}: restarting supervised gateway (${gatewayRestartCount}/${MAX_GATEWAY_RESTARTS}): ${reason}`);
+  await stopGateway(gateway);
+  await delay(900);
+  gateway = launchGateway();
+  await waitForGateway();
+}
+
 function normalizeText(value) {
   return String(value || '').trim().replace(/\s+/g, ' ');
 }
 
-function classifyConsoleErrors(errors, { allowControlledRestartNoise = false } = {}) {
-  const expectedUnavailable = [];
+function classifyConsoleErrors(errors, allowTransportNoise) {
+  const expected = [];
   const unexpected = [];
   for (const message of errors) {
     const unavailable503 = /status of 503\s*\(Service Unavailable\)/i.test(message);
     const transportReset = /Failed to load resource:\s*net::ERR_CONNECTION_(?:RESET|REFUSED)/i.test(message);
-    const devSocketReset = /WebSocket connection to 'ws:\/\/127\.0\.0\.1:24678\/'.*ERR_CONNECTION_REFUSED/i.test(message);
-
-    if (unavailable503 || (allowControlledRestartNoise && (transportReset || devSocketReset))) {
-      expectedUnavailable.push(message);
-    } else {
-      unexpected.push(message);
-    }
+    if (unavailable503 || (allowTransportNoise && transportReset)) expected.push(message);
+    else unexpected.push(message);
   }
-  return { expectedUnavailable, unexpected };
+  return { expected, unexpected };
 }
 
-async function readRouteSnapshot(page) {
-  return page.evaluate(() => {
-    const stage = document.querySelector('.knoux-workspace-stage');
-    const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
-      .find(button => /retry connection/i.test(button.textContent || ''));
-    const drawer = document.querySelector('.knoux-command-tool-drawer');
-    return {
-      mode: stage?.getAttribute('data-mode') || null,
-      execution: stage?.getAttribute('data-execution') || null,
-      serviceToolCount: Number(stage?.getAttribute('data-service-tool-count') || 0),
-      serviceApp: Boolean(document.querySelector('.knoux-stage-service-app')),
-      context: (document.querySelector('.knoux-stage-context strong')?.textContent || '').trim().replace(/\s+/g, ' '),
-      toolCards: document.querySelectorAll('.knoux-tool-card[data-tool-id]').length,
-      selectedToolId: stage?.getAttribute('data-selected-tool-id') || '',
-      bridgeRetryAvailable: Boolean(retry),
-      actionDrawerAvailable: Boolean(drawer),
-      actionDrawerExpanded: drawer?.getAttribute('aria-expanded') === 'true' || drawer?.getAttribute('data-expanded') === 'true',
-    };
-  });
-}
-
-async function probeAuthoritativeServiceInventory(serviceId) {
+async function probeInventory(serviceId) {
   try {
-    const response = await fetch(
-      `${ORIGIN}/api/categories/${encodeURIComponent(serviceId)}/tools`,
-      { signal: AbortSignal.timeout(5_000), headers: { Accept: 'application/json' } },
-    );
-    if (!response.ok) {
-      return { ok: false, status: response.status, count: null, category: null, error: `HTTP ${response.status}` };
-    }
+    const response = await fetch(`${ORIGIN}/api/categories/${encodeURIComponent(serviceId)}/tools`, {
+      signal: AbortSignal.timeout(5_000),
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) return { ok: false, status: response.status, count: null, category: null, error: `HTTP ${response.status}` };
     const payload = await response.json();
-    const tools = Array.isArray(payload?.tools) ? payload.tools : [];
     return {
       ok: true,
       status: response.status,
-      count: tools.length,
+      count: Array.isArray(payload?.tools) ? payload.tools.length : 0,
       category: typeof payload?.category === 'string' ? payload.category : null,
       error: null,
     };
   } catch (error) {
+    return { ok: false, status: null, count: null, category: null, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function waitForSurface(page, target) {
+  await page.waitForSelector(`.knoux-family-page[data-service="${target.service}"]`, { timeout: 15_000 });
+  await page.waitForSelector(target.surface || '.knoux-stage-service-app', { timeout: 15_000 });
+}
+
+async function readSnapshot(page, target) {
+  return page.evaluate(({ serviceId, selector }) => {
+    const familyRoot = document.querySelector(`.knoux-family-page[data-service="${serviceId}"]`);
+    const stage = document.querySelector('.knoux-workspace-stage');
+    const workbench = document.querySelector('.knoux-engineering-workbench');
+    const surface = document.querySelector(selector);
+    const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
+      .find(button => /retry connection/i.test(button.textContent || ''));
+    const drawer = document.querySelector('.knoux-command-tool-drawer');
+    const railCountText = document.querySelector('.knoux-command-tool-rail .knoux-command-rail-header small')?.textContent || '';
+    const stageCount = Number(stage?.getAttribute('data-service-tool-count') || 0);
+    const workbenchCount = Number(workbench?.getAttribute('data-service-tool-count') || 0);
+    const railCount = Number.parseInt(railCountText.trim(), 10) || 0;
+    const context = (
+      document.querySelector('.knoux-stage-context strong')?.textContent
+      || document.querySelector('.knoux-command-tool-rail .knoux-command-rail-header strong')?.textContent
+      || ''
+    ).trim().replace(/\s+/g, ' ');
     return {
-      ok: false,
-      status: null,
-      count: null,
-      category: null,
-      error: error instanceof Error ? error.message : String(error),
+      familyService: familyRoot?.getAttribute('data-service') || null,
+      mode: stage?.getAttribute('data-mode') || (familyRoot && surface ? 'service' : null),
+      selectedToolId: stage?.getAttribute('data-selected-tool-id') || '',
+      serviceToolCount: stageCount || workbenchCount || railCount,
+      surfaceVisible: Boolean(surface),
+      context,
+      toolCards: document.querySelectorAll('.knoux-tool-card[data-tool-id]').length,
+      retryAvailable: Boolean(retry),
+      drawerAvailable: Boolean(drawer),
+      drawerExpanded: drawer?.getAttribute('aria-expanded') === 'true' || drawer?.getAttribute('data-expanded') === 'true',
     };
-  }
+  }, { serviceId: target.service, selector: target.surface || '.knoux-stage-service-app' });
 }
 
-async function reloadServiceRoute(page, serviceId) {
-  console.log(`${serviceId}: reloading the same service route after verified recovery evidence.`);
-  await page.reload({ waitUntil: 'domcontentloaded', timeout: 45_000 });
-  await page.waitForSelector('.knoux-workspace-stage', { timeout: 15_000 });
-  await page.waitForSelector('.knoux-stage-service-app', { timeout: 15_000 });
-  await delay(350);
-}
-
-let gateway = launchGateway();
-let browser;
-
-async function restartGatewayForEvidence(serviceId, reason) {
-  if (gatewayRestartCount >= MAX_GATEWAY_RESTARTS) {
-    throw new Error(`${serviceId}: gateway/bridge recovery budget exhausted after ${gatewayRestartCount} controlled restart(s); last reason=${reason}`);
-  }
-
-  gatewayRestartCount += 1;
-  console.warn(`${serviceId}: restarting the supervised gateway/bridge (${gatewayRestartCount}/${MAX_GATEWAY_RESTARTS}) after authoritative inventory became unavailable: ${reason}`);
-  await stopGateway(gateway);
-  await delay(900);
-  gateway = launchGateway();
-  await waitForGateway(45_000);
-}
-
-async function clickRetryConnection(page) {
+async function clickRetry(page) {
   await page.evaluate(() => {
     const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
       .find(button => /retry connection/i.test(button.textContent || ''));
@@ -196,203 +186,110 @@ async function clickRetryConnection(page) {
   });
 }
 
-async function waitForServiceInventory(page, expectedCount, serviceId) {
+async function reloadRoute(page, target) {
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 45_000 });
+  await waitForSurface(page, target);
+  await delay(350);
+}
+
+async function ensureInventory(page, target) {
   let recoveredBridge = false;
   let reloadedRoute = false;
   let restartedGateway = false;
-  let authoritativeCount = null;
   let lastProbe = null;
-  let consecutiveRetryStates = 0;
   const maxAttempts = 6;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    try {
-      await page.waitForFunction(
-        count => {
-          const stage = document.querySelector('.knoux-workspace-stage');
-          const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
-            .find(button => /retry connection/i.test(button.textContent || ''));
-          return Number(stage?.getAttribute('data-service-tool-count') || 0) === count && !retry;
-        },
-        { timeout: 10_000, polling: 100 },
-        expectedCount,
-      );
-      return { recoveredBridge, reloadedRoute, restartedGateway, authoritativeCount };
-    } catch {
-      let snapshot = await readRouteSnapshot(page);
+    await waitForSurface(page, target);
+    let snapshot = await readSnapshot(page, target);
+    let probe = await probeInventory(target.service);
+    lastProbe = probe;
 
-      if (snapshot.bridgeRetryAvailable) {
-        recoveredBridge = true;
-        consecutiveRetryStates += 1;
-        console.log(`${serviceId}: transient bridge-unavailable state observed; exercising the real Retry connection path (attempt ${attempt}/${maxAttempts}, retry streak ${consecutiveRetryStates}).`);
-        await clickRetryConnection(page);
-        await delay(900);
-        snapshot = await readRouteSnapshot(page);
-
-        if (snapshot.serviceToolCount === expectedCount && !snapshot.bridgeRetryAvailable) {
-          return { recoveredBridge, reloadedRoute, restartedGateway, authoritativeCount };
-        }
-
-        if (consecutiveRetryStates < 2 && attempt < maxAttempts) {
-          continue;
-        }
-      } else {
-        consecutiveRetryStates = 0;
-      }
-
-      const probe = await probeAuthoritativeServiceInventory(serviceId);
-      lastProbe = probe;
-      authoritativeCount = probe.count;
-
-      if (probe.ok && probe.count !== expectedCount) {
-        throw new Error(`${serviceId}: authoritative category endpoint returned ${probe.count} tools, expected ${expectedCount}; UI observed ${JSON.stringify(snapshot)}`);
-      }
-
-      if (probe.ok && probe.count === expectedCount) {
-        reloadedRoute = true;
-        consecutiveRetryStates = 0;
-        await reloadServiceRoute(page, serviceId);
-
-        try {
-          await page.waitForFunction(
-            count => {
-              const stage = document.querySelector('.knoux-workspace-stage');
-              const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
-                .find(button => /retry connection/i.test(button.textContent || ''));
-              return Number(stage?.getAttribute('data-service-tool-count') || 0) === count && !retry;
-            },
-            { timeout: 10_000, polling: 100 },
-            expectedCount,
-          );
-          return { recoveredBridge, reloadedRoute, restartedGateway, authoritativeCount };
-        } catch {
-          if (attempt >= maxAttempts) {
-            const afterReload = await readRouteSnapshot(page);
-            throw new Error(`${serviceId}: backend proves ${expectedCount} tools but UI still did not hydrate after final verified route reload; observed ${JSON.stringify(afterReload)}`);
-          }
-          continue;
-        }
-      }
-
-      const probeReason = probe.error || (probe.status ? `HTTP ${probe.status}` : 'unknown bridge failure');
-      if (!restartedGateway) {
-        recoveredBridge = true;
-        restartedGateway = true;
-        reloadedRoute = true;
-        consecutiveRetryStates = 0;
-        await restartGatewayForEvidence(serviceId, probeReason);
-        await reloadServiceRoute(page, serviceId);
-        continue;
-      }
-
-      if (attempt >= maxAttempts) {
-        throw new Error(`${serviceId}: neither UI nor authoritative category endpoint settled after ${attempt} attempts and one controlled gateway restart; UI=${JSON.stringify(snapshot)} backend=${JSON.stringify(probe)}`);
-      }
-
-      console.log(`${serviceId}: authoritative inventory still unavailable after controlled restart (${probeReason}); waiting for health before another strict route reload.`);
-      await waitForGateway(12_000);
-      reloadedRoute = true;
-      await reloadServiceRoute(page, serviceId);
+    if (probe.ok && (probe.count !== target.tools || probe.category !== target.service)) {
+      throw new Error(`${target.service}: authoritative inventory mismatch category=${probe.category} count=${probe.count}; expected category=${target.service} count=${target.tools}`);
     }
-  }
 
-  const finalSnapshot = await readRouteSnapshot(page);
-  throw new Error(`${serviceId}: service inventory did not settle at ${expectedCount}; UI=${JSON.stringify(finalSnapshot)} backend=${JSON.stringify(lastProbe)}`);
-}
+    if (probe.ok && probe.count === target.tools && snapshot.serviceToolCount === target.tools && !snapshot.retryAvailable) {
+      return { recoveredBridge, reloadedRoute, restartedGateway, authoritativeCount: probe.count };
+    }
 
-async function waitForActionSurface(page, expectedCount, serviceId) {
-  await page.waitForFunction(
-    count => {
-      const cards = document.querySelectorAll('.knoux-tool-card[data-tool-id]').length;
-      const drawer = document.querySelector('.knoux-command-tool-drawer');
-      const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
-        .find(button => /retry connection/i.test(button.textContent || ''));
-      return cards === count || Boolean(drawer) || Boolean(retry);
-    },
-    { timeout: 15_000, polling: 100 },
-    expectedCount,
-  ).catch(async () => {
-    const snapshot = await readRouteSnapshot(page);
-    throw new Error(`${serviceId}: action surface never became ready; observed ${JSON.stringify(snapshot)}`);
-  });
-}
-
-async function revealAllActionCards(page, expectedCount, serviceId) {
-  let recoveredBridge = false;
-  let reloadedRoute = false;
-  let restartedGateway = false;
-  let expandedActions = false;
-  const maxAttempts = 4;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    await waitForActionSurface(page, expectedCount, serviceId);
-    let snapshot = await readRouteSnapshot(page);
-
-    if (snapshot.bridgeRetryAvailable) {
+    if (snapshot.retryAvailable) {
       recoveredBridge = true;
-      console.log(`${serviceId}: action rail entered bridge-unavailable state; exercising Retry connection before verification (attempt ${attempt}/${maxAttempts}).`);
-      await clickRetryConnection(page);
-      const inventoryRecovery = await waitForServiceInventory(page, expectedCount, serviceId);
-      recoveredBridge = recoveredBridge || inventoryRecovery.recoveredBridge;
-      reloadedRoute = reloadedRoute || inventoryRecovery.reloadedRoute;
-      restartedGateway = restartedGateway || inventoryRecovery.restartedGateway;
-      await delay(350);
+      await clickRetry(page);
+      await delay(900);
+      snapshot = await readSnapshot(page, target);
+      probe = await probeInventory(target.service);
+      lastProbe = probe;
+      if (probe.ok && probe.count === target.tools && probe.category === target.service && snapshot.serviceToolCount === target.tools && !snapshot.retryAvailable) {
+        return { recoveredBridge, reloadedRoute, restartedGateway, authoritativeCount: probe.count };
+      }
+    }
+
+    if (probe.ok && probe.count === target.tools && probe.category === target.service) {
+      reloadedRoute = true;
+      await reloadRoute(page, target);
       continue;
     }
 
-    if (snapshot.toolCards === expectedCount) {
-      return { expandedActions, recoveredBridge, reloadedRoute, restartedGateway };
+    if (!restartedGateway) {
+      recoveredBridge = true;
+      restartedGateway = true;
+      reloadedRoute = true;
+      await restartGateway(target.service, probe.error || (probe.status ? `HTTP ${probe.status}` : 'inventory unavailable'));
+      await reloadRoute(page, target);
+      continue;
     }
 
-    if (!snapshot.actionDrawerAvailable) {
-      throw new Error(`${serviceId}: ${expectedCount} tools are loaded but only ${snapshot.toolCards} action cards are visible and no action drawer exists after readiness settled.`);
+    if (attempt < maxAttempts) {
+      await waitForGateway(12_000);
+      reloadedRoute = true;
+      await reloadRoute(page, target);
+      continue;
     }
+  }
 
-    if (!snapshot.actionDrawerExpanded) {
+  const snapshot = await readSnapshot(page, target);
+  throw new Error(`${target.service}: route inventory never settled; UI=${JSON.stringify(snapshot)} backend=${JSON.stringify(lastProbe)}`);
+}
+
+async function revealStandardActions(page, target) {
+  if (target.ownsActions) return { expandedActions: false, stationOwnedActions: true, recoveredBridge: false };
+
+  const maxAttempts = 4;
+  let expandedActions = false;
+  let recoveredBridge = false;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    let snapshot = await readSnapshot(page, target);
+    if (snapshot.retryAvailable) {
+      recoveredBridge = true;
+      await clickRetry(page);
+      await ensureInventory(page, target);
+      await delay(350);
+      continue;
+    }
+    if (snapshot.toolCards === target.tools) return { expandedActions, stationOwnedActions: false, recoveredBridge };
+    if (!snapshot.drawerAvailable) {
+      throw new Error(`${target.service}: ${target.tools} tools are loaded but only ${snapshot.toolCards} action cards are visible and no action drawer exists`);
+    }
+    if (!snapshot.drawerExpanded) {
       await page.click('.knoux-command-tool-drawer');
       expandedActions = true;
     }
-
     await page.waitForFunction(
-      count => {
-        const cards = document.querySelectorAll('.knoux-tool-card[data-tool-id]').length;
-        const retry = [...document.querySelectorAll('.knoux-tool-empty-state button')]
-          .find(button => /retry connection/i.test(button.textContent || ''));
-        return cards === count || Boolean(retry);
-      },
+      count => document.querySelectorAll('.knoux-tool-card[data-tool-id]').length === count,
       { timeout: 10_000, polling: 50 },
-      expectedCount,
+      target.tools,
     ).catch(() => {});
-
-    snapshot = await readRouteSnapshot(page);
-
-    if (snapshot.bridgeRetryAvailable) {
-      recoveredBridge = true;
-      console.log(`${serviceId}: bridge became unavailable while expanding the action drawer; exercising Retry connection before re-verification (attempt ${attempt}/${maxAttempts}).`);
-      await clickRetryConnection(page);
-      const inventoryRecovery = await waitForServiceInventory(page, expectedCount, serviceId);
-      recoveredBridge = recoveredBridge || inventoryRecovery.recoveredBridge;
-      reloadedRoute = reloadedRoute || inventoryRecovery.reloadedRoute;
-      restartedGateway = restartedGateway || inventoryRecovery.restartedGateway;
-      await delay(350);
-      continue;
-    }
-
-    if (snapshot.toolCards === expectedCount) {
-      return { expandedActions: true, recoveredBridge, reloadedRoute, restartedGateway };
-    }
-
-    if (attempt >= maxAttempts) {
-      throw new Error(`${serviceId}: action drawer did not expose all ${expectedCount} cards after ${attempt} attempts; observed ${JSON.stringify(snapshot)}`);
-    }
-
-    console.log(`${serviceId}: action drawer did not settle on attempt ${attempt}/${maxAttempts}; retrying the same real action surface.`);
+    snapshot = await readSnapshot(page, target);
+    if (snapshot.toolCards === target.tools) return { expandedActions, stationOwnedActions: false, recoveredBridge };
     await delay(350);
   }
-
-  const finalSnapshot = await readRouteSnapshot(page);
-  throw new Error(`${serviceId}: action surface did not recover after ${maxAttempts} attempts; observed ${JSON.stringify(finalSnapshot)}`);
+  const snapshot = await readSnapshot(page, target);
+  throw new Error(`${target.service}: standard action rail did not expose all ${target.tools} tools; observed ${JSON.stringify(snapshot)}`);
 }
+
+let gateway = launchGateway();
+let browser;
 
 try {
   await waitForGateway();
@@ -403,7 +300,6 @@ try {
   });
 
   const results = [];
-
   for (let index = 0; index < ROUTES.length; index += 1) {
     const target = ROUTES[index];
     const page = await browser.newPage();
@@ -418,53 +314,46 @@ try {
 
     const url = `${ORIGIN}/?view=${encodeURIComponent(target.family)}&nosplash=1&service=${encodeURIComponent(target.service)}`;
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
-    await page.waitForSelector('.knoux-workspace-stage', { timeout: 15_000 });
-    await page.waitForSelector('.knoux-stage-service-app', { timeout: 15_000 });
+    await waitForSurface(page, target);
 
-    const inventoryRecovery = await waitForServiceInventory(page, target.tools, target.service);
-    const actionSurface = await revealAllActionCards(page, target.tools, target.service);
-    const recoveredBridge = inventoryRecovery.recoveredBridge || actionSurface.recoveredBridge;
-    const reloadedRoute = inventoryRecovery.reloadedRoute || actionSurface.reloadedRoute;
-    const restartedGateway = inventoryRecovery.restartedGateway || actionSurface.restartedGateway;
-    const expandedActions = actionSurface.expandedActions;
+    const inventory = await ensureInventory(page, target);
+    const actionSurface = await revealStandardActions(page, target);
     await delay(350);
-
-    const snapshot = await readRouteSnapshot(page);
+    const snapshot = await readSnapshot(page, target);
 
     if (snapshot.mode !== 'service') throw new Error(`${target.service}: expected service mode, got ${snapshot.mode}`);
-    if (!snapshot.serviceApp) throw new Error(`${target.service}: canonical ServiceApps station did not render`);
-    if (snapshot.serviceToolCount !== target.tools) throw new Error(`${target.service}: expected ${target.tools} service tools, got ${snapshot.serviceToolCount}`);
-    if (snapshot.toolCards !== target.tools) throw new Error(`${target.service}: expected ${target.tools} action cards after exercising the real action surface, got ${snapshot.toolCards}`);
-    if (normalizeText(snapshot.context) !== target.name) throw new Error(`${target.service}: expected context '${target.name}', got '${snapshot.context}'`);
-    if (snapshot.selectedToolId) throw new Error(`${target.service}: route should open service workspace before a tool is selected`);
-    if (pageErrors.length > 0) throw new Error(`${target.service}: page errors: ${pageErrors.join(' | ')}`);
+    if (snapshot.familyService !== target.service) throw new Error(`${target.service}: route identity mismatch; observed ${snapshot.familyService}`);
+    if (!snapshot.surfaceVisible) throw new Error(`${target.service}: canonical surface did not render`);
+    if (snapshot.serviceToolCount !== target.tools) throw new Error(`${target.service}: expected ${target.tools} route tools, got ${snapshot.serviceToolCount}`);
+    if (inventory.authoritativeCount !== target.tools) throw new Error(`${target.service}: authoritative inventory proof missing`);
+    if (!target.ownsActions && snapshot.toolCards !== target.tools) throw new Error(`${target.service}: expected ${target.tools} visible action cards, got ${snapshot.toolCards}`);
+    if (!target.ownsActions && normalizeText(snapshot.context) !== target.name) throw new Error(`${target.service}: expected context '${target.name}', got '${snapshot.context}'`);
+    if (snapshot.selectedToolId) throw new Error(`${target.service}: route should open before a tool is selected`);
+    if (pageErrors.length) throw new Error(`${target.service}: page errors: ${pageErrors.join(' | ')}`);
 
-    const classifiedConsole = classifyConsoleErrors(consoleErrors, {
-      allowControlledRestartNoise: restartedGateway,
-    });
-    if (classifiedConsole.unexpected.length > 0) {
-      throw new Error(`${target.service}: unexpected console errors: ${classifiedConsole.unexpected.join(' | ')}`);
-    }
+    const consoleCheck = classifyConsoleErrors(consoleErrors, inventory.restartedGateway);
+    if (consoleCheck.unexpected.length) throw new Error(`${target.service}: unexpected console errors: ${consoleCheck.unexpected.join(' | ')}`);
 
     const fileName = `${String(index + 1).padStart(2, '0')}-${target.service}.png`;
     await page.screenshot({ path: path.join(OUT_DIR, fileName), fullPage: false });
     results.push({
       ...target,
       ...snapshot,
-      recoveredBridge,
-      reloadedRoute,
-      restartedGateway,
-      authoritativeCount: inventoryRecovery.authoritativeCount,
-      expandedActions,
-      expectedUnavailableConsoleErrors: classifiedConsole.expectedUnavailable.length,
+      recoveredBridge: inventory.recoveredBridge || actionSurface.recoveredBridge,
+      reloadedRoute: inventory.reloadedRoute,
+      restartedGateway: inventory.restartedGateway,
+      authoritativeCount: inventory.authoritativeCount,
+      expandedActions: actionSurface.expandedActions,
+      stationOwnedActions: Boolean(actionSurface.stationOwnedActions),
+      expectedUnavailableConsoleErrors: consoleCheck.expected.length,
       screenshot: fileName,
     });
-    console.log(`Verified ${target.service}: ${target.tools} tools${expandedActions ? ' (action drawer expanded)' : ''}${recoveredBridge ? ' (bridge recovery exercised)' : ''}${reloadedRoute ? ' (same route reloaded after recovery proof)' : ''}${restartedGateway ? ' (gateway/bridge restarted once)' : ''}.`);
+    console.log(`Verified ${target.service}: ${target.tools} tools; surface=${target.surface || '.knoux-stage-service-app'}${target.ownsActions ? ' (station-owned actions)' : actionSurface.expandedActions ? ' (action drawer expanded)' : ''}.`);
     await page.close();
   }
 
   const families = new Set(results.map(item => item.family));
-  const toolTotal = results.reduce((sum, item) => sum + item.serviceToolCount, 0);
+  const toolTotal = results.reduce((sum, item) => sum + item.authoritativeCount, 0);
   if (results.length !== 18) throw new Error(`Expected 18 verified services, got ${results.length}`);
   if (families.size !== 6) throw new Error(`Expected 6 verified families, got ${families.size}`);
   if (toolTotal !== 158) throw new Error(`Expected 158 service-scoped tools across the matrix, got ${toolTotal}`);

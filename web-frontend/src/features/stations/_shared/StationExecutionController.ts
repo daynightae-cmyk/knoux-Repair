@@ -64,6 +64,78 @@ export function decideExecution(input: ExecutionRequestInput, bridgeElevated: bo
   return { ok: true, nextState: 'PREPARING' };
 }
 
+/*
+ * The local bridge intentionally permits one active tool run at a time and
+ * returns RUN_IN_PROGRESS (HTTP 409) for a second POST /api/runs. A few
+ * station bootstrap flows collect more than one read-only evidence source.
+ * React StrictMode may also replay their mount effects in development.
+ *
+ * Serialize only those background evidence starts that explicitly identify
+ * themselves as analyze + analyzeOnly=true. User-confirmed repair execution
+ * keeps the normal fail-fast bridge contract; this queue is not a general
+ * hidden execution queue.
+ *
+ * Duplicate StrictMode requests for the same ToolId share the same runId.
+ * Distinct background probes wait for the preceding probe to reach a real
+ * backend terminal state before their POST is issued.
+ */
+let backgroundAnalyzeTail: Promise<void> = Promise.resolve();
+const backgroundAnalyzeStarts = new Map<string, Promise<string>>();
+
+function shouldSerializeBackgroundAnalyze(
+  mode: 'run' | 'analyze' | 'preview',
+  options: ToolRunOptions | undefined,
+  confirmation: ToolRunConfirmation | undefined,
+): boolean {
+  return mode === 'analyze' && options?.analyzeOnly === true && !confirmation;
+}
+
+function startSerializedBackgroundAnalyze(
+  toolId: string,
+  options: ToolRunOptions | undefined,
+): Promise<string> {
+  const duplicate = backgroundAnalyzeStarts.get(toolId);
+  if (duplicate) return duplicate;
+
+  let resolveStart!: (runId: string) => void;
+  let rejectStart!: (error: unknown) => void;
+  const startPromise = new Promise<string>((resolve, reject) => {
+    resolveStart = resolve;
+    rejectStart = reject;
+  });
+  backgroundAnalyzeStarts.set(toolId, startPromise);
+
+  const predecessor = backgroundAnalyzeTail.catch(() => undefined);
+  const lifecycle = (async () => {
+    let runStarted = false;
+    try {
+      await predecessor;
+      const { runId } = await api.startRun(toolId, 'analyze', options || {}, undefined);
+      runStarted = true;
+      resolveStart(runId);
+
+      // The caller also observes its run for UI state. This lightweight shared
+      // observer exists only to release the single-run gate from backend truth,
+      // even when StrictMode cleanup aborts a component-local observer.
+      await pollUntilTerminalRun(runId, {
+        intervalMs: 300,
+        timeoutMs: 630000,
+        fetchRun: (id: string) => api.getRun(id),
+      });
+    } catch (error) {
+      if (!runStarted) rejectStart(error);
+      // When a started run cannot be reconciled, fail closed by allowing the
+      // next real POST to meet the bridge's own RUN_IN_PROGRESS guard rather
+      // than inventing a terminal state here.
+    } finally {
+      backgroundAnalyzeStarts.delete(toolId);
+    }
+  })();
+
+  backgroundAnalyzeTail = lifecycle.then(() => undefined, () => undefined);
+  return startPromise;
+}
+
 export async function startExecution(
   inputOrTool: ExecutionRequestInput | BridgeTool,
   mode?: ExecutionMode,
@@ -71,10 +143,19 @@ export async function startExecution(
   confirmation?: ToolRunConfirmation
 ): Promise<string> {
   if ('ToolId' in inputOrTool) {
-    const { runId } = await api.startRun(inputOrTool.ToolId, normalizeExecutionMode(mode || 'run'), options || {}, confirmation);
+    const canonicalMode = normalizeExecutionMode(mode || 'run');
+    if (shouldSerializeBackgroundAnalyze(canonicalMode, options, confirmation)) {
+      return startSerializedBackgroundAnalyze(inputOrTool.ToolId, options);
+    }
+    const { runId } = await api.startRun(inputOrTool.ToolId, canonicalMode, options || {}, confirmation);
     return runId;
   }
-  const { runId } = await api.startRun(inputOrTool.tool.ToolId, normalizeExecutionMode(inputOrTool.mode), inputOrTool.options || {}, inputOrTool.confirmation);
+
+  const canonicalMode = normalizeExecutionMode(inputOrTool.mode);
+  if (shouldSerializeBackgroundAnalyze(canonicalMode, inputOrTool.options, inputOrTool.confirmation)) {
+    return startSerializedBackgroundAnalyze(inputOrTool.tool.ToolId, inputOrTool.options);
+  }
+  const { runId } = await api.startRun(inputOrTool.tool.ToolId, canonicalMode, inputOrTool.options || {}, inputOrTool.confirmation);
   return runId;
 }
 

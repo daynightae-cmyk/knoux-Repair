@@ -45,8 +45,8 @@ export default function DriversHeroVisual({
       color: '#6366f1',
       glow: 'rgba(99, 102, 241, 0.35)',
       badge: '#6366f1',
-      label: isRtl ? 'بانتظار الفحص' : 'INVENTORY READY',
-      subtitle: isRtl ? 'جاهز لقراءة سجلات التعريفات' : 'Ready to Query Drivers',
+      label: isRtl ? 'لم يتم الفحص بعد' : 'NOT CHECKED YET',
+      subtitle: isRtl ? 'بانتظار جرد التعريفات الحقيقي' : 'Awaiting real driver inventory',
     },
   }[condition] || {
     color: '#6366f1',

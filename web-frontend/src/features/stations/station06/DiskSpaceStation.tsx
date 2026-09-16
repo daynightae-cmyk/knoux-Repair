@@ -432,7 +432,7 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
 
   return (
     <StationErrorBoundary>
-      <div className="knoux-station-workspace flex flex-col flex-1 gap-6 p-6">
+      <div className="knoux-station-workspace disk-space-station flex flex-col flex-1 gap-6 p-6">
         {/* Top Product Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
           <div>
@@ -600,7 +600,7 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
                   <div>
-                    <strong className="text-xs text-white block">DS02 · {lang === 'ar' ? 'العثور على الملفات الكبيرة' : 'Find Large Files'}</strong>
+                    <strong className="text-xs text-white block">{lang === 'ar' ? 'العثور على الملفات الكبيرة' : 'Find Large Files'}</strong>
                     <span className="text-[11px] text-slate-400">{lang === 'ar' ? 'كشف مستهلكي المساحة في مجلدات المستخدم' : 'Detect space hogs in user directories'}</span>
                   </div>
                   <button
@@ -614,7 +614,7 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
 
                 <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
                   <div>
-                    <strong className="text-xs text-white block">DS08 · {lang === 'ar' ? 'تشغيل تنظيف القرص' : 'Run Disk Cleanup'}</strong>
+                    <strong className="text-xs text-white block">{lang === 'ar' ? 'تشغيل تنظيف القرص' : 'Run Disk Cleanup'}</strong>
                     <span className="text-[11px] text-slate-400">{lang === 'ar' ? 'تنظيف آمن لملفات النظام المؤقتة' : 'Safe cleanup of system temporary files'}</span>
                   </div>
                   <button
@@ -714,7 +714,7 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
                   className="px-3 py-1.5 rounded-lg text-xs font-medium text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <RefreshCw size={13} className={isScanning ? 'animate-spin' : ''} />
-                  <span>{lang === 'ar' ? 'فحص الملفات الكبيرة (DS02)' : 'Scan Large Files (DS02)'}</span>
+                  <span>{lang === 'ar' ? 'فحص الملفات الكبيرة' : 'Scan Large Files'}</span>
                 </button>
               </div>
             </div>
@@ -761,7 +761,7 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
             {filteredFiles.length === 0 ? (
               <div className="py-8 text-center text-slate-400 text-xs">
                 {largeFiles.length === 0
-                  ? (lang === 'ar' ? 'اضغط "فحص الملفات الكبيرة" للبدء عبر أداة DS02.' : 'Click "Scan Large Files" to inspect user folders using DS02.')
+                  ? (lang === 'ar' ? 'اضغط "فحص الملفات الكبيرة" لبدء فحص مجلدات المستخدم.' : 'Click "Scan Large Files" to inspect user folders.')
                   : (lang === 'ar' ? 'لا توجد نتائج مطابقة لبحثك.' : 'No files match your filter.')}
               </div>
             ) : (
@@ -817,7 +817,6 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
                       >
                         <div>
                           <div className="flex items-center justify-between">
-                            <span className="font-mono text-xs text-cyan-400 font-bold">{tool.ToolId}</span>
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] font-mono ${
                                 tool.RiskLevel === 'DESTRUCTIVE'
@@ -882,7 +881,7 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
                 className="px-3 py-1.5 rounded-lg text-xs font-medium text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <RefreshCw size={13} className={isScanning ? 'animate-spin' : ''} />
-                <span>{lang === 'ar' ? 'فحص صحة الأقراص (DS07)' : 'Check Disk Health (DS07)'}</span>
+                <span>{lang === 'ar' ? 'فحص صحة الأقراص' : 'Check Disk Health'}</span>
               </button>
             </div>
 
@@ -947,7 +946,7 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
                 className="px-3 py-1.5 rounded-lg text-xs font-medium text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <FileText size={13} />
-                <span>{lang === 'ar' ? 'توليد تقرير التخزين (DS10)' : 'Generate Disk Report (DS10)'}</span>
+                <span>{lang === 'ar' ? 'توليد تقرير التخزين' : 'Generate Disk Report'}</span>
               </button>
             </div>
 

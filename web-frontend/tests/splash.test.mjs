@@ -4,7 +4,9 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  canActivateSplash,
   getSplashPresentation,
+  isSplashActivationKey,
   resolveSplashStage,
   SPLASH_PROGRESS_STEPS,
   SPLASH_TIMING,
@@ -27,6 +29,16 @@ test('boot progress is deterministic and bounded', () => {
   assert.ok(SPLASH_TIMING.exitMs >= 650 && SPLASH_TIMING.exitMs <= 800);
 });
 
+test('entry activation accepts physical and numpad Enter only after real readiness settles', () => {
+  assert.equal(isSplashActivationKey('Enter', 'Enter'), true);
+  assert.equal(isSplashActivationKey('Enter', 'NumpadEnter'), true);
+  assert.equal(isSplashActivationKey(' ', 'Space'), false);
+  assert.equal(canActivateSplash({ progress: 90, bridgeOnline: true, timedOut: false, imageSettled: true }), false);
+  assert.equal(canActivateSplash({ progress: 100, bridgeOnline: null, timedOut: false, imageSettled: true }), false);
+  assert.equal(canActivateSplash({ progress: 100, bridgeOnline: true, timedOut: false, imageSettled: true }), true);
+  assert.equal(canActivateSplash({ progress: 100, bridgeOnline: null, timedOut: true, imageSettled: true }), true);
+});
+
 test('bridge online reaches real ready state and reports tool count', () => {
   const result = getSplashPresentation({
     lang: 'en',
@@ -38,7 +50,7 @@ test('bridge online reaches real ready state and reports tool count', () => {
   assert.equal(result.stage, 'ready');
   assert.equal(result.stageLabel, 'System ready');
   assert.equal(result.bridgeLabel, 'CONNECTED');
-  assert.match(result.toolsLabel, /158 TOOLS READY/);
+  assert.match(result.toolsLabel, /158 TOOLS REGISTERED/);
 });
 
 test('bridge offline never claims that the system bridge is ready', () => {
@@ -73,10 +85,8 @@ test('unresolved bridge holds at connecting and degrades gracefully only after t
   assert.match(result.toolsLabel, /مزامنة/);
 });
 
-test('premium splash removes prohibited legacy visual concepts', () => {
+test('cinematic entry uses real artwork and an accessible interactive control', () => {
   const forbidden = [
-    /particle/i,
-    /orbit/i,
     /scanline/i,
     /decrypt/i,
     /hacking/i,
@@ -87,21 +97,33 @@ test('premium splash removes prohibited legacy visual concepts', () => {
   for (const pattern of forbidden) {
     assert.equal(pattern.test(componentSource), false, `forbidden visual marker found: ${pattern}`);
   }
-  assert.equal(componentSource.includes('<button'), false);
-  assert.match(componentSource, /\/brand\/knoux-repair-logo-round\.png/);
+  assert.match(componentSource, /<button/);
+  assert.match(componentSource, /onClick=\{requestEnter\}/);
+  assert.match(componentSource, /\/brand\/knoux-entry-cinematic\.png/);
+  assert.match(componentSource, /\/brand\/knoux-mark-crystal\.png/);
+  assert.match(componentSource, /\/brand\/knoux-repair-wordmark-wide\.png/);
   assert.match(componentSource, /useReducedMotion/);
   assert.match(componentSource, /doneRef/);
   assert.match(componentSource, /aria-live="polite"/);
+  assert.match(componentSource, /removeEventListener\('keydown'/);
+  assert.match(componentSource, /leavingRef\.current/);
 });
 
 test('responsive and reduced-motion acceptance rules are present', () => {
-  assert.match(cssSource, /@media \(max-height: 780px\)/);
-  assert.match(cssSource, /@media \(max-width: 560px\)/);
+  assert.match(cssSource, /@media \(max-aspect-ratio: 3 \/ 2\)/);
+  assert.match(cssSource, /@media \(max-width: 640px\)/);
   assert.match(cssSource, /@media \(min-width: 2200px\)/);
   assert.match(cssSource, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.match(cssSource, /\.kr-splash__reflection[\s\S]*display: none !important/);
+  assert.match(cssSource, /\.kr-entry__particles \{ display: none; \}/);
   assert.match(cssSource, /clamp\(/);
   assert.doesNotMatch(cssSource, /rotate\(360deg\)/i);
+});
+
+test('application shell opens the real home by removing only the entry overlay', () => {
+  const appSource = fs.readFileSync(path.resolve(here, '../src/App.tsx'), 'utf8');
+  assert.match(appSource, /onDone=\{\(\) => setSplashVisible\(false\)\}/);
+  assert.match(appSource, /initialView[^\n]*\|\| 'home'/);
+  assert.match(appSource, /activeView === 'home'/);
 });
 
 test('legacy SplashScreen delegates to the new premium implementation', () => {

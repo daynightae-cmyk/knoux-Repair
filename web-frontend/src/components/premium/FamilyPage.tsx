@@ -11,6 +11,8 @@ import FamilyLiveStage from './FamilyLiveStage';
 import EngineeringWorkbenchStation from './workbench/EngineeringWorkbenchStation';
 import DuplicateStation from '../../features/stations/station05/DuplicateStation';
 import ExecutionConfirmDialog from '../ExecutionConfirmDialog';
+import SoftwareLibraryPage from '../pages/SoftwareLibraryPage';
+import FamilyOverviewPage from '../pages/FamilyOverviewPage';
 
 interface FamilyPageProps {
   family: FamilyDefinition;
@@ -97,14 +99,50 @@ export default function FamilyPage({
 
   const isRtl = lang === 'ar';
   const serviceAppActive = !selectedTool;
-  const showWorkbenchStation = family.id === 'workbench' && !selectedTool && !executionTool;
+  const showWorkbenchStation = family.id === 'workbench' && selectedService !== null;
   const showDuplicateStudio = activeService.id === '05-Duplicate-Files' && !selectedTool && !executionTool;
   const [duplicatePending, setDuplicatePending] = useState<{
     tool: BridgeTool; mode: 'run' | 'analyze' | 'preview'; options: ToolRunOptions;
   } | null>(null);
 
+  const showFamilyOverview = selectedService === null && selectedTool === null && executionTool === null;
+  if (showFamilyOverview) {
+    const selectOverviewService = (serviceId: ServiceId) => {
+      onSelectService(serviceId);
+      onSelectTool(null);
+      setToolQuery('');
+      setToolsExpanded(false);
+    };
+
+    if (family.id === 'software') {
+      return (
+        <SoftwareLibraryPage
+          family={family}
+          tools={tools}
+          lang={lang}
+          bridgeOnline={bridgeOnline}
+          bridgeElevated={bridgeElevated}
+          onSelectService={selectOverviewService}
+        />
+      );
+    }
+
+    return (
+      <FamilyOverviewPage
+        family={family}
+        tools={tools}
+        lang={lang}
+        bridgeOnline={bridgeOnline}
+        bridgeElevated={bridgeElevated}
+        systemSnapshot={systemSnapshot}
+        onSelectService={selectOverviewService}
+      />
+    );
+  }
+
   return (
-    <div className={`knoux-family-page knoux-command-center${serviceAppActive ? ' knoux-service-app-active' : ''}`} dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className={`knoux-family-page knoux-command-center${serviceAppActive ? ' knoux-service-app-active' : ''}`} data-family={family.id} data-service={activeService.id} dir={isRtl ? 'rtl' : 'ltr'}>
+      {!showWorkbenchStation && (
       <aside className="knoux-command-rail knoux-command-service-rail" aria-label={isRtl ? 'خدمات العائلة' : 'Family services'}>
         <header className="knoux-command-rail-header">
           <span>{isRtl ? 'الخدمات' : 'SERVICES'}</span>
@@ -129,6 +167,7 @@ export default function FamilyPage({
           })}
         </div>
       </aside>
+      )}
 
       <main className="knoux-command-live-column">
         {family.id !== 'workbench' && !showDuplicateStudio && (
@@ -206,6 +245,7 @@ export default function FamilyPage({
         />
       )}
 
+      {!showWorkbenchStation && (
       <aside className="knoux-command-rail knoux-command-tool-rail" aria-label={isRtl ? 'إجراءات الخدمة' : 'Service actions'}>
         <header className="knoux-command-rail-header">
           <span>{isRtl ? 'الإجراءات' : 'ACTIONS'}</span>
@@ -293,6 +333,7 @@ export default function FamilyPage({
           )}
         </div>
       </aside>
+      )}
     </div>
   );
 }

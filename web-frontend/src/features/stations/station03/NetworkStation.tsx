@@ -362,7 +362,7 @@ export default function NetworkStation({
           });
           recordOutcome(retest, 'verify', retest.status);
         } catch (error) {
-          setBanner(`[NI01 re-test] ${errorMessage(error, lang)}`);
+          setBanner(`${lang === 'ar' ? 'إعادة اختبار الاتصال' : 'Connection re-test'}: ${errorMessage(error, lang)}`);
         }
       } else if (verify && beforeSnapshot) {
         setVerifyPair({ toolId, before: beforeSnapshot, after: null });
@@ -806,7 +806,6 @@ export default function NetworkStation({
                 return (
                   <article key={tool.ToolId} className="network-op">
                     <header>
-                      <span className="network-op-id">{tool.ToolId}</span>
                       <strong dir="auto">{pickName(tool, lang)}</strong>
                       <span className={`network-risk is-${tool.RiskLevel.toLowerCase().replace(/_/g, '-')}`}>{tool.RiskLevel}</span>
                     </header>

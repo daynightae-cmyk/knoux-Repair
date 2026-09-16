@@ -2,7 +2,9 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Lang } from '../lib/i18n';
 import {
+  canActivateSplash,
   getSplashPresentation,
+  isSplashActivationKey,
   SPLASH_PROGRESS_STEPS,
   SPLASH_TIMING,
 } from './splashModel';
@@ -16,31 +18,29 @@ export interface NexusSplashProps {
   toolCount: number;
 }
 
-export default function NexusSplash({
-  visible,
-  onDone,
-  lang,
-  bridgeOnline,
-  toolCount,
-}: NexusSplashProps) {
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName);
+}
+
+export default function NexusSplash({ visible, onDone, lang, bridgeOnline, toolCount }: NexusSplashProps) {
   const reducedMotion = useReducedMotion();
   const [progress, setProgress] = useState(0);
   const [timedOut, setTimedOut] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [imageState, setImageState] = useState<'loading' | 'ready' | 'error'>('loading');
 
-  const startedAtRef = useRef(0);
   const doneRef = useRef(false);
-  const finishingRef = useRef(false);
   const leavingRef = useRef(false);
+  const startedAtRef = useRef(0);
   const onDoneRef = useRef(onDone);
+  const entryButtonRef = useRef<HTMLButtonElement>(null);
   const progressTimersRef = useRef<number[]>([]);
   const readinessTimerRef = useRef<number | null>(null);
   const unresolvedTimerRef = useRef<number | null>(null);
   const exitTimerRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    onDoneRef.current = onDone;
-  }, [onDone]);
+  useEffect(() => { onDoneRef.current = onDone; }, [onDone]);
 
   const clearTimer = useCallback((timer: number | null) => {
     if (timer !== null) window.clearTimeout(timer);
@@ -63,32 +63,10 @@ export default function NexusSplash({
     onDoneRef.current();
   }, []);
 
-  const beginExit = useCallback(() => {
-    if (doneRef.current || leavingRef.current) return;
-    leavingRef.current = true;
-    setLeaving(true);
-    exitTimerRef.current = window.setTimeout(
-      completeOnce,
-      reducedMotion ? 170 : SPLASH_TIMING.exitMs,
-    );
-  }, [completeOnce, reducedMotion]);
-
-  const finishBoot = useCallback(() => {
-    if (doneRef.current || finishingRef.current || leavingRef.current) return;
-    finishingRef.current = true;
-    setProgress(100);
-    readinessTimerRef.current = window.setTimeout(
-      beginExit,
-      reducedMotion ? 80 : SPLASH_TIMING.completionHoldMs,
-    );
-  }, [beginExit, reducedMotion]);
-
   useEffect(() => {
     clearAllTimers();
-
     if (!visible) {
       doneRef.current = false;
-      finishingRef.current = false;
       leavingRef.current = false;
       setLeaving(false);
       setTimedOut(false);
@@ -97,7 +75,6 @@ export default function NexusSplash({
     }
 
     doneRef.current = false;
-    finishingRef.current = false;
     leavingRef.current = false;
     startedAtRef.current = performance.now();
     setLeaving(false);
@@ -105,40 +82,30 @@ export default function NexusSplash({
     setProgress(0);
 
     for (const step of SPLASH_PROGRESS_STEPS) {
-      const timer = window.setTimeout(() => {
-        if (!finishingRef.current && !leavingRef.current && !doneRef.current) setProgress(step.value);
-      }, reducedMotion ? Math.min(step.at, 260) : step.at);
-      progressTimersRef.current.push(timer);
+      progressTimersRef.current.push(window.setTimeout(() => {
+        if (!leavingRef.current && !doneRef.current) setProgress(step.value);
+      }, reducedMotion ? Math.min(step.at, 260) : step.at));
     }
 
     unresolvedTimerRef.current = window.setTimeout(() => {
-      if (doneRef.current || finishingRef.current || leavingRef.current) return;
+      if (leavingRef.current || doneRef.current) return;
       setTimedOut(true);
-      finishBoot();
+      setProgress(100);
     }, reducedMotion ? SPLASH_TIMING.minimumVisualMs : SPLASH_TIMING.unresolvedBridgeTimeoutMs);
 
     return clearAllTimers;
-  }, [clearAllTimers, finishBoot, reducedMotion, visible]);
+  }, [clearAllTimers, reducedMotion, visible]);
 
   useEffect(() => {
-    if (
-      !visible ||
-      bridgeOnline === null ||
-      doneRef.current ||
-      finishingRef.current ||
-      leavingRef.current
-    ) return;
-
+    if (!visible || bridgeOnline === null || leavingRef.current || doneRef.current) return;
     clearTimer(unresolvedTimerRef.current);
     unresolvedTimerRef.current = null;
     clearTimer(readinessTimerRef.current);
-
     const elapsed = performance.now() - startedAtRef.current;
     const remainingMinimum = Math.max(0, SPLASH_TIMING.minimumVisualMs - elapsed);
-    readinessTimerRef.current = window.setTimeout(finishBoot, remainingMinimum);
-
+    readinessTimerRef.current = window.setTimeout(() => setProgress(100), remainingMinimum);
     return () => clearTimer(readinessTimerRef.current);
-  }, [bridgeOnline, clearTimer, finishBoot, visible]);
+  }, [bridgeOnline, clearTimer, visible]);
 
   useEffect(() => () => clearAllTimers(), [clearAllTimers]);
 
@@ -146,152 +113,102 @@ export default function NexusSplash({
     () => getSplashPresentation({ lang, progress, bridgeOnline, toolCount, timedOut }),
     [bridgeOnline, lang, progress, timedOut, toolCount],
   );
+  const canEnter = canActivateSplash({
+    progress,
+    bridgeOnline,
+    timedOut,
+    imageSettled: imageState !== 'loading',
+  });
 
-  const requestSkip = useCallback(() => {
-    if (!visible || finishingRef.current || leavingRef.current || doneRef.current) return;
-    const elapsed = performance.now() - startedAtRef.current;
-    const safeToContinue = bridgeOnline !== null || timedOut;
-    if (elapsed < SPLASH_TIMING.minimumVisualMs || !safeToContinue) return;
-    finishBoot();
-  }, [bridgeOnline, finishBoot, timedOut, visible]);
+  const requestEnter = useCallback(() => {
+    if (!visible || !canEnter || leavingRef.current || doneRef.current) return;
+    leavingRef.current = true;
+    setLeaving(true);
+    exitTimerRef.current = window.setTimeout(completeOnce, reducedMotion ? 170 : SPLASH_TIMING.exitMs);
+  }, [canEnter, completeOnce, reducedMotion, visible]);
 
   useEffect(() => {
     if (!visible) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        requestSkip();
-      }
+      if (!isSplashActivationKey(event.key, event.code) || isEditableTarget(event.target)) return;
+      event.preventDefault();
+      requestEnter();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [requestSkip, visible]);
+  }, [requestEnter, visible]);
 
-  const readyVisual = presentation.stage === 'ready';
+  useEffect(() => {
+    if (canEnter && visible) entryButtonRef.current?.focus({ preventScroll: true });
+  }, [canEnter, visible]);
 
   return (
     <AnimatePresence>
       {visible && (
-        <motion.div
-          className="kr-splash"
-          data-lang={lang}
+        <motion.section
+          className={`kr-entry${leaving ? ' is-leaving' : ''}${imageState === 'error' ? ' has-fallback' : ''}`}
           role="dialog"
           aria-modal="true"
-          aria-label="KNOUX Repair"
+          aria-label={lang === 'ar' ? 'بوابة دخول KNOUX Repair' : 'KNOUX Repair workstation entry'}
           initial={{ opacity: 1 }}
           animate={{ opacity: leaving ? 0 : 1 }}
-          transition={{
-            duration: reducedMotion ? 0.17 : SPLASH_TIMING.exitMs / 1000,
-            ease: [0.16, 1, 0.3, 1],
-          }}
-          onPointerUp={requestSkip}
+          transition={{ duration: reducedMotion ? 0.17 : SPLASH_TIMING.exitMs / 1000, ease: [0.16, 1, 0.3, 1] }}
         >
-          <motion.div
-            className="kr-splash__ambient kr-splash__ambient--one"
-            aria-hidden="true"
-            animate={{ opacity: leaving ? 0.27 : 0.2 }}
-            transition={{ duration: reducedMotion ? 0 : 0.42 }}
-          />
-          <motion.div
-            className="kr-splash__ambient kr-splash__ambient--two"
-            aria-hidden="true"
-            animate={{ opacity: leaving ? 0.22 : 0.16 }}
-            transition={{ duration: reducedMotion ? 0 : 0.42 }}
-          />
-          <div className="kr-splash__grain" aria-hidden="true" />
+          <img className="kr-entry__backdrop" src="/brand/knoux-entry-cinematic.png" alt="" aria-hidden="true" draggable={false} />
 
-          <motion.main
-            className="kr-splash__scene"
-            dir={lang === 'ar' ? 'rtl' : 'ltr'}
-            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.99 }}
-            animate={
-              leaving
-                ? reducedMotion
-                  ? { opacity: 0 }
-                  : { opacity: 0, scale: 1.015, filter: 'blur(10px)' }
-                : { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }
-            }
-            transition={{
-              duration: reducedMotion ? 0.18 : leaving ? 0.52 : 0.72,
-              ease: [0.16, 1, 0.3, 1],
-            }}
+          <motion.div
+            className="kr-entry__frame"
+            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.99 }}
+            animate={leaving && !reducedMotion
+              ? { opacity: 0, scale: 1.025 }
+              : { opacity: 1, scale: 1 }}
+            transition={{ duration: reducedMotion ? 0.16 : leaving ? 0.62 : 0.72, ease: [0.16, 1, 0.3, 1] }}
           >
-            <motion.div
-              className="kr-splash__emblem"
-              initial={
-                reducedMotion
-                  ? { opacity: 0 }
-                  : { opacity: 0, scale: 0.94, y: 8, filter: 'blur(8px)' }
-              }
-              animate={{ opacity: 1, scale: leaving && !reducedMotion ? 1.015 : 1, y: 0, filter: 'blur(0px)' }}
-              transition={{ duration: reducedMotion ? 0.16 : 0.78, ease: [0.16, 1, 0.3, 1] }}
-            >
+            {imageState !== 'error' ? (
               <img
-                className="kr-splash__logo"
-                src="/brand/knoux-repair-logo-round.png"
-                alt="KNOUX Repair"
+                className="kr-entry__art"
+                src="/brand/knoux-entry-cinematic.png"
+                alt="KNOUX Repair — Precision Windows Engineering Workstation"
                 draggable={false}
+                fetchPriority="high"
+                onLoad={() => setImageState('ready')}
+                onError={() => setImageState('error')}
               />
-              {!reducedMotion && (
-                <motion.span
-                  className="kr-splash__reflection"
-                  aria-hidden="true"
-                  initial={{ x: '-12%' }}
-                  animate={{ x: '590%' }}
-                  transition={{ delay: 0.62, duration: 0.82, ease: [0.16, 1, 0.3, 1] }}
-                />
-              )}
-            </motion.div>
+            ) : (
+              <div className="kr-entry__fallback" role="img" aria-label="KNOUX Repair">
+                <div className="kr-entry__fallback-mark"><img src="/brand/knoux-mark-crystal.png" alt="" draggable={false} /></div>
+                <img className="kr-entry__fallback-wordmark" src="/brand/knoux-repair-wordmark-wide.png" alt="KNOUX Repair" draggable={false} />
+              </div>
+            )}
 
-            <motion.div
-              initial={{ opacity: 0, y: reducedMotion ? 0 : 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: reducedMotion ? 0 : 0.22, duration: reducedMotion ? 0.15 : 0.54, ease: [0.16, 1, 0.3, 1] }}
+            <div className="kr-entry__energy" aria-hidden="true"><i /><i /><i /></div>
+            <div className="kr-entry__particles" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
+
+            <div className="kr-entry__live-status" role="status" aria-live="polite" aria-atomic="true">
+              <span className={`kr-entry__state-dot${canEnter ? ' is-ready' : ''}`} />
+              <strong>{presentation.stageLabel}</strong>
+              <span className="kr-entry__divider" />
+              <span>{presentation.bridgeLabel}</span>
+              <span className="kr-entry__divider" />
+              <span>{presentation.toolsLabel}</span>
+            </div>
+
+            <button
+              ref={entryButtonRef}
+              type="button"
+              className="kr-entry__button"
+              onClick={requestEnter}
+              disabled={!canEnter || leaving}
+              aria-label={lang === 'ar' ? 'دخول محطة عمل KNOUX Repair' : 'Enter KNOUX Repair workstation'}
             >
-              <h1 className="kr-splash__brand" dir="ltr">
-                <span className="kr-splash__brand-main">KNOUX</span>
-                <span className="kr-splash__brand-accent">REPAIR</span>
-              </h1>
-              <p className="kr-splash__subtitle">{presentation.subtitle}</p>
-            </motion.div>
-
-            <motion.section
-              className="kr-splash__boot"
-              aria-label={lang === 'ar' ? 'حالة بدء التشغيل' : 'Boot status'}
-              initial={{ opacity: 0, y: reducedMotion ? 0 : 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: reducedMotion ? 0 : 0.46, duration: reducedMotion ? 0.15 : 0.5, ease: [0.16, 1, 0.3, 1] }}
-            >
-              <div className="kr-splash__status-row">
-                <div className="kr-splash__status" aria-live="polite" aria-atomic="true">
-                  <span className={`kr-splash__status-dot${readyVisual ? ' is-ready' : ''}`} aria-hidden="true" />
-                  <span>{presentation.stageLabel}</span>
-                </div>
-              </div>
-
-              <div
-                className="kr-splash__progress"
-                role="status"
-                aria-label={lang === 'ar' ? 'حالة تهيئة النظام' : 'System initialization status'}
-              >
-                <div className={`kr-splash__progress-fill${readyVisual ? ' is-ready' : ''}`} />
-              </div>
-
-              <div className="kr-splash__meta">
-                <span>{presentation.localBridge}</span>
-                <span
-                  className={`kr-splash__meta-bridge${bridgeOnline === true ? ' is-connected' : ''}`}
-                >
-                  {presentation.bridgeLabel}
-                </span>
-                <span className="kr-splash__meta-divider" aria-hidden="true" />
-                <span>{presentation.toolsLabel}</span>
-              </div>
-            </motion.section>
-          </motion.main>
-
-          <div className="kr-splash__footer">{presentation.footer}</div>
-        </motion.div>
+              <span>
+                <b>{canEnter ? presentation.action : presentation.instruction}</b>
+                <small>{canEnter ? presentation.instruction : presentation.stageLabel}</small>
+              </span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
+            </button>
+          </motion.div>
+        </motion.section>
       )}
     </AnimatePresence>
   );

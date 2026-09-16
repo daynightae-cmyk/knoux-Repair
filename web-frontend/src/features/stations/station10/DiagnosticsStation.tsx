@@ -55,9 +55,9 @@ const COPY = {
     smartFailures: 'SMART Failure Warnings',
     bootTime: 'Last Boot Duration',
     uptime: 'System Uptime',
-    quickFullReport: 'Full Report (DR10)',
-    quickHardware: 'Hardware Summary (DR02)',
-    quickEvents: 'Audit Events (DR03)',
+    quickFullReport: 'Full Report',
+    quickHardware: 'Hardware Summary',
+    quickEvents: 'Audit Events',
     signalsTitle: 'Diagnostic Findings & Observations',
     noSignals: 'All monitored hardware subsystems and event logs report nominal operation.',
     eventsTitle: 'Observed System & Application Errors',
@@ -96,9 +96,9 @@ const COPY = {
     smartFailures: 'تحذيرات فشل SMART',
     bootTime: 'مدة آخر إقلاع',
     uptime: 'مدة تشغيل الجهاز',
-    quickFullReport: 'تقرير كامل (DR10)',
-    quickHardware: 'ملخص العتاد (DR02)',
-    quickEvents: 'تدقيق الأحداث (DR03)',
+    quickFullReport: 'تقرير كامل',
+    quickHardware: 'ملخص العتاد',
+    quickEvents: 'تدقيق الأحداث',
     signalsTitle: 'الملاحظات والنتائج التشخيصية',
     noSignals: 'جميع المكونات والعتاد تعمل بشكل طبيعي وموثق دون أي إنذار.',
     eventsTitle: 'الأخطاء المرصودة في سجل ويندوز',
@@ -355,7 +355,7 @@ function DiagnosticsStationContent({
   }
 
   return (
-    <div className="flex flex-col w-full min-h-[680px] p-4 lg:p-6 text-slate-100 bg-slate-950/80 backdrop-blur-md rounded-2xl border border-slate-800/60 shadow-2xl">
+    <div className="diagnostic-evidence-station flex flex-col w-full min-h-[680px] p-4 lg:p-6 text-slate-100 bg-slate-950/80 backdrop-blur-md rounded-2xl border border-slate-800/60 shadow-2xl">
       {/* Header Bar */}
       <header className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-800/80">
         <div className="flex items-center gap-3">
@@ -601,11 +601,16 @@ function DiagnosticsStationContent({
                             onClick={() => launchAction(sig.suggestedTool)}
                             className="shrink-0 px-2.5 py-1 text-[11px] font-semibold rounded bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
                           >
-                            {sig.suggestedTool}
+                            {lang === 'ar' ? 'مراجعة الإجراء' : 'Review action'}
                           </button>
                         )}
                       </div>
                     ))}
+                  </div>
+                ) : summary.condition === 'INCONCLUSIVE' ? (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-slate-900/60 border border-slate-700 text-slate-300 text-xs">
+                    <AlertTriangle size={16} className="text-slate-400" />
+                    <span>{lang === 'ar' ? 'لم يتم تشغيل الفحص التشخيصي بعد.' : 'Diagnostic evidence has not been collected yet.'}</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-950/20 border border-emerald-800/40 text-emerald-300 text-xs">
@@ -631,7 +636,7 @@ function DiagnosticsStationContent({
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white"
               >
                 <RefreshCw size={13} />
-                <span>{lang === 'ar' ? 'فحص الأحداث (DR03)' : 'Audit Events (DR03)'}</span>
+                <span>{lang === 'ar' ? 'فحص الأحداث' : 'Audit Events'}</span>
               </button>
             </div>
 
@@ -683,7 +688,7 @@ function DiagnosticsStationContent({
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white"
               >
                 <Wrench size={13} />
-                <span>{lang === 'ar' ? 'تقرير التعريفات (DR05)' : 'Driver Report (DR05)'}</span>
+                <span>{lang === 'ar' ? 'تقرير التعريفات' : 'Driver Report'}</span>
               </button>
             </div>
 
@@ -761,14 +766,14 @@ function DiagnosticsStationContent({
                   onClick={() => launchAction('DR07')}
                   className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
                 >
-                  {lang === 'ar' ? 'فحص الذاكرة (DR07)' : 'Memory Diagnostics (DR07)'}
+                  {lang === 'ar' ? 'فحص الذاكرة' : 'Memory Diagnostics'}
                 </button>
                 <button
                   type="button"
                   onClick={() => launchAction('DR06')}
                   className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
                 >
-                  {lang === 'ar' ? 'أداء الإقلاع (DR06)' : 'Boot Performance (DR06)'}
+                  {lang === 'ar' ? 'أداء الإقلاع' : 'Boot Performance'}
                 </button>
               </div>
             </div>
@@ -830,7 +835,7 @@ function DiagnosticsStationContent({
                   onClick={() => launchAction('DR08')}
                   className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white"
                 >
-                  {lang === 'ar' ? 'تقرير تفصيلي لسلامة الأقراص (DR08)' : 'Disk SMART Report (DR08)'}
+                  {lang === 'ar' ? 'تقرير تفصيلي لسلامة الأقراص' : 'Disk SMART Report'}
                 </button>
               </div>
             </div>
@@ -852,7 +857,6 @@ function DiagnosticsStationContent({
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono font-bold text-indigo-400">{t.ToolId}</span>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300">
                           {t.RiskLevel}
                         </span>
@@ -908,14 +912,14 @@ function DiagnosticsStationContent({
                   onClick={() => launchAction('DR10')}
                   className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white"
                 >
-                  {lang === 'ar' ? 'توليد تقرير كامل (DR10)' : 'Generate Full Report (DR10)'}
+                  {lang === 'ar' ? 'توليد تقرير كامل' : 'Generate Full Report'}
                 </button>
                 <button
                   type="button"
                   onClick={() => launchAction('DR11')}
                   className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
                 >
-                  {lang === 'ar' ? 'معاينة تفاعلية (DR11)' : 'Interactive Preview (DR11)'}
+                  {lang === 'ar' ? 'معاينة تفاعلية' : 'Interactive Preview'}
                 </button>
               </div>
             </div>

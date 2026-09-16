@@ -2,8 +2,8 @@ import type { SecurityPostureStatus } from './securityModel';
 
 export interface SecurityHeroVisualProps {
   posture: SecurityPostureStatus;
-  defenderActive: boolean;
-  firewallActive: boolean;
+  defenderActive: boolean | null;
+  firewallActive: boolean | null;
   uacActive: boolean | null;
   className?: string;
 }
@@ -24,9 +24,9 @@ export default function SecurityHeroVisual({
       ? '#ef4444'
       : '#64748b';
 
-  const firewallRingColor = firewallActive ? '#2dd4bf' : '#f87171';
+  const firewallRingColor = firewallActive === true ? '#2dd4bf' : firewallActive === false ? '#f87171' : '#64748b';
   const uacRingColor = uacActive === false ? '#f87171' : uacActive === true ? '#06b6d4' : '#64748b';
-  const defenderCoreColor = defenderActive ? '#10b981' : '#f87171';
+  const defenderCoreColor = defenderActive === true ? '#10b981' : defenderActive === false ? '#f87171' : '#64748b';
 
   return (
     <div

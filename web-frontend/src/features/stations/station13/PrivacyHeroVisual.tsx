@@ -44,14 +44,14 @@ export default function PrivacyHeroVisual({
       glow: 'rgba(99, 102, 241, 0.35)',
       badge: '#6366f1',
       label: isRtl ? 'بانتظار التدقيق' : 'AUDIT PENDING',
-      subtitle: isRtl ? 'لم يتم استخراج سجلات الخصوصية بعد' : 'Awaiting Privacy Telemetry',
+      subtitle: isRtl ? 'لم يتم فحص إعدادات الخصوصية بعد' : 'Privacy settings have not been checked yet',
     },
   }[stance] || {
     color: '#6366f1',
     glow: 'rgba(99, 102, 241, 0.35)',
     badge: '#6366f1',
     label: 'PRIVACY AUDIT',
-    subtitle: 'System Inspection Ready',
+    subtitle: isRtl ? 'الدليل غير متاح' : 'Evidence unavailable',
   };
 
   return (

@@ -45,7 +45,7 @@ const COPY = {
     tabInventory: 'Driver Inventory',
     tabClasses: 'Device Classes',
     tabProblems: 'Device Problems',
-    tabExport: 'Driver Backup (DV03)',
+    tabExport: 'Driver Backup',
     tabActions: 'Driver Tools',
     tabReport: 'Diagnostics Report',
     tabHistory: 'History',
@@ -57,9 +57,9 @@ const COPY = {
     thirdPartyDrivers: 'Third-Party / OEM',
     deviceProblems: 'Hardware Problem Codes',
     olderDateSignals: 'Legacy Drivers (>5 yrs)',
-    quickInventory: 'Driver Inventory (DV01)',
-    quickSignatures: 'Signature Audit (DV02)',
-    quickExport: 'Export OEM Drivers (DV03)',
+    quickInventory: 'Driver Inventory',
+    quickSignatures: 'Signature Audit',
+    quickExport: 'Export OEM Drivers',
     signalsTitle: 'Driver Findings & Hardware Signals',
     noSignals: 'All hardware drivers are signed, verified, and operating without PnP problem codes.',
     reviewTitle: 'Drivers Requiring Engineering Review',
@@ -72,7 +72,7 @@ const COPY = {
     problemsTitle: 'Physical Device Problem Codes',
     problemsSubtitle: 'PnP devices currently in an error state in Windows Device Manager.',
     noProblems: 'Zero physical devices currently reporting Windows problem codes.',
-    exportTitle: 'Third-Party Driver Export & Backup (DV03)',
+    exportTitle: 'Third-Party Driver Export & Backup',
     exportSubtitle: 'Export all non-Microsoft driver packages from the Driver Store into a portable backup folder via pnputil.',
     exportBtn: 'Export OEM Drivers',
     exportNotice: 'Requires administrator privileges. Driver packages will be exported to the Knoux Backups directory.',
@@ -98,7 +98,7 @@ const COPY = {
     tabInventory: 'جرد التعريفات',
     tabClasses: 'فئات العتاد',
     tabProblems: 'مشاكل الأجهزة',
-    tabExport: 'تصدير التعريفات (DV03)',
+    tabExport: 'تصدير التعريفات',
     tabActions: 'أدوات التعريفات',
     tabReport: 'تقرير التشخيص',
     tabHistory: 'السجل',
@@ -110,9 +110,9 @@ const COPY = {
     thirdPartyDrivers: 'تعريفات الطرف الثالث / OEM',
     deviceProblems: 'أجهزة برموز خطأ',
     olderDateSignals: 'تعريفات قديمة (>5 سنوات)',
-    quickInventory: 'جرد التعريفات (DV01)',
-    quickSignatures: 'تدقيق التواقيع (DV02)',
-    quickExport: 'تصدير تعريفات OEM (DV03)',
+    quickInventory: 'جرد التعريفات',
+    quickSignatures: 'تدقيق التواقيع',
+    quickExport: 'تصدير تعريفات OEM',
     signalsTitle: 'ملاحظات التعريفات وإشارات العتاد',
     noSignals: 'كافة تعريفات الأجهزة موقعة رقمياً وتعمل بدون أي رموز أعطال في إدارة الأجهزة.',
     reviewTitle: 'التعريفات التي تحتاج تدقيقاً هندسياً',
@@ -125,7 +125,7 @@ const COPY = {
     problemsTitle: 'رموز أعطال الأجهزة الفعلية',
     problemsSubtitle: 'أجهزة PnP التي تسجل حالة خطأ حالياً في إدارة أجهزة ويندوز.',
     noProblems: 'لا توجد أجهزة تسجل أي رموز أعطال في إدارة الأجهزة حالياً.',
-    exportTitle: 'تصدير وحفظ تعريفات الطرف الثالث (DV03)',
+    exportTitle: 'تصدير وحفظ تعريفات الطرف الثالث',
     exportSubtitle: 'تصدير كافة حزم التعريفات غير التابعة لمايكروسوفت من Driver Store إلى مجلد نسخ احتياطي عبر pnputil.',
     exportBtn: 'تصدير تعريفات OEM',
     exportNotice: 'يتطلب صلاحية المسؤول. سيتم تصدير حزم التعريفات إلى مجلد Backups الخاص بنظام Knoux.',
@@ -395,7 +395,7 @@ function DriversStationContent({
   }
 
   return (
-    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="driver-matrix-station" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Top Banner & Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
         <div>
@@ -631,9 +631,9 @@ function DriversStationContent({
               {t.signalsTitle}
             </h3>
             {signals.length === 0 ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#10b981', fontSize: 13 }}>
-                <CheckCircle2 size={16} />
-                <span>{t.noSignals}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: summary.condition === 'INCONCLUSIVE' ? '#94a3b8' : '#10b981', fontSize: 13 }}>
+                {summary.condition === 'INCONCLUSIVE' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
+                <span>{summary.condition === 'INCONCLUSIVE' ? (lang === 'ar' ? 'لم يتم جرد التعريفات بعد.' : 'Driver inventory has not been collected yet.') : t.noSignals}</span>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -994,7 +994,6 @@ function DriversStationContent({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: '#10b981' }}>{tool.ToolId}</span>
                     <h4 style={{ margin: '2px 0 0 0', fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>
                       {pickName(tool, lang)}
                     </h4>

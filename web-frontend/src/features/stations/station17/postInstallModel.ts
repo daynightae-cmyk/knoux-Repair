@@ -74,7 +74,7 @@ export function summarizeProvisioning(preview: PostInstallPreview | null): Provi
       wingetAvailable: false,
       wingetVersion: null,
       wingetSourcesCount: 0,
-      updateServicesHealthy: true,
+      updateServicesHealthy: false,
       readiness: 'inconclusive',
     };
   }
