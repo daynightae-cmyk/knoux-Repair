@@ -317,6 +317,83 @@ function findPowerShell() {
 
 const PS = findPowerShell();
 
+/* ---------------- async PowerShell runner (non-blocking) ----------------
+ * spawnSync blocks the Node event loop, preventing /api/health and
+ * /api/categories probes from completing while a preview runs. The 18-
+ * service matrix sequentially loads every service route; a blocked loop
+ * produces ECONNRESET / 503 and exhausts the gateway's recovery budget.
+ * All preview handlers therefore use this async runner instead of spawnSync.
+ */
+function runPsAsync(scriptArgs, timeoutMs = 120000, maxBufferBytes = 3 * 1024 * 1024) {
+  return new Promise((resolve) => {
+    const child = spawn(PS, scriptArgs, { cwd: REPO_ROOT, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    let stdoutBytes = 0;
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      killProcessTree(child);
+      resolve({ stdout, stderr, status: null, error: new Error('PowerShell preview timed out after ' + timeoutMs + 'ms'), timedOut: true });
+    }, timeoutMs);
+    if (child.stdout) {
+      child.stdout.setEncoding('utf8');
+      child.stdout.on('data', (chunk) => {
+        stdout += chunk;
+        stdoutBytes += Buffer.byteLength(chunk, 'utf8');
+        if (stdoutBytes > maxBufferBytes && !settled) {
+          settled = true;
+          clearTimeout(timer);
+          killProcessTree(child);
+          resolve({ stdout, stderr, status: null, error: new Error('PowerShell preview exceeded max buffer'), timedOut: false });
+        }
+      });
+    }
+    if (child.stderr) {
+      child.stderr.setEncoding('utf8');
+      child.stderr.on('data', (chunk) => { stderr += chunk; });
+    }
+    child.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ stdout, stderr, status: null, error: err, timedOut: false });
+    });
+    child.on('close', (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ stdout, stderr, status: code, error: null, timedOut: false });
+    });
+  });
+}
+
+async function runPreviewScriptAsync(toolId, marker, label, extraArgs = []) {
+  const tool = manifest.get(toolId);
+  const scriptPath = tool ? path.resolve(REPO_ROOT, tool.ScriptPath) : '';
+  const code = toolId + '_PREVIEW_UNAVAILABLE';
+  if (!tool || !scriptPath.startsWith(REPO_ROOT + path.sep) || menuIndex.get(toolId) !== tool.ScriptPath || !fs.existsSync(scriptPath)) {
+    throw Object.assign(new Error(label + ' preview is not registered or unavailable.'), { status: 500, code });
+  }
+  const args = ['-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-AnalyzeOnly', '-EmitJson', ...extraArgs];
+  const result = await runPsAsync(args, 120000, 3 * 1024 * 1024);
+  const output = String(result.stdout || '');
+  const startToken = '---KNOUX_' + marker + '_JSON_START---';
+  const endToken = '---KNOUX_' + marker + '_JSON_END---';
+  const start = output.indexOf(startToken);
+  const end = output.indexOf(endToken);
+  if (result.error) throw Object.assign(new Error(label + ' preview failed to start: ' + result.error.message), { status: 500, code: toolId + '_PREVIEW_FAILED' });
+  if (result.timedOut || result.status !== 0 || start < 0 || end < 0 || end <= start) {
+    const detail = String(result.stderr || '').trim() || output.slice(-1200).trim() || (label + ' preview did not return valid evidence.');
+    throw Object.assign(new Error(detail), { status: 500, code: toolId + '_PREVIEW_FAILED' });
+  }
+  try { return JSON.parse(output.slice(start + startToken.length, end).trim()); } catch {
+    throw Object.assign(new Error(label + ' preview returned malformed structured output.'), { status: 500, code: toolId + '_PREVIEW_INVALID' });
+  }
+}
+
+
 let _elevated = null;
 function isElevated() {
   if (_elevated !== null) return _elevated;
@@ -699,6 +776,7 @@ function publicRun(run) {
 /* ---------------- /api/system (real read-only snapshot) ---------------- */
 
 let systemCache = { at: 0, data: null };
+let systemCachePending = null;
 
 const SYSTEM_PS = `
 $ErrorActionPreference = 'SilentlyContinue'
@@ -728,19 +806,25 @@ $p = Get-Process | Where-Object { $_.ProcessName } | Measure-Object | Select-Obj
 } | ConvertTo-Json -Depth 4 -Compress
 `.trim();
 
-function getSystemSnapshot() {
+async function getSystemSnapshot() {
   const now = Date.now();
   if (systemCache.data && now - systemCache.at < SYSTEM_CACHE_MS) return systemCache.data;
-  const res = spawnSync(PS, [
-    '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', SYSTEM_PS,
-  ], { encoding: 'utf8', timeout: 45000, windowsHide: true, cwd: REPO_ROOT });
-  const text = String(res.stdout || '').trim();
-  const lastJson = text.split('\n').filter((l) => l.trim().startsWith('{')).pop() || '{}';
-  let parsed = {};
-  try { parsed = JSON.parse(lastJson); } catch { /* fall through */ }
-  if (!parsed || typeof parsed !== 'object') parsed = {};
-  systemCache = { at: now, data: parsed };
-  return parsed;
+  if (systemCachePending) return systemCachePending;
+  systemCachePending = (async () => {
+    const result = await runPsAsync(['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', SYSTEM_PS], 45000, 512 * 1024);
+    const text = String(result.stdout || '').trim();
+    const lastJson = text.split('\n').filter((l) => l.trim().startsWith('{')).pop() || '{}';
+    let parsed = {};
+    try { parsed = JSON.parse(lastJson); } catch { /* fall through */ }
+    if (!parsed || typeof parsed !== 'object') parsed = {};
+    systemCache = { at: Date.now(), data: parsed };
+    return parsed;
+  })();
+  try {
+    return await systemCachePending;
+  } finally {
+    systemCachePending = null;
+  }
 }
 
 /* ---------------- local folder browser (read-only) ---------------- */
@@ -878,24 +962,21 @@ function browseFolders(value) {
   };
 }
 
-function getProjectSonarPreview(value) {
+async function getProjectSonarPreview(value) {
   const workspace = resolveBrowsePath(value);
   const tool = manifest.get('SN07');
   const scriptPath = tool ? path.resolve(REPO_ROOT, tool.ScriptPath) : '';
   if (!tool || !scriptPath.startsWith(REPO_ROOT + path.sep) || menuIndex.get('SN07') !== tool.ScriptPath || !fs.existsSync(scriptPath)) {
     throw Object.assign(new Error('Project Sonar preview is not registered or unavailable.'), { status: 500, code: 'SONAR_PREVIEW_UNAVAILABLE' });
   }
-  const result = spawnSync(PS, [
-    '-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-    '-File', scriptPath, '-AnalyzeOnly', '-EmitJson', '-LocalSourcePath', workspace,
-  ], { encoding: 'utf8', timeout: 120000, maxBuffer: 2 * 1024 * 1024, windowsHide: true, cwd: REPO_ROOT });
+  const result = await runPsAsync(['-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-AnalyzeOnly', '-EmitJson', '-LocalSourcePath', workspace], 120000, 2 * 1024 * 1024);
   const output = String(result.stdout || '');
   const start = output.indexOf('---KNOUX_SONAR_JSON_START---');
   const end = output.indexOf('---KNOUX_SONAR_JSON_END---');
   if (result.error) {
-    throw Object.assign(new Error(`Project Sonar preview failed to start: ${result.error.message}`), { status: 500, code: 'SONAR_PREVIEW_FAILED' });
+    throw Object.assign(new Error('Project Sonar preview failed to start: ' + result.error.message), { status: 500, code: 'SONAR_PREVIEW_FAILED' });
   }
-  if (result.status !== 0 || start < 0 || end < 0 || end <= start) {
+  if (result.timedOut || result.status !== 0 || start < 0 || end < 0 || end <= start) {
     const detail = String(result.stderr || '').trim() || output.slice(-1200).trim() || 'Project Sonar preview did not return valid evidence.';
     throw Object.assign(new Error(detail), { status: 500, code: 'SONAR_PREVIEW_FAILED' });
   }
@@ -905,15 +986,14 @@ function getProjectSonarPreview(value) {
   }
 }
 
-function getDuplicatePreview(value, typeQuery = '', keeperPolicy = 'OldestThenAlphabetical', excludeQuery = '') {
-
+async function getDuplicatePreview(value, typeQuery = '', keeperPolicy = 'OldestThenAlphabetical', excludeQuery = '') {
   const folder = resolveBrowsePath(value);
   const tool = manifest.get('DF11');
   const scriptPath = tool ? path.resolve(REPO_ROOT, tool.ScriptPath) : '';
   if (!tool || !scriptPath.startsWith(REPO_ROOT + path.sep) || menuIndex.get('DF11') !== tool.ScriptPath || !fs.existsSync(scriptPath)) {
     throw Object.assign(new Error('Duplicate preview is not registered or unavailable.'), { status: 500, code: 'DUPLICATE_PREVIEW_UNAVAILABLE' });
   }
-    const requestedTypes = String(typeQuery || 'all').split(',').map((value) => value.trim().toLowerCase()).filter((value) => ['all','images','video','documents','audio','archives','other'].includes(value));
+  const requestedTypes = String(typeQuery || 'all').split(',').map((value) => value.trim().toLowerCase()).filter((value) => ['all','images','video','documents','audio','archives','other'].includes(value));
   const safeTypes = requestedTypes.includes('all') || !requestedTypes.length ? ['all'] : [...new Set(requestedTypes)];
   const safePolicy = keeperPolicy === 'Newest' ? 'Newest' : 'OldestThenAlphabetical';
   const requestedExclusions = String(excludeQuery || '').split(',').map((value) => value.trim()).filter(Boolean);
@@ -921,21 +1001,17 @@ function getDuplicatePreview(value, typeQuery = '', keeperPolicy = 'OldestThenAl
     .filter((value) => value.length <= 160 && /^[A-Za-z0-9_ .-]+(?:[\\/][A-Za-z0-9_ .-]+)*$/.test(value))
     .slice(0, 32);
   const excludeArgs = safeExclusions.length ? ['-ExcludeSubfolders', ...safeExclusions] : [];
-  const result = spawnSync(PS, [
-    '-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-    '-File', scriptPath, '-AnalyzeOnly', '-EmitJson', '-LocalSourcePath', folder, '-FileTypes', ...safeTypes, '-KeeperPolicy', safePolicy, ...excludeArgs,
-  ], { encoding: 'utf8', timeout: 120000, maxBuffer: 3 * 1024 * 1024, windowsHide: true, cwd: REPO_ROOT });
-
+  const result = await runPsAsync(['-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-AnalyzeOnly', '-EmitJson', '-LocalSourcePath', folder, '-FileTypes', ...safeTypes, '-KeeperPolicy', safePolicy, ...excludeArgs], 120000, 3 * 1024 * 1024);
   const output = String(result.stdout || '');
   const start = output.indexOf('---KNOUX_DUPLICATES_JSON_START---');
   const end = output.indexOf('---KNOUX_DUPLICATES_JSON_END---');
-  if (result.error) throw Object.assign(new Error(`Duplicate preview failed to start: ${result.error.message}`), { status: 500, code: 'DUPLICATE_PREVIEW_FAILED' });
-  if (result.status !== 0 || start < 0 || end < 0 || end <= start) {
+  if (result.error) throw Object.assign(new Error('Duplicate preview failed to start: ' + result.error.message), { status: 500, code: 'DUPLICATE_PREVIEW_FAILED' });
+  if (result.timedOut || result.status !== 0 || start < 0 || end < 0 || end <= start) {
     const detail = String(result.stderr || '').trim() || output.slice(-1200).trim() || 'Duplicate preview did not return valid evidence.';
     throw Object.assign(new Error(detail), { status: 500, code: 'DUPLICATE_PREVIEW_FAILED' });
   }
   const jsonText = output.slice(start + '---KNOUX_DUPLICATES_JSON_START---'.length, end).trim();
-    try {
+  try {
     const preview = JSON.parse(jsonText);
     clearExpiredDuplicatePreviews();
     const previewId = crypto.randomUUID();
@@ -968,22 +1044,18 @@ function getDuplicateQuarantine() {
   return { QuarantineRoot: root, Entries: entries.slice(0, 500), Truncated: entries.length > 500 };
 }
 
-function getSoftwarePreview() {
-
+async function getSoftwarePreview() {
   const tool = manifest.get('SW07');
   const scriptPath = tool ? path.resolve(REPO_ROOT, tool.ScriptPath) : '';
   if (!tool || !scriptPath.startsWith(REPO_ROOT + path.sep) || menuIndex.get('SW07') !== tool.ScriptPath || !fs.existsSync(scriptPath)) {
     throw Object.assign(new Error('Software preview is not registered or unavailable.'), { status: 500, code: 'SOFTWARE_PREVIEW_UNAVAILABLE' });
   }
-  const result = spawnSync(PS, [
-    '-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-    '-File', scriptPath, '-AnalyzeOnly', '-EmitJson',
-  ], { encoding: 'utf8', timeout: 120000, maxBuffer: 3 * 1024 * 1024, windowsHide: true, cwd: REPO_ROOT });
+  const result = await runPsAsync(['-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-AnalyzeOnly', '-EmitJson'], 120000, 3 * 1024 * 1024);
   const output = String(result.stdout || '');
   const start = output.indexOf('---KNOUX_SOFTWARE_JSON_START---');
   const end = output.indexOf('---KNOUX_SOFTWARE_JSON_END---');
-  if (result.error) throw Object.assign(new Error(`Software preview failed to start: ${result.error.message}`), { status: 500, code: 'SOFTWARE_PREVIEW_FAILED' });
-  if (result.status !== 0 || start < 0 || end < 0 || end <= start) {
+  if (result.error) throw Object.assign(new Error('Software preview failed to start: ' + result.error.message), { status: 500, code: 'SOFTWARE_PREVIEW_FAILED' });
+  if (result.timedOut || result.status !== 0 || start < 0 || end < 0 || end <= start) {
     const detail = String(result.stderr || '').trim() || output.slice(-1200).trim() || 'Software preview did not return valid evidence.';
     throw Object.assign(new Error(detail), { status: 500, code: 'SOFTWARE_PREVIEW_FAILED' });
   }
@@ -993,16 +1065,16 @@ function getSoftwarePreview() {
   }
 }
 
-function getNetworkPreview() {
+async function getNetworkPreview() {
   const tool = manifest.get('NI11');
   const scriptPath = tool ? path.resolve(REPO_ROOT, tool.ScriptPath) : '';
   if (!tool || !scriptPath.startsWith(REPO_ROOT + path.sep) || menuIndex.get('NI11') !== tool.ScriptPath || !fs.existsSync(scriptPath)) {
     throw Object.assign(new Error('Network preview is not registered or unavailable.'), { status: 500, code: 'NETWORK_PREVIEW_UNAVAILABLE' });
   }
-  const result = spawnSync(PS, ['-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-AnalyzeOnly', '-EmitJson'], { encoding: 'utf8', timeout: 120000, maxBuffer: 2 * 1024 * 1024, windowsHide: true, cwd: REPO_ROOT });
+  const result = await runPsAsync(['-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-AnalyzeOnly', '-EmitJson'], 120000, 2 * 1024 * 1024);
   const output = String(result.stdout || ''); const start = output.indexOf('---KNOUX_NETWORK_JSON_START---'); const end = output.indexOf('---KNOUX_NETWORK_JSON_END---');
-  if (result.error) throw Object.assign(new Error(`Network preview failed to start: ${result.error.message}`), { status: 500, code: 'NETWORK_PREVIEW_FAILED' });
-  if (result.status !== 0 || start < 0 || end < 0 || end <= start) {
+  if (result.error) throw Object.assign(new Error('Network preview failed to start: ' + result.error.message), { status: 500, code: 'NETWORK_PREVIEW_FAILED' });
+  if (result.timedOut || result.status !== 0 || start < 0 || end < 0 || end <= start) {
     const detail = String(result.stderr || '').trim() || output.slice(-1200).trim() || 'Network preview did not return valid evidence.';
     throw Object.assign(new Error(detail), { status: 500, code: 'NETWORK_PREVIEW_FAILED' });
   }
@@ -1010,47 +1082,27 @@ function getNetworkPreview() {
   try { return JSON.parse(jsonText); } catch { throw Object.assign(new Error('Network preview returned malformed structured output.'), { status: 500, code: 'NETWORK_PREVIEW_INVALID' }); }
 }
 
-function getReadOnlyPreview(toolId, marker, label) {
-  const tool = manifest.get(toolId);
-  const scriptPath = tool ? path.resolve(REPO_ROOT, tool.ScriptPath) : '';
-  const code = `${toolId}_PREVIEW_UNAVAILABLE`;
-  if (!tool || !scriptPath.startsWith(REPO_ROOT + path.sep) || menuIndex.get(toolId) !== tool.ScriptPath || !fs.existsSync(scriptPath)) {
-    throw Object.assign(new Error(`${label} preview is not registered or unavailable.`), { status: 500, code });
-  }
-  const result = spawnSync(PS, ['-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-AnalyzeOnly', '-EmitJson'], {
-    encoding: 'utf8', timeout: 120000, maxBuffer: 3 * 1024 * 1024, windowsHide: true, cwd: REPO_ROOT,
-  });
-  const output = String(result.stdout || '');
-  const startToken = `---KNOUX_${marker}_JSON_START---`;
-  const endToken = `---KNOUX_${marker}_JSON_END---`;
-  const start = output.indexOf(startToken); const end = output.indexOf(endToken);
-  if (result.error) throw Object.assign(new Error(`${label} preview failed to start: ${result.error.message}`), { status: 500, code: `${toolId}_PREVIEW_FAILED` });
-  if (result.status !== 0 || start < 0 || end < 0 || end <= start) {
-    const detail = String(result.stderr || '').trim() || output.slice(-1200).trim() || `${label} preview did not return valid evidence.`;
-    throw Object.assign(new Error(detail), { status: 500, code: `${toolId}_PREVIEW_FAILED` });
-  }
-  try { return JSON.parse(output.slice(start + startToken.length, end).trim()); } catch {
-    throw Object.assign(new Error(`${label} preview returned malformed structured output.`), { status: 500, code: `${toolId}_PREVIEW_INVALID` });
-  }
+async function getReadOnlyPreview(toolId, marker, label) {
+  return runPreviewScriptAsync(toolId, marker, label);
 }
 
-function getOperationsPreview() { return getReadOnlyPreview('SP11', 'OPERATIONS', 'Operations'); }
-function getPerformancePreview() { return getReadOnlyPreview('PF11', 'PERFORMANCE', 'Performance'); }
-function getOptimizationPreview() { return getReadOnlyPreview('PF12', 'OPTIMIZATION', 'Performance optimization'); }
-function getDiagnosticsPreview() { return getReadOnlyPreview('DR11', 'DIAGNOSTICS', 'Diagnostics'); }
-function getBackupRecoveryPreview() { return getReadOnlyPreview('BR04', 'BACKUP_RECOVERY', 'Backup and recovery'); }
-function getDriversPreview() { return getReadOnlyPreview('DV04', 'DRIVERS', 'Driver'); }
-function getPrivacyPreview() { return getReadOnlyPreview('PR04', 'PRIVACY', 'Privacy'); }
-function getCleanupPreview() { return getReadOnlyPreview('SC11', 'CLEANUP', 'Cleanup'); }
-function getPostInstallPreview() { return getReadOnlyPreview('PI06', 'POST_INSTALL', 'Post-install'); }
-function getAdvancedSoftwarePreview() { return getReadOnlyPreview('SW08', 'SOFTWARE_ADVANCED', 'Software environment'); }
+async function getOperationsPreview() { return runPreviewScriptAsync('SP11', 'OPERATIONS', 'Operations'); }
+async function getPerformancePreview() { return runPreviewScriptAsync('PF11', 'PERFORMANCE', 'Performance'); }
+async function getOptimizationPreview() { return runPreviewScriptAsync('PF12', 'OPTIMIZATION', 'Performance optimization'); }
+async function getDiagnosticsPreview() { return runPreviewScriptAsync('DR11', 'DIAGNOSTICS', 'Diagnostics'); }
+async function getBackupRecoveryPreview() { return runPreviewScriptAsync('BR04', 'BACKUP_RECOVERY', 'Backup and recovery'); }
+async function getDriversPreview() { return runPreviewScriptAsync('DV04', 'DRIVERS', 'Driver'); }
+async function getPrivacyPreview() { return runPreviewScriptAsync('PR04', 'PRIVACY', 'Privacy'); }
+async function getCleanupPreview() { return runPreviewScriptAsync('SC11', 'CLEANUP', 'Cleanup'); }
+async function getPostInstallPreview() { return runPreviewScriptAsync('PI06', 'POST_INSTALL', 'Post-install'); }
+async function getAdvancedSoftwarePreview() { return runPreviewScriptAsync('SW08', 'SOFTWARE_ADVANCED', 'Software environment'); }
 
 async function getProjectSonarAiAnalysis(value, language) {
 
   if (!OPENROUTER_CONFIGURED) {
     throw Object.assign(new Error('OpenRouter is not configured on this local bridge.'), { status: 503, code: 'OPENROUTER_NOT_CONFIGURED' });
   }
-  const preview = getProjectSonarPreview(value);
+  const preview = await getProjectSonarPreview(value);
   const locale = language === 'ar' ? 'ar' : 'en';
   const sanitizedFacts = {
     languages: Array.isArray(preview.Snapshot?.Languages) ? preview.Snapshot.Languages.slice(0, 16) : [],
@@ -1272,8 +1324,8 @@ function getPdfBrowserPath() {
   return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || '';
 }
 
-function exportProjectSonarReport(value, format, language) {
-  const preview = getProjectSonarPreview(value);
+async function exportProjectSonarReport(value, format, language) {
+  const preview = await getProjectSonarPreview(value);
   const locale = language === 'ar' ? 'ar' : 'en';
   const requestedFormat = format === 'pdf' ? 'pdf' : format === 'markdown' ? 'markdown' : '';
   if (!requestedFormat) throw Object.assign(new Error('Unsupported export format.'), { status: 400, code: 'EXPORT_FORMAT_INVALID' });
@@ -1547,7 +1599,7 @@ const server = http.createServer(async (req, res) => {
     }
 
         if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'system') {
-      const snap = getSystemSnapshot();
+      const snap = await getSystemSnapshot();
       return sendJson(res, 200, { ok: true, system: snap }, corsHeaders);
     }
 
@@ -1560,56 +1612,56 @@ const server = http.createServer(async (req, res) => {
     }
 
         if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'network' && pathParts[2] === 'preview') {
-      return sendJson(res, 200, { ok: true, preview: getNetworkPreview() }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: await getNetworkPreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'operations' && pathParts[2] === 'preview') {
-      return sendJson(res, 200, { ok: true, preview: getOperationsPreview() }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: await getOperationsPreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'performance' && pathParts[2] === 'preview') {
-      return sendJson(res, 200, { ok: true, preview: getPerformancePreview() }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: await getPerformancePreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'performance' && pathParts[2] === 'optimization-preview') {
-      return sendJson(res, 200, { ok: true, preview: getOptimizationPreview() }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: await getOptimizationPreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'diagnostics' && pathParts[2] === 'preview') {
-      return sendJson(res, 200, { ok: true, preview: getDiagnosticsPreview() }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: await getDiagnosticsPreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'backup-recovery' && pathParts[2] === 'preview') {
-      return sendJson(res, 200, { ok: true, preview: getBackupRecoveryPreview() }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: await getBackupRecoveryPreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'drivers' && pathParts[2] === 'preview') {
-      return sendJson(res, 200, { ok: true, preview: getDriversPreview() }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: await getDriversPreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'privacy' && pathParts[2] === 'preview') {
-      return sendJson(res, 200, { ok: true, preview: getPrivacyPreview() }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: await getPrivacyPreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'cleanup' && pathParts[2] === 'preview') {
-      return sendJson(res, 200, { ok: true, preview: getCleanupPreview() }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: await getCleanupPreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'post-install' && pathParts[2] === 'preview') {
-      return sendJson(res, 200, { ok: true, preview: getPostInstallPreview() }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: await getPostInstallPreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'software-advanced' && pathParts[2] === 'preview') {
-      return sendJson(res, 200, { ok: true, preview: getAdvancedSoftwarePreview() }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: await getAdvancedSoftwarePreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'software' && pathParts[2] === 'preview') {
-      return sendJson(res, 200, { ok: true, preview: getSoftwarePreview() }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: await getSoftwarePreview() }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'preview') {
       const requestedPath = url.searchParams.get('path') || '';
-      return sendJson(res, 200, { ok: true, preview: getDuplicatePreview(requestedPath, url.searchParams.get('types') || '', url.searchParams.get('keeper') || 'OldestThenAlphabetical', url.searchParams.get('exclude') || '') }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: await getDuplicatePreview(requestedPath, url.searchParams.get('types') || '', url.searchParams.get('keeper') || 'OldestThenAlphabetical', url.searchParams.get('exclude') || '') }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'duplicates' && pathParts[2] === 'thumbnail') {
@@ -1832,7 +1884,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'sonar' && pathParts[2] === 'preview') {
 
-      return sendJson(res, 200, { ok: true, preview: getProjectSonarPreview(url.searchParams.get('path')) }, corsHeaders);
+      return sendJson(res, 200, { ok: true, preview: await getProjectSonarPreview(url.searchParams.get('path')) }, corsHeaders);
     }
 
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'sonar' && pathParts[2] === 'ai-status') {
@@ -1895,7 +1947,7 @@ const server = http.createServer(async (req, res) => {
       if (typeof body.path !== 'string' || !body.path.trim()) return sendError(res, 400, 'WORKSPACE_REQUIRED', 'A project workspace path is required.', corsHeaders);
       if (body.format !== 'pdf' && body.format !== 'markdown') return sendError(res, 400, 'EXPORT_FORMAT_INVALID', 'Format must be pdf or markdown.', corsHeaders);
       if (body.language !== 'ar' && body.language !== 'en') return sendError(res, 400, 'LANGUAGE_INVALID', 'Language must be ar or en.', corsHeaders);
-      const item = exportProjectSonarReport(body.path, body.format, body.language);
+      const item = await exportProjectSonarReport(body.path, body.format, body.language);
       return sendJson(res, 200, { ok: true, export: { ...item, downloadUrl: `/api/sonar/exports/${item.id}` } }, corsHeaders);
     }
 
