@@ -7,10 +7,11 @@ const sourcePath = path.resolve(scriptDir, 'capture-18-services-evidence.mjs');
 const tempPath = path.resolve(scriptDir, `.capture-18-services-evidence-ci-${process.pid}.mjs`);
 
 const original = fs.readFileSync(sourcePath, 'utf8');
+const source = original.replace(/\r\n/g, '\n');
 const anchor = "    const transportReset = /Failed to load resource:\\s*net::ERR_CONNECTION_(?:RESET|REFUSED)/i.test(message);";
 const originalBranch = "    if (unavailable503 || (allowTransportNoise && transportReset)) expected.push(message);";
 
-if (!original.includes(anchor) || !original.includes(originalBranch)) {
+if (!source.includes(anchor) || !source.includes(originalBranch)) {
   throw new Error('18-service capture classifier changed; refusing to apply the narrow CI-only HMR classification shim.');
 }
 
@@ -20,8 +21,8 @@ const hmrClassifier = `${anchor}
     const devHmrCspBlocked = /Connecting to 'ws:\\/\\/127\\.0\\.0\\.1:24678\\/\\?token=[^']+' violates the following Content Security Policy directive: "connect-src 'self' http:\\/\\/127\\.0\\.0\\.1:8787"\\. The action has been blocked\\./i.test(message);`;
 const patchedBranch = "    if (unavailable503 || devHmrCspBlocked || (allowTransportNoise && transportReset)) expected.push(message);";
 
-let patched = original.replace(anchor, hmrClassifier).replace(originalBranch, patchedBranch);
-if (patched === original || !patched.includes('devHmrCspBlocked')) {
+let patched = source.replace(anchor, hmrClassifier).replace(originalBranch, patchedBranch);
+if (patched === source || !patched.includes('devHmrCspBlocked')) {
   throw new Error('Failed to construct the strict CI evidence classifier.');
 }
 
