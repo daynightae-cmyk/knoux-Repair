@@ -18,7 +18,7 @@ if (!source.includes(anchor) || !source.includes(originalBranch)) {
 const hmrClassifier = `${anchor}
     // Windows evidence runs the Vite development client. The product CSP correctly
     // blocks its loopback HMR socket; classify only this exact diagnostic as harness noise.
-    const devHmrCspBlocked = /Connecting to 'ws:\\/\\/127\\.0\\.0\\.1:24678\\/\\?token=[^']+' violates the following Content Security Policy directive: "connect-src 'self' http:\\/\\/127\\.0\\.0\\.1:8787"\\. The action has been blocked\\./i.test(message);`;
+    const devHmrCspBlocked = /Connecting to 'ws:\/\/127\.0\.0\.1:24678\/\?token=[^']+' violates the following Content Security Policy directive: "connect-src 'self' http:\/\/127\.0\.0\.1:8787"\. The action has been blocked\./i.test(message);`;
 const patchedBranch = "    if (unavailable503 || devHmrCspBlocked || (allowTransportNoise && transportReset)) expected.push(message);";
 
 let patched = source.replace(anchor, hmrClassifier).replace(originalBranch, patchedBranch);
@@ -26,21 +26,32 @@ if (patched === source || !patched.includes('devHmrCspBlocked')) {
   throw new Error('Failed to construct the strict CI evidence classifier.');
 }
 
+const countOccurrences = (text, needle) => text.split(needle).length - 1;
 const hydrationFunctionAnchor = 'async function ensureInventory(page, target) {';
 const hydrationReloadBranch = `    if (probe.ok && probe.count === target.tools && probe.category === target.service) {
       reloadedRoute = true;
       await reloadRoute(page, target);
       continue;
     }`;
-const standardReadinessAnchor = 'if (probe.ok && probe.count === target.tools && snapshot.serviceToolCount === target.tools && !snapshot.retryAvailable) {';
-const standardReadinessReplacement = 'if (probe.ok && probe.count === target.tools && snapshot.serviceToolCount === target.tools && !snapshot.retryAvailable && (target.ownsActions || snapshot.drawerAvailable)) {';
 
-const readinessOccurrences = patched.split(standardReadinessAnchor).length - 1;
-if (!patched.includes(hydrationFunctionAnchor) || !patched.includes(hydrationReloadBranch) || readinessOccurrences < 2) {
+const primaryReadinessAnchor = 'if (probe.ok && probe.count === target.tools && snapshot.serviceToolCount === target.tools && !snapshot.retryAvailable) {';
+const primaryReadinessReplacement = 'if (probe.ok && probe.count === target.tools && snapshot.serviceToolCount === target.tools && !snapshot.retryAvailable && (target.ownsActions || snapshot.drawerAvailable)) {';
+
+const retryReadinessAnchor = 'if (probe.ok && probe.count === target.tools && probe.category === target.service && snapshot.serviceToolCount === target.tools && !snapshot.retryAvailable) {';
+const retryReadinessReplacement = 'if (probe.ok && probe.count === target.tools && probe.category === target.service && snapshot.serviceToolCount === target.tools && !snapshot.retryAvailable && (target.ownsActions || snapshot.drawerAvailable)) {';
+
+if (
+  !patched.includes(hydrationFunctionAnchor)
+  || !patched.includes(hydrationReloadBranch)
+  || countOccurrences(patched, primaryReadinessAnchor) !== 1
+  || countOccurrences(patched, retryReadinessAnchor) !== 1
+) {
   throw new Error('18-service inventory readiness flow changed; refusing to apply the bounded CI hydration/action-readiness shim.');
 }
 
-patched = patched.replaceAll(standardReadinessAnchor, standardReadinessReplacement);
+patched = patched
+  .replace(primaryReadinessAnchor, primaryReadinessReplacement)
+  .replace(retryReadinessAnchor, retryReadinessReplacement);
 
 const hydrationHelper = `async function waitForUiInventoryHydration(page, target, timeoutMs = 8_000) {
   await page.waitForFunction(
@@ -98,7 +109,8 @@ if (
   !patched.includes('waitForUiInventoryHydration')
   || !patched.includes('standardActionsReady')
   || !patched.includes('command drawer that proves bridgeOnline')
-  || patched.split(standardReadinessReplacement).length - 1 < 2
+  || countOccurrences(patched, primaryReadinessReplacement) !== 1
+  || countOccurrences(patched, retryReadinessReplacement) !== 1
 ) {
   throw new Error('Failed to construct the bounded CI inventory/action-readiness shim.');
 }
