@@ -32,14 +32,19 @@ const hydrationReloadBranch = `    if (probe.ok && probe.count === target.tools 
       await reloadRoute(page, target);
       continue;
     }`;
+const standardReadinessAnchor = 'if (probe.ok && probe.count === target.tools && snapshot.serviceToolCount === target.tools && !snapshot.retryAvailable) {';
+const standardReadinessReplacement = 'if (probe.ok && probe.count === target.tools && snapshot.serviceToolCount === target.tools && !snapshot.retryAvailable && (target.ownsActions || snapshot.drawerAvailable)) {';
 
-if (!patched.includes(hydrationFunctionAnchor) || !patched.includes(hydrationReloadBranch)) {
-  throw new Error('18-service inventory hydration flow changed; refusing to apply the bounded CI hydration shim.');
+const readinessOccurrences = patched.split(standardReadinessAnchor).length - 1;
+if (!patched.includes(hydrationFunctionAnchor) || !patched.includes(hydrationReloadBranch) || readinessOccurrences < 2) {
+  throw new Error('18-service inventory readiness flow changed; refusing to apply the bounded CI hydration/action-readiness shim.');
 }
+
+patched = patched.replaceAll(standardReadinessAnchor, standardReadinessReplacement);
 
 const hydrationHelper = `async function waitForUiInventoryHydration(page, target, timeoutMs = 8_000) {
   await page.waitForFunction(
-    ({ serviceId, selector, expectedCount }) => {
+    ({ serviceId, selector, expectedCount, ownsActions }) => {
       const familyRoot = document.querySelector('.knoux-family-page[data-service="' + serviceId + '"]');
       const surface = document.querySelector(selector);
       if (!familyRoot || !surface) return false;
@@ -54,13 +59,16 @@ const hydrationHelper = `async function waitForUiInventoryHydration(page, target
       const stageCount = Number(stage?.getAttribute('data-service-tool-count') || 0);
       const workbenchCount = Number(workbench?.getAttribute('data-service-tool-count') || 0);
       const railCount = Number.parseInt(railCountText.trim(), 10) || 0;
-      return (stageCount || workbenchCount || railCount) === expectedCount;
+      const inventoryReady = (stageCount || workbenchCount || railCount) === expectedCount;
+      const standardActionsReady = ownsActions || Boolean(document.querySelector('.knoux-command-tool-drawer'));
+      return inventoryReady && standardActionsReady;
     },
     { timeout: timeoutMs, polling: 100 },
     {
       serviceId: target.service,
       selector: target.surface || '.knoux-stage-service-app',
       expectedCount: target.tools,
+      ownsActions: Boolean(target.ownsActions),
     },
   ).catch(() => {});
 
@@ -69,9 +77,10 @@ const hydrationHelper = `async function waitForUiInventoryHydration(page, target
 
 const hydrationReplacement = `    if (probe.ok && probe.count === target.tools && probe.category === target.service) {
       // Backend inventory is authoritative and already correct. Give React a bounded
-      // chance to hydrate the same route before reloading it and resetting UI state.
+      // chance to hydrate the same route and, for standard routes, expose the family
+      // command drawer that proves bridgeOnline has settled true before any reload.
       snapshot = await waitForUiInventoryHydration(page, target);
-      if (snapshot.serviceToolCount === target.tools && !snapshot.retryAvailable) {
+      if (snapshot.serviceToolCount === target.tools && !snapshot.retryAvailable && (target.ownsActions || snapshot.drawerAvailable)) {
         return { recoveredBridge, reloadedRoute, restartedGateway, authoritativeCount: probe.count };
       }
       if (snapshot.retryAvailable) continue;
@@ -85,8 +94,13 @@ patched = patched
   .replace(hydrationFunctionAnchor, `${hydrationHelper}\n\n${hydrationFunctionAnchor}`)
   .replace(hydrationReloadBranch, hydrationReplacement);
 
-if (!patched.includes('waitForUiInventoryHydration') || !patched.includes('Give React a bounded')) {
-  throw new Error('Failed to construct the bounded CI inventory hydration shim.');
+if (
+  !patched.includes('waitForUiInventoryHydration')
+  || !patched.includes('standardActionsReady')
+  || !patched.includes('command drawer that proves bridgeOnline')
+  || patched.split(standardReadinessReplacement).length - 1 < 2
+) {
+  throw new Error('Failed to construct the bounded CI inventory/action-readiness shim.');
 }
 
 fs.writeFileSync(tempPath, patched, 'utf8');
