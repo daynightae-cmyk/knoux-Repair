@@ -11,6 +11,7 @@ const readWeb = (relativePath) => fs.readFileSync(path.join(webRoot, relativePat
 
 const mainTsx = readWeb('src/main.tsx');
 const css = readWeb('src/vitality-workspace.css');
+const serviceApps = readWeb('src/components/ServiceApps.tsx');
 
 const services = [
   '01-System-Maintenance',
@@ -50,4 +51,16 @@ test('System Vitality keeps service navigation while the operational center expa
   assert.doesNotMatch(css, /\.knoux-command-service-rail\s*\{\s*display:\s*none/,
     'desktop service navigation must remain visible');
   assert.match(css, /\.knoux-command-live-column[\s\S]*width:\s*100%/);
+});
+
+test('System Vitality stations stay mounted while the generic shell refresh is loading', () => {
+  assert.match(
+    serviceApps,
+    /const vitalityOwnsLifecycle = activeSection === 'maintenance' \|\| activeSection === 'performance' \|\| activeSection === 'monitoring';/,
+  );
+  assert.match(
+    serviceApps,
+    /loading=\{loading && !vitalityOwnsLifecycle\}/,
+    'the outer Reading your device state must not replace the three station-owned workspaces',
+  );
 });
