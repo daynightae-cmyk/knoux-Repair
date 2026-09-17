@@ -51,6 +51,15 @@ test('Software Library preserves family navigation and gives stations full remai
   assert.match(css, /\.knoux-workspace-stage[\s\S]*width:\s*100%/);
 });
 
+test('Runtime Matrix and Post-Install keep KPI and quick-action content structured', () => {
+  assert.match(css, /:is\(\.software-station-root, \.post-install-station-root\) \.metrics-grid/);
+  assert.match(css, /display:\s*grid\s*!important/);
+  assert.match(css, /grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /\.metric-card[\s\S]*display:\s*flex\s*!important/);
+  assert.match(css, /\.quick-actions-bar[\s\S]*display:\s*flex\s*!important/);
+  assert.match(css, /\.quick-action-pill[\s\S]*display:\s*inline-flex\s*!important/);
+});
+
 test('Post-Install keeps all station tabs visible without horizontal clipping', () => {
   assert.match(css, /post-install-station-root \.station-tabs-nav/);
   assert.match(css, /flex-wrap:\s*wrap\s*!important/);
