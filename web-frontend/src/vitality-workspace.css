@@ -48,12 +48,49 @@
   min-width: 0;
 }
 
+/* Monitoring exposes eight station-owned tabs. The station lives beside the
+   persistent service rail, so viewport width is not the same thing as usable
+   station width. Keep every tab inside the real workspace instead of relying
+   on horizontal scrolling that can hide Diagnostics Report and History. */
+.knoux-command-center[data-family='vitality'][data-service='15-System-Monitoring']
+  .monitoring-observatory-station > div[style*='border-bottom: 1px solid'] {
+  display: grid !important;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 4px !important;
+  overflow-x: visible !important;
+}
+
+.knoux-command-center[data-family='vitality'][data-service='15-System-Monitoring']
+  .monitoring-observatory-station > div[style*='border-bottom: 1px solid'] > button {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  justify-content: center;
+  gap: 4px !important;
+  padding: 7px 5px !important;
+  text-align: center;
+  white-space: normal !important;
+  line-height: 1.15;
+}
+
+.knoux-command-center[data-family='vitality'][data-service='15-System-Monitoring']
+  .monitoring-observatory-station > div[style*='border-bottom: 1px solid'] > button > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 1180px) {
   .knoux-command-center[data-family='vitality'][data-service='01-System-Maintenance'],
   .knoux-command-center[data-family='vitality'][data-service='08-Performance'],
   .knoux-command-center[data-family='vitality'][data-service='15-System-Monitoring'] {
     --command-rail-width: 168px;
     gap: 9px !important;
+  }
+
+  .knoux-command-center[data-family='vitality'][data-service='15-System-Monitoring']
+    .monitoring-observatory-station > div[style*='border-bottom: 1px solid'] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
