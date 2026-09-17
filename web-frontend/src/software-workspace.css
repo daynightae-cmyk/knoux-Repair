@@ -1,0 +1,95 @@
+/* ==========================================================================
+   KNOUX Repair — Software Library operational workspace
+   Group 04: Programs & Applications / Software Environment / Post-Install Setup
+
+   Each selected station already owns its operational controls and evidence.
+   Keep the family service rail for navigation, remove duplicate outer chrome,
+   and give the station the remaining desktop width.
+   ========================================================================== */
+
+.knoux-command-center[data-family='software'][data-service='04-Programs-Applications'],
+.knoux-command-center[data-family='software'][data-service='16-Software-Environment'],
+.knoux-command-center[data-family='software'][data-service='17-PostInstall-Setup'] {
+  --command-rail-width: clamp(178px, 14vw, 214px);
+  grid-template-columns: var(--command-rail-width) minmax(0, 1fr) !important;
+  gap: 9px !important;
+}
+
+.knoux-command-center[data-family='software'][data-service='04-Programs-Applications'] > .knoux-command-tool-rail,
+.knoux-command-center[data-family='software'][data-service='16-Software-Environment'] > .knoux-command-tool-rail,
+.knoux-command-center[data-family='software'][data-service='17-PostInstall-Setup'] > .knoux-command-tool-rail {
+  display: none !important;
+}
+
+/* Sentinel remains on the Software Library family landing. Once a concrete
+   software station is open, its own status/context UI owns the workspace. */
+.knoux-body[data-view='software']:has(.knoux-command-center[data-service='04-Programs-Applications']) > .knoux-sentinel,
+.knoux-body[data-view='software']:has(.knoux-command-center[data-service='16-Software-Environment']) > .knoux-sentinel,
+.knoux-body[data-view='software']:has(.knoux-command-center[data-service='17-PostInstall-Setup']) > .knoux-sentinel {
+  display: none !important;
+}
+
+.knoux-command-center[data-family='software'][data-service='04-Programs-Applications'] > .knoux-command-live-column,
+.knoux-command-center[data-family='software'][data-service='16-Software-Environment'] > .knoux-command-live-column,
+.knoux-command-center[data-family='software'][data-service='17-PostInstall-Setup'] > .knoux-command-live-column,
+.knoux-command-center[data-family='software'][data-service='04-Programs-Applications'] .knoux-workspace-stage,
+.knoux-command-center[data-family='software'][data-service='16-Software-Environment'] .knoux-workspace-stage,
+.knoux-command-center[data-family='software'][data-service='17-PostInstall-Setup'] .knoux-workspace-stage {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+/* Post-Install exposes seven real tabs. Do not push the final controls beyond
+   the viewport edge. Wrap them into a compact command strip like the already
+   proven Application Studio and Runtime Matrix navigation. */
+.knoux-command-center[data-family='software'][data-service='17-PostInstall-Setup']
+  .post-install-station-root .station-tabs-nav {
+  display: flex;
+  flex-wrap: wrap !important;
+  align-items: center;
+  align-content: center;
+  gap: 5px !important;
+  min-height: 42px;
+  height: auto !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+}
+
+.knoux-command-center[data-family='software'][data-service='17-PostInstall-Setup']
+  .post-install-station-root .station-tabs-nav .tab-btn {
+  flex: 0 1 auto !important;
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 8px !important;
+  gap: 5px !important;
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .knoux-command-center[data-family='software'][data-service='04-Programs-Applications'],
+  .knoux-command-center[data-family='software'][data-service='16-Software-Environment'],
+  .knoux-command-center[data-family='software'][data-service='17-PostInstall-Setup'] {
+    --command-rail-width: 168px;
+  }
+
+  .knoux-command-center[data-family='software'][data-service='17-PostInstall-Setup']
+    .post-install-station-root .station-tabs-nav .tab-btn {
+    padding-inline: 6px !important;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 900px) {
+  .knoux-command-center[data-family='software'][data-service='04-Programs-Applications'],
+  .knoux-command-center[data-family='software'][data-service='16-Software-Environment'],
+  .knoux-command-center[data-family='software'][data-service='17-PostInstall-Setup'] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .knoux-command-center[data-family='software'][data-service='04-Programs-Applications'] > .knoux-command-service-rail,
+  .knoux-command-center[data-family='software'][data-service='16-Software-Environment'] > .knoux-command-service-rail,
+  .knoux-command-center[data-family='software'][data-service='17-PostInstall-Setup'] > .knoux-command-service-rail {
+    max-height: none;
+  }
+}
