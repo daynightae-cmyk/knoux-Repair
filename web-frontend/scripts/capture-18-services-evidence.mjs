@@ -17,9 +17,9 @@ const EDGE_CANDIDATES = [
 ].filter(Boolean);
 
 const ROUTES = [
-  { family: 'vitality', service: '01-System-Maintenance', name: 'System Maintenance', tools: 10 },
-  { family: 'vitality', service: '08-Performance', name: 'Performance', tools: 12 },
-  { family: 'vitality', service: '15-System-Monitoring', name: 'System Monitoring', tools: 4 },
+  { family: 'vitality', service: '01-System-Maintenance', name: 'System Maintenance', tools: 10, ownsActions: true },
+  { family: 'vitality', service: '08-Performance', name: 'Performance', tools: 12, ownsActions: true },
+  { family: 'vitality', service: '15-System-Monitoring', name: 'System Monitoring', tools: 4, ownsActions: true },
   { family: 'recovery', service: '02-System-Cleanup', name: 'System Cleanup', tools: 11 },
   { family: 'recovery', service: '05-Duplicate-Files', name: 'Duplicate Files', tools: 11, surface: '.duplicate-studio-root', ownsActions: true },
   { family: 'recovery', service: '06-Disk-Space', name: 'Disk Space', tools: 10 },
