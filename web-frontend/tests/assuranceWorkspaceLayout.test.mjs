@@ -58,6 +58,13 @@ test('Assurance keeps family navigation and gives the operational station the re
   assert.match(css, /\.knoux-workspace-stage[\s\S]*width:\s*100%/);
 });
 
+test('Driver Management keeps all nine tabs visible without horizontal clipping', () => {
+  assert.match(css, /driver-matrix-station\s*>\s*div\[style\*='overflow-x: auto'\]/);
+  assert.match(css, /grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(118px,\s*1fr\)\)/);
+  assert.match(css, /overflow-x:\s*visible\s*!important/);
+  assert.match(css, /justify-content:\s*center/);
+});
+
 test('Network, Security, Privacy and Drivers stay mounted while generic preview refreshes run', () => {
   assert.match(serviceApps, /const stationOwnsLifecycle =/);
   for (const section of ['network', 'security', 'privacy', 'drivers']) {
