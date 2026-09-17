@@ -1,11 +1,6 @@
-/* ========================================================================== 
-   KNOUX Repair — System Vitality visual polish
-   Mission 01: System Maintenance / Performance / System Monitoring
-   Visual-only authority. Canonical stations remain runtime truth owners.
-   ========================================================================== */
+/* KNOUX Repair — System Vitality visual polish. Runtime truth stays canonical. */
 
 :root {
-  --vitality-panel: rgba(3, 13, 31, .92);
   --vitality-text: #eef7ff;
   --vitality-muted: #8fa5c0;
 }
@@ -108,7 +103,6 @@
   border: 1px solid rgba(var(--vitality-accent-rgb), .12);
   border-radius: 9px;
   background: linear-gradient(180deg, rgba(7, 28, 54, .78), rgba(2, 12, 30, .78));
-  box-shadow: inset 0 1px rgba(255, 255, 255, .025);
 }
 
 .knoux-command-center[data-service='01-System-Maintenance'] .care-workspace {
@@ -135,14 +129,7 @@
 
 .knoux-command-center[data-service='01-System-Maintenance'] .care-context-panel {
   padding: 16px;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(var(--vitality-accent-rgb), .05), transparent 30%),
-    rgba(2, 10, 27, .62);
-}
-
-.knoux-command-center[data-service='01-System-Maintenance'] .care-section-head {
-  padding: 3px 2px 14px;
-  margin-bottom: 12px;
+  background: radial-gradient(circle at 100% 0%, rgba(var(--vitality-accent-rgb), .05), transparent 30%), rgba(2, 10, 27, .62);
 }
 
 .knoux-command-center[data-service='01-System-Maintenance'] .care-groups {
@@ -150,12 +137,9 @@
 }
 
 .knoux-command-center[data-service='01-System-Maintenance'] .care-group {
-  position: relative;
   border: 1px solid rgba(var(--vitality-accent-rgb), .13);
   border-radius: 11px;
-  background:
-    radial-gradient(circle at 10% 0%, rgba(var(--vitality-accent-rgb), .075), transparent 34%),
-    linear-gradient(145deg, rgba(7, 26, 51, .78), rgba(3, 12, 29, .9));
+  background: radial-gradient(circle at 10% 0%, rgba(var(--vitality-accent-rgb), .075), transparent 34%), linear-gradient(145deg, rgba(7, 26, 51, .78), rgba(3, 12, 29, .9));
   box-shadow: inset 0 0 20px rgba(var(--vitality-accent-rgb), .022);
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
@@ -164,10 +148,6 @@
 .knoux-command-center[data-service='01-System-Maintenance'] .care-group[data-selected='true'] {
   border-color: rgba(var(--vitality-accent-rgb), .34);
   box-shadow: inset 0 0 22px rgba(var(--vitality-accent-rgb), .055), 0 0 18px rgba(var(--vitality-accent-rgb), .055);
-}
-
-.knoux-command-center[data-service='01-System-Maintenance'] .care-group:hover {
-  transform: translateY(-1px);
 }
 
 .knoux-command-center[data-service='01-System-Maintenance'] .care-scan-summary > div,
@@ -198,15 +178,12 @@
   padding: 15px 17px !important;
   border: 1px solid rgba(var(--vitality-accent-rgb), .25) !important;
   border-radius: 12px;
-  background:
-    radial-gradient(circle at 10% 10%, rgba(var(--vitality-accent-rgb), .13), transparent 36%),
-    linear-gradient(105deg, rgba(45, 12, 37, .72), rgba(3, 15, 35, .96) 58%, rgba(10, 30, 56, .83));
+  background: radial-gradient(circle at 10% 10%, rgba(var(--vitality-accent-rgb), .13), transparent 36%), linear-gradient(105deg, rgba(45, 12, 37, .72), rgba(3, 15, 35, .96) 58%, rgba(10, 30, 56, .83));
   box-shadow: inset 0 0 28px rgba(var(--vitality-accent-rgb), .04), 0 10px 28px rgba(0, 0, 0, .18);
 }
 
 .knoux-command-center[data-service='08-Performance'] .performance-observatory-station > header h1 {
   font-size: clamp(22px, 2vw, 30px) !important;
-  letter-spacing: -.02em !important;
 }
 
 .knoux-command-center[data-service='08-Performance'] .performance-observatory-station > nav {
@@ -219,19 +196,14 @@
 
 .knoux-command-center[data-service='08-Performance'] .performance-observatory-station .glass-panel {
   border-color: rgba(var(--vitality-accent-rgb), .14) !important;
-  background:
-    radial-gradient(circle at 12% 0%, rgba(var(--vitality-accent-rgb), .06), transparent 34%),
-    linear-gradient(145deg, rgba(7, 24, 48, .78), rgba(2, 11, 27, .93)) !important;
+  background: radial-gradient(circle at 12% 0%, rgba(var(--vitality-accent-rgb), .06), transparent 34%), linear-gradient(145deg, rgba(7, 24, 48, .78), rgba(2, 11, 27, .93)) !important;
   box-shadow: inset 0 0 24px rgba(var(--vitality-accent-rgb), .025), 0 10px 28px rgba(0, 0, 0, .16);
 }
 
 .knoux-command-center[data-service='08-Performance'] .performance-observatory-station .glass-panel.relative.overflow-hidden {
   min-height: 272px;
   border-color: rgba(var(--vitality-accent-rgb), .28) !important;
-  background:
-    radial-gradient(circle at 75% 45%, rgba(103, 232, 249, .1), transparent 29%),
-    radial-gradient(circle at 22% 0%, rgba(var(--vitality-accent-rgb), .12), transparent 38%),
-    linear-gradient(120deg, rgba(35, 8, 33, .84), rgba(3, 15, 37, .96) 56%, rgba(4, 26, 50, .88)) !important;
+  background: radial-gradient(circle at 75% 45%, rgba(103, 232, 249, .1), transparent 29%), radial-gradient(circle at 22% 0%, rgba(var(--vitality-accent-rgb), .12), transparent 38%), linear-gradient(120deg, rgba(35, 8, 33, .84), rgba(3, 15, 37, .96) 56%, rgba(4, 26, 50, .88)) !important;
 }
 
 .knoux-command-center[data-service='08-Performance'] .performance-observatory-station .grid.grid-cols-3 > div {
@@ -246,10 +218,7 @@
   padding: 15px !important;
   border-color: rgba(var(--vitality-accent-rgb), .16) !important;
   border-radius: 12px !important;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(var(--vitality-accent-rgb), .07), transparent 32%),
-    linear-gradient(145deg, rgba(8, 27, 51, .82), rgba(2, 11, 27, .94)) !important;
-  box-shadow: inset 0 0 18px rgba(var(--vitality-accent-rgb), .02);
+  background: radial-gradient(circle at 100% 0%, rgba(var(--vitality-accent-rgb), .07), transparent 32%), linear-gradient(145deg, rgba(8, 27, 51, .82), rgba(2, 11, 27, .94)) !important;
 }
 
 .knoux-command-center[data-service='08-Performance'] .performance-observatory-station [class*='hover:border-rose-500']:has(button:disabled) {
@@ -275,9 +244,7 @@
   padding: 15px 17px !important;
   border: 1px solid rgba(var(--vitality-accent-rgb), .25);
   border-radius: 12px;
-  background:
-    radial-gradient(circle at 12% 0%, rgba(var(--vitality-accent-rgb), .13), transparent 35%),
-    linear-gradient(105deg, rgba(3, 40, 70, .78), rgba(2, 14, 34, .96) 58%, rgba(16, 17, 58, .72));
+  background: radial-gradient(circle at 12% 0%, rgba(var(--vitality-accent-rgb), .13), transparent 35%), linear-gradient(105deg, rgba(3, 40, 70, .78), rgba(2, 14, 34, .96) 58%, rgba(16, 17, 58, .72));
   box-shadow: inset 0 0 28px rgba(var(--vitality-accent-rgb), .04), 0 10px 28px rgba(0, 0, 0, .18);
 }
 
@@ -286,10 +253,7 @@
   padding: 18px !important;
   border: 1px solid rgba(var(--vitality-accent-rgb), .28) !important;
   border-radius: 14px !important;
-  background:
-    radial-gradient(circle at 50% 44%, rgba(var(--vitality-accent-rgb), .12), transparent 32%),
-    radial-gradient(circle at 80% 0%, rgba(139, 92, 255, .08), transparent 34%),
-    linear-gradient(145deg, rgba(4, 29, 54, .82), rgba(2, 10, 27, .96)) !important;
+  background: radial-gradient(circle at 50% 44%, rgba(var(--vitality-accent-rgb), .12), transparent 32%), radial-gradient(circle at 80% 0%, rgba(139, 92, 255, .08), transparent 34%), linear-gradient(145deg, rgba(4, 29, 54, .82), rgba(2, 10, 27, .96)) !important;
   box-shadow: inset 0 0 32px rgba(var(--vitality-accent-rgb), .035), 0 12px 30px rgba(0, 0, 0, .19) !important;
 }
 
@@ -298,10 +262,7 @@
   padding: 14px !important;
   border: 1px solid rgba(var(--vitality-accent-rgb), .13) !important;
   border-radius: 11px !important;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(var(--vitality-accent-rgb), .055), transparent 38%),
-    linear-gradient(145deg, rgba(8, 29, 53, .8), rgba(2, 12, 29, .94)) !important;
-  box-shadow: inset 0 0 18px rgba(var(--vitality-accent-rgb), .025);
+  background: radial-gradient(circle at 100% 0%, rgba(var(--vitality-accent-rgb), .055), transparent 38%), linear-gradient(145deg, rgba(8, 29, 53, .8), rgba(2, 12, 29, .94)) !important;
 }
 
 .knoux-command-center[data-service='15-System-Monitoring'] .monitoring-observatory-station > div[style*='border-bottom: 1px solid'] {
@@ -317,19 +278,15 @@
 .knoux-command-center[data-service='15-System-Monitoring'] .monitoring-observatory-station div[style*='repeat(auto-fit, minmax(280px, 1fr))'] > div {
   border-color: rgba(var(--vitality-accent-rgb), .14) !important;
   border-radius: 11px !important;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(var(--vitality-accent-rgb), .05), transparent 35%),
-    linear-gradient(145deg, rgba(8, 28, 52, .78), rgba(2, 11, 27, .94)) !important;
+  background: radial-gradient(circle at 100% 0%, rgba(var(--vitality-accent-rgb), .05), transparent 35%), linear-gradient(145deg, rgba(8, 28, 52, .78), rgba(2, 11, 27, .94)) !important;
   box-shadow: inset 0 0 18px rgba(var(--vitality-accent-rgb), .02);
 }
 
 .knoux-command-center[data-service='15-System-Monitoring'] .monitoring-observatory-station pre {
   border-color: rgba(var(--vitality-accent-rgb), .2) !important;
   background: rgba(1, 7, 19, .92) !important;
-  box-shadow: inset 0 0 20px rgba(var(--vitality-accent-rgb), .025);
 }
 
-/* Shared interaction and responsive finish */
 .knoux-command-center[data-family='vitality'] button:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--vitality-accent, #38bdf8) 76%, white);
   outline-offset: 2px;
@@ -349,27 +306,17 @@
   .knoux-command-center[data-service='15-System-Monitoring'] .monitoring-observatory-station {
     padding: 10px !important;
   }
-
-  .knoux-command-center[data-service='01-System-Maintenance'] .care-scan-stage {
-    min-height: 390px;
-  }
-
-  .knoux-command-center[data-service='08-Performance'] .performance-observatory-station .glass-panel.relative.overflow-hidden {
-    min-height: 240px;
-  }
+  .knoux-command-center[data-service='01-System-Maintenance'] .care-scan-stage { min-height: 390px; }
+  .knoux-command-center[data-service='08-Performance'] .performance-observatory-station .glass-panel.relative.overflow-hidden { min-height: 240px; }
 }
 
 @media (max-width: 900px) {
-  .knoux-command-center[data-service='01-System-Maintenance'] .care-workspace {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
+  .knoux-command-center[data-service='01-System-Maintenance'] .care-workspace { grid-template-columns: minmax(0, 1fr); }
   .knoux-command-center[data-service='01-System-Maintenance'] .care-scan-stage {
     min-height: 330px;
     border-inline-end: 0;
     border-bottom: 1px solid rgba(var(--vitality-accent-rgb), .12);
   }
-
   .knoux-command-center[data-service='08-Performance'] .performance-observatory-station > nav,
   .knoux-command-center[data-service='15-System-Monitoring'] .monitoring-observatory-station > div[style*='border-bottom: 1px solid'] {
     flex-wrap: wrap;
