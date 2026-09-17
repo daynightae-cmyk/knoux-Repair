@@ -165,8 +165,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
   };
   const spec = specs[activeSection] || { title: { en: 'KNOUX', ar: 'KNOUX' }, eyebrow: { en: 'SERVICE', ar: 'خدمة' }, icon: Sparkles, accent: '#48c8dd' };
   const content = useMemo(() => {
-    // Station 01/02/03 own their evidence lifecycle (no preview-loader gate):
-    // they render real states even before any scan, and their own offline states.
+    // Canonical stations own their evidence lifecycle and render honest states before a scan.
     if (activeSection === 'maintenance') {
       return (
         <MaintenanceStation
@@ -397,7 +396,12 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
     : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   const showSharedActionRail = !specialContent && !content;
-  const vitalityOwnsLifecycle = activeSection === 'maintenance' || activeSection === 'performance' || activeSection === 'monitoring';
+  const stationOwnsLifecycle = activeSection === 'maintenance'
+    || activeSection === 'performance'
+    || activeSection === 'monitoring'
+    || activeSection === 'cleanup'
+    || activeSection === 'disk'
+    || activeSection === 'backupRecovery';
   const confirmDialog = pending && <ExecutionConfirmDialog tool={pending.tool} mode={pending.mode} lang={lang} initialOptions={pending.options} onCancel={() => setPending(null)} onConfirm={(options, confirmation) => { onRunTool(pending.tool, pending.mode, options, confirmation); setPending(null); }} />;
 
   if (embedded) {
@@ -409,7 +413,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
     </>;
   }
   return <>
-    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} serviceId={activeSection} loading={loading && !vitalityOwnsLifecycle} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || activeSection === 'developerTools' || activeSection === 'privacy' || activeSection === 'drivers' || activeSection === 'monitoring' || activeSection === 'softwareEnvironment' || activeSection === 'postInstall' || activeSection === 'projectSonar' || Boolean(specialContent)} onRefresh={reload}>
+    <LiveShell lang={lang} title={spec.title[lang]} eyebrow={spec.eyebrow[lang]} icon={spec.icon} accent={spec.accent} serviceId={activeSection} loading={loading && !stationOwnsLifecycle} available={available || activeSection === 'maintenance' || activeSection === 'cleanup' || activeSection === 'network' || activeSection === 'programs' || activeSection === 'disk' || activeSection === 'services' || activeSection === 'performance' || activeSection === 'security' || activeSection === 'diagnostics' || activeSection === 'backupRecovery' || activeSection === 'developerTools' || activeSection === 'privacy' || activeSection === 'drivers' || activeSection === 'monitoring' || activeSection === 'softwareEnvironment' || activeSection === 'postInstall' || activeSection === 'projectSonar' || Boolean(specialContent)} onRefresh={reload}>
       {appContent || <GenericApp section={activeSection} lang={lang} />}
       <div className={`service-app-bottom ${showSharedActionRail ? '' : 'service-app-bottom--contextual'}`}>
         {showSharedActionRail && <ActionRail tools={tools} lang={lang} toolStatuses={toolStatuses} bridgeElevated={bridgeElevated} onLaunch={launch} onCancel={onCancelTool} />}
