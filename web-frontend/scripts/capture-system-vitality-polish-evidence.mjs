@@ -77,9 +77,12 @@ async function clickStationTab(page, rootSelector, tabIndex, label) {
       const rect = node.getBoundingClientRect();
       return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > .05 && rect.width > 2 && rect.height > 2;
     };
-    const nav = [...root.querySelectorAll('nav')].find(node => visible(node));
-    if (!(nav instanceof HTMLElement)) return { clicked: false, count: 0, text: '' };
-    const buttons = [...nav.querySelectorAll(':scope > button')].filter(visible);
+    const directButtons = node => [...node.children].filter(child => child instanceof HTMLButtonElement && visible(child));
+    const tabStrip = [...root.children]
+      .filter(node => node instanceof HTMLElement && visible(node))
+      .find(node => directButtons(node).length >= 8);
+    if (!(tabStrip instanceof HTMLElement)) return { clicked: false, count: 0, text: '' };
+    const buttons = directButtons(tabStrip);
     const button = buttons[tabIndex];
     if (!(button instanceof HTMLButtonElement)) {
       return { clicked: false, count: buttons.length, text: buttons.map(node => (node.textContent || '').trim()).join(' | ') };
@@ -89,7 +92,7 @@ async function clickStationTab(page, rootSelector, tabIndex, label) {
     return { clicked: true, count: buttons.length, text };
   }, { rootSelector, tabIndex });
   if (!result.clicked) {
-    throw new Error(`${label}: station nav tab ${tabIndex + 1} unavailable; tabs=${result.count}; labels=${result.text}`);
+    throw new Error(`${label}: station tab ${tabIndex + 1} unavailable; tabs=${result.count}; labels=${result.text}`);
   }
   console.log(`${label}: opened station tab ${tabIndex + 1} (${result.text || 'unlabelled'}).`);
 }
