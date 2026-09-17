@@ -67,22 +67,31 @@ async function ready(timeoutMs = 45_000) {
   throw new Error(`Vitality evidence gateway not ready: ${last}`);
 }
 
-async function clickButtonText(page, text) {
-  const clicked = await page.evaluate(label => {
+async function clickStationTab(page, rootSelector, tabIndex, label) {
+  const result = await page.evaluate(({ rootSelector, tabIndex }) => {
+    const root = document.querySelector(rootSelector);
+    if (!(root instanceof HTMLElement)) return { clicked: false, count: 0, text: '' };
     const visible = node => {
       if (!(node instanceof HTMLElement)) return false;
       const style = getComputedStyle(node);
       const rect = node.getBoundingClientRect();
       return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > .05 && rect.width > 2 && rect.height > 2;
     };
-    const button = [...document.querySelectorAll('button')].find(node =>
-      visible(node) && (node.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase() === label.toLowerCase()
-    );
-    if (!(button instanceof HTMLButtonElement)) return false;
+    const nav = [...root.querySelectorAll('nav')].find(node => visible(node));
+    if (!(nav instanceof HTMLElement)) return { clicked: false, count: 0, text: '' };
+    const buttons = [...nav.querySelectorAll(':scope > button')].filter(visible);
+    const button = buttons[tabIndex];
+    if (!(button instanceof HTMLButtonElement)) {
+      return { clicked: false, count: buttons.length, text: buttons.map(node => (node.textContent || '').trim()).join(' | ') };
+    }
+    const text = (button.textContent || '').replace(/\s+/g, ' ').trim();
     button.click();
-    return true;
-  }, text);
-  if (!clicked) throw new Error(`No visible button exactly matching ${text}`);
+    return { clicked: true, count: buttons.length, text };
+  }, { rootSelector, tabIndex });
+  if (!result.clicked) {
+    throw new Error(`${label}: station nav tab ${tabIndex + 1} unavailable; tabs=${result.count}; labels=${result.text}`);
+  }
+  console.log(`${label}: opened station tab ${tabIndex + 1} (${result.text || 'unlabelled'}).`);
 }
 
 async function assertVisible(page, selector, label) {
@@ -152,7 +161,7 @@ try {
   evidence.push({ service: '01-System-Maintenance', view: 'overview', cards: maintenanceCards, proof: maintenance });
 
   await openRoute(page, '08-Performance', '.performance-observatory-station');
-  await clickButtonText(page, 'Lab Actions');
+  await clickStationTab(page, '.performance-observatory-station', 5, 'Performance Lab Actions');
   await delay(150);
   const performance = await assertVisible(page, '.performance-observatory-station', 'Performance Lab Actions');
   const performanceCards = await page.$$eval(".performance-observatory-station [class*='hover:border-rose-500']", nodes => nodes.length);
@@ -161,12 +170,12 @@ try {
   evidence.push({ service: '08-Performance', view: 'actions', cards: performanceCards, proof: performance });
 
   await openRoute(page, '15-System-Monitoring', '.monitoring-observatory-station');
-  await clickButtonText(page, 'Actions');
+  await clickStationTab(page, '.monitoring-observatory-station', 5, 'System Monitoring Tools');
   await delay(150);
-  const monitoring = await assertVisible(page, '.monitoring-observatory-station', 'System Monitoring Actions');
+  const monitoring = await assertVisible(page, '.monitoring-observatory-station', 'System Monitoring Tools');
   const monitoringText = await page.$eval('.monitoring-observatory-station', node => (node.textContent || '').replace(/\s+/g, ' '));
   const monitoringCards = await page.$$eval(".monitoring-observatory-station div[style*='repeat(auto-fit, minmax(320px, 1fr))'] > div", nodes => nodes.length);
-  if (!/Category:\s*15-System-Monitoring/i.test(monitoringText)) throw new Error('System Monitoring: Actions inventory did not become visible');
+  if (!/Category:\s*15-System-Monitoring/i.test(monitoringText)) throw new Error('System Monitoring: tool inventory did not become visible');
   if (monitoringCards < 4) throw new Error(`System Monitoring: expected four action cards, found ${monitoringCards}`);
   await page.screenshot({ path: path.join(OUT, '03-monitoring-tool-cards-1366.png'), fullPage: false });
   evidence.push({ service: '15-System-Monitoring', view: 'actions', cards: monitoringCards, proof: monitoring });
