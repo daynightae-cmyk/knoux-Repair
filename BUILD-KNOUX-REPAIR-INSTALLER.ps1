@@ -51,7 +51,10 @@ if (Test-Path -LiteralPath $releaseDir) {
 New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 
 Write-Host '[1/3] Building frontend/server and packaging Electron + NSIS...' -ForegroundColor Cyan
-& $npm --prefix $webFrontend run desktop:package
+# electron-builder detects CI on push builds and otherwise attempts an implicit
+# GitHub publish. Packaging is intentionally build-only here; publishing is a
+# separate, explicit release action and must never depend on a PAT side effect.
+& $npm --prefix $webFrontend run desktop:package -- --publish never
 if ($LASTEXITCODE -ne 0) { throw "npm run desktop:package failed with exit code $LASTEXITCODE." }
 
 Write-Host '[2/3] Validating installer path, size and SHA256...' -ForegroundColor Cyan
