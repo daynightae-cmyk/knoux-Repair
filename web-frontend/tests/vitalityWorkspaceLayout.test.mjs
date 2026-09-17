@@ -54,13 +54,13 @@ test('System Vitality keeps service navigation while the operational center expa
 });
 
 test('System Vitality stations stay mounted while the generic shell refresh is loading', () => {
+  assert.match(serviceApps, /const stationOwnsLifecycle =/);
+  for (const section of ['maintenance', 'performance', 'monitoring']) {
+    assert.match(serviceApps, new RegExp(`activeSection === '${section}'`));
+  }
   assert.match(
     serviceApps,
-    /const vitalityOwnsLifecycle = activeSection === 'maintenance' \|\| activeSection === 'performance' \|\| activeSection === 'monitoring';/,
-  );
-  assert.match(
-    serviceApps,
-    /loading=\{loading && !vitalityOwnsLifecycle\}/,
-    'the outer Reading your device state must not replace the three station-owned workspaces',
+    /loading=\{loading && !stationOwnsLifecycle\}/,
+    'the outer Reading your device state must not replace the station-owned workspaces',
   );
 });
