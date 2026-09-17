@@ -12,6 +12,7 @@ const readWeb = (relativePath) => fs.readFileSync(path.join(webRoot, relativePat
 const mainTsx = readWeb('src/main.tsx');
 const css = readWeb('src/software-workspace.css');
 const capture = readWeb('scripts/capture-18-services-evidence.mjs');
+const serviceApps = readWeb('src/components/ServiceApps.tsx');
 
 const services = [
   '04-Programs-Applications',
@@ -49,6 +50,17 @@ test('Software Library preserves family navigation and gives stations full remai
   assert.doesNotMatch(css, /\.knoux-command-service-rail\s*\{\s*display:\s*none/);
   assert.match(css, /\.knoux-command-live-column[\s\S]*width:\s*100%/);
   assert.match(css, /\.knoux-workspace-stage[\s\S]*width:\s*100%/);
+});
+
+test('Software Library stations stay mounted while generic preview refreshes run', () => {
+  for (const section of ['programs', 'softwareEnvironment', 'postInstall']) {
+    assert.match(
+      serviceApps,
+      new RegExp(`\\|\\| activeSection === '${section}'`),
+      `${section} must own its station lifecycle`,
+    );
+  }
+  assert.match(serviceApps, /loading=\{loading && !stationOwnsLifecycle\}/);
 });
 
 test('Runtime Matrix and Post-Install keep KPI and quick-action content structured', () => {
