@@ -67,11 +67,41 @@ async function ready(timeoutMs = 45_000) {
   throw new Error(`Recovery evidence gateway not ready: ${last}`);
 }
 
+async function navigateEvidenceRoute(page, url, label) {
+  let lastError;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
+      return;
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      const isNavigationTimeout = error?.name === 'TimeoutError' || /Navigation timeout/i.test(message);
+      if (!isNavigationTimeout) throw error;
+
+      let committed = false;
+      let readyState = 'unavailable';
+      try {
+        const currentUrl = page.url();
+        if (currentUrl.startsWith(ORIGIN)) {
+          readyState = await page.evaluate(() => document.readyState);
+          committed = readyState === 'interactive' || readyState === 'complete' || Boolean(await page.$('body'));
+        }
+      } catch {}
+
+      console.warn(`[recovery-evidence] ${label}: navigation lifecycle timeout on attempt ${attempt}; committed=${committed}; readyState=${readyState}`);
+      if (committed) return;
+
+      try { await page.goto('about:blank', { waitUntil: 'load', timeout: 5_000 }); } catch {}
+      await delay(750);
+    }
+  }
+  throw lastError;
+}
+
 async function openRoute(page, service, selector) {
-  await page.goto(`${ORIGIN}/?view=recovery&nosplash=1&service=${encodeURIComponent(service)}`, {
-    waitUntil: 'domcontentloaded',
-    timeout: 45_000,
-  });
+  const url = `${ORIGIN}/?view=recovery&nosplash=1&service=${encodeURIComponent(service)}`;
+  await navigateEvidenceRoute(page, url, service);
   await page.waitForSelector(`.knoux-family-page[data-service="${service}"]`, { timeout: 20_000 });
   await page.waitForSelector(selector, { visible: true, timeout: 20_000 });
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
