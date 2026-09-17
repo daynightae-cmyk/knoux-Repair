@@ -39,6 +39,18 @@ test('all four Recovery services remove the duplicated outer ACTIONS rail', () =
   assert.match(css, /\.knoux-command-tool-rail[\s\S]*display:\s*none\s*!important/);
 });
 
+test('all four Recovery services suppress the global Sentinel only while the service workspace is open', () => {
+  for (const service of services) {
+    assert.match(
+      css,
+      new RegExp(`knoux-body\\[data-view='recovery'\\]:has\\(\\.knoux-command-center\\[data-service='${service}'\\]\\) > \\.knoux-sentinel`),
+      `${service} must suppress the duplicated global Sentinel while its station is open`,
+    );
+  }
+  assert.match(css, /\.knoux-sentinel[\s\S]*display:\s*none\s*!important/);
+  assert.doesNotMatch(css, /\.knoux-body\[data-view='recovery'\]\s*>\s*\.knoux-sentinel\s*\{/);
+});
+
 test('Recovery keeps family service navigation and gives the operational center the remaining width', () => {
   assert.match(css, /grid-template-columns:\s*var\(--command-rail-width\)\s+minmax\(0,\s*1fr\)/);
   assert.doesNotMatch(css, /\.knoux-command-service-rail\s*\{\s*display:\s*none/);
