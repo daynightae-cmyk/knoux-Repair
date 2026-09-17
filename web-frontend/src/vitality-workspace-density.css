@@ -1,0 +1,154 @@
+/* KNOUX Repair — Group 1: System Vitality operational density.
+   Presentation only. Runtime/tool/service ownership is unchanged.
+
+   The old three-column service layout permanently consumed the right side with
+   a tall ACTIONS rail. At 1366px this compressed the actual operation surface.
+   System Vitality now keeps services at the side, gives the operation center
+   the full working width, and moves real actions into a compact horizontal dock.
+*/
+
+@media (min-width: 1100px) {
+  .knoux-command-center[data-family='vitality'] {
+    grid-template-columns: var(--command-rail-width) minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) 154px !important;
+    gap: 10px !important;
+  }
+
+  .knoux-command-center[data-family='vitality'] > .knoux-command-service-rail {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    max-height: calc(100vh - 132px) !important;
+  }
+
+  .knoux-command-center[data-family='vitality'] > .knoux-command-live-column {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    max-height: none !important;
+  }
+
+  .knoux-command-center[data-family='vitality'] > .knoux-command-tool-rail {
+    grid-column: 2;
+    grid-row: 2;
+    display: grid !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: 154px !important;
+    grid-template-columns: 154px 232px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    overflow: hidden;
+    border-radius: 14px;
+  }
+
+  .knoux-command-center[data-family='vitality'] > .knoux-command-tool-rail > .knoux-command-rail-header {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    align-content: center;
+    padding: 12px;
+    border-bottom: 0;
+    border-inline-end: 1px solid rgba(133, 151, 200, 0.1);
+  }
+
+  .knoux-command-center[data-family='vitality'] > .knoux-command-tool-rail > .knoux-command-selected-service {
+    display: none !important;
+  }
+
+  .knoux-command-center[data-family='vitality'] > .knoux-command-tool-rail > .knoux-command-tool-controls {
+    grid-column: 2;
+    grid-row: 1;
+    align-content: center;
+    gap: 7px;
+    min-width: 0;
+    padding: 12px;
+    border-inline-end: 1px solid rgba(133, 151, 200, 0.1);
+  }
+
+  .knoux-command-center[data-family='vitality'] .knoux-command-tool-search,
+  .knoux-command-center[data-family='vitality'] .knoux-command-tool-drawer {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .knoux-command-center[data-family='vitality'] > .knoux-command-tool-rail > .knoux-command-tool-scroll {
+    grid-column: 3;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 0;
+    padding: 8px 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(103, 232, 249, 0.24) transparent;
+  }
+
+  .knoux-command-center[data-family='vitality'] .knoux-command-tool-list {
+    display: flex !important;
+    width: max-content;
+    min-width: 100%;
+    height: 100%;
+    flex-direction: row !important;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .knoux-command-center[data-family='vitality'] .knoux-command-tool-rail .knoux-tool-card {
+    width: 228px;
+    min-width: 228px;
+    height: 100%;
+    min-height: 0;
+    max-height: 136px;
+    padding: 9px 10px;
+    overflow: hidden;
+  }
+
+  .knoux-command-center[data-family='vitality'] .knoux-command-tool-rail .knoux-tool-card-purpose {
+    display: -webkit-box;
+    margin-block: 6px 5px;
+    overflow: hidden;
+    font-size: 8px;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .knoux-command-center[data-family='vitality'] .knoux-command-tool-rail .knoux-tool-card-meta {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    overflow: hidden;
+  }
+
+  .knoux-command-center[data-family='vitality'] .knoux-command-tool-rail .knoux-tool-chip:nth-child(n + 3) {
+    display: none;
+  }
+
+  .knoux-command-center[data-family='vitality'] .knoux-command-tool-rail .knoux-tool-card-foot {
+    margin-top: 6px;
+    padding-top: 5px;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 1099px) {
+  .knoux-command-center[data-family='vitality'] {
+    grid-template-columns: minmax(172px, 32vw) minmax(0, 1fr) !important;
+  }
+
+  .knoux-command-center[data-family='vitality'] > .knoux-command-tool-rail {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knoux-command-center[data-family='vitality'] .knoux-command-tool-rail,
+  .knoux-command-center[data-family='vitality'] .knoux-tool-card {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
