@@ -24,7 +24,29 @@ if (!patched.includes(assertBeforeCapture)) {
 }
 patched = patched.replace(assertBeforeCapture, captureBeforeAssert);
 
-if (!patched.includes('devHmrCspBlocked') || !patched.includes(captureBeforeAssert)) {
+// A visible top-level route is the navigation blank-frame authority. The old
+// `meaningful` probe intentionally inspected only a few station descendants,
+// so valid family overviews and service-shell transitions were false positives.
+// Structural capture gates already prove each required station surface exists.
+const blankPredicateBefore = "fail=samples.filter(x=>x.workspace&&(x.meaningful===0||x.route===0||x.opacity<.02||x.body>x.vw+2))";
+const blankPredicateAfter = "fail=samples.filter(x=>x.workspace&&(x.route===0||x.opacity<.02||x.body>x.vw+2))";
+if (!patched.includes(blankPredicateBefore)) {
+  throw new Error('Final visual navigation predicate changed; refusing to alter blank-frame classification.');
+}
+patched = patched.replace(blankPredicateBefore, blankPredicateAfter);
+
+// Developer Tools starts real DT04/DT06 read-only probes on mount. The final
+// RTL evidence page can close before those backend runs settle, so reuse of the
+// same single-run bridge contaminates the next navigation phase with HTTP 409.
+// Restart only the disposable CI gateway/browser between evidence phases.
+const navBefore = "distinct(r);const nav=await navGate(b);";
+const navAfter = "distinct(r);await b.close();b=null;await stop(g);await sleep(600);g=start();await ready();b=await puppeteer.launch({executablePath:edge(),headless:true,args:['--disable-gpu','--no-first-run','--no-default-browser-check']});const nav=await navGate(b);";
+if (!patched.includes(navBefore)) {
+  throw new Error('Final visual phase ordering changed; refusing to apply the navigation isolation restart.');
+}
+patched = patched.replace(navBefore, navAfter);
+
+if (!patched.includes('devHmrCspBlocked') || !patched.includes(captureBeforeAssert) || !patched.includes(blankPredicateAfter) || !patched.includes(navAfter)) {
   throw new Error('Failed to construct the strict final-visual CI wrapper.');
 }
 
