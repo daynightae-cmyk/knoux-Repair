@@ -30,6 +30,18 @@
   width: 100%;
 }
 
+/* The legacy Programs CI compatibility layer intentionally forces the generic
+   tool rail visible with a higher-specificity !important selector. The final
+   proof layer must beat that exact selector so the station-owned action model
+   wins in production as well as in the structural route matrix. */
+.knoux-command-center.knoux-service-app-active[data-service='04-Programs-Applications']:has(.programs-station) {
+  grid-template-columns: clamp(176px, 13vw, 206px) minmax(0, 1fr) !important;
+}
+
+.knoux-command-center.knoux-service-app-active[data-service='04-Programs-Applications']:has(.programs-station) > .knoux-command-tool-rail {
+  display: none !important;
+}
+
 /* Application Studio has twelve real station tabs. At the 1366 reference
    width they wrap into a compact two-row command strip instead of hiding
    valid controls beyond a scrollbar / viewport edge. */
