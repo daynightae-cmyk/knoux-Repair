@@ -1,8 +1,0 @@
-System Vitality Mission 01 visual authority:
-- 01-System-Maintenance
-- 08-Performance
-- 15-System-Monitoring
-
-Visual layer: src/system-vitality-polish.css
-Structural layer remains: src/vitality-workspace.css
-No runtime contract or ToolId authority moves to this file.
