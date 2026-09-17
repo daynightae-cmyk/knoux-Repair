@@ -47,7 +47,8 @@ test('Duplicate Files keeps integrity workflow and premium card surfaces', () =>
   assert.match(duplicate, /duplicate-review-board/);
   assert.match(duplicate, /duplicate-quarantine-page/);
   assert.match(css, /duplicate-landing-canvas[\s\S]*radial-gradient/);
-  assert.match(css, /duplicate-group-card[\\s\\S]*linear-gradient/);\n  assert.match(css, /grid-template-areas:[\\s\\S]*'visual copy'[\\s\\S]*'visual actions'/, 'desktop Duplicate landing must use the canvas as a two-column intelligence composition');
+  assert.match(css, /duplicate-group-card[\s\S]*linear-gradient/);
+  assert.match(css, /grid-template-areas:[\s\S]*'visual copy'[\s\S]*'visual actions'/, 'desktop Duplicate landing must use the canvas as a two-column intelligence composition');
 });
 
 test('Disk Space keeps measured telemetry and in-card execution state', () => {
