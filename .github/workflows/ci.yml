@@ -59,7 +59,7 @@ jobs:
 
       - name: Capture final visual proof and navigation transition evidence
         working-directory: web-frontend
-        run: node scripts/capture-final-visual-evidence.mjs
+        run: node scripts/run-capture-final-visual-evidence-ci.mjs
 
       - name: Capture Mission 02 private MCP evidence
         working-directory: web-frontend
