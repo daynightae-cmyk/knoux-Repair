@@ -679,7 +679,7 @@ function RecoveryStationContent({
         )}
 
         {activeTab === 'actions' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-5xl">
+          <div className="recovery-tool-grid grid grid-cols-1 md:grid-cols-2 gap-3 max-w-5xl">
             {stTools.map((t) => {
               const status = toolStatuses[t.ToolId];
               const isRunning = status === 'running';
@@ -688,7 +688,7 @@ function RecoveryStationContent({
               return (
                 <article
                   key={t.ToolId}
-                  className="flex flex-col justify-between p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 transition"
+                  className="recovery-tool-card flex flex-col justify-between p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 transition"
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-2">
