@@ -77,6 +77,10 @@ jobs:
         working-directory: web-frontend
         run: node scripts/capture-recovery-storage-polish-evidence.mjs
 
+      - name: Capture Assurance tool-card evidence
+        working-directory: web-frontend
+        run: node scripts/capture-assurance-polish-evidence.mjs
+
       - name: Capture Mission 02 private MCP evidence
         working-directory: web-frontend
         run: node scripts/capture-mission02-evidence.mjs
