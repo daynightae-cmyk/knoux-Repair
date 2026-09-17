@@ -46,6 +46,14 @@ test('Investigation preserves family navigation and gives stations full remainin
   assert.match(css, /\.knoux-workspace-stage[\s\S]*width:\s*100%/);
 });
 
+test('Diagnostics keeps all eight station tabs visible without horizontal clipping', () => {
+  assert.match(css, /diagnostic-evidence-station > nav/);
+  assert.match(css, /flex-wrap:\s*wrap\s*!important/);
+  assert.match(css, /overflow-x:\s*visible\s*!important/);
+  assert.match(css, /diagnostic-evidence-station > nav > button[\s\S]*flex:\s*0 1 auto/);
+  assert.match(css, /justify-content:\s*center/);
+});
+
 test('Diagnostics and Services stay mounted while their preview loaders refresh', () => {
   assert.match(serviceApps, /const stationOwnsLifecycle =/);
   assert.match(serviceApps, /activeSection === 'services'/);
