@@ -7,6 +7,7 @@
 
 .knoux-command-center[data-family='assurance'] .knoux-workspace-stage {
   position: relative;
+  isolation: isolate;
   overflow: hidden;
   border: 1px solid rgba(80, 190, 255, .22);
   border-radius: 14px;
@@ -24,17 +25,13 @@
   content: '';
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
   background:
     linear-gradient(90deg, transparent 49.85%, rgba(99, 222, 255, .03) 50%, transparent 50.15%),
     radial-gradient(circle at 50% 0%, rgba(71, 204, 255, .055), transparent 28%);
 }
 
-.knoux-command-center[data-family='assurance'] .knoux-workspace-stage > * {
-  position: relative;
-  z-index: 1;
-}
 
 /* 03 — Network & Internet / NOC */
 .knoux-command-center[data-service='03-Network-Internet'] {
