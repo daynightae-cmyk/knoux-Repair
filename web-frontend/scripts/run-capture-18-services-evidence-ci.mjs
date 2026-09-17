@@ -28,6 +28,31 @@ if (patched === source || !patched.includes('devHmrCspBlocked')) {
 
 const countOccurrences = (text, needle) => text.split(needle).length - 1;
 
+// Recovery & Storage now follows the same ownership rule already used by the
+// specialized stations: the canonical station owns its real controls and the
+// generic FamilyPage ACTIONS rail is intentionally absent from the rendered UI.
+const recoveryStationRoutes = [
+  [
+    "  { family: 'recovery', service: '02-System-Cleanup', name: 'System Cleanup', tools: 11 },",
+    "  { family: 'recovery', service: '02-System-Cleanup', name: 'System Cleanup', tools: 11, ownsActions: true },",
+  ],
+  [
+    "  { family: 'recovery', service: '06-Disk-Space', name: 'Disk Space', tools: 10 },",
+    "  { family: 'recovery', service: '06-Disk-Space', name: 'Disk Space', tools: 10, ownsActions: true },",
+  ],
+  [
+    "  { family: 'recovery', service: '11-Backup-Recovery', name: 'Backup & Recovery', tools: 5 },",
+    "  { family: 'recovery', service: '11-Backup-Recovery', name: 'Backup & Recovery', tools: 5, ownsActions: true },",
+  ],
+];
+
+for (const [before, after] of recoveryStationRoutes) {
+  if (countOccurrences(patched, before) !== 1) {
+    throw new Error(`Recovery route ownership anchor changed: ${before}`);
+  }
+  patched = patched.replace(before, after);
+}
+
 const inventoryProbeTimeoutAnchor = `      signal: AbortSignal.timeout(5_000),
       headers: { Accept: 'application/json' },`;
 const inventoryProbeTimeoutReplacement = `      signal: AbortSignal.timeout(15_000),
@@ -123,6 +148,9 @@ if (
   || countOccurrences(patched, inventoryProbeTimeoutReplacement) !== 1
   || countOccurrences(patched, primaryReadinessReplacement) !== 1
   || countOccurrences(patched, retryReadinessReplacement) !== 1
+  || !patched.includes("service: '02-System-Cleanup', name: 'System Cleanup', tools: 11, ownsActions: true")
+  || !patched.includes("service: '06-Disk-Space', name: 'Disk Space', tools: 10, ownsActions: true")
+  || !patched.includes("service: '11-Backup-Recovery', name: 'Backup & Recovery', tools: 5, ownsActions: true")
 ) {
   throw new Error('Failed to construct the bounded CI inventory/action-readiness shim.');
 }

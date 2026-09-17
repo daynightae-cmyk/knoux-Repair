@@ -1,0 +1,72 @@
+/* ==========================================================================
+   KNOUX Repair — System Vitality operational workspace
+   Group 01: System Maintenance / Performance / System Monitoring
+
+   The three canonical stations already own their real controls and runtime
+   surfaces. The outer FamilyPage ACTIONS rail plus the global Sentinel panel
+   duplicated context and consumed the center at desktop widths. Keep the
+   family service rail for navigation, but give the operational station the
+   remaining workspace.
+   ========================================================================== */
+
+.knoux-command-center[data-family='vitality'][data-service='01-System-Maintenance'],
+.knoux-command-center[data-family='vitality'][data-service='08-Performance'],
+.knoux-command-center[data-family='vitality'][data-service='15-System-Monitoring'] {
+  --command-rail-width: clamp(178px, 14vw, 214px);
+  grid-template-columns: var(--command-rail-width) minmax(0, 1fr) !important;
+}
+
+/* The station owns its own operational controls. Do not render a second
+   full-height action inventory beside the actual job surface. */
+.knoux-command-center[data-family='vitality'][data-service='01-System-Maintenance'] > .knoux-command-tool-rail,
+.knoux-command-center[data-family='vitality'][data-service='08-Performance'] > .knoux-command-tool-rail,
+.knoux-command-center[data-family='vitality'][data-service='15-System-Monitoring'] > .knoux-command-tool-rail {
+  display: none !important;
+}
+
+/* Sentinel remains available on the System Vitality family landing, but once
+   a concrete service is open the station gets full ownership of the center.
+   The shell Sentinel duplicated status already visible in these stations. */
+.knoux-body[data-view='vitality']:has(.knoux-command-center[data-service='01-System-Maintenance']) > .knoux-sentinel,
+.knoux-body[data-view='vitality']:has(.knoux-command-center[data-service='08-Performance']) > .knoux-sentinel,
+.knoux-body[data-view='vitality']:has(.knoux-command-center[data-service='15-System-Monitoring']) > .knoux-sentinel {
+  display: none !important;
+}
+
+.knoux-command-center[data-family='vitality'][data-service='01-System-Maintenance'] > .knoux-command-live-column,
+.knoux-command-center[data-family='vitality'][data-service='08-Performance'] > .knoux-command-live-column,
+.knoux-command-center[data-family='vitality'][data-service='15-System-Monitoring'] > .knoux-command-live-column {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.knoux-command-center[data-family='vitality'][data-service='01-System-Maintenance'] .knoux-workspace-stage,
+.knoux-command-center[data-family='vitality'][data-service='08-Performance'] .knoux-workspace-stage,
+.knoux-command-center[data-family='vitality'][data-service='15-System-Monitoring'] .knoux-workspace-stage {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .knoux-command-center[data-family='vitality'][data-service='01-System-Maintenance'],
+  .knoux-command-center[data-family='vitality'][data-service='08-Performance'],
+  .knoux-command-center[data-family='vitality'][data-service='15-System-Monitoring'] {
+    --command-rail-width: 168px;
+    gap: 9px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .knoux-command-center[data-family='vitality'][data-service='01-System-Maintenance'],
+  .knoux-command-center[data-family='vitality'][data-service='08-Performance'],
+  .knoux-command-center[data-family='vitality'][data-service='15-System-Monitoring'] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .knoux-command-center[data-family='vitality'][data-service='01-System-Maintenance'] > .knoux-command-service-rail,
+  .knoux-command-center[data-family='vitality'][data-service='08-Performance'] > .knoux-command-service-rail,
+  .knoux-command-center[data-family='vitality'][data-service='15-System-Monitoring'] > .knoux-command-service-rail {
+    max-height: none;
+  }
+}
