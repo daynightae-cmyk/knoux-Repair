@@ -18,7 +18,7 @@ if (!source.includes(anchor) || !source.includes(originalBranch)) {
 const hmrClassifier = `${anchor}
     // Windows evidence runs the Vite development client. The product CSP correctly
     // blocks its loopback HMR socket; classify only this exact diagnostic as harness noise.
-    const devHmrCspBlocked = /Connecting to 'ws:\\/\\/127\\.0\\.1:24678\\/\\?token=[^']+' violates the following Content Security Policy directive: "connect-src 'self' http:\\/\\/127\\.0\\.0\\.1:8787"\\. The action has been blocked\\./i.test(message);`;
+    const devHmrCspBlocked = /Connecting to 'ws:\\/\\/127\\.0\\.0\\.1:24678\\/\\?token=[^']+' violates the following Content Security Policy directive: "connect-src 'self' http:\\/\\/127\\.0\\.0\\.1:8787"\\. The action has been blocked\\./i.test(message);`;
 const patchedBranch = "    if (unavailable503 || devHmrCspBlocked || (allowTransportNoise && transportReset)) expected.push(message);";
 
 let patched = source.replace(anchor, hmrClassifier).replace(originalBranch, patchedBranch);
