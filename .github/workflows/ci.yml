@@ -22,6 +22,14 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
+      - name: Check patch whitespace
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        run: |
+          $base = '${{ github.event.pull_request.base.sha }}'
+          git fetch --no-tags --depth=1 origin $base
+          git diff --check $base HEAD
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -56,6 +64,10 @@ jobs:
       - name: Verify all 18 canonical service routes in Edge
         working-directory: web-frontend
         run: node scripts/run-capture-18-services-evidence-ci.mjs
+
+      - name: Capture final visual proof and navigation transition evidence
+        working-directory: web-frontend
+        run: node scripts/run-capture-final-visual-evidence-ci.mjs
 
       - name: Capture Mission 02 private MCP evidence
         working-directory: web-frontend

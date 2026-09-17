@@ -1,0 +1,242 @@
+/* KNOUX Repair — final visual proof corrections.
+   Presentation only: no ToolId, bridge, execution, confirmation, history,
+   evidence or provider contracts are changed here. */
+
+/* Station-owned operational products must not compete with FamilyPage's
+   generic action rail. The canonical stations already own their controls. */
+.knoux-command-center[data-service='04-Programs-Applications'],
+.knoux-command-center[data-service='16-Software-Environment'],
+.knoux-command-center[data-service='17-PostInstall-Setup'],
+.knoux-command-center[data-service='10-Diagnostics-Reports'],
+.knoux-command-center[data-service='07-Services-Processes'] {
+  grid-template-columns: clamp(176px, 13vw, 206px) minmax(0, 1fr) !important;
+  gap: 9px !important;
+}
+
+.knoux-command-center[data-service='04-Programs-Applications'] > .knoux-command-tool-rail,
+.knoux-command-center[data-service='16-Software-Environment'] > .knoux-command-tool-rail,
+.knoux-command-center[data-service='17-PostInstall-Setup'] > .knoux-command-tool-rail,
+.knoux-command-center[data-service='10-Diagnostics-Reports'] > .knoux-command-tool-rail,
+.knoux-command-center[data-service='07-Services-Processes'] > .knoux-command-tool-rail {
+  display: none !important;
+}
+
+.knoux-command-center[data-service='04-Programs-Applications'] > .knoux-command-live-column,
+.knoux-command-center[data-service='16-Software-Environment'] > .knoux-command-live-column,
+.knoux-command-center[data-service='17-PostInstall-Setup'] > .knoux-command-live-column,
+.knoux-command-center[data-service='10-Diagnostics-Reports'] > .knoux-command-live-column,
+.knoux-command-center[data-service='07-Services-Processes'] > .knoux-command-live-column {
+  min-width: 0;
+  width: 100%;
+}
+
+/* The legacy Programs CI compatibility layer intentionally forces the generic
+   tool rail visible with a higher-specificity !important selector. The final
+   proof layer must beat that exact selector so the station-owned action model
+   wins in production as well as in the structural route matrix. */
+.knoux-command-center.knoux-service-app-active[data-service='04-Programs-Applications']:has(.programs-station) {
+  grid-template-columns: clamp(176px, 13vw, 206px) minmax(0, 1fr) !important;
+}
+
+.knoux-command-center.knoux-service-app-active[data-service='04-Programs-Applications']:has(.programs-station) > .knoux-command-tool-rail {
+  display: none !important;
+}
+
+/* Application Studio has twelve real station tabs. At the 1366 reference
+   width they wrap into a compact two-row command strip instead of hiding
+   valid controls beyond a scrollbar / viewport edge. */
+.programs-station .programs-mini-nav {
+  flex-wrap: wrap !important;
+  align-content: center;
+  min-height: 42px;
+  height: auto !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+}
+
+.programs-station .programs-mini-nav-btn {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding-inline: 7px !important;
+  gap: 5px !important;
+}
+
+/* Runtime Matrix exposes eight real station tabs. The shared easy-service
+   layer deliberately enables horizontal scrolling, but that leaves valid
+   controls off-screen inside the narrow 1366 command-center workspace.
+   Wrap only this station's navigation so every real control remains visible
+   without changing the underlying tab/runtime ownership. */
+.software-station-root .station-tabs-nav {
+  flex-wrap: wrap !important;
+  align-content: center;
+  min-height: 42px;
+  height: auto !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+}
+
+.software-station-root .station-tabs-nav .tab-btn {
+  flex: 0 1 auto !important;
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 7px !important;
+  gap: 4px !important;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.software-station-root .station-tabs-nav .tab-pill {
+  min-width: 15px;
+  height: 15px;
+  padding-inline: 3px;
+  font-size: 8px;
+}
+
+/* Project Sonar is an operational station inside the Workbench center.
+   Preserve its runtime; restore explicit layout rhythm so workspace selection,
+   station tabs and evidence content remain readable at 1366/1440 and RTL. */
+.knoux-engineering-workbench .service-app-embedded--projectSonar .project-sonar-station-root {
+  gap: 7px;
+  padding: 8px 10px 10px;
+  box-sizing: border-box;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .project-sonar-station-root > .station-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px !important;
+  border: 1px solid rgba(103, 232, 249, .12);
+  border-radius: 10px !important;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .station-title-group {
+  min-width: 0;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .station-title-group > * {
+  margin-block: 0;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .station-title-group .station-title {
+  margin-top: 3px;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .station-title-group .station-subtitle {
+  margin-top: 4px;
+  max-width: 72ch;
+  line-height: 1.45;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .sonar-privacy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .sonar-workspace-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  margin: 0 !important;
+  border: 1px solid rgba(90, 170, 255, .13) !important;
+  border-radius: 9px;
+  background: rgba(4, 11, 28, .66);
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .workspace-label-group {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .workspace-label-group small {
+  color: #8193b0;
+  font-size: 9px;
+  letter-spacing: .04em;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .workspace-path-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar :is(.action-button-primary,.action-button-secondary) {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .station-tabs-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .station-tabs-nav .tab-btn {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border: 1px solid rgba(148, 163, 184, .15);
+  border-radius: 7px;
+  background: rgba(4, 11, 28, .58);
+  color: #9fb1cd;
+  white-space: nowrap;
+  font-size: 9px;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .station-tabs-nav .tab-btn.active {
+  color: #b9f6ff;
+  border-color: rgba(103, 232, 249, .38);
+  background: rgba(9, 42, 62, .72);
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .station-tabs-nav .tab-pill {
+  display: inline-flex;
+  min-width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 4px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, .12);
+  font-size: 8px;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .station-tab-content {
+  padding: 2px 2px 8px;
+}
+
+.knoux-engineering-workbench .service-app-embedded--projectSonar .station-tab-content .tab-pane {
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 1120px) {
+  .knoux-engineering-workbench .service-app-embedded--projectSonar .sonar-workspace-bar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .knoux-engineering-workbench .service-app-embedded--projectSonar .sonar-workspace-bar .action-button-primary {
+    grid-column: 2 / -1;
+    justify-self: end;
+  }
+}
