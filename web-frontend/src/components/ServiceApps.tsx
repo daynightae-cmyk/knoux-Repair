@@ -406,6 +406,9 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
     || activeSection === 'security'
     || activeSection === 'privacy'
     || activeSection === 'drivers'
+    || activeSection === 'programs'
+    || activeSection === 'softwareEnvironment'
+    || activeSection === 'postInstall'
     || activeSection === 'services'
     || activeSection === 'diagnostics';
   const confirmDialog = pending && <ExecutionConfirmDialog tool={pending.tool} mode={pending.mode} lang={lang} initialOptions={pending.options} onCancel={() => setPending(null)} onConfirm={(options, confirmation) => { onRunTool(pending.tool, pending.mode, options, confirmation); setPending(null); }} />;
