@@ -401,7 +401,11 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
     || activeSection === 'monitoring'
     || activeSection === 'cleanup'
     || activeSection === 'disk'
-    || activeSection === 'backupRecovery';
+    || activeSection === 'backupRecovery'
+    || activeSection === 'network'
+    || activeSection === 'security'
+    || activeSection === 'privacy'
+    || activeSection === 'drivers';
   const confirmDialog = pending && <ExecutionConfirmDialog tool={pending.tool} mode={pending.mode} lang={lang} initialOptions={pending.options} onCancel={() => setPending(null)} onConfirm={(options, confirmation) => { onRunTool(pending.tool, pending.mode, options, confirmation); setPending(null); }} />;
 
   if (embedded) {
