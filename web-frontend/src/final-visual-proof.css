@@ -61,6 +61,37 @@
   gap: 5px !important;
 }
 
+/* Runtime Matrix exposes eight real station tabs. The shared easy-service
+   layer deliberately enables horizontal scrolling, but that leaves valid
+   controls off-screen inside the narrow 1366 command-center workspace.
+   Wrap only this station's navigation so every real control remains visible
+   without changing the underlying tab/runtime ownership. */
+.software-station-root .station-tabs-nav {
+  flex-wrap: wrap !important;
+  align-content: center;
+  min-height: 42px;
+  height: auto !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+}
+
+.software-station-root .station-tabs-nav .tab-btn {
+  flex: 0 1 auto !important;
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 7px !important;
+  gap: 4px !important;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.software-station-root .station-tabs-nav .tab-pill {
+  min-width: 15px;
+  height: 15px;
+  padding-inline: 3px;
+  font-size: 8px;
+}
+
 /* Project Sonar is an operational station inside the Workbench center.
    Preserve its runtime; restore explicit layout rhythm so workspace selection,
    station tabs and evidence content remain readable at 1366/1440 and RTL. */
