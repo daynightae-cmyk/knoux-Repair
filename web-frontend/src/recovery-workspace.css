@@ -3,9 +3,9 @@
    Group 02: System Cleanup / Duplicate Files / Disk Space / Backup & Recovery
 
    These four services already own their real operational controls. The generic
-   FamilyPage ACTIONS rail duplicates those controls and starves the actual
-   studio of horizontal space. Keep the family service rail for navigation and
-   give the selected service the remaining workspace.
+   FamilyPage ACTIONS rail and global Sentinel duplicate context and starve the
+   actual studio of horizontal space. Keep the family service rail for
+   navigation and give the selected service the remaining workspace.
    ========================================================================== */
 
 .knoux-command-center[data-family='recovery'][data-service='02-System-Cleanup'],
@@ -22,6 +22,16 @@
 .knoux-command-center[data-family='recovery'][data-service='05-Duplicate-Files'] > .knoux-command-tool-rail,
 .knoux-command-center[data-family='recovery'][data-service='06-Disk-Space'] > .knoux-command-tool-rail,
 .knoux-command-center[data-family='recovery'][data-service='11-Backup-Recovery'] > .knoux-command-tool-rail {
+  display: none !important;
+}
+
+/* Sentinel stays available on the Recovery family landing. Once one of the
+   concrete Recovery services is open, the canonical station owns the context
+   and receives the full desktop width instead of a duplicated right column. */
+.knoux-body[data-view='recovery']:has(.knoux-command-center[data-service='02-System-Cleanup']) > .knoux-sentinel,
+.knoux-body[data-view='recovery']:has(.knoux-command-center[data-service='05-Duplicate-Files']) > .knoux-sentinel,
+.knoux-body[data-view='recovery']:has(.knoux-command-center[data-service='06-Disk-Space']) > .knoux-sentinel,
+.knoux-body[data-view='recovery']:has(.knoux-command-center[data-service='11-Backup-Recovery']) > .knoux-sentinel {
   display: none !important;
 }
 
