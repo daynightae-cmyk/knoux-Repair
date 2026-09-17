@@ -38,10 +38,41 @@
   min-width: 0;
 }
 
+/* Diagnostics exposes eight real station tabs. At 1366px the original
+   nowrap/overflow strip pushed History beyond the visible station edge.
+   Keep every canonical control visible by allowing the direct station nav to
+   wrap into a compact command strip rather than relying on hidden scrolling. */
+.knoux-command-center[data-family='investigation'][data-service='10-Diagnostics-Reports']
+  .diagnostic-evidence-station > nav {
+  display: flex;
+  flex-wrap: wrap !important;
+  align-items: center;
+  align-content: center;
+  gap: 6px !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  min-width: 0;
+  height: auto !important;
+}
+
+.knoux-command-center[data-family='investigation'][data-service='10-Diagnostics-Reports']
+  .diagnostic-evidence-station > nav > button {
+  flex: 0 1 auto;
+  min-width: 0;
+  justify-content: center;
+  padding-inline: 10px !important;
+  gap: 6px !important;
+}
+
 @media (max-width: 1180px) {
   .knoux-command-center[data-family='investigation'][data-service='10-Diagnostics-Reports'],
   .knoux-command-center[data-family='investigation'][data-service='07-Services-Processes'] {
     --command-rail-width: 168px;
+  }
+
+  .knoux-command-center[data-family='investigation'][data-service='10-Diagnostics-Reports']
+    .diagnostic-evidence-station > nav > button {
+    padding-inline: 8px !important;
   }
 }
 
