@@ -186,6 +186,25 @@
   box-shadow: inset 0 0 18px rgba(var(--assurance-accent-rgb), .018);
 }
 
+.knoux-command-center[data-service='13-Privacy'] .privacy-tool-grid {
+  align-items: stretch;
+}
+
+.knoux-command-center[data-service='13-Privacy'] .privacy-tool-card {
+  min-height: 168px;
+  border-color: rgba(var(--assurance-accent-rgb), .22) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(236, 72, 153, .07), transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(var(--assurance-accent-rgb), .07), transparent 38%),
+    linear-gradient(145deg, rgba(12, 20, 52, .88), rgba(3, 10, 28, .96)) !important;
+  box-shadow: inset 0 0 22px rgba(var(--assurance-accent-rgb), .025), 0 10px 24px rgba(0, 0, 0, .14) !important;
+}
+
+.knoux-command-center[data-service='13-Privacy'] .privacy-tool-card:hover {
+  border-color: rgba(var(--assurance-accent-rgb), .4) !important;
+  box-shadow: inset 0 0 22px rgba(var(--assurance-accent-rgb), .045), 0 0 22px rgba(var(--assurance-accent-rgb), .055) !important;
+}
+
 .knoux-command-center[data-service='13-Privacy'] .privacy-control-station button:not(:disabled) {
   box-shadow: 0 0 14px rgba(var(--assurance-accent-rgb), .045);
 }
@@ -212,6 +231,25 @@
 
 .knoux-command-center[data-service='14-Driver-Management'] .driver-matrix-station [style*='background'] {
   box-shadow: inset 0 0 18px rgba(var(--assurance-accent-rgb), .016);
+}
+
+.knoux-command-center[data-service='14-Driver-Management'] .driver-tool-grid {
+  align-items: stretch;
+}
+
+.knoux-command-center[data-service='14-Driver-Management'] .driver-tool-card {
+  min-height: 168px;
+  border-color: rgba(var(--assurance-accent-rgb), .2) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(234, 179, 8, .055), transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(var(--assurance-accent-rgb), .07), transparent 38%),
+    linear-gradient(145deg, rgba(6, 31, 38, .86), rgba(2, 11, 27, .96)) !important;
+  box-shadow: inset 0 0 22px rgba(var(--assurance-accent-rgb), .025), 0 10px 24px rgba(0, 0, 0, .14) !important;
+}
+
+.knoux-command-center[data-service='14-Driver-Management'] .driver-tool-card:hover {
+  border-color: rgba(var(--assurance-accent-rgb), .38) !important;
+  box-shadow: inset 0 0 22px rgba(var(--assurance-accent-rgb), .04), 0 0 22px rgba(var(--assurance-accent-rgb), .05) !important;
 }
 
 .knoux-command-center[data-service='14-Driver-Management']
