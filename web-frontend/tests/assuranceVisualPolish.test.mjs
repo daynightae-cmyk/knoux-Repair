@@ -61,6 +61,12 @@ test('Driver Management preserves the proven responsive tab matrix', () => {
   assert.match(operational, /grid-template-columns:\s*repeat\(auto-fit, minmax\(118px, 1fr\)\)/);
 });
 
+test('Assurance polish does not pull absolute stage chrome into document flow', () => {
+  assert.match(css, /\.knoux-workspace-stage[\s\S]*isolation:\s*isolate/);
+  assert.match(css, /\.knoux-workspace-stage::before[\s\S]*z-index:\s*-1/);
+  assert.doesNotMatch(css, /\.knoux-workspace-stage\s*>\s*\*\s*\{[\s\S]*position:\s*relative/);
+});
+
 test('Assurance polish keeps responsive and reduced-motion fallbacks', () => {
   assert.match(css, /@media \(max-width: 1180px\)/);
   assert.match(css, /@media \(max-width: 900px\)/);
