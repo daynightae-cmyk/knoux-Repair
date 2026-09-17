@@ -67,6 +67,17 @@ test('Assurance polish does not pull absolute stage chrome into document flow', 
   assert.doesNotMatch(css, /\.knoux-workspace-stage\s*>\s*\*\s*\{[\s\S]*position:\s*relative/);
 });
 
+test('Assurance action catalogs expose stable premium card hooks', () => {
+  assert.match(security, /security-tool-grid/);
+  assert.match(security, /security-tool-card/);
+  assert.match(privacy, /privacy-tool-grid/);
+  assert.match(privacy, /privacy-tool-card/);
+  assert.match(drivers, /driver-tool-grid/);
+  assert.match(drivers, /driver-tool-card/);
+  assert.match(css, /privacy-tool-card[\s\S]*linear-gradient/);
+  assert.match(css, /driver-tool-card[\s\S]*linear-gradient/);
+});
+
 test('Assurance polish keeps responsive and reduced-motion fallbacks', () => {
   assert.match(css, /@media \(max-width: 1180px\)/);
   assert.match(css, /@media \(max-width: 900px\)/);
