@@ -138,6 +138,30 @@ async function openRoute(page, service, selector) {
   await delay(250);
 }
 
+async function frameMonitoringToolCards(page) {
+  const framed = await page.evaluate(() => {
+    const root = document.querySelector('.monitoring-observatory-station');
+    if (!(root instanceof HTMLElement)) return false;
+    const marker = [...root.querySelectorAll('p')]
+      .find(node => /Category:\s*15-System-Monitoring/i.test((node.textContent || '').replace(/\s+/g, ' ')));
+    const target = marker?.parentElement;
+    if (!(target instanceof HTMLElement)) return false;
+    target.scrollIntoView({ block: 'start', inline: 'nearest' });
+    return true;
+  });
+  if (!framed) throw new Error('System Monitoring: could not frame the tool inventory for screenshot evidence');
+  await delay(180);
+  const visibleMarker = await page.evaluate(() => {
+    const root = document.querySelector('.monitoring-observatory-station');
+    const marker = root && [...root.querySelectorAll('p')]
+      .find(node => /Category:\s*15-System-Monitoring/i.test((node.textContent || '').replace(/\s+/g, ' ')));
+    if (!(marker instanceof HTMLElement)) return false;
+    const rect = marker.getBoundingClientRect();
+    return rect.top >= 0 && rect.top < innerHeight && rect.bottom > 0 && rect.bottom <= innerHeight;
+  });
+  if (!visibleMarker) throw new Error('System Monitoring: tool inventory marker is not visible in the final screenshot viewport');
+}
+
 fs.mkdirSync(OUT, { recursive: true });
 let gateway;
 let browser;
@@ -180,6 +204,7 @@ try {
   const monitoringCards = await page.$$eval(".monitoring-observatory-station div[style*='repeat(auto-fit, minmax(320px, 1fr))'] > div", nodes => nodes.length);
   if (!/Category:\s*15-System-Monitoring/i.test(monitoringText)) throw new Error('System Monitoring: tool inventory did not become visible');
   if (monitoringCards < 4) throw new Error(`System Monitoring: expected four action cards, found ${monitoringCards}`);
+  await frameMonitoringToolCards(page);
   await page.screenshot({ path: path.join(OUT, '03-monitoring-tool-cards-1366.png'), fullPage: false });
   evidence.push({ service: '15-System-Monitoring', view: 'actions', cards: monitoringCards, proof: monitoring });
 
