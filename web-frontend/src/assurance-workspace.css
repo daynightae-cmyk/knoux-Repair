@@ -1,0 +1,79 @@
+/* ==========================================================================
+   KNOUX Repair — Assurance operational workspace
+   Group 03: Network & Internet / Security / Privacy / Driver Management
+
+   These canonical stations own their real operational controls and evidence
+   lifecycle. The generic FamilyPage ACTIONS rail plus the global Sentinel
+   duplicate context and consume the center at desktop widths. Keep the family
+   service rail for navigation and give the selected station the workspace.
+   ========================================================================== */
+
+.knoux-command-center[data-family='assurance'][data-service='03-Network-Internet'],
+.knoux-command-center[data-family='assurance'][data-service='09-Security'],
+.knoux-command-center[data-family='assurance'][data-service='13-Privacy'],
+.knoux-command-center[data-family='assurance'][data-service='14-Driver-Management'] {
+  --command-rail-width: clamp(178px, 14vw, 214px);
+  grid-template-columns: var(--command-rail-width) minmax(0, 1fr) !important;
+}
+
+/* The station owns its real controls. Never duplicate the full-height generic
+   action inventory beside Network/Security/Privacy/Drivers. */
+.knoux-command-center[data-family='assurance'][data-service='03-Network-Internet'] > .knoux-command-tool-rail,
+.knoux-command-center[data-family='assurance'][data-service='09-Security'] > .knoux-command-tool-rail,
+.knoux-command-center[data-family='assurance'][data-service='13-Privacy'] > .knoux-command-tool-rail,
+.knoux-command-center[data-family='assurance'][data-service='14-Driver-Management'] > .knoux-command-tool-rail {
+  display: none !important;
+}
+
+/* Keep Sentinel on the Assurance family landing, but once a concrete service
+   is open the station itself owns context and gets the full operational width. */
+.knoux-body[data-view='assurance']:has(.knoux-command-center[data-service='03-Network-Internet']) > .knoux-sentinel,
+.knoux-body[data-view='assurance']:has(.knoux-command-center[data-service='09-Security']) > .knoux-sentinel,
+.knoux-body[data-view='assurance']:has(.knoux-command-center[data-service='13-Privacy']) > .knoux-sentinel,
+.knoux-body[data-view='assurance']:has(.knoux-command-center[data-service='14-Driver-Management']) > .knoux-sentinel {
+  display: none !important;
+}
+
+.knoux-command-center[data-family='assurance'][data-service='03-Network-Internet'] > .knoux-command-live-column,
+.knoux-command-center[data-family='assurance'][data-service='09-Security'] > .knoux-command-live-column,
+.knoux-command-center[data-family='assurance'][data-service='13-Privacy'] > .knoux-command-live-column,
+.knoux-command-center[data-family='assurance'][data-service='14-Driver-Management'] > .knoux-command-live-column {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.knoux-command-center[data-family='assurance'][data-service='03-Network-Internet'] .knoux-workspace-stage,
+.knoux-command-center[data-family='assurance'][data-service='09-Security'] .knoux-workspace-stage,
+.knoux-command-center[data-family='assurance'][data-service='13-Privacy'] .knoux-workspace-stage,
+.knoux-command-center[data-family='assurance'][data-service='14-Driver-Management'] .knoux-workspace-stage {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .knoux-command-center[data-family='assurance'][data-service='03-Network-Internet'],
+  .knoux-command-center[data-family='assurance'][data-service='09-Security'],
+  .knoux-command-center[data-family='assurance'][data-service='13-Privacy'],
+  .knoux-command-center[data-family='assurance'][data-service='14-Driver-Management'] {
+    --command-rail-width: 168px;
+    gap: 9px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .knoux-command-center[data-family='assurance'][data-service='03-Network-Internet'],
+  .knoux-command-center[data-family='assurance'][data-service='09-Security'],
+  .knoux-command-center[data-family='assurance'][data-service='13-Privacy'],
+  .knoux-command-center[data-family='assurance'][data-service='14-Driver-Management'] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .knoux-command-center[data-family='assurance'][data-service='03-Network-Internet'] > .knoux-command-service-rail,
+  .knoux-command-center[data-family='assurance'][data-service='09-Security'] > .knoux-command-service-rail,
+  .knoux-command-center[data-family='assurance'][data-service='13-Privacy'] > .knoux-command-service-rail,
+  .knoux-command-center[data-family='assurance'][data-service='14-Driver-Management'] > .knoux-command-service-rail {
+    max-height: none;
+  }
+}
