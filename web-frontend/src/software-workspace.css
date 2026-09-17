@@ -40,6 +40,104 @@
   min-width: 0;
 }
 
+/* Runtime Matrix and Post-Install expose real KPI/action content. Earlier
+   visual layers styled their surfaces but did not explicitly own layout for
+   these shared class names, which became visible once the duplicated Sentinel
+   column was removed. Establish the station-local layout here. */
+.knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .station-tab-content,
+.knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .tab-pane,
+.knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .overview-pane {
+  min-width: 0;
+  width: 100%;
+}
+
+.knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .overview-pane {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .metrics-grid {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px !important;
+  width: 100%;
+  min-width: 0;
+}
+
+.knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .metric-card {
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 82px;
+  padding: 11px 12px !important;
+  border: 1px solid rgba(148, 163, 184, .14) !important;
+  border-radius: 10px !important;
+  background: rgba(5, 12, 28, .72) !important;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .025);
+  overflow: hidden;
+}
+
+.knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .metric-label,
+.knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .metric-value,
+.knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .metric-sub {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .metric-label {
+  color: #91a2bd;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .metric-value {
+  color: #f4f8ff;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .metric-sub {
+  color: #667995;
+  font-size: 9px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .quick-actions-bar {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px !important;
+  width: 100%;
+  min-width: 0;
+}
+
+.knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .quick-action-pill {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  min-width: 0;
+  padding: 7px 10px !important;
+  color: #c8d5e9;
+  white-space: nowrap;
+}
+
 /* Post-Install exposes seven real tabs. Do not push the final controls beyond
    the viewport edge. Wrap them into a compact command strip like the already
    proven Application Studio and Runtime Matrix navigation. */
@@ -73,6 +171,10 @@
     --command-rail-width: 168px;
   }
 
+  .knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .metrics-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .knoux-command-center[data-family='software'][data-service='17-PostInstall-Setup']
     .post-install-station-root .station-tabs-nav .tab-btn {
     padding-inline: 6px !important;
@@ -91,5 +193,15 @@
   .knoux-command-center[data-family='software'][data-service='16-Software-Environment'] > .knoux-command-service-rail,
   .knoux-command-center[data-family='software'][data-service='17-PostInstall-Setup'] > .knoux-command-service-rail {
     max-height: none;
+  }
+
+  .knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .knoux-command-center[data-family='software'] :is(.software-station-root, .post-install-station-root) .metrics-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
