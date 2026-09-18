@@ -84,6 +84,16 @@ test('Software Library evidence matches tab labels with numeric badge suffixes o
   assert.doesNotMatch(evidenceScript, /text\.includes\(normalizedLabel\)/);
 });
 
+test('Software Environment and Post-Install action catalogs use a real responsive card grid', () => {
+  assert.match(css, /actions-pane \.tools-list-grid[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /actions-pane \.tool-card[\s\S]*min-height:\s*168px/);
+  assert.match(css, /actions-pane \.tool-card-header[\s\S]*justify-content:\s*space-between/);
+  assert.match(css, /actions-pane \.tool-card-footer[\s\S]*flex-wrap:\s*wrap/);
+  assert.match(css, /actions-pane \.tool-exec-btn[\s\S]*min-height:\s*31px/);
+  assert.match(css, /@media \(max-width: 900px\)[\s\S]*actions-pane \.tools-list-grid[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(evidenceScript, /tools-list-grid', 'start'/);
+});
+
 test('Software Library polish keeps responsive and reduced-motion fallbacks', () => {
   assert.match(css, /@media \(max-width: 1180px\)/);
   assert.match(css, /@media \(max-width: 900px\)/);
