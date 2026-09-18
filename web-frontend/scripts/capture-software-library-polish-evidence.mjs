@@ -165,9 +165,13 @@ async function assertSurface(page, selector, label) {
   return proof;
 }
 
-async function scrollTo(page, selector) {
+async function scrollTo(page, selector, block = 'center') {
   await page.waitForSelector(selector, { visible: true, timeout: 20_000 });
-  await page.$eval(selector, node => node.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  await page.$eval(
+    selector,
+    (node, requestedBlock) => node.scrollIntoView({ block: requestedBlock, inline: 'nearest' }),
+    block,
+  );
   await delay(150);
 }
 
@@ -207,7 +211,7 @@ try {
   await page.waitForSelector('.software-station-root .tools-list-grid', { visible: true, timeout: 20_000 });
   const softwareCards = await page.$$eval('.software-station-root .tools-list-grid .tool-card', nodes => nodes.length);
   if (softwareCards < 8) throw new Error(`Software Environment: expected 8 tool cards, found ${softwareCards}`);
-  await scrollTo(page, '.software-station-root .tools-list-grid');
+  await scrollTo(page, '.software-station-root .tools-list-grid', 'start');
   const softwareProof = await assertSurface(page, '.software-station-root', 'Software Environment tool cards');
   await page.screenshot({ path: path.join(OUT, '02-software-environment-tool-cards-1366.png'), fullPage: false });
   evidence.push({ service: '16-Software-Environment', view: 'station-tools', cards: softwareCards, proof: softwareProof, execution: 'not-started' });
@@ -218,7 +222,7 @@ try {
   await page.waitForSelector('.post-install-station-root .tools-list-grid', { visible: true, timeout: 20_000 });
   const postInstallCards = await page.$$eval('.post-install-station-root .tools-list-grid .tool-card', nodes => nodes.length);
   if (postInstallCards < 6) throw new Error(`Post-Install: expected 6 provisioning tool cards, found ${postInstallCards}`);
-  await scrollTo(page, '.post-install-station-root .tools-list-grid');
+  await scrollTo(page, '.post-install-station-root .tools-list-grid', 'start');
   const postInstallProof = await assertSurface(page, '.post-install-station-root', 'Post-Install provisioning tool cards');
   await page.screenshot({ path: path.join(OUT, '03-post-install-tool-cards-1366.png'), fullPage: false });
   evidence.push({ service: '17-PostInstall-Setup', view: 'provisioning-tools', cards: postInstallCards, proof: postInstallProof, execution: 'not-started' });
