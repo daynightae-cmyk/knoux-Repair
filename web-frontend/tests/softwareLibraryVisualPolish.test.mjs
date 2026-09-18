@@ -14,6 +14,7 @@ const css = readWeb('src/software-library-visual-polish.css');
 const programs = readWeb('src/features/stations/station04/ProgramsStation.tsx');
 const software = readWeb('src/features/stations/station16/SoftwareStation.tsx');
 const postInstall = readWeb('src/features/stations/station17/PostInstallStation.tsx');
+const evidenceScript = readWeb('scripts/capture-software-library-polish-evidence.mjs');
 
 test('Software Library polish loads after Assurance authority', () => {
   const assurance = main.indexOf("./assurance-visual-polish.css");
@@ -74,6 +75,13 @@ test('Software Library action surfaces expose stable card hooks', () => {
   assert.match(postInstall, /tools-list-grid/);
   assert.match(postInstall, /tool-card/);
   assert.match(css, /program-repair-card[\s\S]*linear-gradient/);
+});
+
+test('Software Library evidence matches tab labels with numeric badge suffixes only', () => {
+  assert.match(evidenceScript, /text === normalizedLabel/);
+  assert.match(evidenceScript, /text\.startsWith\(normalizedLabel\)/);
+  assert.match(evidenceScript, /\^\\d\+\$\/\.test\(suffix\)/);
+  assert.doesNotMatch(evidenceScript, /text\.includes\(normalizedLabel\)/);
 });
 
 test('Software Library polish keeps responsive and reduced-motion fallbacks', () => {
