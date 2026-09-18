@@ -83,6 +83,25 @@
   box-shadow: 0 0 24px rgba(var(--software-accent-rgb), .14);
 }
 
+.knoux-command-center[data-service='04-Programs-Applications'] .program-repair-grid {
+  align-items: stretch;
+}
+
+.knoux-command-center[data-service='04-Programs-Applications'] .program-repair-card {
+  min-height: 174px;
+  border-color: rgba(var(--software-accent-rgb), .2) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--software-accent-rgb), .07), transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(56, 189, 248, .045), transparent 38%),
+    linear-gradient(145deg, rgba(20, 25, 47, .88), rgba(3, 11, 27, .96)) !important;
+  box-shadow: inset 0 0 22px rgba(var(--software-accent-rgb), .025), 0 10px 24px rgba(0, 0, 0, .14);
+}
+
+.knoux-command-center[data-service='04-Programs-Applications'] .program-repair-card:hover {
+  border-color: rgba(var(--software-accent-rgb), .38) !important;
+  box-shadow: inset 0 0 22px rgba(var(--software-accent-rgb), .04), 0 0 20px rgba(var(--software-accent-rgb), .05);
+}
+
 .knoux-command-center[data-service='04-Programs-Applications'] .programs-station-content [class*='bg-slate-900/60'][class*='border'] {
   border-color: rgba(var(--software-accent-rgb), .11) !important;
   background:
