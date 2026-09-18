@@ -222,8 +222,33 @@ try {
   await openRoute(page, '18-Project-Sonar', '.project-sonar-station-root');
   await clickButtonByText(page, '.project-sonar-station-root', 'Sonar Tools');
   await page.waitForSelector('.project-sonar-station-root .tools-list-grid', { visible: true, timeout: 20_000 });
-  const sonarCards = await page.$$eval('.project-sonar-station-root .tools-list-grid .tool-card', nodes => nodes.length);
+  const sonarCards = await page.$eval('.project-sonar-station-root .sonar-tool-grid .sonar-tool-card', nodes => nodes.length);
   if (sonarCards < 7) throw new Error(`Project Sonar: expected 7 tool cards, found ${sonarCards}`);
+  const sonarLayout = await page.evaluate(() => {
+    const grid = document.querySelector('.sonar-tool-grid');
+    const cards = [...document.querySelectorAll('.sonar-tool-card')].filter(node => {
+      if (!(node instanceof HTMLElement)) return false;
+      const style = getComputedStyle(node);
+      const rect = node.getBoundingClientRect();
+      return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 2 && rect.height > 2;
+    });
+    const rects = cards.map(node => node.getBoundingClientRect());
+    const firstTop = rects[0]?.top ?? -9999;
+    const firstRowCount = rects.filter(rect => Math.abs(rect.top - firstTop) <= 4).length;
+    const gridStyle = grid instanceof HTMLElement ? getComputedStyle(grid) : null;
+    return {
+      display: gridStyle?.display || 'missing',
+      columns: gridStyle?.gridTemplateColumns || 'none',
+      firstRowCount,
+      minCardWidth: rects.length ? Math.min(...rects.map(rect => rect.width)) : 0,
+      minCardHeight: rects.length ? Math.min(...rects.map(rect => rect.height)) : 0,
+    };
+  });
+  if (sonarLayout.display !== 'grid') throw new Error(`Project Sonar: expected CSS grid, got ${sonarLayout.display}`);
+  if (sonarLayout.firstRowCount < 2) throw new Error(`Project Sonar: expected two desktop cards in first row, got ${sonarLayout.firstRowCount}`);
+  if (sonarLayout.minCardWidth < 250 || sonarLayout.minCardHeight < 120) {
+    throw new Error(`Project Sonar: card geometry too small width=${sonarLayout.minCardWidth} height=${sonarLayout.minCardHeight}`);
+  }
   const sonarChrome = await page.evaluate(() => {
     const visible = selector => {
       const node = document.querySelector(selector);
@@ -240,7 +265,7 @@ try {
   await scrollTo(page, '.project-sonar-station-root .tools-list-grid');
   const sonarProof = await assertSurface(page, '.project-sonar-station-root', 'Project Sonar tool cards');
   await page.screenshot({ path: path.join(OUT, '02-project-sonar-tool-cards-1366.png'), fullPage: false });
-  evidence.push({ service: '18-Project-Sonar', view: 'sonar-tools', cards: sonarCards, chrome: sonarChrome, proof: sonarProof, execution: 'not-started' });
+  evidence.push({ service: '18-Project-Sonar', view: 'sonar-tools', cards: sonarCards, layout: sonarLayout, chrome: sonarChrome, proof: sonarProof, execution: 'not-started' });
 
   fs.writeFileSync(
     path.join(OUT, 'engineering-polish-evidence.json'),
