@@ -882,8 +882,8 @@ export default function ProgramsStation({
                   ? 'إصلاح بنيات التثبيت: خدمة Windows Installer، وإلغاء أقفال التثبيت المعلقة، دون اللجوء لإعادة التسجيل العشوائي.'
                   : 'Targeted repair ladders: MSI service configuration, mutex clearance, and discrete package repair.'}
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-lg space-y-3">
+              <div className="program-repair-grid grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="program-repair-card p-4 bg-slate-900/60 border border-slate-800 rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-slate-200">{isAr ? 'إصلاح تثبيت البرامج' : 'Repair Program Installations'}</h3>
                     <span className="badge text-[10px] px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-500/30">Admin</span>
@@ -901,7 +901,7 @@ export default function ProgramsStation({
                   </button>
                 </div>
 
-                <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-lg space-y-3">
+                <div className="program-repair-card p-4 bg-slate-900/60 border border-slate-800 rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-slate-200">{isAr ? 'إصلاح أداة إلغاء التثبيت' : 'Repair Program Uninstaller'}</h3>
                     <span className="badge text-[10px] px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30">Offline OK</span>
