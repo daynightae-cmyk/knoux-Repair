@@ -238,10 +238,15 @@ try {
     }
     if (pageErrors.length) throw new Error(`${target.service}: page errors: ${pageErrors.join(' | ')}`);
 
-    const unexpectedConsoleErrors = consoleErrors.filter(message =>
-      !/status of 503\s*\(Service Unavailable\)/i.test(message)
-      && !/net::ERR_CONNECTION_(?:RESET|REFUSED)/i.test(message)
-    );
+    const unexpectedConsoleErrors = consoleErrors.filter(message => {
+      const expected503 = /status of 503\s*\(Service Unavailable\)/i.test(message);
+      const expectedTransport = /net::ERR_CONNECTION_(?:RESET|REFUSED)/i.test(message);
+      const expectedDevHmrCsp =
+        /Connecting to 'ws:\/\/127\.0\.0\.1:\d+\/\?token=[^']+' violates the following Content Security Policy directive:/i.test(message)
+        && /connect-src 'self' http:\/\/127\.0\.0\.1:8787/i.test(message)
+        && /action has been blocked/i.test(message);
+      return !expected503 && !expectedTransport && !expectedDevHmrCsp;
+    });
     if (unexpectedConsoleErrors.length) {
       throw new Error(`${target.service}: unexpected console errors: ${unexpectedConsoleErrors.join(' | ')}`);
     }
