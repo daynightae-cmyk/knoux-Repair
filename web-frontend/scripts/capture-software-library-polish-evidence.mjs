@@ -119,7 +119,14 @@ async function clickButtonByText(page, rootSelector, label) {
       return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > .05 && rect.width > 2 && rect.height > 2;
     };
     const buttons = [...root.querySelectorAll('button')].filter(visible);
-    const target = buttons.find(node => (node.textContent || '').replace(/\s+/g, ' ').trim() === label);
+    const normalizedLabel = label.replace(/\s+/g, ' ').trim();
+    const target = buttons.find(node => {
+      const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
+      if (text === normalizedLabel) return true;
+      if (!text.startsWith(normalizedLabel)) return false;
+      const suffix = text.slice(normalizedLabel.length).trim();
+      return /^\d+$/.test(suffix);
+    });
     if (!(target instanceof HTMLButtonElement)) {
       return { clicked: false, labels: buttons.map(node => (node.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean) };
     }
