@@ -1040,7 +1040,7 @@ function DeveloperStationContent({
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 10 }}>
+          <div className="developer-tool-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 10 }}>
             {availableStationTools
               .filter((tool) => {
                 const name = pickName(tool, lang).toLowerCase();
@@ -1051,6 +1051,7 @@ function DeveloperStationContent({
                 return (
                   <div
                     key={tool.ToolId}
+                    className="developer-tool-card"
                     style={{
                       background: 'rgba(15, 23, 42, 0.7)',
                       border: '1px solid #1e293b',
