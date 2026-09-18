@@ -4,11 +4,11 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 
 const HOST = '127.0.0.1';
-const PORT = Number(process.env.KNOUX_RECOVERY_EVIDENCE_PORT || 3001);
+const PORT = Number(process.env.KNOUX_ASSURANCE_EVIDENCE_PORT || 3002);
 const ORIGIN = `http://${HOST}:${PORT}`;
 const OUT = path.join(
   process.env.KNOUX_VISUAL_EVIDENCE_DIR ? path.resolve(process.env.KNOUX_VISUAL_EVIDENCE_DIR) : path.resolve('visual-evidence'),
-  'recovery-storage-polish',
+  'assurance-polish',
 );
 const EDGE = [
   process.env.EDGE_PATH,
@@ -33,8 +33,8 @@ function startGateway() {
   const child = process.platform === 'win32'
     ? spawn(process.env.ComSpec || 'C:\\Windows\\System32\\cmd.exe', ['/d', '/s', '/c', 'npm run dev'], options)
     : spawn('npm', ['run', 'dev'], options);
-  child.stdout?.on('data', chunk => process.stdout.write(`[recovery-evidence] ${chunk}`));
-  child.stderr?.on('data', chunk => process.stderr.write(`[recovery-evidence] ${chunk}`));
+  child.stdout?.on('data', chunk => process.stdout.write(`[assurance-evidence] ${chunk}`));
+  child.stderr?.on('data', chunk => process.stderr.write(`[assurance-evidence] ${chunk}`));
   return child;
 }
 
@@ -64,7 +64,7 @@ async function ready(timeoutMs = 45_000) {
     }
     await delay(400);
   }
-  throw new Error(`Recovery evidence gateway not ready: ${last}`);
+  throw new Error(`Assurance evidence gateway not ready: ${last}`);
 }
 
 async function navigateEvidenceRoute(page, url, label) {
@@ -89,7 +89,7 @@ async function navigateEvidenceRoute(page, url, label) {
         }
       } catch {}
 
-      console.warn(`[recovery-evidence] ${label}: navigation lifecycle timeout on attempt ${attempt}; committed=${committed}; readyState=${readyState}`);
+      console.warn(`[assurance-evidence] ${label}: navigation lifecycle timeout on attempt ${attempt}; committed=${committed}; readyState=${readyState}`);
       if (committed) return;
 
       try { await page.goto('about:blank', { waitUntil: 'load', timeout: 5_000 }); } catch {}
@@ -100,7 +100,7 @@ async function navigateEvidenceRoute(page, url, label) {
 }
 
 async function openRoute(page, service, selector) {
-  const url = `${ORIGIN}/?view=recovery&nosplash=1&service=${encodeURIComponent(service)}`;
+  const url = `${ORIGIN}/?view=assurance&nosplash=1&service=${encodeURIComponent(service)}`;
   await navigateEvidenceRoute(page, url, service);
   await page.waitForSelector(`.knoux-family-page[data-service="${service}"]`, { timeout: 20_000 });
   await page.waitForSelector(selector, { visible: true, timeout: 20_000 });
@@ -183,55 +183,55 @@ try {
     try { localStorage.setItem('knoux-lang', 'en'); } catch {}
   });
 
-  // Cleanup: preview only. This calls cleanupPreview and never executes a cleanup tool.
-  await openRoute(page, '02-System-Cleanup', '.cleanup-station');
-  await page.click('.cleanup-landing-primary-cta');
-  await page.waitForSelector('.cleanup-group', { visible: true, timeout: 30_000 });
-  const cleanupCards = await page.$$eval('.cleanup-group', nodes => nodes.length);
-  if (cleanupCards < 3) throw new Error(`System Cleanup: expected real preview group cards, found ${cleanupCards}`);
-  await scrollTo(page, '.cleanup-groups');
-  const cleanupProof = await assertSurface(page, '.cleanup-station', 'System Cleanup preview groups');
-  await page.screenshot({ path: path.join(OUT, '01-cleanup-preview-cards-1366.png'), fullPage: false });
-  evidence.push({ service: '02-System-Cleanup', view: 'preview-groups', cards: cleanupCards, proof: cleanupProof, execution: 'preview-only' });
+  // Network: reveal the canonical Operations catalog only. No operation is executed.
+  await openRoute(page, '03-Network-Internet', '.network-station');
+  await clickButtonByText(page, '.network-station', 'Operations');
+  await page.waitForSelector('.network-ops', { visible: true, timeout: 20_000 });
+  const networkCards = await page.$$eval('.network-op', nodes => nodes.length);
+  if (networkCards < 11) throw new Error(`Network: expected 11 operation cards, found ${networkCards}`);
+  await scrollTo(page, '.network-ops');
+  const networkProof = await assertSurface(page, '.network-station', 'Network operation cards');
+  await page.screenshot({ path: path.join(OUT, '01-network-operation-cards-1366.png'), fullPage: false });
+  evidence.push({ service: '03-Network-Internet', view: 'operations', cards: networkCards, proof: networkProof, execution: 'not-started' });
 
-  // Duplicate Files: configuration surface only, no scan execution.
-  await openRoute(page, '05-Duplicate-Files', '.duplicate-studio-root');
-  await page.click('.duplicate-secondary-cta');
-  await page.waitForSelector('.duplicate-scan-setup', { visible: true, timeout: 20_000 });
-  const duplicateOptions = await page.$$eval('.duplicate-type-list button', nodes => nodes.length);
-  if (duplicateOptions < 4) throw new Error(`Duplicate Files: expected scan type options, found ${duplicateOptions}`);
-  await scrollTo(page, '.duplicate-scan-setup');
-  const duplicateProof = await assertSurface(page, '.duplicate-studio-root', 'Duplicate Files scan configuration');
-  await page.screenshot({ path: path.join(OUT, '02-duplicate-scan-config-1366.png'), fullPage: false });
-  evidence.push({ service: '05-Duplicate-Files', view: 'scan-config', options: duplicateOptions, proof: duplicateProof, execution: 'not-started' });
+  // Security: reveal the protected Security Actions catalog only.
+  await openRoute(page, '09-Security', '.security-evidence-station');
+  await clickButtonByText(page, '.security-evidence-station', 'Security Actions');
+  await page.waitForSelector('.security-tool-grid', { visible: true, timeout: 20_000 });
+  const securityCards = await page.$$eval('.security-tool-card', nodes => nodes.length);
+  if (securityCards < 10) throw new Error(`Security: expected 10 action cards, found ${securityCards}`);
+  await scrollTo(page, '.security-tool-grid');
+  const securityProof = await assertSurface(page, '.security-evidence-station', 'Security action cards');
+  await page.screenshot({ path: path.join(OUT, '02-security-action-cards-1366.png'), fullPage: false });
+  evidence.push({ service: '09-Security', view: 'security-actions', cards: securityCards, proof: securityProof, execution: 'not-started' });
 
-  // Disk Space: reveal the canonical recovery action cards, do not execute any tool.
-  await openRoute(page, '06-Disk-Space', '.disk-space-station');
-  await clickButtonByText(page, '.disk-space-station', 'Recovery Actions');
-  await page.waitForSelector('.disk-recovery-tool-grid', { visible: true, timeout: 20_000 });
-  const diskCards = await page.$$eval('.disk-recovery-tool-card', nodes => nodes.length);
-  if (diskCards < 4) throw new Error(`Disk Space: expected recovery action cards, found ${diskCards}`);
-  await scrollTo(page, '.disk-recovery-tool-grid');
-  const diskProof = await assertSurface(page, '.disk-space-station', 'Disk Space recovery actions');
-  await page.screenshot({ path: path.join(OUT, '03-disk-recovery-action-cards-1366.png'), fullPage: false });
-  evidence.push({ service: '06-Disk-Space', view: 'recovery-actions', cards: diskCards, proof: diskProof, execution: 'not-started' });
+  // Privacy: reveal the station catalog only. Analyze/Execute buttons are never clicked.
+  await openRoute(page, '13-Privacy', '.privacy-control-station');
+  await clickButtonByText(page, '.privacy-control-station', 'Privacy Tools');
+  await page.waitForSelector('.privacy-tool-grid', { visible: true, timeout: 20_000 });
+  const privacyCards = await page.$$eval('.privacy-tool-card', nodes => nodes.length);
+  if (privacyCards < 4) throw new Error(`Privacy: expected 4 tool cards, found ${privacyCards}`);
+  await scrollTo(page, '.privacy-tool-grid');
+  const privacyProof = await assertSurface(page, '.privacy-control-station', 'Privacy tool cards');
+  await page.screenshot({ path: path.join(OUT, '03-privacy-tool-cards-1366.png'), fullPage: false });
+  evidence.push({ service: '13-Privacy', view: 'privacy-tools', cards: privacyCards, proof: privacyProof, execution: 'not-started' });
 
-  // Backup & Recovery: reveal the canonical vault tools, do not execute any tool.
-  await openRoute(page, '11-Backup-Recovery', '.recovery-vault-station');
-  await clickButtonByText(page, '.recovery-vault-station', 'Recovery Tools');
-  await page.waitForSelector('.recovery-tool-grid', { visible: true, timeout: 20_000 });
-  const recoveryCards = await page.$$eval('.recovery-tool-card', nodes => nodes.length);
-  if (recoveryCards < 4) throw new Error(`Backup & Recovery: expected recovery tool cards, found ${recoveryCards}`);
-  await scrollTo(page, '.recovery-tool-grid');
-  const recoveryProof = await assertSurface(page, '.recovery-vault-station', 'Backup & Recovery tool cards');
-  await page.screenshot({ path: path.join(OUT, '04-backup-recovery-tool-cards-1366.png'), fullPage: false });
-  evidence.push({ service: '11-Backup-Recovery', view: 'recovery-tools', cards: recoveryCards, proof: recoveryProof, execution: 'not-started' });
+  // Driver Management: reveal the station catalog only. No driver operation is executed.
+  await openRoute(page, '14-Driver-Management', '.driver-matrix-station');
+  await clickButtonByText(page, '.driver-matrix-station', 'Driver Tools');
+  await page.waitForSelector('.driver-tool-grid', { visible: true, timeout: 20_000 });
+  const driverCards = await page.$$eval('.driver-tool-card', nodes => nodes.length);
+  if (driverCards < 4) throw new Error(`Driver Management: expected 4 tool cards, found ${driverCards}`);
+  await scrollTo(page, '.driver-tool-grid');
+  const driverProof = await assertSurface(page, '.driver-matrix-station', 'Driver tool cards');
+  await page.screenshot({ path: path.join(OUT, '04-driver-tool-cards-1366.png'), fullPage: false });
+  evidence.push({ service: '14-Driver-Management', view: 'driver-tools', cards: driverCards, proof: driverProof, execution: 'not-started' });
 
   fs.writeFileSync(
-    path.join(OUT, 'recovery-storage-polish-evidence.json'),
+    path.join(OUT, 'assurance-polish-evidence.json'),
     JSON.stringify({ generatedAt: new Date().toISOString(), evidence }, null, 2),
   );
-  console.log(`Recovery & Storage polish evidence captured: ${evidence.length} surfaces.`);
+  console.log(`Assurance polish evidence captured: ${evidence.length} surfaces.`);
 } finally {
   await browser?.close().catch(() => {});
   await stopGateway(gateway);
