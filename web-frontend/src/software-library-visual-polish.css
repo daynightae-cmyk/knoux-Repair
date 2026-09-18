@@ -251,6 +251,142 @@
   box-shadow: inset 0 0 20px rgba(var(--software-accent-rgb), .04), 0 0 18px rgba(var(--software-accent-rgb), .05);
 }
 
+/* Canonical action catalogs: real two-column cards, not unstyled block towers. */
+.knoux-command-center[data-family='software']
+  :is(.software-station-root, .post-install-station-root)
+  .actions-pane .tools-list-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.knoux-command-center[data-family='software']
+  :is(.software-station-root, .post-install-station-root)
+  .actions-pane .tool-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  min-height: 168px;
+  padding: 15px 16px;
+  border: 1px solid rgba(var(--software-accent-rgb), .14) !important;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--software-accent-rgb), .055), transparent 35%),
+    linear-gradient(145deg, rgba(7, 27, 49, .84), rgba(2, 11, 27, .96)) !important;
+  box-shadow: inset 0 0 20px rgba(var(--software-accent-rgb), .02), 0 9px 22px rgba(0, 0, 0, .13);
+}
+
+.knoux-command-center[data-service='17-PostInstall-Setup']
+  .post-install-station-root .actions-pane .tool-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--software-accent-rgb), .065), transparent 35%),
+    linear-gradient(145deg, rgba(14, 22, 52, .86), rgba(2, 11, 27, .96)) !important;
+}
+
+.knoux-command-center[data-family='software']
+  :is(.software-station-root, .post-install-station-root)
+  .actions-pane .tool-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.knoux-command-center[data-family='software']
+  :is(.software-station-root, .post-install-station-root)
+  .actions-pane .tool-name {
+  display: block;
+  min-width: 0;
+  color: #f4f8ff;
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.knoux-command-center[data-family='software']
+  :is(.software-station-root, .post-install-station-root)
+  .actions-pane .risk-pill {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-height: 22px;
+  padding: 3px 7px;
+  border: 1px solid rgba(148, 163, 184, .18);
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 760;
+  line-height: 1;
+  letter-spacing: .035em;
+  white-space: nowrap;
+}
+
+.knoux-command-center[data-family='software']
+  :is(.software-station-root, .post-install-station-root)
+  .actions-pane .tool-purpose {
+  margin: 0;
+  color: #91a2bd;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.knoux-command-center[data-family='software']
+  :is(.software-station-root, .post-install-station-root)
+  .actions-pane .tool-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  margin-top: auto;
+}
+
+.knoux-command-center[data-family='software']
+  :is(.software-station-root, .post-install-station-root)
+  .actions-pane .tool-exec-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 31px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid rgba(148, 163, 184, .18);
+  border-radius: 9px;
+  color: #d8e6f8;
+  background: rgba(8, 20, 40, .82);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.knoux-command-center[data-family='software']
+  :is(.software-station-root, .post-install-station-root)
+  .actions-pane .tool-exec-btn:is(.analyze, .whatif) {
+  border-color: rgba(var(--software-accent-rgb), .24);
+  background: rgba(var(--software-accent-rgb), .07);
+}
+
+.knoux-command-center[data-family='software']
+  :is(.software-station-root, .post-install-station-root)
+  .actions-pane .tool-run-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-inline-start: auto;
+  min-height: 26px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
 .knoux-command-center[data-family='software'] button:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--software-accent, #38bdf8) 76%, white);
   outline-offset: 2px;
@@ -272,6 +408,12 @@
 }
 
 @media (max-width: 900px) {
+  .knoux-command-center[data-family='software']
+    :is(.software-station-root, .post-install-station-root)
+    .actions-pane .tools-list-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .knoux-command-center[data-service='04-Programs-Applications'] .programs-mini-nav {
     flex-wrap: wrap;
     overflow-x: visible !important;
