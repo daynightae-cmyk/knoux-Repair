@@ -45,13 +45,18 @@ test('Developer Tools exposes premium action card hooks without changing executi
   assert.match(css, /developer-tool-card[\s\S]*linear-gradient/);
 });
 
-test('Project Sonar preserves evidence-backed radar and tool cards', () => {
+test('Project Sonar preserves evidence-backed radar and premium tool-card composition', () => {
   assert.match(sonar, /project-sonar-station-root/);
   assert.match(sonar, /SonarHeroVisual/);
-  assert.match(sonar, /tools-list-grid/);
+  assert.match(sonar, /sonar-tool-grid/);
+  assert.match(sonar, /sonar-tool-card/);
   assert.match(sonar, /tool-run-status/);
   assert.match(css, /overview-hero-layout[\s\S]*radial-gradient/);
-  assert.match(css, /project-sonar-station-root[\s\S]*tool-card:hover/);
+  assert.match(css, /sonar-tool-grid[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /sonar-tool-card[\s\S]*display:\s*flex/);
+  assert.match(css, /sonar-tool-card[\s\S]*tool-card-header/);
+  assert.match(css, /sonar-tool-card[\s\S]*tool-card-footer/);
+  assert.match(css, /@media \(max-width: 980px\)[\s\S]*sonar-tool-grid[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
 });
 
 test('Engineering polish does not fabricate project or developer health values', () => {
