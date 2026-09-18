@@ -66,6 +66,16 @@ test('Software Library polish does not fabricate readiness or inventory values',
   assert.doesNotMatch(css, /--(?:health|score|readiness)/i);
 });
 
+test('Software Library action surfaces expose stable card hooks', () => {
+  assert.match(programs, /program-repair-grid/);
+  assert.match(programs, /program-repair-card/);
+  assert.match(software, /tools-list-grid/);
+  assert.match(software, /tool-card/);
+  assert.match(postInstall, /tools-list-grid/);
+  assert.match(postInstall, /tool-card/);
+  assert.match(css, /program-repair-card[\s\S]*linear-gradient/);
+});
+
 test('Software Library polish keeps responsive and reduced-motion fallbacks', () => {
   assert.match(css, /@media \(max-width: 1180px\)/);
   assert.match(css, /@media \(max-width: 900px\)/);
