@@ -49,8 +49,8 @@ test('final unified proof never executes service actions', () => {
 
 test('final unified proof ignores only the known localhost HMR CSP console noise', () => {
   assert.match(source, /expectedDevHmrCsp/);
-  assert.match(source, /ws:\\\/\\\\/127\\\.0\\\.0\\\.1:\\\d\+/);
-  assert.match(source, /connect-src 'self' http:\\\/\\\\/127\\\.0\\\.0\\\.1:8787/);
+  assert.ok(source.includes("/Connecting to 'ws:\\/\\/127\\.0\\.0\\.1:\\d+\\/\\?token=[^']+'/"));
+  assert.ok(source.includes("/connect-src 'self' http:\\/\\/127\\.0\\.0\\.1:8787/i"));
   assert.match(source, /action has been blocked/i);
   assert.match(source, /return !expected503 && !expectedTransport && !expectedDevHmrCsp/);
 });
