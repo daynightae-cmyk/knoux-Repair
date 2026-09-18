@@ -47,6 +47,14 @@ test('final unified proof never executes service actions', () => {
   assert.doesNotMatch(source, /Execute Action|handleLaunchTool|onRunTool/);
 });
 
+test('final unified proof ignores only the known localhost HMR CSP console noise', () => {
+  assert.match(source, /expectedDevHmrCsp/);
+  assert.match(source, /ws:\\\/\\\\/127\\\.0\\\.0\\\.1:\\\d\+/);
+  assert.match(source, /connect-src 'self' http:\\\/\\\\/127\\\.0\\\.0\\\.1:8787/);
+  assert.match(source, /action has been blocked/i);
+  assert.match(source, /return !expected503 && !expectedTransport && !expectedDevHmrCsp/);
+});
+
 test('final unified proof keeps navigation timeout recovery narrow', () => {
   assert.match(source, /attempt <= 2/);
   assert.match(source, /Navigation timeout/i);
