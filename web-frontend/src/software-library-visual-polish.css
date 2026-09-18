@@ -1,0 +1,276 @@
+/* KNOUX Repair — Software Library visual polish. Runtime truth remains canonical. */
+
+:root {
+  --software-polish-text: #eef8ff;
+  --software-polish-muted: #8ea5bf;
+}
+
+.knoux-command-center[data-family='software'] .knoux-workspace-stage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgba(77, 176, 255, .22);
+  border-radius: 14px;
+  background:
+    linear-gradient(rgba(67, 164, 255, .02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(67, 164, 255, .02) 1px, transparent 1px),
+    radial-gradient(circle at 48% 0%, rgba(59, 130, 246, .075), transparent 36%),
+    radial-gradient(circle at 90% 82%, rgba(168, 85, 247, .05), transparent 30%),
+    linear-gradient(145deg, #031022 0%, #020914 58%, #07091b 100%);
+  background-size: 26px 26px, 26px 26px, auto, auto, auto;
+  box-shadow: inset 0 0 46px rgba(0, 122, 255, .035), 0 18px 44px rgba(0, 0, 0, .22);
+}
+
+.knoux-command-center[data-family='software'] .knoux-workspace-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 49.85%, rgba(99, 222, 255, .028) 50%, transparent 50.15%),
+    radial-gradient(circle at 50% 0%, rgba(71, 204, 255, .05), transparent 28%);
+}
+
+/* 04 — Programs & Applications / Application Studio */
+.knoux-command-center[data-service='04-Programs-Applications'] {
+  --software-accent: #fb923c;
+  --software-accent-rgb: 251, 146, 60;
+}
+
+.knoux-command-center[data-service='04-Programs-Applications'] .programs-station {
+  color: var(--software-polish-text);
+  background: transparent;
+}
+
+.knoux-command-center[data-service='04-Programs-Applications'] .programs-station-header {
+  border-color: rgba(var(--software-accent-rgb), .2) !important;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(var(--software-accent-rgb), .1), transparent 32%),
+    linear-gradient(105deg, rgba(10, 23, 46, .88), rgba(2, 13, 31, .96)) !important;
+  box-shadow: inset 0 0 22px rgba(var(--software-accent-rgb), .025), 0 8px 22px rgba(0, 0, 0, .16);
+}
+
+.knoux-command-center[data-service='04-Programs-Applications'] .programs-mini-nav {
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 10px;
+  background: rgba(1, 10, 26, .74);
+}
+
+.knoux-command-center[data-service='04-Programs-Applications'] .programs-mini-nav-btn {
+  border-radius: 8px;
+}
+
+.knoux-command-center[data-service='04-Programs-Applications'] .programs-mini-nav-btn.is-active {
+  border-color: rgba(var(--software-accent-rgb), .42);
+  background: rgba(var(--software-accent-rgb), .11);
+  box-shadow: inset 0 0 18px rgba(var(--software-accent-rgb), .04), 0 0 16px rgba(var(--software-accent-rgb), .045);
+}
+
+.knoux-command-center[data-service='04-Programs-Applications'] .programs-landing-canvas {
+  overflow: hidden;
+  border-color: rgba(var(--software-accent-rgb), .24);
+  background:
+    radial-gradient(circle at 22% 44%, rgba(var(--software-accent-rgb), .09), transparent 28%),
+    radial-gradient(circle at 78% 28%, rgba(168, 85, 247, .085), transparent 34%),
+    linear-gradient(135deg, rgba(10, 25, 49, .86), rgba(2, 11, 28, .96));
+  box-shadow: inset 0 0 38px rgba(var(--software-accent-rgb), .025), 0 12px 30px rgba(0, 0, 0, .18);
+}
+
+.knoux-command-center[data-service='04-Programs-Applications'] .programs-landing-primary-cta {
+  box-shadow: 0 0 24px rgba(var(--software-accent-rgb), .14);
+}
+
+.knoux-command-center[data-service='04-Programs-Applications'] .programs-station-content [class*='bg-slate-900/60'][class*='border'] {
+  border-color: rgba(var(--software-accent-rgb), .11) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--software-accent-rgb), .035), transparent 34%),
+    linear-gradient(145deg, rgba(8, 25, 47, .78), rgba(2, 11, 27, .93)) !important;
+}
+
+/* 16 — Software Environment / Runtime Matrix */
+.knoux-command-center[data-service='16-Software-Environment'] {
+  --software-accent: #38bdf8;
+  --software-accent-rgb: 56, 189, 248;
+}
+
+.knoux-command-center[data-service='16-Software-Environment'] .software-station-root {
+  color: var(--software-polish-text);
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.knoux-command-center[data-service='16-Software-Environment'] .software-station-root .station-header {
+  border: 1px solid rgba(var(--software-accent-rgb), .24) !important;
+  border-radius: 13px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(var(--software-accent-rgb), .12), transparent 34%),
+    linear-gradient(105deg, rgba(3, 35, 58, .82), rgba(2, 14, 33, .96) 58%, rgba(13, 26, 58, .78)) !important;
+  box-shadow: inset 0 0 28px rgba(var(--software-accent-rgb), .035), 0 10px 28px rgba(0, 0, 0, .18);
+}
+
+.knoux-command-center[data-service='16-Software-Environment'] .software-station-root .station-tabs-nav {
+  gap: 5px !important;
+  padding: 6px !important;
+  border: 1px solid rgba(255, 255, 255, .07) !important;
+  border-radius: 10px;
+  background: rgba(1, 10, 26, .72) !important;
+}
+
+.knoux-command-center[data-service='16-Software-Environment'] .software-station-root .tab-btn {
+  border-radius: 8px;
+}
+
+.knoux-command-center[data-service='16-Software-Environment'] .software-station-root .tab-btn.active {
+  border-color: rgba(var(--software-accent-rgb), .4) !important;
+  background: rgba(var(--software-accent-rgb), .1) !important;
+  box-shadow: inset 0 0 18px rgba(var(--software-accent-rgb), .04);
+}
+
+.knoux-command-center[data-service='16-Software-Environment'] .software-station-root .overview-hero-layout {
+  overflow: hidden;
+  border: 1px solid rgba(var(--software-accent-rgb), .2) !important;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(var(--software-accent-rgb), .1), transparent 30%),
+    radial-gradient(circle at 78% 68%, rgba(168, 85, 247, .055), transparent 28%),
+    linear-gradient(145deg, rgba(5, 28, 50, .82), rgba(2, 11, 27, .95)) !important;
+  box-shadow: inset 0 0 34px rgba(var(--software-accent-rgb), .03), 0 10px 26px rgba(0, 0, 0, .15);
+}
+
+.knoux-command-center[data-service='16-Software-Environment'] .software-station-root .metric-card {
+  border-color: rgba(var(--software-accent-rgb), .13) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--software-accent-rgb), .045), transparent 34%),
+    linear-gradient(145deg, rgba(7, 27, 49, .82), rgba(2, 11, 27, .94)) !important;
+}
+
+.knoux-command-center[data-service='16-Software-Environment'] .software-station-root :is(.runtime-card, .cache-card, .tool-card, .history-card, .winget-details-card) {
+  border-color: rgba(var(--software-accent-rgb), .13) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--software-accent-rgb), .04), transparent 34%),
+    linear-gradient(145deg, rgba(7, 27, 49, .8), rgba(2, 11, 27, .94)) !important;
+  box-shadow: inset 0 0 18px rgba(var(--software-accent-rgb), .018);
+}
+
+.knoux-command-center[data-service='16-Software-Environment'] .software-station-root .tool-card:hover {
+  border-color: rgba(var(--software-accent-rgb), .34) !important;
+  box-shadow: inset 0 0 20px rgba(var(--software-accent-rgb), .035), 0 0 18px rgba(var(--software-accent-rgb), .045);
+}
+
+/* 17 — Post-Install Setup / Provisioning Studio */
+.knoux-command-center[data-service='17-PostInstall-Setup'] {
+  --software-accent: #a855f7;
+  --software-accent-rgb: 168, 85, 247;
+}
+
+.knoux-command-center[data-service='17-PostInstall-Setup'] .post-install-station-root {
+  color: var(--software-polish-text);
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.knoux-command-center[data-service='17-PostInstall-Setup'] .post-install-station-root .station-header {
+  border: 1px solid rgba(var(--software-accent-rgb), .24) !important;
+  border-radius: 13px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(var(--software-accent-rgb), .13), transparent 34%),
+    linear-gradient(105deg, rgba(25, 19, 61, .86), rgba(2, 14, 34, .96) 58%, rgba(35, 18, 65, .76)) !important;
+  box-shadow: inset 0 0 28px rgba(var(--software-accent-rgb), .04), 0 10px 28px rgba(0, 0, 0, .18);
+}
+
+.knoux-command-center[data-service='17-PostInstall-Setup'] .post-install-station-root .station-tabs-nav {
+  gap: 5px !important;
+  padding: 6px !important;
+  border: 1px solid rgba(255, 255, 255, .07) !important;
+  border-radius: 10px;
+  background: rgba(1, 10, 26, .72) !important;
+}
+
+.knoux-command-center[data-service='17-PostInstall-Setup'] .post-install-station-root .tab-btn {
+  border-radius: 8px;
+}
+
+.knoux-command-center[data-service='17-PostInstall-Setup'] .post-install-station-root .tab-btn.active {
+  border-color: rgba(var(--software-accent-rgb), .42) !important;
+  background: rgba(var(--software-accent-rgb), .11) !important;
+  box-shadow: inset 0 0 18px rgba(var(--software-accent-rgb), .04);
+}
+
+.knoux-command-center[data-service='17-PostInstall-Setup'] .post-install-station-root .overview-hero-layout {
+  overflow: hidden;
+  border: 1px solid rgba(var(--software-accent-rgb), .22) !important;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(var(--software-accent-rgb), .115), transparent 31%),
+    radial-gradient(circle at 20% 70%, rgba(59, 130, 246, .055), transparent 28%),
+    linear-gradient(145deg, rgba(17, 18, 54, .84), rgba(2, 11, 27, .95)) !important;
+  box-shadow: inset 0 0 34px rgba(var(--software-accent-rgb), .035), 0 10px 26px rgba(0, 0, 0, .15);
+}
+
+.knoux-command-center[data-service='17-PostInstall-Setup'] .post-install-station-root .metric-card {
+  border-color: rgba(var(--software-accent-rgb), .14) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--software-accent-rgb), .05), transparent 34%),
+    linear-gradient(145deg, rgba(14, 22, 52, .82), rgba(2, 11, 27, .94)) !important;
+}
+
+.knoux-command-center[data-service='17-PostInstall-Setup'] .post-install-station-root :is(.baseline-card, .tool-card, .history-card, .winget-details-card, .signal-card) {
+  border-color: rgba(var(--software-accent-rgb), .13) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--software-accent-rgb), .045), transparent 34%),
+    linear-gradient(145deg, rgba(13, 23, 51, .8), rgba(2, 11, 27, .94)) !important;
+  box-shadow: inset 0 0 18px rgba(var(--software-accent-rgb), .018);
+}
+
+.knoux-command-center[data-service='17-PostInstall-Setup'] .post-install-station-root .tool-card:hover {
+  border-color: rgba(var(--software-accent-rgb), .36) !important;
+  box-shadow: inset 0 0 20px rgba(var(--software-accent-rgb), .04), 0 0 18px rgba(var(--software-accent-rgb), .05);
+}
+
+.knoux-command-center[data-family='software'] button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--software-accent, #38bdf8) 76%, white);
+  outline-offset: 2px;
+}
+
+.knoux-command-center[data-family='software'] button:not(:disabled) {
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease, filter 150ms ease, background 150ms ease;
+}
+
+.knoux-command-center[data-family='software'] button:not(:disabled):hover {
+  filter: brightness(1.07);
+}
+
+@media (max-width: 1180px) {
+  .knoux-command-center[data-service='16-Software-Environment'] .software-station-root .metrics-grid,
+  .knoux-command-center[data-service='17-PostInstall-Setup'] .post-install-station-root .metrics-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .knoux-command-center[data-service='04-Programs-Applications'] .programs-mini-nav {
+    flex-wrap: wrap;
+    overflow-x: visible !important;
+  }
+
+  .knoux-command-center[data-service='16-Software-Environment'] .software-station-root .metrics-grid,
+  .knoux-command-center[data-service='17-PostInstall-Setup'] .post-install-station-root .metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knoux-command-center[data-family='software'] *,
+  .knoux-command-center[data-family='software'] *::before,
+  .knoux-command-center[data-family='software'] *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
