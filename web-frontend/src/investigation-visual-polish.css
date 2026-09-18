@@ -1,0 +1,213 @@
+/* KNOUX Repair — Investigation visual polish. Evidence and runtime truth stay canonical. */
+
+:root {
+  --investigation-polish-text: #eef8ff;
+  --investigation-polish-muted: #8ea5bf;
+}
+
+.knoux-command-center[data-family='investigation'] .knoux-workspace-stage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgba(83, 174, 255, .22);
+  border-radius: 14px;
+  background:
+    linear-gradient(rgba(64, 156, 255, .02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(64, 156, 255, .02) 1px, transparent 1px),
+    radial-gradient(circle at 48% 0%, rgba(79, 70, 229, .085), transparent 36%),
+    radial-gradient(circle at 90% 86%, rgba(14, 165, 233, .045), transparent 30%),
+    linear-gradient(145deg, #031022 0%, #020914 58%, #07091b 100%);
+  background-size: 26px 26px, 26px 26px, auto, auto, auto;
+  box-shadow: inset 0 0 46px rgba(0, 122, 255, .035), 0 18px 44px rgba(0, 0, 0, .22);
+}
+
+.knoux-command-center[data-family='investigation'] .knoux-workspace-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 49.85%, rgba(99, 222, 255, .026) 50%, transparent 50.15%),
+    radial-gradient(circle at 50% 0%, rgba(71, 204, 255, .045), transparent 28%);
+}
+
+/* 10 — Diagnostics & Reports / Evidence Lab */
+.knoux-command-center[data-service='10-Diagnostics-Reports'] {
+  --investigation-accent: #818cf8;
+  --investigation-accent-rgb: 129, 140, 248;
+}
+
+.knoux-command-center[data-service='10-Diagnostics-Reports'] .diagnostic-evidence-station {
+  color: var(--investigation-polish-text);
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.knoux-command-center[data-service='10-Diagnostics-Reports'] .diagnostic-evidence-station > div:first-child {
+  padding: 15px 17px !important;
+  border: 1px solid rgba(var(--investigation-accent-rgb), .24) !important;
+  border-radius: 13px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(var(--investigation-accent-rgb), .13), transparent 34%),
+    linear-gradient(105deg, rgba(16, 21, 58, .86), rgba(2, 14, 34, .96) 58%, rgba(12, 26, 58, .76));
+  box-shadow: inset 0 0 28px rgba(var(--investigation-accent-rgb), .04), 0 10px 28px rgba(0, 0, 0, .18);
+}
+
+.knoux-command-center[data-service='10-Diagnostics-Reports'] .diagnostic-evidence-station > nav {
+  padding: 6px !important;
+  border: 1px solid rgba(255, 255, 255, .07) !important;
+  border-radius: 10px;
+  background: rgba(1, 10, 26, .72);
+}
+
+.knoux-command-center[data-service='10-Diagnostics-Reports'] .diagnostic-evidence-station > nav > button {
+  min-height: 32px;
+  border-radius: 8px;
+}
+
+.knoux-command-center[data-service='10-Diagnostics-Reports'] .diagnostic-evidence-station > nav > button[class*='bg-indigo'] {
+  border: 1px solid rgba(var(--investigation-accent-rgb), .4);
+  box-shadow: inset 0 0 18px rgba(var(--investigation-accent-rgb), .045), 0 0 16px rgba(var(--investigation-accent-rgb), .035);
+}
+
+.knoux-command-center[data-service='10-Diagnostics-Reports'] .diagnostic-evidence-station .lg\:col-span-5 {
+  border-color: rgba(var(--investigation-accent-rgb), .2) !important;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(var(--investigation-accent-rgb), .11), transparent 30%),
+    radial-gradient(circle at 77% 75%, rgba(34, 211, 238, .045), transparent 25%),
+    linear-gradient(145deg, rgba(10, 20, 49, .84), rgba(2, 11, 27, .95)) !important;
+  box-shadow: inset 0 0 34px rgba(var(--investigation-accent-rgb), .03), 0 10px 26px rgba(0, 0, 0, .15);
+}
+
+.knoux-command-center[data-service='10-Diagnostics-Reports'] .diagnostic-evidence-station .lg\:col-span-7 > .grid > div,
+.knoux-command-center[data-service='10-Diagnostics-Reports'] .diagnostic-evidence-station .lg\:col-span-7 > div[class*='rounded-xl'] {
+  border-color: rgba(var(--investigation-accent-rgb), .13) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--investigation-accent-rgb), .045), transparent 34%),
+    linear-gradient(145deg, rgba(8, 24, 49, .8), rgba(2, 11, 27, .94)) !important;
+}
+
+.knoux-command-center[data-service='10-Diagnostics-Reports'] .diagnostic-tool-grid {
+  align-items: stretch;
+}
+
+.knoux-command-center[data-service='10-Diagnostics-Reports'] .diagnostic-tool-card {
+  min-height: 166px;
+  border-color: rgba(var(--investigation-accent-rgb), .2) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--investigation-accent-rgb), .07), transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(34, 211, 238, .04), transparent 38%),
+    linear-gradient(145deg, rgba(12, 20, 52, .88), rgba(3, 10, 28, .96)) !important;
+  box-shadow: inset 0 0 22px rgba(var(--investigation-accent-rgb), .025), 0 10px 24px rgba(0, 0, 0, .14);
+}
+
+.knoux-command-center[data-service='10-Diagnostics-Reports'] .diagnostic-tool-card:hover {
+  border-color: rgba(var(--investigation-accent-rgb), .4) !important;
+  box-shadow: inset 0 0 22px rgba(var(--investigation-accent-rgb), .045), 0 0 22px rgba(var(--investigation-accent-rgb), .055);
+}
+
+/* 07 — Services & Processes / Operations Topology */
+.knoux-command-center[data-service='07-Services-Processes'] {
+  --investigation-accent: #f59e0b;
+  --investigation-accent-rgb: 245, 158, 11;
+}
+
+.knoux-command-center[data-service='07-Services-Processes'] .services-topology-station {
+  color: var(--investigation-polish-text);
+  background: transparent;
+}
+
+.knoux-command-center[data-service='07-Services-Processes'] .services-topology-station > div:first-child {
+  padding: 15px 17px !important;
+  border: 1px solid rgba(var(--investigation-accent-rgb), .23) !important;
+  border-radius: 13px;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(var(--investigation-accent-rgb), .115), transparent 34%),
+    linear-gradient(105deg, rgba(35, 26, 20, .82), rgba(2, 14, 32, .96) 58%, rgba(11, 29, 54, .78));
+  box-shadow: inset 0 0 28px rgba(var(--investigation-accent-rgb), .035), 0 10px 28px rgba(0, 0, 0, .18);
+}
+
+.knoux-command-center[data-service='07-Services-Processes'] .services-topology-station > div:nth-child(2) {
+  gap: 6px !important;
+  padding: 6px !important;
+  border: 1px solid rgba(255, 255, 255, .07) !important;
+  border-radius: 10px;
+  background: rgba(1, 10, 26, .72);
+}
+
+.knoux-command-center[data-service='07-Services-Processes'] .services-topology-station .glass-panel {
+  border-color: rgba(var(--investigation-accent-rgb), .13) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--investigation-accent-rgb), .04), transparent 34%),
+    linear-gradient(145deg, rgba(9, 25, 47, .8), rgba(2, 11, 27, .94)) !important;
+  box-shadow: inset 0 0 20px rgba(var(--investigation-accent-rgb), .018), 0 10px 24px rgba(0, 0, 0, .13);
+}
+
+.knoux-command-center[data-service='07-Services-Processes'] .services-topology-station .glass-panel.relative.overflow-hidden {
+  border-color: rgba(var(--investigation-accent-rgb), .22) !important;
+  background:
+    radial-gradient(circle at 72% 45%, rgba(34, 211, 238, .07), transparent 28%),
+    radial-gradient(circle at 20% 10%, rgba(var(--investigation-accent-rgb), .1), transparent 34%),
+    linear-gradient(135deg, rgba(24, 25, 45, .86), rgba(2, 12, 29, .96)) !important;
+  box-shadow: inset 0 0 34px rgba(var(--investigation-accent-rgb), .03), 0 12px 28px rgba(0, 0, 0, .16);
+}
+
+.knoux-command-center[data-service='07-Services-Processes'] .services-operation-tool-grid {
+  align-items: stretch;
+}
+
+.knoux-command-center[data-service='07-Services-Processes'] .services-operation-tool-card {
+  min-height: 166px;
+  border-color: rgba(var(--investigation-accent-rgb), .2) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--investigation-accent-rgb), .07), transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(34, 211, 238, .035), transparent 38%),
+    linear-gradient(145deg, rgba(23, 24, 44, .88), rgba(3, 10, 27, .96)) !important;
+  box-shadow: inset 0 0 22px rgba(var(--investigation-accent-rgb), .025), 0 10px 24px rgba(0, 0, 0, .14);
+}
+
+.knoux-command-center[data-service='07-Services-Processes'] .services-operation-tool-card:hover {
+  border-color: rgba(var(--investigation-accent-rgb), .4) !important;
+  box-shadow: inset 0 0 22px rgba(var(--investigation-accent-rgb), .04), 0 0 22px rgba(var(--investigation-accent-rgb), .05);
+}
+
+.knoux-command-center[data-family='investigation'] button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--investigation-accent, #38bdf8) 76%, white);
+  outline-offset: 2px;
+}
+
+.knoux-command-center[data-family='investigation'] button:not(:disabled) {
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease, filter 150ms ease, background 150ms ease;
+}
+
+.knoux-command-center[data-family='investigation'] button:not(:disabled):hover {
+  filter: brightness(1.07);
+}
+
+@media (max-width: 1180px) {
+  .knoux-command-center[data-service='10-Diagnostics-Reports'] .diagnostic-evidence-station,
+  .knoux-command-center[data-service='07-Services-Processes'] .services-topology-station {
+    padding: 14px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .knoux-command-center[data-service='07-Services-Processes'] .services-topology-station > div:nth-child(2) {
+    flex-wrap: wrap;
+    overflow-x: visible !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knoux-command-center[data-family='investigation'] *,
+  .knoux-command-center[data-family='investigation'] *::before,
+  .knoux-command-center[data-family='investigation'] *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
