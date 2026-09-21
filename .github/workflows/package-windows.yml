@@ -1,0 +1,107 @@
+name: KNOUX Repair Windows Installer
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: knoux-installer-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package-windows:
+    name: Build Windows installer
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web-frontend/package-lock.json
+
+      - name: Install locked dependencies
+        working-directory: web-frontend
+        run: npm ci
+
+      - name: Verify canonical version agreement
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          $package = Get-Content web-frontend/package.json -Raw | ConvertFrom-Json
+          if ($package.version -ne $version) {
+            throw "VERSION ($version) does not match web-frontend/package.json ($($package.version))."
+          }
+          Write-Host "Canonical version: $version"
+
+      - name: Build Electron NSIS installer
+        shell: pwsh
+        run: ./BUILD-KNOUX-REPAIR-INSTALLER.ps1
+
+      - name: Verify packaged runtime surface
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          $out = Join-Path $PWD 'Release\KNOUX-Repair'
+          $installer = Join-Path $out "KNOUX-Repair-Setup-$version.exe"
+          $shaFile = "$installer.sha256"
+          $releaseManifest = Join-Path $out 'RELEASE-MANIFEST.json'
+          $runtime = Join-Path $out 'win-unpacked\resources\knoux-runtime'
+          $toolsManifest = Join-Path $runtime 'Docs\TOOLS-MANIFEST.json'
+          $asar = Join-Path $out 'win-unpacked\resources\app.asar'
+
+          foreach ($required in @($installer, $shaFile, $releaseManifest, $toolsManifest, $asar)) {
+            if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+              throw "Required packaged output is missing: $required"
+            }
+          }
+
+          $expectedHash = ((Get-Content -LiteralPath $shaFile -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
+          $actualHash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($expectedHash -ne $actualHash) {
+            throw "Installer SHA256 mismatch: expected $expectedHash, actual $actualHash"
+          }
+
+          $tools = @(Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json)
+          if ($tools.Count -ne 158) {
+            throw "Expected 158 canonical tools in packaged runtime; found $($tools.Count)."
+          }
+
+          $families = @(Get-ChildItem -LiteralPath $runtime -Directory | Where-Object { $_.Name -match '^\d\d-' })
+          if ($families.Count -ne 18) {
+            throw "Expected 18 packaged service families; found $($families.Count)."
+          }
+
+          $release = Get-Content -LiteralPath $releaseManifest -Raw | ConvertFrom-Json
+          if ($release.Version -ne $version) { throw 'Release manifest version mismatch.' }
+          if ($release.SHA256 -ne $actualHash) { throw 'Release manifest SHA256 mismatch.' }
+          if ($release.SourceCommit -ne '${{ github.sha }}') {
+            throw "Release manifest source commit mismatch: $($release.SourceCommit)"
+          }
+
+          Write-Host "Installer: $installer"
+          Write-Host "SHA256:   $actualHash"
+          Write-Host "Tools:    $($tools.Count)"
+          Write-Host "Families: $($families.Count)"
+
+      - name: Upload installer package
+        uses: actions/upload-artifact@v4
+        with:
+          name: KNOUX-Repair-v2.0.2-Windows-${{ github.sha }}
+          path: |
+            Release/KNOUX-Repair/KNOUX-Repair-Setup-2.0.2.exe
+            Release/KNOUX-Repair/KNOUX-Repair-Setup-2.0.2.exe.sha256
+            Release/KNOUX-Repair/RELEASE-MANIFEST.json
+          if-no-files-found: error
+          compression-level: 0

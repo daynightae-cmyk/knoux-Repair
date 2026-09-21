@@ -1,0 +1,20 @@
+/* KNOUX Repair — zero-blank route transition guard.
+   Visual-only: the current incoming route is immediately visible while the
+   outgoing route may still finish its exit animation. Runtime/service/tool
+   ownership is unchanged. */
+
+.knoux-workspace[data-view='home'] > .knoux-home-route,
+.knoux-workspace[data-view='vitality'] > div:has(> .knoux-family-page[data-family='vitality']),
+.knoux-workspace[data-view='vitality'] > div:has(> .family-overview[data-family='vitality']),
+.knoux-workspace[data-view='recovery'] > div:has(> .knoux-family-page[data-family='recovery']),
+.knoux-workspace[data-view='recovery'] > div:has(> .family-overview[data-family='recovery']),
+.knoux-workspace[data-view='assurance'] > div:has(> .knoux-family-page[data-family='assurance']),
+.knoux-workspace[data-view='assurance'] > div:has(> .family-overview[data-family='assurance']),
+.knoux-workspace[data-view='software'] > div:has(> .software-library-page),
+.knoux-workspace[data-view='software'] > div:has(> .knoux-family-page[data-family='software']),
+.knoux-workspace[data-view='workbench'] > div:has(> .knoux-family-page[data-family='workbench']),
+.knoux-workspace[data-view='workbench'] > div:has(> .family-overview[data-family='workbench']),
+.knoux-workspace[data-view='investigation'] > div:has(> .knoux-family-page[data-family='investigation']),
+.knoux-workspace[data-view='investigation'] > div:has(> .family-overview[data-family='investigation']) {
+  opacity: 1 !important;
+}

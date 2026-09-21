@@ -802,7 +802,7 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
               <h3 className="text-sm font-semibold text-white tracking-wide">{t.reclaimTitle}</h3>
               <p className="text-xs text-slate-400 mt-1">{t.reclaimSubtitle}</p>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div className="disk-recovery-tool-grid grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 {stationToolsList
                   .filter((tool) => ['DS04', 'DS05', 'DS06', 'DS08', 'DS09'].includes(tool.ToolId))
                   .map((tool) => {
@@ -813,7 +813,7 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
                     return (
                       <div
                         key={tool.ToolId}
-                        className="p-4 rounded-xl bg-white/5 border border-white/10 flex flex-col justify-between gap-3 hover:border-cyan-500/30 transition-all"
+                        className="disk-recovery-tool-card p-4 rounded-xl bg-white/5 border border-white/10 flex flex-col justify-between gap-3 hover:border-cyan-500/30 transition-all"
                       >
                         <div>
                           <div className="flex items-center justify-between">

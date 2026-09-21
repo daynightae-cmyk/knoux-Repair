@@ -812,11 +812,11 @@ export default function ProjectSonarStation(props: ProjectSonarStationProps) {
           {/* TAB 5: SONAR TOOLS */}
           {activeTab === 'tools' && (
             <div className="tab-pane tools-pane">
-              <div className="tools-list-grid">
+              <div className="sonar-tool-grid tools-list-grid">
                 {relevantTools.map(tool => {
                   const status = toolStatuses[tool.ToolId];
                   return (
-                    <div key={tool.ToolId} className="tool-card">
+                    <div key={tool.ToolId} className="sonar-tool-card tool-card">
                       <div className="tool-card-header">
                         <strong className="tool-name">{lang === 'ar' ? (tool.ArabicName || tool.EnglishName) : tool.EnglishName}</strong>
                         <span className={`risk-pill ${tool.RiskLevel.toLowerCase()}`}>{tool.RiskLevel}</span>

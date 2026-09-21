@@ -1,0 +1,308 @@
+/* KNOUX Repair — Assurance visual polish. Evidence remains authoritative. */
+
+:root {
+  --assurance-polish-text: #eef8ff;
+  --assurance-polish-muted: #8ea5bf;
+}
+
+.knoux-command-center[data-family='assurance'] .knoux-workspace-stage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgba(80, 190, 255, .22);
+  border-radius: 14px;
+  background:
+    linear-gradient(rgba(69, 174, 255, .021) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(69, 174, 255, .021) 1px, transparent 1px),
+    radial-gradient(circle at 50% 0%, rgba(56, 189, 248, .075), transparent 35%),
+    radial-gradient(circle at 88% 86%, rgba(168, 85, 247, .05), transparent 30%),
+    linear-gradient(145deg, #031022 0%, #020914 58%, #06091a 100%);
+  background-size: 26px 26px, 26px 26px, auto, auto, auto;
+  box-shadow: inset 0 0 46px rgba(0, 122, 255, .035), 0 18px 44px rgba(0, 0, 0, .23);
+}
+
+.knoux-command-center[data-family='assurance'] .knoux-workspace-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 49.85%, rgba(99, 222, 255, .03) 50%, transparent 50.15%),
+    radial-gradient(circle at 50% 0%, rgba(71, 204, 255, .055), transparent 28%);
+}
+
+
+/* 03 — Network & Internet / NOC */
+.knoux-command-center[data-service='03-Network-Internet'] {
+  --assurance-accent: #38d8ff;
+  --assurance-accent-rgb: 56, 216, 255;
+}
+
+.knoux-command-center[data-service='03-Network-Internet'] .network-station {
+  color: var(--assurance-polish-text);
+  background: transparent;
+}
+
+.knoux-command-center[data-service='03-Network-Internet'] .network-banner {
+  border-color: rgba(var(--assurance-accent-rgb), .23);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(var(--assurance-accent-rgb), .12), transparent 34%),
+    linear-gradient(105deg, rgba(3, 36, 58, .82), rgba(2, 15, 34, .96) 58%, rgba(11, 27, 58, .82));
+  box-shadow: inset 0 0 28px rgba(var(--assurance-accent-rgb), .04), 0 10px 28px rgba(0, 0, 0, .18);
+}
+
+.knoux-command-center[data-service='03-Network-Internet'] .network-mini-nav {
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 10px;
+  background: rgba(1, 10, 27, .74);
+}
+
+.knoux-command-center[data-service='03-Network-Internet'] .network-mini-nav-btn {
+  border-radius: 8px;
+}
+
+.knoux-command-center[data-service='03-Network-Internet'] .network-mini-nav-btn.is-active {
+  border-color: rgba(var(--assurance-accent-rgb), .4);
+  background: rgba(var(--assurance-accent-rgb), .11);
+  box-shadow: inset 0 0 18px rgba(var(--assurance-accent-rgb), .04), 0 0 18px rgba(var(--assurance-accent-rgb), .045);
+}
+
+.knoux-command-center[data-service='03-Network-Internet'] .network-landing-canvas,
+.knoux-command-center[data-service='03-Network-Internet'] .network-hero {
+  overflow: hidden;
+  border-color: rgba(var(--assurance-accent-rgb), .24);
+  background:
+    radial-gradient(circle at 24% 45%, rgba(var(--assurance-accent-rgb), .12), transparent 28%),
+    radial-gradient(circle at 78% 28%, rgba(14, 165, 233, .07), transparent 34%),
+    linear-gradient(135deg, rgba(4, 34, 53, .84), rgba(2, 12, 29, .96));
+  box-shadow: inset 0 0 38px rgba(var(--assurance-accent-rgb), .03), 0 12px 30px rgba(0, 0, 0, .18);
+}
+
+.knoux-command-center[data-service='03-Network-Internet'] .network-adapter,
+.knoux-command-center[data-service='03-Network-Internet'] .network-node,
+.knoux-command-center[data-service='03-Network-Internet'] .network-live,
+.knoux-command-center[data-service='03-Network-Internet'] .network-rec,
+.knoux-command-center[data-service='03-Network-Internet'] .network-rung,
+.knoux-command-center[data-service='03-Network-Internet'] .network-op {
+  border-color: rgba(var(--assurance-accent-rgb), .13);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--assurance-accent-rgb), .05), transparent 34%),
+    linear-gradient(145deg, rgba(7, 27, 49, .8), rgba(2, 11, 27, .94));
+  box-shadow: inset 0 0 18px rgba(var(--assurance-accent-rgb), .02);
+}
+
+.knoux-command-center[data-service='03-Network-Internet'] .network-op:hover,
+.knoux-command-center[data-service='03-Network-Internet'] .network-adapter:hover {
+  border-color: rgba(var(--assurance-accent-rgb), .32);
+  box-shadow: 0 0 18px rgba(var(--assurance-accent-rgb), .045);
+}
+
+/* 09 — Security / SOC */
+.knoux-command-center[data-service='09-Security'] {
+  --assurance-accent: #2dd4bf;
+  --assurance-accent-rgb: 45, 212, 191;
+}
+
+.knoux-command-center[data-service='09-Security'] .security-evidence-station {
+  min-height: 100%;
+  gap: 14px;
+  padding: 14px !important;
+  color: var(--assurance-polish-text);
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.knoux-command-center[data-service='09-Security'] .security-evidence-station > header {
+  padding: 15px 17px !important;
+  border: 1px solid rgba(var(--assurance-accent-rgb), .24) !important;
+  border-radius: 13px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(var(--assurance-accent-rgb), .13), transparent 34%),
+    linear-gradient(105deg, rgba(3, 43, 51, .82), rgba(2, 14, 32, .96) 58%, rgba(53, 13, 28, .56));
+  box-shadow: inset 0 0 28px rgba(var(--assurance-accent-rgb), .035), 0 10px 28px rgba(0, 0, 0, .18);
+}
+
+.knoux-command-center[data-service='09-Security'] .security-evidence-station > div[class*='overflow-x-auto'][class*='border-b'] {
+  gap: 6px !important;
+  padding: 6px !important;
+  border: 1px solid rgba(255, 255, 255, .07) !important;
+  border-radius: 10px;
+  background: rgba(1, 10, 26, .72);
+}
+
+.knoux-command-center[data-service='09-Security'] .security-evidence-station [class*='lg:col-span-5'] {
+  min-height: 420px;
+  border-color: rgba(var(--assurance-accent-rgb), .2) !important;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(var(--assurance-accent-rgb), .09), transparent 32%),
+    radial-gradient(circle at 72% 70%, rgba(244, 63, 94, .055), transparent 26%),
+    linear-gradient(145deg, rgba(5, 29, 46, .82), rgba(2, 11, 27, .95)) !important;
+  box-shadow: inset 0 0 32px rgba(var(--assurance-accent-rgb), .03), 0 10px 26px rgba(0, 0, 0, .15);
+}
+
+.knoux-command-center[data-service='09-Security'] .security-evidence-station [class*='sm:grid-cols-3'] > div,
+.knoux-command-center[data-service='09-Security'] .security-evidence-station [class*='md:grid-cols-2'] > div,
+.knoux-command-center[data-service='09-Security'] .security-evidence-station [class*='rounded-xl'][class*='border'] {
+  border-color: rgba(var(--assurance-accent-rgb), .13) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--assurance-accent-rgb), .045), transparent 34%),
+    linear-gradient(145deg, rgba(7, 27, 49, .78), rgba(2, 11, 27, .93)) !important;
+}
+
+.knoux-command-center[data-service='09-Security'] .security-evidence-station [class*='bg-rose-500/10'],
+.knoux-command-center[data-service='09-Security'] .security-evidence-station [class*='bg-rose-950'] {
+  box-shadow: inset 0 0 22px rgba(244, 63, 94, .045), 0 0 18px rgba(244, 63, 94, .035);
+}
+
+/* 13 — Privacy / Perimeter Control */
+.knoux-command-center[data-service='13-Privacy'] {
+  --assurance-accent: #8b5cf6;
+  --assurance-accent-rgb: 139, 92, 246;
+}
+
+.knoux-command-center[data-service='13-Privacy'] .privacy-control-station {
+  min-height: 100%;
+  color: var(--assurance-polish-text);
+  background:
+    radial-gradient(circle at 92% 14%, rgba(236, 72, 153, .05), transparent 26%),
+    linear-gradient(180deg, rgba(4, 10, 28, .22), transparent);
+}
+
+.knoux-command-center[data-service='13-Privacy'] .privacy-control-station > header,
+.knoux-command-center[data-service='13-Privacy'] .privacy-control-station > div:first-of-type {
+  border-color: rgba(var(--assurance-accent-rgb), .22) !important;
+}
+
+.knoux-command-center[data-service='13-Privacy'] .privacy-control-station [style*='border'] {
+  border-color: rgba(var(--assurance-accent-rgb), .13) !important;
+}
+
+.knoux-command-center[data-service='13-Privacy'] .privacy-control-station [style*='background'] {
+  box-shadow: inset 0 0 18px rgba(var(--assurance-accent-rgb), .018);
+}
+
+.knoux-command-center[data-service='13-Privacy'] .privacy-tool-grid {
+  align-items: stretch;
+}
+
+.knoux-command-center[data-service='13-Privacy'] .privacy-tool-card {
+  min-height: 168px;
+  border-color: rgba(var(--assurance-accent-rgb), .22) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(236, 72, 153, .07), transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(var(--assurance-accent-rgb), .07), transparent 38%),
+    linear-gradient(145deg, rgba(12, 20, 52, .88), rgba(3, 10, 28, .96)) !important;
+  box-shadow: inset 0 0 22px rgba(var(--assurance-accent-rgb), .025), 0 10px 24px rgba(0, 0, 0, .14) !important;
+}
+
+.knoux-command-center[data-service='13-Privacy'] .privacy-tool-card:hover {
+  border-color: rgba(var(--assurance-accent-rgb), .4) !important;
+  box-shadow: inset 0 0 22px rgba(var(--assurance-accent-rgb), .045), 0 0 22px rgba(var(--assurance-accent-rgb), .055) !important;
+}
+
+.knoux-command-center[data-service='13-Privacy'] .privacy-control-station button:not(:disabled) {
+  box-shadow: 0 0 14px rgba(var(--assurance-accent-rgb), .045);
+}
+
+/* 14 — Driver Management / Hardware Lab */
+.knoux-command-center[data-service='14-Driver-Management'] {
+  --assurance-accent: #22c55e;
+  --assurance-accent-rgb: 34, 197, 94;
+}
+
+.knoux-command-center[data-service='14-Driver-Management'] .driver-matrix-station {
+  min-height: 100%;
+  color: var(--assurance-polish-text);
+  background:
+    linear-gradient(90deg, rgba(34, 197, 94, .018) 1px, transparent 1px),
+    radial-gradient(circle at 90% 8%, rgba(234, 179, 8, .045), transparent 24%),
+    transparent;
+  background-size: 72px 72px, auto, auto;
+}
+
+.knoux-command-center[data-service='14-Driver-Management'] .driver-matrix-station [style*='border'] {
+  border-color: rgba(var(--assurance-accent-rgb), .13) !important;
+}
+
+.knoux-command-center[data-service='14-Driver-Management'] .driver-matrix-station [style*='background'] {
+  box-shadow: inset 0 0 18px rgba(var(--assurance-accent-rgb), .016);
+}
+
+.knoux-command-center[data-service='14-Driver-Management'] .driver-tool-grid {
+  align-items: stretch;
+}
+
+.knoux-command-center[data-service='14-Driver-Management'] .driver-tool-card {
+  min-height: 168px;
+  border-color: rgba(var(--assurance-accent-rgb), .2) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(234, 179, 8, .055), transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(var(--assurance-accent-rgb), .07), transparent 38%),
+    linear-gradient(145deg, rgba(6, 31, 38, .86), rgba(2, 11, 27, .96)) !important;
+  box-shadow: inset 0 0 22px rgba(var(--assurance-accent-rgb), .025), 0 10px 24px rgba(0, 0, 0, .14) !important;
+}
+
+.knoux-command-center[data-service='14-Driver-Management'] .driver-tool-card:hover {
+  border-color: rgba(var(--assurance-accent-rgb), .38) !important;
+  box-shadow: inset 0 0 22px rgba(var(--assurance-accent-rgb), .04), 0 0 22px rgba(var(--assurance-accent-rgb), .05) !important;
+}
+
+.knoux-command-center[data-service='14-Driver-Management']
+  .driver-matrix-station > div[style*='overflow-x: auto'] {
+  padding: 6px !important;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 10px;
+  background: rgba(1, 10, 26, .72);
+}
+
+.knoux-command-center[data-service='14-Driver-Management']
+  .driver-matrix-station > div[style*='overflow-x: auto'] > button {
+  border-radius: 8px;
+}
+
+.knoux-command-center[data-family='assurance'] button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--assurance-accent, #38bdf8) 76%, white);
+  outline-offset: 2px;
+}
+
+.knoux-command-center[data-family='assurance'] button:not(:disabled) {
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease, filter 150ms ease, background 150ms ease;
+}
+
+.knoux-command-center[data-family='assurance'] button:not(:disabled):hover {
+  filter: brightness(1.07);
+}
+
+@media (max-width: 1180px) {
+  .knoux-command-center[data-service='09-Security'] .security-evidence-station {
+    padding: 10px !important;
+  }
+
+  .knoux-command-center[data-service='09-Security'] .security-evidence-station [class*='lg:col-span-5'] {
+    min-height: 380px;
+  }
+}
+
+@media (max-width: 900px) {
+  .knoux-command-center[data-service='03-Network-Internet'] .network-mini-nav,
+  .knoux-command-center[data-service='09-Security'] .security-evidence-station > div[class*='overflow-x-auto'][class*='border-b'] {
+    flex-wrap: wrap;
+    overflow-x: visible !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knoux-command-center[data-family='assurance'] *,
+  .knoux-command-center[data-family='assurance'] *::before,
+  .knoux-command-center[data-family='assurance'] *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}

@@ -648,7 +648,7 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
 
         {/* Tab 5: ACTIONS & REPAIRS */}
         {activeTab === 'actions' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="services-operation-tool-grid grid grid-cols-1 md:grid-cols-2 gap-4">
             {stationToolsList
               .filter((tool) => ['SP03', 'SP04', 'SP05', 'SP06', 'SP08', 'SP09'].includes(tool.ToolId))
               .map((tool) => {
@@ -659,7 +659,7 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
                 return (
                   <div
                     key={tool.ToolId}
-                    className="p-4 rounded-xl bg-white/5 border border-white/10 flex flex-col justify-between gap-3 hover:border-amber-500/30 transition-all"
+                    className="services-operation-tool-card p-4 rounded-xl bg-white/5 border border-white/10 flex flex-col justify-between gap-3 hover:border-amber-500/30 transition-all"
                   >
                     <div>
                       <div className="flex items-center justify-between">

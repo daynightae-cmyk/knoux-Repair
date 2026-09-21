@@ -978,10 +978,11 @@ function DriversStationContent({
             <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#94a3b8' }}>Category: 14-Driver-Management ({availableStationTools.length} tools)</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 10 }}>
+          <div className="driver-tool-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 10 }}>
             {availableStationTools.map((tool) => (
               <div
                 key={tool.ToolId}
+                className="driver-tool-card"
                 style={{
                   background: 'rgba(15, 23, 42, 0.7)',
                   border: '1px solid #1e293b',

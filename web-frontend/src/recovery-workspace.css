@@ -1,0 +1,84 @@
+/* ==========================================================================
+   KNOUX Repair — Recovery & Storage operational workspace
+   Group 02: System Cleanup / Duplicate Files / Disk Space / Backup & Recovery
+
+   These four services already own their real operational controls. The generic
+   FamilyPage ACTIONS rail and global Sentinel duplicate context and starve the
+   actual studio of horizontal space. Keep the family service rail for
+   navigation and give the selected service the remaining workspace.
+   ========================================================================== */
+
+.knoux-command-center[data-family='recovery'][data-service='02-System-Cleanup'],
+.knoux-command-center[data-family='recovery'][data-service='05-Duplicate-Files'],
+.knoux-command-center[data-family='recovery'][data-service='06-Disk-Space'],
+.knoux-command-center[data-family='recovery'][data-service='11-Backup-Recovery'] {
+  --command-rail-width: clamp(178px, 14vw, 214px);
+  grid-template-columns: var(--command-rail-width) minmax(0, 1fr) !important;
+}
+
+/* The canonical stations own scan/review/run controls. Do not duplicate a
+   second full-height inventory beside them. */
+.knoux-command-center[data-family='recovery'][data-service='02-System-Cleanup'] > .knoux-command-tool-rail,
+.knoux-command-center[data-family='recovery'][data-service='05-Duplicate-Files'] > .knoux-command-tool-rail,
+.knoux-command-center[data-family='recovery'][data-service='06-Disk-Space'] > .knoux-command-tool-rail,
+.knoux-command-center[data-family='recovery'][data-service='11-Backup-Recovery'] > .knoux-command-tool-rail {
+  display: none !important;
+}
+
+/* Sentinel stays available on the Recovery family landing. Once one of the
+   concrete Recovery services is open, the canonical station owns the context
+   and receives the full desktop width instead of a duplicated right column. */
+.knoux-body[data-view='recovery']:has(.knoux-command-center[data-service='02-System-Cleanup']) > .knoux-sentinel,
+.knoux-body[data-view='recovery']:has(.knoux-command-center[data-service='05-Duplicate-Files']) > .knoux-sentinel,
+.knoux-body[data-view='recovery']:has(.knoux-command-center[data-service='06-Disk-Space']) > .knoux-sentinel,
+.knoux-body[data-view='recovery']:has(.knoux-command-center[data-service='11-Backup-Recovery']) > .knoux-sentinel {
+  display: none !important;
+}
+
+.knoux-command-center[data-family='recovery'][data-service='02-System-Cleanup'] > .knoux-command-live-column,
+.knoux-command-center[data-family='recovery'][data-service='05-Duplicate-Files'] > .knoux-command-live-column,
+.knoux-command-center[data-family='recovery'][data-service='06-Disk-Space'] > .knoux-command-live-column,
+.knoux-command-center[data-family='recovery'][data-service='11-Backup-Recovery'] > .knoux-command-live-column {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.knoux-command-center[data-family='recovery'][data-service='02-System-Cleanup'] .knoux-workspace-stage,
+.knoux-command-center[data-family='recovery'][data-service='06-Disk-Space'] .knoux-workspace-stage,
+.knoux-command-center[data-family='recovery'][data-service='11-Backup-Recovery'] .knoux-workspace-stage,
+.knoux-command-center[data-family='recovery'][data-service='05-Duplicate-Files'] .duplicate-studio-root {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.knoux-command-center[data-family='recovery'][data-service='05-Duplicate-Files'] .duplicate-studio-root {
+  flex: 1 1 auto;
+}
+
+@media (max-width: 1180px) {
+  .knoux-command-center[data-family='recovery'][data-service='02-System-Cleanup'],
+  .knoux-command-center[data-family='recovery'][data-service='05-Duplicate-Files'],
+  .knoux-command-center[data-family='recovery'][data-service='06-Disk-Space'],
+  .knoux-command-center[data-family='recovery'][data-service='11-Backup-Recovery'] {
+    --command-rail-width: 168px;
+    gap: 9px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .knoux-command-center[data-family='recovery'][data-service='02-System-Cleanup'],
+  .knoux-command-center[data-family='recovery'][data-service='05-Duplicate-Files'],
+  .knoux-command-center[data-family='recovery'][data-service='06-Disk-Space'],
+  .knoux-command-center[data-family='recovery'][data-service='11-Backup-Recovery'] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .knoux-command-center[data-family='recovery'][data-service='02-System-Cleanup'] > .knoux-command-service-rail,
+  .knoux-command-center[data-family='recovery'][data-service='05-Duplicate-Files'] > .knoux-command-service-rail,
+  .knoux-command-center[data-family='recovery'][data-service='06-Disk-Space'] > .knoux-command-service-rail,
+  .knoux-command-center[data-family='recovery'][data-service='11-Backup-Recovery'] > .knoux-command-service-rail {
+    max-height: none;
+  }
+}
