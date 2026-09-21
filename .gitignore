@@ -4,6 +4,9 @@ QA-Screenshots/
 Quarantine/
 Data/
 publish-tmp/
+visual-evidence/
+**/visual-evidence/
+KNOUX_FINAL_GATE_REVIEW.txt
 
 # Build and staging artifacts
 Glass-GUI-Builder/
