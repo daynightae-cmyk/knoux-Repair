@@ -181,6 +181,13 @@ export default function NexusSplash({ visible, onDone, lang, bridgeOnline, toolC
               </div>
             )}
 
+            {/* Optical Chamber & Liquid Glass Nexus Core (Sections 28-30) */}
+            <div className="kr-entry__chamber" aria-hidden="true">
+              <div className="kr-entry__chamber-rim" />
+              <div className="kr-entry__chamber-glass" />
+              <div className="kr-entry__chamber-highlight" />
+            </div>
+
             <div className="kr-entry__energy" aria-hidden="true"><i /><i /><i /></div>
             <div className="kr-entry__particles" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
 

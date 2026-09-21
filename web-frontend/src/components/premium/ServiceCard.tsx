@@ -22,6 +22,7 @@ export default function ServiceCard({ service, toolCount, active, onClick, lang,
     <button
       type="button"
       className="knoux-service-card"
+      data-service-id={service.id}
       data-active={active}
       onClick={onClick}
       aria-pressed={active}

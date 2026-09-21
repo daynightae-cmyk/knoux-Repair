@@ -114,7 +114,14 @@ function classifyConsoleErrors(errors, allowTransportNoise) {
   for (const message of errors) {
     const unavailable503 = /status of 503\s*\(Service Unavailable\)/i.test(message);
     const transportReset = /Failed to load resource:\s*net::ERR_CONNECTION_(?:RESET|REFUSED)/i.test(message);
-    if (unavailable503 || (allowTransportNoise && transportReset)) expected.push(message);
+    const hmrCspDiagnostic =
+      /Connecting to 'ws:\/\/127\.0\.0\.1:24678\/\?token=[^']+' violates the following Content Security Policy directive: "connect-src 'self' http:\/\/127\.0\.0\.1:8787"/i.test(message);
+
+    if (
+      hmrCspDiagnostic ||
+      unavailable503 ||
+      (allowTransportNoise && transportReset)
+    ) expected.push(message);
     else unexpected.push(message);
   }
   return { expected, unexpected };

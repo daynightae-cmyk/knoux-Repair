@@ -51,6 +51,7 @@ export default function LeftRail({ activeView, onSelect, lang, bridgeOnline }: L
         type="button"
         onClick={() => onSelect(item.id)}
         className="knoux-rail-item"
+        data-nav-view={item.id}
         data-label={lang === 'ar' ? item.labelAr : item.labelEn}
         data-active={isActive}
         aria-current={isActive ? 'page' : undefined}

@@ -12,5 +12,8 @@ export default defineConfig({
     host: '127.0.0.1',
     allowedHosts: ['localhost', '127.0.0.1'],
     hmr: process.env.CI ? false : undefined,
+    watch: {
+      ignored: ['**/visual-evidence/**', '**/dist/**', '**/node_modules/**'],
+    },
   }
 })

@@ -294,6 +294,7 @@ export default function EngineeringWorkbenchStation({
               key={service.id}
               type="button"
               className="knoux-deck-service"
+              data-service-id={service.id}
               data-service-card={service.id}
               data-active={active}
               aria-pressed={active}

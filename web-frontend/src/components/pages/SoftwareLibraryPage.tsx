@@ -142,7 +142,7 @@ export default function SoftwareLibraryPage({
             const count = serviceToolCount(service, tools, bridgeOnline);
             const kicker = SERVICE_KICKERS[service.id];
             return (
-              <button key={service.id} type="button" onClick={() => onSelectService(service.id)} className="software-library-service-card">
+              <button key={service.id} type="button" onClick={() => onSelectService(service.id)} data-service-id={service.id} className="software-library-service-card">
                 <span className="software-library-service-card__icon"><Icon size={28} /></span>
                 <span className="software-library-service-card__copy">
                   <strong>{ar ? service.name.ar : service.name.en}</strong>

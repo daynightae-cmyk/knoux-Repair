@@ -210,7 +210,10 @@ export default function FamilyLiveStage({
         </div>
       )}
 
-      <AnimatePresence mode="wait" initial={false}>
+      {/* mode="sync": the incoming station mounts concurrently with the outgoing
+          exit so service switching never leaves the center stage empty
+          (proven by the final-visual in-app navigation gate). */}
+      <AnimatePresence mode="sync" initial={false}>
         {selectedTool ? (
           <motion.div
             key={selectedTool.ToolId}

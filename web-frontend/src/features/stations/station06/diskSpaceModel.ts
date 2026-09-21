@@ -242,7 +242,9 @@ export function parseVolumeInventory(
     const isSystem = driveLetter.startsWith(detectedSystemDrive);
 
     let healthStatus: DriveVolume['healthStatus'] = 'HEALTHY';
-    if (usedPercent >= 95 || freeBytes < 2 * 1024 * 1024 * 1024) {
+    if (totalBytes === 0) {
+      healthStatus = 'UNKNOWN';
+    } else if (usedPercent >= 95 || freeBytes < 2 * 1024 * 1024 * 1024) {
       healthStatus = 'CRITICAL';
     } else if (usedPercent >= 85 || freeBytes < 10 * 1024 * 1024 * 1024) {
       healthStatus = 'WARNING';
@@ -419,12 +421,19 @@ export function outcomeFromRun(
   res: KnouxRunResult,
   lang: Lang = 'en'
 ): StationHistoryEntry {
-  const status = (res.status?.toUpperCase() || (res.exitCode === 0 ? 'SUCCESS' : 'FAILED')) as
-    | 'SUCCESS'
-    | 'WARNING'
-    | 'FAILED'
-    | 'CANCELLED'
-    | 'INCONCLUSIVE';
+  const rawStatus = res.status?.toLowerCase();
+  const status: StationHistoryEntry['status'] =
+    rawStatus === 'success'
+      ? 'SUCCESS'
+      : rawStatus === 'error' || rawStatus === 'failed'
+        ? 'FAILED'
+        : rawStatus === 'cancelled'
+          ? 'CANCELLED'
+          : rawStatus === 'inconclusive'
+            ? 'INCONCLUSIVE'
+            : res.exitCode === 0
+              ? 'SUCCESS'
+              : 'FAILED';
 
   const processed = res.itemsProcessed || 0;
   const summary =
@@ -451,5 +460,251 @@ export function emptyEvidence(): DiskEvidence {
     health: [],
     hibernation: evaluateHibernationImpact(),
     reclaimPlan: buildDefaultReclaimPlan(),
+  };
+}
+
+/**
+ * 1. Rank Large Files (DS02)
+ * Sorts large files by size descending, capping at limit.
+ * Flags safe review candidates vs protected system files.
+ */
+export function rankLargeFiles(files: LargeFileItem[], limit: number = 50): LargeFileItem[] {
+  if (!Array.isArray(files)) return [];
+  return [...files]
+    .sort((a, b) => b.sizeBytes - a.sizeBytes)
+    .slice(0, Math.max(1, limit));
+}
+
+/**
+ * 2. Space Hogs Analysis (DS03)
+ * Classifies top storage consumers without declaring them automatically junk.
+ */
+export function classifySpaceHogs(
+  items: Array<{ path: string; sizeBytes: number }>
+): Array<{ path: string; sizeBytes: number; category: string; recommendation: 'REVIEW'; isProtected: boolean }> {
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => {
+    const isProtected = isPathProtected(item.path);
+    const lower = item.path.toLowerCase();
+    let category = 'User Data';
+    if (lower.includes('\\node_modules\\') || lower.includes('\\.gradle\\') || lower.includes('\\.m2\\')) {
+      category = 'Developer Cache';
+    } else if (lower.includes('\\appdata\\local\\temp') || lower.includes('\\windows\\temp')) {
+      category = 'Temporary Files';
+    } else if (lower.includes('\\steam\\') || lower.includes('\\games\\')) {
+      category = 'Games & Media';
+    } else if (lower.includes('\\virtualbox') || lower.includes('\\vmware') || lower.endsWith('.vhd') || lower.endsWith('.vhdx')) {
+      category = 'Virtual Machines';
+    } else if (isProtected) {
+      category = 'System Infrastructure';
+    }
+
+    return {
+      path: item.path,
+      sizeBytes: item.sizeBytes,
+      category,
+      recommendation: 'REVIEW' as const,
+      isProtected,
+    };
+  });
+}
+
+/**
+ * 3. Recycle Bin Safety (DS04)
+ * Emptying Recycle Bin is DESTRUCTIVE and eliminates user's normal recovery layer.
+ */
+export function validateRecycleBinOperation(
+  mode: 'analyze' | 'whatif' | 'run',
+  itemCount: number,
+  totalBytes: number
+): {
+  isDestructive: boolean;
+  requiresConfirmation: boolean;
+  messageEn: string;
+  messageAr: string;
+  reclaimableBytes: number;
+} {
+  if (mode === 'analyze' || mode === 'whatif') {
+    return {
+      isDestructive: false,
+      requiresConfirmation: false,
+      messageEn: `Recycle Bin contains ${itemCount} items (${formatBytes(totalBytes, 'en')}). Inspection only — no files deleted.`,
+      messageAr: `تحتوي سلة المحذوفات على ${itemCount} عنصراً (${formatBytes(totalBytes, 'ar')}). فحص فقط — لم يتم حذف أي ملف.`,
+      reclaimableBytes: totalBytes,
+    };
+  }
+
+  return {
+    isDestructive: true,
+    requiresConfirmation: true,
+    messageEn: `Permanently emptying Recycle Bin will delete ${itemCount} items (${formatBytes(totalBytes, 'en')}). This cannot be undone!`,
+    messageAr: `التفريغ النهائي لسلة المحذوفات سيحذف ${itemCount} عنصراً (${formatBytes(totalBytes, 'ar')}). لا يمكن التراجع عن هذا الإجراء!`,
+    reclaimableBytes: totalBytes,
+  };
+}
+
+/**
+ * 4. File History Cache Safety (DS05)
+ * Protects real backups; only clears disposable local File History staging cache.
+ */
+export function verifyFileHistorySafety(pathStr: string): {
+  isDisposableCache: boolean;
+  isProtectedBackup: boolean;
+  action: 'SAFE_TO_CLEAR' | 'PROTECTED_BACKUP' | 'UNKNOWN';
+} {
+  const norm = pathStr.toLowerCase().replace(/\//g, '\\');
+  // Actual backup folders must NEVER be deleted
+  if (norm.includes('\\filehistory\\data\\') || norm.includes('\\configuration\\catalog')) {
+    return { isDisposableCache: false, isProtectedBackup: true, action: 'PROTECTED_BACKUP' };
+  }
+  // Disposable staging cache
+  if (norm.includes('\\filehistory\\temp') || norm.includes('\\inetcache')) {
+    return { isDisposableCache: true, isProtectedBackup: false, action: 'SAFE_TO_CLEAR' };
+  }
+  return { isDisposableCache: false, isProtectedBackup: false, action: 'UNKNOWN' };
+}
+
+/**
+ * 5. CompactOS State Parsing (DS06)
+ * Parses compact.exe /compactOS:query output.
+ */
+export function parseCompactOSState(rawOutput: string): {
+  state: 'COMPACTED' | 'NOT_COMPACTED' | 'UNKNOWN';
+  explanationEn: string;
+  explanationAr: string;
+} {
+  if (!rawOutput) return { state: 'UNKNOWN', explanationEn: 'CompactOS state query returned no data.', explanationAr: 'لم ترجع استعلام حالة CompactOS أي بيانات.' };
+
+  const lower = rawOutput.toLowerCase();
+  if (lower.includes('is in the compact state') || lower.includes('compact state: true') || lower.includes('state: compact')) {
+    return {
+      state: 'COMPACTED',
+      explanationEn: 'Windows system files are currently compressed using CompactOS (saving disk space).',
+      explanationAr: 'ملفات نظام ويندوز مضغوطة حالياً باستخدام CompactOS (لتوفير مساحة القرص).',
+    };
+  }
+  if (lower.includes('is not in the compact state') || lower.includes('compact state: false') || lower.includes('state: none')) {
+    return {
+      state: 'NOT_COMPACTED',
+      explanationEn: 'Windows system files are uncompressed. Compacting will save disk space with minor decompression overhead.',
+      explanationAr: 'ملفات نظام ويندوز غير مضغوطة. الضغط سيوفر مساحة على القرص مع تأثير طفيف على استهلاك المعالج أثناء فك الضغط.',
+    };
+  }
+  return {
+    state: 'UNKNOWN',
+    explanationEn: 'CompactOS state could not be determined.',
+    explanationAr: 'تعذر تحديد حالة CompactOS.',
+  };
+}
+
+/**
+ * 6. Disk Cleanup Categories Validation (DS08)
+ * Ensures user Downloads is never selected by default.
+ */
+export function validateDiskCleanupCategories(
+  selectedCategories: string[]
+): {
+  safeCategories: string[];
+  cautionCategories: string[];
+  downloadsIncluded: boolean;
+} {
+  const safe = new Set([
+    'TemporaryFiles',
+    'ThumbnailCache',
+    'DeliveryOptimizationFiles',
+    'DirectXShaderCache',
+    'SetupLogFiles',
+    'SystemErrorReporting',
+  ]);
+
+  const caution = new Set(['RecycleBin', 'PreviousInstallations', 'WindowsUpgradeLogFiles']);
+
+  const safeCategories: string[] = [];
+  const cautionCategories: string[] = [];
+  let downloadsIncluded = false;
+
+  for (const cat of selectedCategories) {
+    if (cat.toLowerCase() === 'downloads') {
+      downloadsIncluded = true;
+    } else if (safe.has(cat)) {
+      safeCategories.push(cat);
+    } else if (caution.has(cat)) {
+      cautionCategories.push(cat);
+    }
+  }
+
+  return { safeCategories, cautionCategories, downloadsIncluded };
+}
+
+/**
+ * 7. Hibernation Management & Rollback (DS09)
+ */
+export function evaluateHibernationRollback(currentState: boolean | null): {
+  actionRequired: 'ENABLE' | 'DISABLE';
+  command: string;
+  rollbackCommand: string;
+  impactEn: string;
+  impactAr: string;
+} {
+  if (currentState === true) {
+    return {
+      actionRequired: 'DISABLE',
+      command: 'powercfg -h off',
+      rollbackCommand: 'powercfg -h on',
+      impactEn: 'Deletes hiberfil.sys to reclaim storage. Disables Fast Startup.',
+      impactAr: 'يحذف ملف hiberfil.sys لاستعادة المساحة. يعطل بدء التشغيل السريع.',
+    };
+  }
+  return {
+    actionRequired: 'ENABLE',
+    command: 'powercfg -h on',
+    rollbackCommand: 'powercfg -h off',
+    impactEn: 'Recreates hiberfil.sys and re-enables Windows Fast Startup.',
+    impactAr: 'يعيد إنشاء ملف hiberfil.sys ويعيد تفعيل بدء التشغيل السريع.',
+  };
+}
+
+/**
+ * 8. Storage Report Builder (DS10)
+ */
+export function buildStorageReport(
+  evidence: DiskEvidence,
+  _lang: Lang = 'en'
+): {
+  generatedAt: string;
+  totalStorageBytes: number;
+  totalFreeBytes: number;
+  systemVolumeUsedPercent: number;
+  volumeCount: number;
+  largeFilesObserved: number;
+  potentialReclaimBytes: number;
+  hardwareHealthStatus: string;
+  summaryEn: string;
+  summaryAr: string;
+} {
+  const totalStorageBytes = evidence.volumes.reduce((sum, v) => sum + v.totalBytes, 0);
+  const totalFreeBytes = evidence.volumes.reduce((sum, v) => sum + v.freeBytes, 0);
+  const sysVol = evidence.volumes.find((v) => v.isSystem) || evidence.volumes[0];
+  const systemVolumeUsedPercent = sysVol ? sysVol.usedPercent : 0;
+  const potentialReclaimBytes = calculatePotentialReclaim(evidence.reclaimPlan);
+
+  const healthFailed = evidence.health.some((h) => h.evaluation === 'FAILURE_PREDICTED');
+  const healthHealthy = evidence.health.length > 0 && evidence.health.every((h) => h.evaluation === 'HEALTHY');
+  const hardwareHealthStatus = healthFailed ? 'CRITICAL' : healthHealthy ? 'HEALTHY' : 'INCONCLUSIVE';
+
+  const summaryEn = `Observed ${evidence.volumes.length} volumes with ${formatBytes(totalFreeBytes, 'en')} free of ${formatBytes(totalStorageBytes, 'en')} total. System drive at ${systemVolumeUsedPercent}% capacity. Potential reclaim: ${formatBytes(potentialReclaimBytes, 'en')}. Hardware status: ${hardwareHealthStatus}.`;
+  const summaryAr = `تم رصد ${evidence.volumes.length} أقراص مع مساحة متاحة ${formatBytes(totalFreeBytes, 'ar')} من إجمالي ${formatBytes(totalStorageBytes, 'ar')}. قرص النظام عند ${systemVolumeUsedPercent}% من السعة. الاسترداد المحتمل: ${formatBytes(potentialReclaimBytes, 'ar')}. حالة العتاد: ${hardwareHealthStatus}.`;
+
+  return {
+    generatedAt: new Date().toISOString(),
+    totalStorageBytes,
+    totalFreeBytes,
+    systemVolumeUsedPercent,
+    volumeCount: evidence.volumes.length,
+    largeFilesObserved: evidence.largeFiles.length,
+    potentialReclaimBytes,
+    hardwareHealthStatus,
+    summaryEn,
+    summaryAr,
   };
 }

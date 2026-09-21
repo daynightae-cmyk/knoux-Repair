@@ -241,3 +241,366 @@ test('Station 05: ServiceApps routes activeSection duplicates directly to Duplic
   assert.match(serviceAppsSource, /import DuplicateStation from '\.\.\/features\/stations\/station05\/DuplicateStation';/);
   assert.match(serviceAppsSource, /activeSection === 'duplicates'\s*\?\s*<DuplicateStation/);
 });
+
+/* =========================================================================
+ * BEHAVIORAL ACCEPTANCE SUITE — STATION 05 (Tests 1–40)
+ * ========================================================================= */
+
+test('Station 05 Acceptance 01: identical content hash and size classified as duplicate', () => {
+  const res = model.validateContentIdentity(
+    { name: 'doc1.pdf', size: 1048576, hash: 'a1b2c3d4e5f6' },
+    { name: 'doc2.pdf', size: 1048576, hash: 'a1b2c3d4e5f6' }
+  );
+  assert.equal(res.isDuplicate, true);
+  assert.equal(res.reason, 'IDENTICAL_CONTENT');
+});
+
+test('Station 05 Acceptance 02: identical name with different hash classified as NOT duplicate', () => {
+  const res = model.validateContentIdentity(
+    { name: 'config.json', size: 2048, hash: 'hash_v1' },
+    { name: 'config.json', size: 2048, hash: 'hash_v2' }
+  );
+  assert.equal(res.isDuplicate, false);
+  assert.equal(res.reason, 'HASH_MISMATCH');
+});
+
+test('Station 05 Acceptance 03: different name with identical hash classified as duplicate', () => {
+  const res = model.validateContentIdentity(
+    { name: 'original_photo.raw', size: 25000000, hash: 'photo_sha256_exact' },
+    { name: 'copy (1) of photo.raw', size: 25000000, hash: 'photo_sha256_exact' }
+  );
+  assert.equal(res.isDuplicate, true);
+  assert.equal(res.reason, 'IDENTICAL_CONTENT');
+});
+
+test('Station 05 Acceptance 04: zero-byte files classified as ZERO_BYTE and not content duplicates', () => {
+  const res = model.validateContentIdentity(
+    { name: 'empty1.txt', size: 0, hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' },
+    { name: 'empty2.txt', size: 0, hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' }
+  );
+  assert.equal(res.isDuplicate, false);
+  assert.equal(res.reason, 'ZERO_BYTE');
+});
+
+test('Station 05 Acceptance 05: selectKeeper with oldest strategy selects earliest timestamp', () => {
+  const group = {
+    Files: [
+      { Path: 'C:\\Users\\user\\newer.png', ModifiedTime: '2026-05-01T10:00:00Z' },
+      { Path: 'C:\\Users\\user\\oldest.png', ModifiedTime: '2024-01-01T10:00:00Z' },
+      { Path: 'C:\\Users\\user\\middle.png', ModifiedTime: '2025-01-01T10:00:00Z' },
+    ],
+  };
+  const keeper = model.selectKeeper(group, 'oldest');
+  assert.equal(keeper, 'C:\\Users\\user\\oldest.png');
+});
+
+test('Station 05 Acceptance 06: selectKeeper with newest strategy selects latest timestamp', () => {
+  const group = {
+    Files: [
+      { Path: 'C:\\Users\\user\\older.png', ModifiedTime: '2024-01-01T10:00:00Z' },
+      { Path: 'C:\\Users\\user\\newest.png', ModifiedTime: '2026-06-01T10:00:00Z' },
+    ],
+  };
+  const keeper = model.selectKeeper(group, 'newest');
+  assert.equal(keeper, 'C:\\Users\\user\\newest.png');
+});
+
+test('Station 05 Acceptance 07: selectKeeper with shortestPath strategy selects shortest path', () => {
+  const group = {
+    Files: [
+      { Path: 'D:\\Archive\\Deep\\Folder\\Structure\\file.dat' },
+      { Path: 'D:\\file.dat' },
+      { Path: 'D:\\Archive\\file.dat' },
+    ],
+  };
+  const keeper = model.selectKeeper(group, 'shortestPath');
+  assert.equal(keeper, 'D:\\file.dat');
+});
+
+test('Station 05 Acceptance 08: selectKeeper with longestPath strategy selects longest path', () => {
+  const group = {
+    Files: [
+      { Path: 'D:\\file.dat' },
+      { Path: 'D:\\Archive\\Deep\\Folder\\Structure\\file.dat' },
+      { Path: 'D:\\Archive\\file.dat' },
+    ],
+  };
+  const keeper = model.selectKeeper(group, 'longestPath');
+  assert.equal(keeper, 'D:\\Archive\\Deep\\Folder\\Structure\\file.dat');
+});
+
+test('Station 05 Acceptance 09: selectKeeper with alphabetical strategy selects alphabetically first', () => {
+  const group = {
+    Files: [
+      { Path: 'C:\\Z_folder\\file.txt' },
+      { Path: 'C:\\A_folder\\file.txt' },
+      { Path: 'C:\\M_folder\\file.txt' },
+    ],
+  };
+  const keeper = model.selectKeeper(group, 'alphabetical');
+  assert.equal(keeper, 'C:\\A_folder\\file.txt');
+});
+
+test('Station 05 Acceptance 10: selectKeeper honors userOverridePath if valid', () => {
+  const group = {
+    Files: [
+      { Path: 'C:\\a.txt', ModifiedTime: '2024-01-01T00:00:00Z' },
+      { Path: 'C:\\b.txt', ModifiedTime: '2026-01-01T00:00:00Z' },
+    ],
+  };
+  const keeper = model.selectKeeper(group, 'oldest', 'C:\\b.txt');
+  assert.equal(keeper, 'C:\\b.txt');
+});
+
+test('Station 05 Acceptance 11: selectKeeper falls back to policy if userOverridePath is invalid', () => {
+  const group = {
+    Files: [
+      { Path: 'C:\\a.txt', ModifiedTime: '2024-01-01T00:00:00Z' },
+      { Path: 'C:\\b.txt', ModifiedTime: '2026-01-01T00:00:00Z' },
+    ],
+  };
+  const keeper = model.selectKeeper(group, 'oldest', 'C:\\nonexistent.txt');
+  assert.equal(keeper, 'C:\\a.txt');
+});
+
+test('Station 05 Acceptance 12: enforceKeeperInvariant guarantees keeper is excluded from quarantine', () => {
+  const allFiles = [{ Path: 'C:\\f1.bin' }, { Path: 'C:\\f2.bin' }, { Path: 'C:\\f3.bin' }];
+  const candidates = ['C:\\f1.bin', 'C:\\f2.bin', 'C:\\f3.bin'];
+  const result = model.enforceKeeperInvariant(allFiles, candidates, 'C:\\f2.bin');
+
+  assert.equal(result.preservedKeeper, 'C:\\f2.bin');
+  assert.deepEqual(result.safeQuarantinePaths.sort(), ['C:\\f1.bin', 'C:\\f3.bin']);
+  assert.ok(!result.safeQuarantinePaths.includes('C:\\f2.bin'));
+});
+
+test('Station 05 Acceptance 13: enforceKeeperInvariant prevents zero-keeper state if user selects all', () => {
+  const allFiles = [{ Path: 'C:\\doc1.docx' }, { Path: 'C:\\doc2.docx' }];
+  const candidates = ['C:\\doc1.docx', 'C:\\doc2.docx'];
+  const result = model.enforceKeeperInvariant(allFiles, candidates, 'C:\\doc1.docx');
+
+  assert.equal(result.preservedKeeper, 'C:\\doc1.docx');
+  assert.equal(result.safeQuarantinePaths.length, 1);
+  assert.equal(result.safeQuarantinePaths[0], 'C:\\doc2.docx');
+});
+
+test('Station 05 Acceptance 14: detectHardLinks identifies hard link flag on group', () => {
+  const group = {
+    HardLinkInvolved: true,
+    Files: [{ Path: 'C:\\f1.txt' }, { Path: 'C:\\f2.txt' }],
+  };
+  const res = model.detectHardLinks(group);
+  assert.equal(res.hasHardLink, true);
+  assert.equal(res.status, 'HARD_LINKS_DETECTED');
+  assert.equal(res.reclaimMultiplier, 0);
+});
+
+test('Station 05 Acceptance 15: detectHardLinks identifies shared hard link indices', () => {
+  const group = {
+    Files: [
+      { Path: 'C:\\f1.txt', HardLinkIndex: '1001-2002' },
+      { Path: 'C:\\f2.txt', HardLinkIndex: '1001-2002' },
+    ],
+  };
+  const res = model.detectHardLinks(group);
+  assert.equal(res.hasHardLink, true);
+  assert.equal(res.status, 'HARD_LINKS_DETECTED');
+});
+
+test('Station 05 Acceptance 16: detectHardLinks returns 1 reclaim multiplier for independent files', () => {
+  const group = {
+    HardLinkInvolved: false,
+    Files: [
+      { Path: 'C:\\f1.txt', HardLinkIndex: '1001-2001' },
+      { Path: 'C:\\f2.txt', HardLinkIndex: '1001-2002' },
+    ],
+  };
+  const res = model.detectHardLinks(group);
+  assert.equal(res.hasHardLink, false);
+  assert.equal(res.status, 'SAFE_COPIES');
+  assert.equal(res.reclaimMultiplier, 1);
+});
+
+test('Station 05 Acceptance 17: validatePathContainment accepts valid path within root', () => {
+  const res = model.validatePathContainment('D:\\Data\\Project\\file.txt', 'D:\\Data');
+  assert.equal(res.isContained, true);
+  assert.equal(res.reason, 'VALID');
+});
+
+test('Station 05 Acceptance 18: validatePathContainment rejects path with .. traversal', () => {
+  const res = model.validatePathContainment('D:\\Data\\..\\Windows\\cmd.exe', 'D:\\Data');
+  assert.equal(res.isContained, false);
+  assert.equal(res.reason, 'PATH_TRAVERSAL');
+});
+
+test('Station 05 Acceptance 19: validatePathContainment rejects path outside root', () => {
+  const res = model.validatePathContainment('C:\\Other\\file.txt', 'D:\\Data');
+  assert.equal(res.isContained, false);
+  assert.equal(res.reason, 'OUTSIDE_ROOT');
+});
+
+test('Station 05 Acceptance 20: validatePathContainment rejects Windows system root C:\\Windows', () => {
+  const res = model.validatePathContainment('C:\\Windows\\System32\\calc.exe', 'C:\\');
+  assert.equal(res.isContained, false);
+  assert.equal(res.reason, 'SYSTEM_PROTECTED');
+});
+
+test('Station 05 Acceptance 21: validatePathContainment rejects C:\\Program Files', () => {
+  const res = model.validatePathContainment('C:\\Program Files\\App\\app.dll', 'C:\\');
+  assert.equal(res.isContained, false);
+  assert.equal(res.reason, 'SYSTEM_PROTECTED');
+});
+
+test('Station 05 Acceptance 22: isPathExcluded detects .git folder', () => {
+  assert.equal(model.isPathExcluded('D:\\Repo\\.git\\config', ['.git', 'node_modules']), true);
+});
+
+test('Station 05 Acceptance 23: isPathExcluded detects node_modules folder', () => {
+  assert.equal(model.isPathExcluded('D:\\Repo\\node_modules\\pkg\\index.js', ['.git', 'node_modules']), true);
+});
+
+test('Station 05 Acceptance 24: isPathExcluded detects Quarantine folder', () => {
+  assert.equal(model.isPathExcluded('D:\\Repo\\Quarantine\\item.bin', ['Quarantine']), true);
+});
+
+test('Station 05 Acceptance 25: isPathExcluded allows non-excluded folders', () => {
+  assert.equal(model.isPathExcluded('D:\\Repo\\src\\index.ts', ['.git', 'node_modules']), false);
+});
+
+test('Station 05 Acceptance 26: calculateReclaimAccounting computes potential and selected bytes', () => {
+  const groups = [
+    { Id: 'g1', RecoverableBytes: 5000, Files: [{ Path: 'a' }, { Path: 'b' }], KeepPath: 'a' },
+    { Id: 'g2', RecoverableBytes: 10000, Files: [{ Path: 'c' }, { Path: 'd' }], KeepPath: 'c' },
+  ];
+  const acc = model.calculateReclaimAccounting(groups, new Set(['g1']), { g1: 'a' });
+  assert.equal(acc.potentialReclaimBytes, 15000);
+  assert.equal(acc.selectedReclaimBytes, 5000);
+  assert.equal(acc.totalGroupCount, 2);
+  assert.equal(acc.selectedGroupCount, 1);
+  assert.equal(acc.quarantineFileCount, 1);
+});
+
+test('Station 05 Acceptance 27: calculateReclaimAccounting returns 0 selected when no groups selected', () => {
+  const groups = [
+    { Id: 'g1', RecoverableBytes: 5000, Files: [{ Path: 'a' }, { Path: 'b' }], KeepPath: 'a' },
+  ];
+  const acc = model.calculateReclaimAccounting(groups, new Set([]));
+  assert.equal(acc.potentialReclaimBytes, 5000);
+  assert.equal(acc.selectedReclaimBytes, 0);
+  assert.equal(acc.quarantineFileCount, 0);
+});
+
+test('Station 05 Acceptance 28: prepareQuarantinePlan packages non-keeper files', () => {
+  const groups = [
+    {
+      Id: 'g1',
+      Files: [
+        { Path: 'D:\\Data\\keep.txt', SizeBytes: 100 },
+        { Path: 'D:\\Data\\copy.txt', SizeBytes: 100 },
+      ],
+      KeepPath: 'D:\\Data\\keep.txt',
+    },
+  ];
+  const plan = model.prepareQuarantinePlan(groups, new Set(['g1']), { g1: 'D:\\Data\\keep.txt' }, 'D:\\Data');
+  assert.equal(plan.targets.length, 1);
+  assert.equal(plan.targets[0].path, 'D:\\Data\\copy.txt');
+  assert.equal(plan.rejectedPaths.length, 0);
+});
+
+test('Station 05 Acceptance 29: prepareQuarantinePlan filters out outside-root files into rejectedPaths', () => {
+  const groups = [
+    {
+      Id: 'g1',
+      Files: [
+        { Path: 'D:\\Data\\keep.txt', SizeBytes: 100 },
+        { Path: 'C:\\Windows\\System32\\evil.dll', SizeBytes: 100 },
+      ],
+      KeepPath: 'D:\\Data\\keep.txt',
+    },
+  ];
+  const plan = model.prepareQuarantinePlan(groups, new Set(['g1']), { g1: 'D:\\Data\\keep.txt' }, 'D:\\Data');
+  assert.equal(plan.targets.length, 0);
+  assert.equal(plan.rejectedPaths.length, 1);
+  assert.equal(plan.rejectedPaths[0].path, 'C:\\Windows\\System32\\evil.dll');
+});
+
+test('Station 05 Acceptance 30: verifyRestoreSafety returns RESTORE_DIRECT when destination clear', () => {
+  const res = model.verifyRestoreSafety('D:\\Data\\file.txt', false, 'D:\\Data');
+  assert.equal(res.canRestore, true);
+  assert.equal(res.action, 'RESTORE_DIRECT');
+});
+
+test('Station 05 Acceptance 31: verifyRestoreSafety returns RESTORE_CONFLICT when destination exists', () => {
+  const res = model.verifyRestoreSafety('D:\\Data\\file.txt', true, 'D:\\Data');
+  assert.equal(res.canRestore, true);
+  assert.equal(res.action, 'RESTORE_CONFLICT');
+});
+
+test('Station 05 Acceptance 32: verifyRestoreSafety returns RESTORE_REJECTED when path outside root', () => {
+  const res = model.verifyRestoreSafety('C:\\Windows\\evil.txt', false, 'D:\\Data');
+  assert.equal(res.canRestore, false);
+  assert.equal(res.action, 'RESTORE_REJECTED');
+});
+
+test('Station 05 Acceptance 33: isPreviewStale returns true when file modified after preview', () => {
+  const previewTime = 1000000;
+  const fileMtime = 1000500;
+  assert.equal(model.isPreviewStale(previewTime, fileMtime), true);
+});
+
+test('Station 05 Acceptance 34: isPreviewStale returns false when file unchanged', () => {
+  const previewTime = 1000000;
+  const fileMtime = 999000;
+  assert.equal(model.isPreviewStale(previewTime, fileMtime), false);
+});
+
+test('Station 05 Acceptance 35: Arabic and Unicode paths handled correctly in path containment', () => {
+  const res = model.validatePathContainment('D:\\المستندات\\مشروع_جديد\\ملف.pdf', 'D:\\المستندات');
+  assert.equal(res.isContained, true);
+  assert.equal(res.reason, 'VALID');
+});
+
+test('Station 05 Acceptance 36: DF09 script is strictly READ_ONLY in manifest and script text', () => {
+  const manifest = JSON.parse(readRepo('Docs/TOOLS-MANIFEST.json').replace(/^\uFEFF/, ''));
+  const df09Entry = manifest.find((e) => e.ToolId === 'DF09');
+  assert.equal(df09Entry.RiskLevel, 'READ_ONLY');
+  const df09Script = readRepo('05-Duplicate-Files/DF09-ListDuplicateSystemFiles.ps1');
+  assert.match(df09Script, /READ_ONLY/);
+  assert.doesNotMatch(df09Script, /Remove-Item/);
+});
+
+test('Station 05 Acceptance 37: DF10 restore script provides quarantine restoration capability', () => {
+  const manifest = JSON.parse(readRepo('Docs/TOOLS-MANIFEST.json').replace(/^\uFEFF/, ''));
+  const df10Entry = manifest.find((e) => e.ToolId === 'DF10');
+  assert.ok(df10Entry);
+  assert.equal(df10Entry.ToolId, 'DF10');
+  const df10Script = readRepo('05-Duplicate-Files/DF10-RestoreQuarantinedItems.ps1');
+  assert.match(df10Script, /Restore-KnouxQuarantinedItem/);
+});
+
+test('Station 05 Acceptance 38: quarantine count matches non-keeper count for multi-copy groups (3+ copies)', () => {
+  const group = {
+    Id: 'g_triplet',
+    RecoverableBytes: 4000,
+    Files: [
+      { Path: 'D:\\copy1.iso', SizeBytes: 2000 },
+      { Path: 'D:\\copy2.iso', SizeBytes: 2000 },
+      { Path: 'D:\\copy3.iso', SizeBytes: 2000 },
+    ],
+    KeepPath: 'D:\\copy1.iso',
+  };
+  const plan = model.prepareQuarantinePlan([group], new Set(['g_triplet']), { g_triplet: 'D:\\copy1.iso' }, 'D:\\');
+  assert.equal(plan.targets.length, 2);
+  assert.deepEqual(plan.targets.map((t) => t.path), ['D:\\copy2.iso', 'D:\\copy3.iso']);
+});
+
+test('Station 05 Acceptance 39: zero-byte files handled gracefully by formatBytes', () => {
+  assert.equal(model.formatBytes(0, 'en'), '0 B');
+  assert.equal(model.formatBytes(-50, 'en'), '—');
+});
+
+test('Station 05 Acceptance 40: Station 05 tools category inventory matches 11 tools', () => {
+  const manifest = JSON.parse(readRepo('Docs/TOOLS-MANIFEST.json').replace(/^\uFEFF/, ''));
+  const stationTools = manifest.filter((e) => e.Category === '05-Duplicate-Files');
+  assert.equal(stationTools.length, 11);
+  assert.deepEqual(model.STATION05_TOOL_IDS.length, 11);
+});

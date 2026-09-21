@@ -77,7 +77,8 @@ test('Software and Investigation defer to real station controls instead of the g
 test('Developer Tools keeps the first-class Workbench mounted during execution and drops duplicate family rails', () => {
   assert.match(familyPage, /const showWorkbenchStation = family\.id === 'workbench' && selectedService !== null/);
   assert.match(familyPage, /\{!showWorkbenchStation && \(\s*<aside className="knoux-command-rail knoux-command-service-rail"/s);
-  assert.match(familyPage, /\{!showWorkbenchStation && \(\s*<aside className="knoux-command-rail knoux-command-tool-rail"/s);
+  assert.match(familyPage, /\{!hideGenericToolRail && \(\s*<aside className="knoux-command-rail knoux-command-tool-rail"/s);
+  assert.match(familyPage, /hideGenericToolRail/);
   assert.doesNotMatch(familyPage, /showWorkbenchStation = family\.id === 'workbench' && !selectedTool && !executionTool/);
 });
 

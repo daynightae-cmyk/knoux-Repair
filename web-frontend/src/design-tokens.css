@@ -8,17 +8,36 @@
   --knoux-bg: #050714;
   --knoux-bg-rgb: 5, 7, 20;
   --knoux-bg-deep: #02030b;
+  --knoux-bg-0: #02030b;
+  --knoux-bg-1: #050714;
+  --knoux-bg-2: #0b1126;
+  --knoux-bg-card: rgba(11, 17, 38, 0.72);
   --knoux-brand-gradient: linear-gradient(135deg, #7C3AED 0%, #A855F7 48%, #06B6FF 100%);
   --knoux-brand-gradient-soft: linear-gradient(135deg, rgba(124, 58, 237, 0.24), rgba(6, 182, 255, 0.16));
 
-  /* ── Surfaces ── */
+  /* ── Surfaces & Glass Elevation Layers ── */
   --knoux-surface: rgba(15, 23, 42, 0.7);
   --knoux-surface-elevated: rgba(30, 41, 59, 0.8);
   --knoux-surface-overlay: rgba(15, 23, 42, 0.92);
   --knoux-surface-glass: rgba(15, 23, 42, 0.5);
   --knoux-surface-inset: rgba(2, 4, 12, 0.6);
+  --knoux-glass-low: rgba(15, 23, 42, 0.42);
+  --knoux-glass-mid: rgba(15, 23, 42, 0.68);
+  --knoux-glass-high: rgba(22, 34, 60, 0.86);
 
-  /* ── Brand Colors ── */
+  /* ── Visual Depth Elevation (Layers 0–5) ── */
+  --knoux-layer-0-bg: #02030b;
+  --knoux-layer-1-glass: rgba(11, 17, 38, 0.55);
+  --knoux-layer-2-panel: rgba(15, 23, 48, 0.72);
+  --knoux-layer-3-card: rgba(20, 31, 62, 0.82);
+  --knoux-layer-4-dialog: rgba(11, 18, 42, 0.94);
+  --knoux-layer-5-critical: rgba(24, 12, 28, 0.96);
+
+  /* ── Brand Colors & Liquid Accents ── */
+  --knoux-ice: #7EE8FF;
+  --knoux-ice-rgb: 126, 232, 255;
+  --knoux-azure: #63A8FF;
+  --knoux-azure-rgb: 99, 168, 255;
   --knoux-violet: #7C3AED;
   --knoux-violet-rgb: 124, 58, 237;
   --knoux-violet-dark: #5B21B6;
@@ -43,6 +62,7 @@
 
   /* ── Text ── */
   --knoux-text: #F8FAFF;
+  --knoux-text-primary: #F8FAFF;
   --knoux-text-secondary: #CBD5E1;
   --knoux-text-muted: #94A3B8;
   --knoux-text-faint: #64748B;
@@ -50,6 +70,8 @@
 
   /* ── Borders ── */
   --knoux-border: rgba(255, 255, 255, 0.08);
+  --knoux-border-soft: rgba(255, 255, 255, 0.06);
+  --knoux-border-strong: rgba(255, 255, 255, 0.14);
   --knoux-border-subtle: rgba(255, 255, 255, 0.04);
   --knoux-border-accent: rgba(124, 58, 237, 0.3);
   --knoux-border-highlight: rgba(255, 255, 255, 0.12);
@@ -57,9 +79,12 @@
   /* ── Glass ── */
   --knoux-glass-blur: 20px;
   --knoux-glass-blur-heavy: 40px;
+  --knoux-blur-panel: 24px;
   --knoux-glass-border: 1px solid rgba(255, 255, 255, 0.08);
   --knoux-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   --knoux-glass-shadow-elevated: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --knoux-shadow-float: 0 16px 48px -8px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --knoux-shadow-panel: 0 8px 32px rgba(0, 0, 0, 0.45);
   --knoux-glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   --knoux-brand-glow: 0 0 34px rgba(124, 58, 237, 0.24), 0 0 72px rgba(6, 182, 255, 0.12);
 

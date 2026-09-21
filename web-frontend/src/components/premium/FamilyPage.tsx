@@ -33,6 +33,15 @@ interface FamilyPageProps {
   activeToolId?: string | null;
 }
 
+const STATION_OWNS_ACTIONS_IDS = new Set<ServiceId>([
+  '04-Programs-Applications',
+  '06-Disk-Space',
+  '07-Services-Processes',
+  '10-Diagnostics-Reports',
+  '16-Software-Environment',
+  '17-PostInstall-Setup',
+]);
+
 export default function FamilyPage({
   family, tools, lang, bridgeOnline, bridgeElevated,
   toolStatuses, onRunTool, onCancelTool,
@@ -101,6 +110,8 @@ export default function FamilyPage({
   const serviceAppActive = !selectedTool;
   const showWorkbenchStation = family.id === 'workbench' && selectedService !== null;
   const showDuplicateStudio = activeService.id === '05-Duplicate-Files' && !selectedTool && !executionTool;
+  const hideGenericToolRail =
+    showWorkbenchStation || STATION_OWNS_ACTIONS_IDS.has(activeService.id);
   const [duplicatePending, setDuplicatePending] = useState<{
     tool: BridgeTool; mode: 'run' | 'analyze' | 'preview'; options: ToolRunOptions;
   } | null>(null);
@@ -245,7 +256,7 @@ export default function FamilyPage({
         />
       )}
 
-      {!showWorkbenchStation && (
+      {!hideGenericToolRail && (
       <aside className="knoux-command-rail knoux-command-tool-rail" aria-label={isRtl ? 'إجراءات الخدمة' : 'Service actions'}>
         <header className="knoux-command-rail-header">
           <span>{isRtl ? 'الإجراءات' : 'ACTIONS'}</span>

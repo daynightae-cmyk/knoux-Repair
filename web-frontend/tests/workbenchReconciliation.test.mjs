@@ -41,7 +41,14 @@ test('workbench station remains mounted for selected and running engineering too
 
   // Engineering owns its internal rails while entered, instead of remounting the generic family rails.
   assert.match(familyPage, /\{!showWorkbenchStation && \(\s*<aside className="knoux-command-rail knoux-command-service-rail"/s);
-  assert.match(familyPage, /\{!showWorkbenchStation && \(\s*<aside className="knoux-command-rail knoux-command-tool-rail"/s);
+  assert.match(familyPage, /\{!hideGenericToolRail && \(\s*<aside className="knoux-command-rail knoux-command-tool-rail"/s);
+  assert.match(familyPage, /hideGenericToolRail/);
+  assert.match(familyPage, /STATION_OWNS_ACTIONS_IDS/);
+  assert.match(familyPage, /'04-Programs-Applications'/);
+  assert.match(familyPage, /'07-Services-Processes'/);
+  assert.match(familyPage, /'10-Diagnostics-Reports'/);
+  assert.match(familyPage, /'16-Software-Environment'/);
+  assert.match(familyPage, /'17-PostInstall-Setup'/);
 });
 
 test('workbench station delegates to real service applications and preserves service-route evidence contract', () => {

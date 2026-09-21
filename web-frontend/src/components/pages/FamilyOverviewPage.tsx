@@ -204,7 +204,7 @@ export default function FamilyOverviewPage({
               const Icon = SERVICE_ICONS[service.id] ?? Activity;
               const count = bridgeOnline === true ? tools.filter(tool => tool.Category === service.id).length : null;
               return (
-                <button key={service.id} type="button" className="family-overview-service" data-index={index} onClick={() => onSelectService(service.id)}>
+                <button key={service.id} type="button" className="family-overview-service" data-service-id={service.id} data-index={index} onClick={() => onSelectService(service.id)}>
                   <span className="family-overview-service__icon"><Icon size={21} /></span>
                   <span className="family-overview-service__copy"><strong>{ar ? service.name.ar : service.name.en}</strong><small>{ar ? service.purpose.ar : service.purpose.en}</small></span>
                   <span className="family-overview-service__count"><b>{count ?? '—'}</b><small>{count === null ? (ar ? 'غير متصل' : 'offline') : (ar ? 'إجراءات' : 'actions')}</small></span>

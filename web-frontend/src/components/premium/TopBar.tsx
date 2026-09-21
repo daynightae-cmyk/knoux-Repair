@@ -62,6 +62,7 @@ export default function TopBar({
       <button
         type="button"
         className="knoux-topbar-home"
+        data-nav-view="home"
         data-active={homeActive}
         aria-current={homeActive ? 'page' : undefined}
         aria-label={isRtl ? 'الرئيسية' : 'Home'}

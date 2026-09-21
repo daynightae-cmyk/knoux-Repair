@@ -113,6 +113,9 @@ test('inconclusive service visuals say not checked or awaiting evidence, never r
 test('route transitions mount incoming content concurrently to prevent the observed blank wait frame', () => {
   assert.match(app, /<AnimatePresence initial=\{false\} mode="sync">/);
   assert.doesNotMatch(app, /<AnimatePresence mode="wait">/);
+  const liveStage = fs.readFileSync(path.join(root, 'src/components/premium/FamilyLiveStage.tsx'), 'utf8');
+  assert.match(liveStage, /<AnimatePresence mode="sync" initial=\{false\}>/);
+  assert.doesNotMatch(liveStage, /<AnimatePresence mode="wait"/);
 });
 
 test('engineering finish preserves a dominant real workspace and responsive truth surfaces', () => {
