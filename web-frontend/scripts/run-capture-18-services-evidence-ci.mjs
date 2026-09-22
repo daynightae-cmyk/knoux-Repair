@@ -8,22 +8,27 @@ const tempPath = path.resolve(scriptDir, `.capture-18-services-evidence-ci-${pro
 
 const original = fs.readFileSync(sourcePath, 'utf8');
 const source = original.replace(/\r\n/g, '\n');
-const anchor = "    const transportReset = /Failed to load resource:\\s*net::ERR_CONNECTION_(?:RESET|REFUSED)/i.test(message);";
-const originalBranch = "    if (unavailable503 || (allowTransportNoise && transportReset)) expected.push(message);";
+let patched = source;
+if (source.includes('hmrCspDiagnostic')) {
+  // capture-18-services-evidence.mjs already includes the authoritative HMR CSP diagnostic classifier.
+} else {
+  const anchor = "    const transportReset = /Failed to load resource:\\s*net::ERR_CONNECTION_(?:RESET|REFUSED)/i.test(message);";
+  const originalBranch = "    if (unavailable503 || (allowTransportNoise && transportReset)) expected.push(message);";
 
-if (!source.includes(anchor) || !source.includes(originalBranch)) {
-  throw new Error('18-service capture classifier changed; refusing to apply the narrow CI-only HMR classification shim.');
-}
+  if (!source.includes(anchor) || !source.includes(originalBranch)) {
+    throw new Error('18-service capture classifier changed; refusing to apply the narrow CI-only HMR classification shim.');
+  }
 
-const hmrClassifier = `${anchor}
+  const hmrClassifier = `${anchor}
     // Windows evidence runs the Vite development client. The product CSP correctly
     // blocks its loopback HMR socket; classify only this exact diagnostic as harness noise.
     const devHmrCspBlocked = /Connecting to 'ws:\\/\\/127\\.0\\.0\\.1:24678\\/\\?token=[^']+' violates the following Content Security Policy directive: "connect-src 'self' http:\\/\\/127\\.0\\.0\\.1:8787"\\. The action has been blocked\\./i.test(message);`;
-const patchedBranch = "    if (unavailable503 || devHmrCspBlocked || (allowTransportNoise && transportReset)) expected.push(message);";
+  const patchedBranch = "    if (unavailable503 || devHmrCspBlocked || (allowTransportNoise && transportReset)) expected.push(message);";
 
-let patched = source.replace(anchor, hmrClassifier).replace(originalBranch, patchedBranch);
-if (patched === source || !patched.includes('devHmrCspBlocked')) {
-  throw new Error('Failed to construct the strict CI evidence classifier.');
+  patched = source.replace(anchor, hmrClassifier).replace(originalBranch, patchedBranch);
+  if (patched === source || !patched.includes('devHmrCspBlocked')) {
+    throw new Error('Failed to construct the strict CI evidence classifier.');
+  }
 }
 
 const countOccurrences = (text, needle) => text.split(needle).length - 1;
