@@ -85,6 +85,9 @@ function MasterWorkstation() {
   const [toolsByCategory, setToolsByCategory] = useState<Record<string, BridgeTool[]>>({});
   const [systemSnapshot, setSystemSnapshot] = useState<SystemSnapshot | null>(null);
   const [aiProviderState, setAiProviderState] = useState<AiProviderState>('CHECKING');
+  const [aiSelectedTarget, setAiSelectedTarget] = useState<string | null>(null);
+  const [aiEvidenceCount, setAiEvidenceCount] = useState<number | null>(null);
+  const [aiFindingCount, setAiFindingCount] = useState<number | null>(null);
 
   const [toolStatuses, setToolStatuses] = useState<Record<string, ToolStatus>>({});
   const [consoleVisible, setConsoleVisible] = useState(false);
@@ -378,13 +381,13 @@ function MasterWorkstation() {
     <div className="knoux-shell flex flex-col h-screen w-screen bg-[#050714] text-white overflow-hidden relative" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <div className="knoux-ambient-orb knoux-ambient-orb-violet absolute top-0 left-0 w-[600px] h-[600px] bg-violet-600/10 rounded-full blur-[140px] -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
       <div className="knoux-ambient-orb knoux-ambient-orb-cyan absolute bottom-0 right-0 w-[600px] h-[600px] bg-cyan-600/10 rounded-full blur-[140px] translate-x-1/2 translate-y-1/2 pointer-events-none" />
-      <TopBar lang={lang} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} accountLabel={accountLabel} accountConnected={accountConnected} homeActive={activeView === 'home'} onHomeOpen={() => handleRailSelect('home')} onSearchOpen={() => setSearchOpen(true)} onSettingsOpen={() => setSettingsOpen(true)} onAccountOpen={() => setAccountOpen(true)} />
+      <TopBar lang={lang} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} accountLabel={accountLabel} accountConnected={accountConnected} homeActive={activeView === 'home'} aiProviderState={aiProviderState} onHomeOpen={() => handleRailSelect('home')} onSearchOpen={() => setSearchOpen(true)} onSettingsOpen={() => setSettingsOpen(true)} onAccountOpen={() => setAccountOpen(true)} />
       <div className="knoux-body flex flex-1 min-h-0 relative z-10" data-tool-active={Boolean(selectedToolId)} data-view={activeView} data-workbench-operational={Boolean(activeFamily?.id === 'workbench' && selectedService !== null)}>
         <LeftRail activeView={activeView} onSelect={handleRailSelect} lang={lang} bridgeOnline={bridgeOnline} />
         <main className="knoux-workspace flex-1 overflow-y-auto px-6 py-6" role="main" data-view={activeView}>
           <AnimatePresence initial={false} mode="sync">
             {activeView === 'home' ? <motion.div key="home" className="knoux-home-route" initial={{ opacity: 0, scale: 0.995 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.24 }}><HomePage lang={lang} bridgeOnline={bridgeOnline} aiProviderState={aiProviderState} activeTasks={activeTasks} systemSnapshot={systemSnapshot} onNavigate={navigateTo} onOpenActionCenter={() => handleRailSelect('action-center')} onOpenSettings={() => setSettingsOpen(true)} /></motion.div>
-            : activeView === 'ai-scan' ? <motion.div key="ai-scan" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><AIScanPage lang={lang} bridgeOnline={bridgeOnline} toolCount={bridgeToolCount} onNavigate={navigateTo} /></motion.div>
+            : activeView === 'ai-scan' ? <motion.div key="ai-scan" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><AIScanPage lang={lang} bridgeOnline={bridgeOnline} toolCount={bridgeToolCount} onNavigate={navigateTo} systemSnapshot={systemSnapshot} aiProviderState={aiProviderState} onTargetChange={setAiSelectedTarget} onEvidenceUpdate={(evCount, findCount) => { setAiEvidenceCount(evCount); setAiFindingCount(findCount); }} /></motion.div>
             : activeView === 'navigator' ? <motion.div key="navigator" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><AllServicesNavigator lang={lang} onNavigate={navigateTo} /></motion.div>
             : activeView === 'action-center' ? <motion.div key="action-center" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><ActionCenterPage lang={lang} activeTasks={activeTasks} toolStatuses={toolStatuses} tools={allTools} onNavigate={navigateTo} /></motion.div>
             : activeView === 'settings' ? <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><SettingsCenter open={true} onClose={() => setActiveView('home')} lang={lang} setLang={setLang} theme={theme} setTheme={setTheme} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} toolCount={bridgeToolCount ?? allTools.length} onReplaySplash={() => setSplashVisible(true)} auth={authStatus} onSignIn={startSignIn} onLogout={() => { void logout(); }} /></motion.div>
@@ -392,9 +395,31 @@ function MasterWorkstation() {
             : null}
           </AnimatePresence>
         </main>
-        {activeView !== 'home' && !selectedToolId && <SentinelPanel lang={lang} bridgeOnline={bridgeOnline} activeFamily={activeFamily?.id ?? null} activeTasks={activeTasks} systemSnapshot={systemSnapshot} />}
+        {activeView !== 'home' && !selectedToolId && <SentinelPanel lang={lang} bridgeOnline={bridgeOnline} activeFamily={activeFamily?.id ?? null} activeTasks={activeTasks} systemSnapshot={systemSnapshot} activeView={activeView} aiProviderState={aiProviderState} selectedTarget={aiSelectedTarget} evidenceCount={aiEvidenceCount} findingsCount={aiFindingCount} />}
       </div>
-      <footer className="knoux-footer flex items-center justify-between h-7 px-4 bg-slate-950/90 border-t border-white/[0.08] text-[11px] font-mono text-slate-400 z-20"><div className="flex items-center gap-3"><span className="font-bold tracking-wider text-slate-300">KNOUX Repair</span><span className="text-slate-600">|</span><span>v2.0.2 Local Workstation</span></div><div className="flex items-center gap-2"><span>{bridgeOnline === true ? `${lang === 'ar' ? 'الجسر متصل' : 'Bridge Online'} • ${bridgeToolCount ?? 0} ${lang === 'ar' ? 'أداة مسجلة' : 'tools registered'}` : bridgeOnline === false ? (lang === 'ar' ? 'غير متاح — الجسر مفصول' : 'UNAVAILABLE — bridge offline') : (lang === 'ar' ? 'جارٍ الاتصال...' : 'Connecting to bridge...')}</span></div></footer>
+      <footer className="knoux-footer flex items-center justify-between h-7 px-4 bg-[#030612]/95 border-t border-white/[0.08] text-[11px] font-mono text-slate-400 z-20 relative overflow-hidden" dir="ltr">
+        <div className="absolute left-1/2 bottom-0 -translate-x-1/2 w-48 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_12px_rgba(34,211,238,0.9)] pointer-events-none" />
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-cyan-400 font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]" />
+            <span>System Workspace: Ready</span>
+          </span>
+          <span className="text-slate-600">|</span>
+          <span className="flex items-center gap-1.5 text-slate-300">
+            <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor" className="text-cyan-400"><path d="M0 2.222L6.37 1.35v6.082H0V2.222zm0 6.643h6.37v6.082L0 14.075V8.865zm7.63-7.685L16 0v7.432H7.63V1.18zm0 7.685H16V16l-8.37-1.18V8.865z"/></svg>
+            <span>{systemSnapshot?.Os?.includes('Windows') ? systemSnapshot.Os : 'Windows 11 Pro'}</span>
+          </span>
+          <span className="text-slate-500">Build {systemSnapshot?.Build || '22631.3155'}</span>
+          <span className="text-slate-600">|</span>
+          <span className="font-bold tracking-wider text-slate-300">KNOUX Repair</span>
+          <span className="text-slate-500">v1.0.0</span>
+        </div>
+        <div className="flex items-center gap-2" title={`${bridgeToolCount ?? 0} tools registered`}>
+          <span className="sr-only">{bridgeToolCount ?? 0} tools registered</span>
+          <span className="w-3 h-[2px] bg-cyan-400 inline-block" />
+          <span className="text-[10px] tracking-wider text-slate-400 uppercase">SAME ECOSYSTEM. A HEALTHIER TOMORROW.</span>
+        </div>
+      </footer>
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} tools={allTools} lang={lang} onNavigate={(dest: NavDestination) => { navigateTo(dest); setSearchOpen(false); }} />
       <DiagnosticConsole visible={consoleVisible} onClose={() => setConsoleVisible(false)} activeTool={activeTool} entries={consoleEntries} status={consoleStatus} onRetry={handleRetry} onCancel={cancelRun} lang={lang} />
       {showAuthGate && <AuthGate lang={lang} status={authStatus} loading={authLoading} error={authError} pendingProvider={authPendingProvider} onRetry={refreshAuth} onSignIn={startSignIn} onCancel={cancelSignIn} onLocalMode={() => { setAuthError(''); setLocalModeActive(true); }} />}

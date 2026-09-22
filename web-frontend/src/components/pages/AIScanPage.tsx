@@ -1,36 +1,46 @@
-import { useCallback, useMemo, useState, type ElementType } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
-  ArrowLeft,
   ArrowRight,
-  BrainCircuit,
+  ArrowLeft,
+  Box,
   CheckCircle2,
   Clock,
   Code2,
+  Crosshair,
   Database,
+  FileText,
+  Layers,
+  LayoutGrid,
+  Lightbulb,
   Loader2,
-  Package,
+  Monitor,
   Play,
+  Rocket,
   Search,
+  Settings,
   Shield,
   ShieldCheck,
-  Sparkles,
   Wrench,
+  X,
 } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { FAMILIES } from '../../data/family-map';
 import type { FamilyId, NavDestination, ServiceId } from '../../data/family-map';
 import { api } from '../../lib/api';
+import type { SystemSnapshot } from '../../lib/api';
 
 export interface AIScanPageProps {
   lang: 'en' | 'ar';
   bridgeOnline: boolean | null;
   toolCount: number | null;
   onNavigate: (dest: NavDestination) => void;
+  systemSnapshot?: SystemSnapshot | null;
+  aiProviderState?: 'CHECKING' | 'CONFIGURED' | 'UNCONFIGURED' | 'UNAVAILABLE' | 'ERROR';
+  onTargetChange?: (target: string | null) => void;
+  onEvidenceUpdate?: (evidenceCount: number, findingCount: number) => void;
 }
 
-interface ScanFinding {
+export interface ScanFinding {
   id: string;
   severity: 'critical' | 'warning' | 'optimal';
   titleEn: string;
@@ -47,72 +57,113 @@ interface ScanFinding {
   actionLabelAr: string;
 }
 
-type AiWorkflowId = 'scan' | 'analyze' | 'understand' | 'repair';
-
-type WorkflowStep = {
-  id: AiWorkflowId;
-  icon: ElementType;
-  titleEn: string;
-  titleAr: string;
-  detailEn: string;
-  detailAr: string;
+type TargetOption = {
+  id: string;
+  family: FamilyId;
+  service?: ServiceId;
+  labelEn: string;
+  labelAr: string;
+  descEn: string;
+  descAr: string;
 };
 
-const AI_WORKFLOW: WorkflowStep[] = [
+const TARGET_OPTIONS: TargetOption[] = [
   {
-    id: 'scan',
-    icon: Search,
-    titleEn: 'Scan',
-    titleAr: 'فحص',
-    detailEn: 'Collect registered system evidence.',
-    detailAr: 'جمع أدلة النظام المسجلة.',
+    id: 'system',
+    family: 'vitality',
+    service: '01-System-Maintenance',
+    labelEn: 'Full System Vitals',
+    labelAr: 'فحص حيوية النظام الشامل',
+    descEn: 'Evaluate hardware, RAM pressure, and core health',
+    descAr: 'تحليل العتاد وضغط الذاكرة وصحة النظام',
   },
   {
-    id: 'analyze',
-    icon: Activity,
-    titleEn: 'Analyze',
-    titleAr: 'تحليل',
-    detailEn: 'Evaluate evidence without invented scores.',
-    detailAr: 'تحليل الأدلة دون نتائج مختلقة.',
+    id: 'performance',
+    family: 'vitality',
+    service: '08-Performance',
+    labelEn: 'System Performance',
+    labelAr: 'أداء النظام والاستجابة',
+    descEn: 'Audit execution speed, memory leaks, and CPU pressure',
+    descAr: 'فحص سرعة التنفيذ وتسريب الذاكرة وضغط المعالج',
   },
   {
-    id: 'understand',
-    icon: BrainCircuit,
-    titleEn: 'Understand',
-    titleAr: 'فهم',
-    detailEn: 'Explain findings and their impact.',
-    detailAr: 'شرح النتائج وتأثيرها.',
+    id: 'storage',
+    family: 'recovery',
+    service: '06-Disk-Space',
+    labelEn: 'Storage & Cleanup',
+    labelAr: 'التخزين وتفريغ المساحة',
+    descEn: 'Identify junk caches, disk volume usage, and temp bloat',
+    descAr: 'رصد مخلفات التخزين والمساحة المستهلكة',
   },
   {
-    id: 'repair',
-    icon: Wrench,
-    titleEn: 'Repair Together',
-    titleAr: 'الإصلاح معاً',
-    detailEn: 'Open the registered canonical tool for confirmed action.',
-    detailAr: 'فتح أداة معتمدة ومسجلة لتنفيذ الإجراء المؤكد.',
+    id: 'security',
+    family: 'assurance',
+    service: '09-Security',
+    labelEn: 'Security & Assurance',
+    labelAr: 'الأمان والضمان',
+    descEn: 'Verify Defender status, firewall, and device drivers',
+    descAr: 'التأكد من حالة الحماية والجدار الناري وتعريفات العتاد',
+  },
+  {
+    id: 'software',
+    family: 'software',
+    service: '04-Programs-Applications',
+    labelEn: 'Software Environment',
+    labelAr: 'بيئة البرمجيات والتطبيقات',
+    descEn: 'Inspect application health, runtime runtimes, and packages',
+    descAr: 'فحص سلامة البرامج والحزم وحزم التشغيل',
+  },
+  {
+    id: 'workbench',
+    family: 'workbench',
+    service: '12-Developer-Tools',
+    labelEn: 'Developer Project',
+    labelAr: 'مشروع المطور والبيئة الهندسية',
+    descEn: 'Audit repo manifests, developer toolchains, and Sonar telemetry',
+    descAr: 'فحص مستودعات المشاريع وأدوات المطور وتقارير سونار',
   },
 ];
 
-const FAMILY_ICONS: Record<string, ElementType> = {
-  vitality: Activity,
-  recovery: Database,
-  assurance: Shield,
-  software: Package,
-  workbench: Code2,
-  investigation: Search,
-};
-
-export default function AIScanPage({ lang, bridgeOnline, toolCount, onNavigate }: AIScanPageProps) {
+export default function AIScanPage({
+  lang,
+  bridgeOnline,
+  toolCount: _toolCount,
+  onNavigate,
+  systemSnapshot,
+  aiProviderState: _aiProviderState = 'UNCONFIGURED',
+  onTargetChange,
+  onEvidenceUpdate,
+}: AIScanPageProps) {
   const isRtl = lang === 'ar';
   const [scanning, setScanning] = useState(false);
   const [scanStage, setScanStage] = useState('');
   const [findings, setFindings] = useState<ScanFinding[] | null>(null);
   const [scanTimestamp, setScanTimestamp] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedWorkflow, setSelectedWorkflow] = useState<AiWorkflowId>('scan');
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [evidenceSourceCount, setEvidenceSourceCount] = useState(0);
   const [scanError, setScanError] = useState('');
+
+  const [selectedTarget, setSelectedTarget] = useState<TargetOption | null>(null);
+  const [targetPickerOpen, setTargetPickerOpen] = useState(false);
+  const [selectedChipId, setSelectedChipId] = useState<string | null>(null);
+
+  const handleSelectTarget = useCallback((target: TargetOption | null) => {
+    setSelectedTarget(target);
+    setTargetPickerOpen(false);
+    onTargetChange?.(target ? (isRtl ? target.labelAr : target.labelEn) : null);
+  }, [isRtl, onTargetChange]);
+
+  const handleChipClick = useCallback((chipId: string) => {
+    if (selectedChipId === chipId) {
+      setSelectedChipId(null);
+      handleSelectTarget(null);
+      return;
+    }
+    setSelectedChipId(chipId);
+    const matched = TARGET_OPTIONS.find(t => t.id === chipId) ?? null;
+    handleSelectTarget(matched);
+  }, [handleSelectTarget, selectedChipId]);
 
   const runDiagnosticScan = useCallback(async () => {
     if (bridgeOnline !== true) return;
@@ -121,7 +172,6 @@ export default function AIScanPage({ lang, bridgeOnline, toolCount, onNavigate }
     setScanError('');
     setEvidenceSourceCount(0);
     setSelectedFindingId(null);
-    setSelectedWorkflow('scan');
     setScanStage(isRtl ? 'فحص مقاييس الحيوية والأداء...' : 'Inspecting system vitals & memory pressure...');
 
     const discoveredFindings: ScanFinding[] = [];
@@ -133,7 +183,6 @@ export default function AIScanPage({ lang, bridgeOnline, toolCount, onNavigate }
 
       if (sysRes?.system) {
         verifiedSources += 1;
-        setSelectedWorkflow('analyze');
         const sys = sysRes.system;
 
         if (sys.TotalRamGB && sys.FreeRamGB !== undefined) {
@@ -238,269 +287,609 @@ export default function AIScanPage({ lang, bridgeOnline, toolCount, onNavigate }
       setSelectedFindingId(discoveredFindings[0]?.id ?? null);
       setScanTimestamp(new Date().toLocaleTimeString());
       setScanStage(isRtl ? 'اكتمل الفحص' : 'Diagnostic scan complete');
-      setSelectedWorkflow(discoveredFindings.length > 0 ? 'repair' : 'understand');
+      onEvidenceUpdate?.(verifiedSources, discoveredFindings.length);
     } catch {
       setFindings([]);
       setSelectedFindingId(null);
       setEvidenceSourceCount(0);
-      setScanError(isRtl ? 'تعذر جمع أدلة تشخيص موثوقة من الجسر.' : 'No verified diagnostic evidence was returned by the bridge.');
-      setSelectedWorkflow('scan');
+      setScanError(isRtl ? 'تعذر جمع أدلة تشخيص موثوقة من الجسر.' : 'The bridge returned no verifiable evidence source.');
+      onEvidenceUpdate?.(0, 0);
     } finally {
       setScanning(false);
     }
-  }, [bridgeOnline, isRtl]);
+  }, [bridgeOnline, isRtl, onEvidenceUpdate]);
 
-  const selectedWorkflowContent = AI_WORKFLOW.find(step => step.id === selectedWorkflow) ?? AI_WORKFLOW[0];
-  const selectedFinding = findings?.find(finding => finding.id === selectedFindingId) ?? null;
-  const findingCounts = useMemo(() => ({
-    critical: findings?.filter(finding => finding.severity === 'critical').length ?? 0,
-    warning: findings?.filter(finding => finding.severity === 'warning').length ?? 0,
-  }), [findings]);
+  const selectedFinding = useMemo(() => {
+    return findings?.find(f => f.id === selectedFindingId) ?? findings?.[0] ?? null;
+  }, [findings, selectedFindingId]);
 
-  const previewState = scanning
-    ? (selectedWorkflow === 'analyze' ? (isRtl ? 'جارٍ التحليل' : 'Analyzing') : (isRtl ? 'جارٍ الفحص' : 'Scanning'))
-    : findings !== null && evidenceSourceCount > 0
-      ? (isRtl ? 'النتائج جاهزة' : 'Results ready')
-      : bridgeOnline === true
-        ? (isRtl ? 'جاهز' : 'Ready')
-        : (isRtl ? 'غير متصل' : 'Not connected');
+  const handleQuerySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    const q = searchQuery.toLowerCase().trim();
+    if (q.includes('ram') || q.includes('perf') || q.includes('slow') || q.includes('memory')) {
+      handleChipClick('performance');
+    } else if (q.includes('disk') || q.includes('clean') || q.includes('space') || q.includes('junk')) {
+      handleChipClick('storage');
+    } else if (q.includes('sec') || q.includes('virus') || q.includes('defender') || q.includes('protect')) {
+      handleChipClick('security');
+    } else if (q.includes('soft') || q.includes('app') || q.includes('program')) {
+      handleChipClick('software');
+    } else if (q.includes('dev') || q.includes('code') || q.includes('git') || q.includes('repo')) {
+      handleChipClick('workbench');
+    } else {
+      handleChipClick('system');
+    }
+  };
+
+  const currentSystemSummary = useMemo(() => {
+    if (!systemSnapshot) return isRtl ? 'لم يتم تحديد هدف.' : 'No target selected.';
+    const os = systemSnapshot.Os || 'Windows 11';
+    const ram = systemSnapshot.TotalRamGB ? `${systemSnapshot.TotalRamGB} GB RAM` : '';
+    const sysDrive = systemSnapshot.Drives?.find(d => d.IsSystem) || systemSnapshot.Drives?.[0];
+    const free = sysDrive ? `${sysDrive.FreeGB.toFixed(0)} GB Free` : '';
+    return [os, ram, free].filter(Boolean).join(' • ');
+  }, [systemSnapshot, isRtl]);
+
+  const suggestedAction = useMemo(() => {
+    if (!findings || findings.length === 0) return null;
+    return findings[0];
+  }, [findings]);
 
   return (
-    <div className="knoux-ai-command-center" dir={isRtl ? 'rtl' : 'ltr'}>
-      <aside className="knoux-ai-rail knoux-ai-workflow-rail" aria-label={isRtl ? 'مراحل الفحص الذكي' : 'AI workflow'}>
-        <header className="knoux-ai-rail-head">
-          <span>KNOUX AI</span>
-          <strong>{isRtl ? 'مسار التشخيص' : 'DIAGNOSTIC FLOW'}</strong>
-        </header>
+    <div className="knoux-ai-command-center knoux-ai-reference-experience" dir={isRtl ? 'rtl' : 'ltr'}>
+      {/* ── Central Diagnostic Reactor & Core Visual ── */}
+      <section className="knoux-ai-hero-viewport" aria-label="KNOUX AI Diagnostic Core">
+        <div className="knoux-ai-reactor-assembly" data-scanning={scanning}>
+          {/* Background ECG heartbeat wave lines */}
+          <div className="knoux-ai-ecg-backdrop" aria-hidden="true">
+            <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="knoux-ai-ecg-svg">
+              <defs>
+                <linearGradient id="ecgGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="rgba(34, 211, 238, 0)" />
+                  <stop offset="25%" stopColor="rgba(34, 211, 238, 0.4)" />
+                  <stop offset="50%" stopColor="rgba(168, 85, 247, 0.7)" />
+                  <stop offset="75%" stopColor="rgba(34, 211, 238, 0.4)" />
+                  <stop offset="100%" stopColor="rgba(34, 211, 238, 0)" />
+                </linearGradient>
+                <filter id="ecgGlow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+              <path
+                d="M 0 60 L 260 60 L 280 42 L 295 78 L 310 32 L 325 70 L 340 54 L 355 60 L 840 60 L 855 42 L 870 78 L 885 30 L 900 74 L 915 54 L 930 60 L 1200 60"
+                fill="none"
+                stroke="url(#ecgGrad)"
+                strokeWidth="1.8"
+                filter="url(#ecgGlow)"
+                className="knoux-ai-ecg-path"
+              />
+            </svg>
+          </div>
 
-        <div className="knoux-ai-rail-scroll">
-          {AI_WORKFLOW.map((step, index) => {
-            const Icon = step.icon;
-            const active = selectedWorkflow === step.id;
-            return (
-              <button
-                key={step.id}
-                type="button"
-                className="knoux-ai-flow-card"
-                data-active={active}
-                aria-pressed={active}
-                onClick={() => setSelectedWorkflow(step.id)}
-              >
-                <span className="knoux-ai-flow-index">0{index + 1}</span>
-                <span className="knoux-ai-flow-icon"><Icon size={17} /></span>
-                <span className="knoux-ai-flow-copy">
-                  <strong>{isRtl ? step.titleAr : step.titleEn}</strong>
-                  <small>{isRtl ? step.detailAr : step.detailEn}</small>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="knoux-ai-family-coverage">
-          <span>{isRtl ? 'تغطية العائلات' : 'FAMILY COVERAGE'}</span>
-          {FAMILIES.filter(family => !['ai-scan', 'navigator'].includes(family.id)).map(family => {
-            const Icon = FAMILY_ICONS[family.id] ?? Search;
-            return (
-              <button
-                key={family.id}
-                type="button"
-                onClick={() => onNavigate({ family: family.id })}
-                title={isRtl ? family.name.ar : family.name.en}
-              >
-                <Icon size={13} />
-                <span>{isRtl ? family.name.ar : family.name.en}</span>
-              </button>
-            );
-          })}
-        </div>
-      </aside>
-
-      <main className="knoux-ai-live-column">
-        <section className="knoux-ai-live-stage" data-state={scanning ? 'running' : 'idle'}>
-          <div className="knoux-ai-grid" aria-hidden="true" />
-          <header className="knoux-ai-live-head">
-            <div>
-              <span><Sparkles size={12} /> {isRtl ? 'مركز تشخيص KNOUX' : 'KNOUX DIAGNOSTIC CORE'}</span>
-              <strong>AI Scan</strong>
+          {/* Left Flanking Technical Monospace Copy */}
+          <div className="knoux-ai-tech-flank is-left" aria-hidden="true">
+            <div className="knoux-ai-tech-group">
+              <span className={scanning && scanStage.includes('Inspect') ? 'is-active' : ''}>ANALYZE</span>
+              <span className={scanning && scanStage.includes('Evaluat') ? 'is-active' : ''}>DETECT</span>
+              <span className={scanning ? 'is-active' : ''}>CORRELATE</span>
+              <span>UNDERSTAND</span>
+              <span>RECOMMEND</span>
+              <span>SOLVE</span>
             </div>
-            <div className="knoux-ai-runtime-state" data-online={bridgeOnline === true}>
-              <span aria-hidden="true" />
-              {bridgeOnline === true
-                ? (isRtl ? 'الجسر متصل' : 'Bridge connected')
-                : bridgeOnline === false
-                  ? (isRtl ? 'الجسر غير متصل' : 'Bridge offline')
-                  : (isRtl ? 'جارٍ التحقق' : 'Checking bridge')}
-            </div>
-          </header>
-
-          <div className="knoux-ai-live-body">
-            <div className="knoux-ai-core-copy">
-              <span className="knoux-ai-context-label">{isRtl ? selectedWorkflowContent.titleAr : selectedWorkflowContent.titleEn}</span>
-              <h1>{isRtl ? 'افحص. افهم. أصلح بثقة.' : 'Scan. Understand. Repair with evidence.'}</h1>
-              <p>{isRtl ? selectedWorkflowContent.detailAr : selectedWorkflowContent.detailEn}</p>
-
-              <div className="knoux-ai-query-box">
-                <Search size={15} />
-                <input
-                  value={searchQuery}
-                  onChange={event => setSearchQuery(event.target.value)}
-                  placeholder={isRtl ? 'صف المشكلة أو اكتب سياقاً للبحث...' : 'Describe the issue or add search context...'}
-                  aria-label={isRtl ? 'سياق الفحص' : 'Scan context'}
-                />
-              </div>
-
-              <div className="knoux-ai-primary-actions">
-                <button type="button" onClick={runDiagnosticScan} disabled={scanning || bridgeOnline !== true}>
-                  {scanning ? <Loader2 size={15} className="animate-spin" /> : <Play size={14} />}
-                  {scanning
-                    ? (isRtl ? 'جارٍ جمع الأدلة...' : 'Collecting evidence...')
-                    : findings
-                      ? (isRtl ? 'إعادة الفحص' : 'Rerun AI Scan')
-                      : (isRtl ? 'بدء الفحص الذكي' : 'Start AI Scan')}
-                </button>
-                {selectedFinding && (
-                  <button type="button" className="is-secondary" onClick={() => onNavigate(selectedFinding.dest)}>
-                    <Wrench size={14} />
-                    {isRtl ? selectedFinding.actionLabelAr : selectedFinding.actionLabelEn}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="knoux-ai-core-visual" aria-live="polite">
-              <div className="knoux-ai-orbit knoux-ai-orbit-a" />
-              <div className="knoux-ai-orbit knoux-ai-orbit-b" />
-              <div className="knoux-ai-core-ring"><span>K</span></div>
-              <div className="knoux-ai-core-state" data-state={scanning ? 'active' : bridgeOnline === true ? 'ready' : 'offline'}>
-                <span aria-hidden="true" />
-                <strong>{previewState}</strong>
-                <small>{scanStage || (isRtl ? 'بانتظار بدء الفحص' : 'Awaiting diagnostic scan')}</small>
-              </div>
+            <div className="knoux-ai-tech-group is-secondary">
+              <span>YOUR PC</span>
+              <span>IN CONTEXT</span>
+              <span>DEEPER INSIGHTS</span>
+              <span>REAL SOLUTIONS</span>
             </div>
           </div>
 
-          <footer className="knoux-ai-truth-strip">
-            <div><span>{isRtl ? 'أدوات مسجلة' : 'REGISTERED TOOLS'}</span><strong>{toolCount ?? '—'}</strong></div>
-            <div><span>{isRtl ? 'مصادر أدلة موثقة' : 'VERIFIED SOURCES'}</span><strong>{findings === null && !scanning ? '—' : evidenceSourceCount}</strong></div>
-            <div><span>{isRtl ? 'نتائج مثبتة' : 'EVIDENCE FINDINGS'}</span><strong>{findings === null ? '—' : findings.length}</strong></div>
-            <div><span>{isRtl ? 'وقت آخر فحص' : 'LAST SCAN'}</span><strong>{scanTimestamp ?? '—'}</strong></div>
-          </footer>
-        </section>
+          {/* Precision Diagnostic Core & Radar */}
+          <div className="knoux-ai-diagnostic-core" aria-label="Diagnostic Core Reactor">
+            {/* Concentric Calibration Rings */}
+            <div className="knoux-ai-ring knoux-ai-ring-outer" />
+            <div className="knoux-ai-ring knoux-ai-ring-ticks" />
+            <div className="knoux-ai-ring knoux-ai-ring-radar" />
+            <div className="knoux-ai-ring knoux-ai-ring-inner" />
 
-        <section id="ai-recommendation-workspace" className="knoux-ai-context-workspace">
-          <header>
-            <div>
-              <span>{isRtl ? 'سياق التشخيص' : 'DIAGNOSTIC CONTEXT'}</span>
-              <strong>{selectedFinding ? (isRtl ? selectedFinding.titleAr : selectedFinding.titleEn) : (isRtl ? 'بانتظار نتيجة موثقة' : 'Awaiting verified finding')}</strong>
+            {/* Radar Conical Sweep Effect */}
+            <div className="knoux-ai-radar-beam" />
+
+            {/* Constellation Nodes inside the core */}
+            <svg className="knoux-ai-constellation" viewBox="0 0 320 320" aria-hidden="true">
+              <defs>
+                <radialGradient id="meshCenter" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="rgba(34, 211, 238, 0.4)" />
+                  <stop offset="100%" stopColor="rgba(124, 58, 237, 0)" />
+                </radialGradient>
+              </defs>
+              <circle cx="160" cy="160" r="130" fill="url(#meshCenter)" opacity="0.25" />
+              {/* Geometric axes */}
+              <line x1="160" y1="20" x2="160" y2="300" stroke="rgba(34, 211, 238, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
+              <line x1="20" y1="160" x2="300" y2="160" stroke="rgba(34, 211, 238, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
+              <line x1="60" y1="60" x2="260" y2="260" stroke="rgba(34, 211, 238, 0.1)" strokeWidth="1" />
+              <line x1="60" y1="260" x2="260" y2="60" stroke="rgba(34, 211, 238, 0.1)" strokeWidth="1" />
+              {/* Star nodes */}
+              <circle cx="95" cy="115" r="2.5" fill="#67e8f9" />
+              <circle cx="225" cy="115" r="2.5" fill="#67e8f9" />
+              <circle cx="85" cy="190" r="2.5" fill="#67e8f9" />
+              <circle cx="235" cy="190" r="2.5" fill="#67e8f9" />
+              <line x1="95" y1="115" x2="160" y2="160" stroke="rgba(34, 211, 238, 0.2)" strokeWidth="1" />
+              <line x1="225" y1="115" x2="160" y2="160" stroke="rgba(34, 211, 238, 0.2)" strokeWidth="1" />
+              <line x1="85" y1="190" x2="160" y2="160" stroke="rgba(34, 211, 238, 0.2)" strokeWidth="1" />
+              <line x1="235" y1="190" x2="160" y2="160" stroke="rgba(34, 211, 238, 0.2)" strokeWidth="1" />
+            </svg>
+
+            {/* Central Crystal K Lockup */}
+            <div className="knoux-ai-center-crystal">
+              <div className="knoux-ai-crystal-glow" />
+              <div className="knoux-ai-crystal-mark">
+                <span className="knoux-ai-crystal-letter">K</span>
+              </div>
             </div>
-            {selectedFinding?.metric && <b>{selectedFinding.metric}</b>}
+
+            {/* 6 Peripheral Orbit Nodes Connected via Bus Lines */}
+            <div className="knoux-ai-orbit-node is-node-top-left" title={isRtl ? 'الشاشات والعرض' : 'Display & Hardware'}>
+              <Monitor size={15} />
+            </div>
+            <div className="knoux-ai-orbit-node is-node-mid-left" title={isRtl ? 'التخزين وقواعد البيانات' : 'Storage & Volumes'}>
+              <Database size={15} />
+            </div>
+            <div className="knoux-ai-orbit-node is-node-bottom-left" title={isRtl ? 'العمليات والتكوين' : 'System Configuration'}>
+              <Settings size={15} />
+            </div>
+            <div className="knoux-ai-orbit-node is-node-top-right" title={isRtl ? 'التقارير والأدلة' : 'Reports & Evidence'}>
+              <FileText size={15} />
+            </div>
+            <div className="knoux-ai-orbit-node is-node-mid-right" title={isRtl ? 'الحماية والضمان' : 'Security & Assurance'}>
+              <Shield size={15} />
+            </div>
+            <div className="knoux-ai-orbit-node is-node-bottom-right" title={isRtl ? 'الحزم والبرمجيات' : 'Software Components'}>
+              <Box size={15} />
+            </div>
+          </div>
+
+          {/* Right Flanking Technical Monospace Copy */}
+          <div className="knoux-ai-tech-flank is-right" aria-hidden="true">
+            <div className="knoux-ai-tech-group">
+              <span>INTELLIGENT</span>
+              <span>DIAGNOSTICS</span>
+              <span>FOR A HEALTHIER</span>
+              <span>TOMORROW</span>
+            </div>
+            <div className="knoux-ai-tech-group is-secondary">
+              <span>SAME</span>
+              <span>ECOSYSTEM</span>
+              <span>A HEALTHIER</span>
+              <span>TOMORROW</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Hero Title & Subtitle Matching Reference */}
+        <div className="knoux-ai-hero-headings">
+          <h1 className="knoux-ai-hero-title">AI SCAN</h1>
+          <p className="knoux-ai-hero-subtitle">{isRtl ? 'دع نوكس يكتشف ما يهم حقاً.' : 'Let KNOUX find what matters.'}</p>
+        </div>
+
+        {/* Real Query / Issue Input */}
+        <form onSubmit={handleQuerySubmit} className="knoux-ai-query-form">
+          <div className="knoux-ai-query-box">
+            <Search size={17} className="knoux-ai-query-icon" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={isRtl ? 'صف مشكلة، أو اسأل KNOUX عن أي شيء...' : 'Describe an issue, or ask KNOUX anything...'}
+              aria-label={isRtl ? 'صف المشكلة' : 'Describe an issue'}
+            />
+            <button
+              type="submit"
+              className="knoux-ai-query-submit"
+              title={isRtl ? 'إرسال الاستعلام' : 'Submit query context'}
+              aria-label={isRtl ? 'إرسال' : 'Submit'}
+            >
+              {isRtl ? <ArrowLeft size={16} /> : <ArrowRight size={16} />}
+            </button>
+          </div>
+        </form>
+
+        {/* Quick Context Chips */}
+        <div className="knoux-ai-quick-chips" role="group" aria-label={isRtl ? 'سياقات سريعة' : 'Quick contexts'}>
+          <button
+            type="button"
+            className="knoux-ai-chip"
+            data-active={selectedChipId === 'system'}
+            onClick={() => handleChipClick('system')}
+          >
+            <Monitor size={13} />
+            <span>{isRtl ? 'مشكلة بالنظام' : 'System issue'}</span>
+          </button>
+          <button
+            type="button"
+            className="knoux-ai-chip"
+            data-active={selectedChipId === 'performance'}
+            onClick={() => handleChipClick('performance')}
+          >
+            <Activity size={13} />
+            <span>{isRtl ? 'الأداء' : 'Performance'}</span>
+          </button>
+          <button
+            type="button"
+            className="knoux-ai-chip"
+            data-active={selectedChipId === 'storage'}
+            onClick={() => handleChipClick('storage')}
+          >
+            <Database size={13} />
+            <span>{isRtl ? 'التخزين' : 'Storage'}</span>
+          </button>
+          <button
+            type="button"
+            className="knoux-ai-chip"
+            data-active={selectedChipId === 'security'}
+            onClick={() => handleChipClick('security')}
+          >
+            <ShieldCheck size={13} />
+            <span>{isRtl ? 'الأمان' : 'Security'}</span>
+          </button>
+          <button
+            type="button"
+            className="knoux-ai-chip"
+            data-active={selectedChipId === 'software'}
+            onClick={() => handleChipClick('software')}
+          >
+            <LayoutGrid size={13} />
+            <span>{isRtl ? 'البرمجيات' : 'Software'}</span>
+          </button>
+          <button
+            type="button"
+            className="knoux-ai-chip"
+            data-active={selectedChipId === 'workbench'}
+            onClick={() => handleChipClick('workbench')}
+          >
+            <Code2 size={13} />
+            <span>{isRtl ? 'مشروع المطور' : 'Developer project'}</span>
+          </button>
+        </div>
+      </section>
+
+      {/* ── Primary Action Row Matching Reference ── */}
+      <section className="knoux-ai-primary-actions" aria-label="Primary Actions">
+        {/* 1. Start AI Scan */}
+        <button
+          type="button"
+          className="knoux-ai-action-card is-primary"
+          onClick={runDiagnosticScan}
+          disabled={scanning || bridgeOnline !== true}
+        >
+          <div className="knoux-ai-action-icon is-play">
+            {scanning ? <Loader2 size={18} className="animate-spin" /> : <Play size={18} fill="currentColor" />}
+          </div>
+          <div className="knoux-ai-action-text">
+            <strong>
+              {scanning
+                ? (isRtl ? 'جارٍ جمع الأدلة...' : 'Collecting evidence...')
+                : findings !== null
+                  ? (isRtl ? 'إعادة الفحص الذكي' : 'Start AI Scan')
+                  : (isRtl ? 'بدء الفحص الذكي' : 'Start AI Scan')}
+            </strong>
+            <small>{isRtl ? 'فحص مع استخبارات نوكس' : 'Scan with KNOUX intelligence'}</small>
+          </div>
+        </button>
+
+        {/* 2. Choose Target */}
+        <button
+          type="button"
+          className="knoux-ai-action-card"
+          onClick={() => setTargetPickerOpen(prev => !prev)}
+        >
+          <div className="knoux-ai-action-icon">
+            <Crosshair size={18} />
+          </div>
+          <div className="knoux-ai-action-text">
+            <strong>{selectedTarget ? (isRtl ? selectedTarget.labelAr : selectedTarget.labelEn) : (isRtl ? 'تحديد الهدف' : 'Choose Target')}</strong>
+            <small>{isRtl ? 'حدد ما ترغب في تحليله' : 'Select what to analyze'}</small>
+          </div>
+        </button>
+
+        {/* 3. Explore Repair Families */}
+        <button
+          type="button"
+          className="knoux-ai-action-card"
+          onClick={() => onNavigate({ family: 'navigator' as FamilyId })}
+        >
+          <div className="knoux-ai-action-icon">
+            <Layers size={18} />
+          </div>
+          <div className="knoux-ai-action-text">
+            <strong>{isRtl ? 'استكشاف عائلات الإصلاح' : 'Explore Repair Families'}</strong>
+            <small>{isRtl ? 'فتح أداة معتمدة ومسجلة لتنفيذ الإجراء المؤكد.' : 'Discover tools and solutions'}</small>
+          </div>
+        </button>
+      </section>
+
+      {/* Target Picker Modal/Popover if triggered */}
+      {targetPickerOpen && (
+        <div className="knoux-ai-target-modal" role="dialog" aria-modal="true">
+          <div className="knoux-ai-target-modal-header">
+            <div className="flex items-center gap-2">
+              <Crosshair size={15} className="text-cyan-400" />
+              <strong>{isRtl ? 'اختر هدف التشخيص' : 'Select Diagnostic Target'}</strong>
+            </div>
+            <button type="button" onClick={() => setTargetPickerOpen(false)} aria-label="Close">
+              <X size={14} />
+            </button>
+          </div>
+          <div className="knoux-ai-target-modal-grid">
+            {TARGET_OPTIONS.map(opt => (
+              <button
+                key={opt.id}
+                type="button"
+                className="knoux-ai-target-option"
+                data-selected={selectedTarget?.id === opt.id}
+                onClick={() => handleSelectTarget(opt)}
+              >
+                <strong>{isRtl ? opt.labelAr : opt.labelEn}</strong>
+                <small>{isRtl ? opt.descAr : opt.descEn}</small>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Secondary Context Modules Matching Reference ── */}
+      <section className="knoux-ai-context-modules" aria-label="Context Modules">
+        {/* Module 1: System Context */}
+        <div className="knoux-ai-context-card">
+          <div className="knoux-ai-context-card-head">
+            <div className="knoux-ai-context-icon">
+              <Monitor size={16} />
+            </div>
+            <div className="knoux-ai-context-info">
+              <strong>{isRtl ? 'سياق النظام' : 'System Context'}</strong>
+              <p>{isRtl ? 'العتاد، والبرامج، والتكوين، وصحة النظام.' : 'Hardware, software, configuration, and system health.'}</p>
+            </div>
+            <ArrowRight size={14} className="knoux-ai-context-chevron rtl:rotate-180" />
+          </div>
+          <div className="knoux-ai-context-status">
+            <span>{currentSystemSummary}</span>
+          </div>
+        </div>
+
+        {/* Module 2: Repair Family Context */}
+        <div className="knoux-ai-context-card">
+          <div className="knoux-ai-context-card-head">
+            <div className="knoux-ai-context-icon">
+              <Database size={16} />
+            </div>
+            <div className="knoux-ai-context-info">
+              <strong>{isRtl ? 'سياق عائلة الإصلاح' : 'Repair Family Context'}</strong>
+              <p>{isRtl ? 'الأدوات والمعارف المناسبة للهدف المحدد.' : 'Relevant tools and knowledge for the selected target.'}</p>
+            </div>
+            <ArrowRight size={14} className="knoux-ai-context-chevron rtl:rotate-180" />
+          </div>
+          <div className="knoux-ai-context-status">
+            <span>{selectedTarget ? (isRtl ? selectedTarget.labelAr : selectedTarget.labelEn) : (isRtl ? 'لم يُحدد هدف.' : 'None selected.')}</span>
+          </div>
+        </div>
+
+        {/* Module 3: Project Context */}
+        <div className="knoux-ai-context-card">
+          <div className="knoux-ai-context-card-head">
+            <div className="knoux-ai-context-icon">
+              <FileText size={16} />
+            </div>
+            <div className="knoux-ai-context-info">
+              <strong>{isRtl ? 'سياق المشروع' : 'Project Context'}</strong>
+              <p>{isRtl ? 'ربط مشروع إصلاح، والملاحظات، وتاريخ العمل.' : 'Link a repair project, notes, and work history.'}</p>
+            </div>
+            <ArrowRight size={14} className="knoux-ai-context-chevron rtl:rotate-180" />
+          </div>
+          <div className="knoux-ai-context-status">
+            <span>{isRtl ? 'لا يوجد مشروع محدد.' : 'No project selected.'}</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Lower Operational Row Matching Reference ── */}
+      <section className="knoux-ai-operational-row" aria-label="Operational Actions and Recent History">
+        {/* 1. Suggested Actions */}
+        <div className="knoux-ai-operational-card">
+          <div className="knoux-ai-operational-head">
+            <div className="flex items-center gap-2">
+              <Lightbulb size={15} className="text-amber-400" />
+              <strong>{isRtl ? 'الإجراءات المقترحة' : 'Suggested Actions'}</strong>
+            </div>
+            <ArrowRight size={13} className="text-slate-500 rtl:rotate-180" />
+          </div>
+          <div className="knoux-ai-operational-body">
+            {suggestedAction ? (
+              <div className="knoux-ai-operational-suggestion">
+                <span className="knoux-ai-finding-severity" data-severity={suggestedAction.severity}>
+                  {suggestedAction.severity}
+                </span>
+                <p>{isRtl ? suggestedAction.titleAr : suggestedAction.titleEn}</p>
+                <button
+                  type="button"
+                  className="knoux-ai-op-action-btn"
+                  onClick={() => onNavigate(suggestedAction.dest)}
+                >
+                  <Wrench size={12} />
+                  <span>{isRtl ? suggestedAction.actionLabelAr : suggestedAction.actionLabelEn}</span>
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="font-semibold text-slate-300 text-[11px]">{isRtl ? 'لا توجد اقتراحات بعد.' : 'No suggestions yet.'}</p>
+                <small className="text-slate-500 text-[10px] leading-relaxed block mt-1">
+                  {isRtl ? 'صف مشكلة أعلاه أو اختر هدفاً للحصول على توصيات موجهة.' : 'Describe an issue above or choose a target to get personalized recommendations.'}
+                </small>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 2. Recent Scans */}
+        <div className="knoux-ai-operational-card">
+          <div className="knoux-ai-operational-head">
+            <div className="flex items-center gap-2">
+              <Clock size={15} className="text-cyan-400" />
+              <strong>{isRtl ? 'الفحوصات الأخيرة' : 'Recent Scans'}</strong>
+            </div>
+            <ArrowRight size={13} className="text-slate-500 rtl:rotate-180" />
+          </div>
+          <div className="knoux-ai-operational-body">
+            {scanTimestamp ? (
+              <div className="knoux-ai-operational-recent">
+                <div className="flex items-center justify-between text-[11px] text-slate-300">
+                  <span>{isRtl ? 'فحص تشخيصي محلي' : 'Local Diagnostic Scan'}</span>
+                  <span className="font-mono text-cyan-400">{scanTimestamp}</span>
+                </div>
+                <small className="text-slate-500 text-[10px] block mt-1">
+                  {isRtl
+                    ? `تم توثيق ${evidenceSourceCount} مصادر أدلة • ${findings?.length ?? 0} نتائج`
+                    : `${evidenceSourceCount} verified sources • ${findings?.length ?? 0} findings recorded`}
+                </small>
+              </div>
+            ) : (
+              <>
+                <p className="font-semibold text-slate-300 text-[11px]">{isRtl ? 'لا توجد فحوصات سابقة.' : 'No recent scans.'}</p>
+                <small className="text-slate-500 text-[10px] leading-relaxed block mt-1">
+                  {isRtl ? 'سجل الفحوصات سيظهر هنا فور اكتمال أول فحص.' : 'Your scan history will appear here.'}
+                </small>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 3. Quick Launch */}
+        <div className="knoux-ai-operational-card">
+          <div className="knoux-ai-operational-head">
+            <div className="flex items-center gap-2">
+              <Rocket size={15} className="text-violet-400" />
+              <strong>{isRtl ? 'التشغيل السريع' : 'Quick Launch'}</strong>
+            </div>
+            <ArrowRight size={13} className="text-slate-500 rtl:rotate-180" />
+          </div>
+          <div className="knoux-ai-operational-body">
+            {selectedTarget ? (
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                <button
+                  type="button"
+                  className="knoux-ai-op-action-btn"
+                  onClick={() => onNavigate({ family: selectedTarget.family, service: selectedTarget.service })}
+                >
+                  <Wrench size={11} />
+                  <span>{isRtl ? selectedTarget.labelAr : selectedTarget.labelEn}</span>
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="font-semibold text-slate-300 text-[11px]">{isRtl ? 'لا توجد إجراءات سريعة بعد.' : 'No quick actions yet.'}</p>
+                <small className="text-slate-500 text-[10px] leading-relaxed block mt-1">
+                  {isRtl ? 'ستظهر الأدوات والمهام الشائعة بعد اختيار الهدف.' : 'Common tools and tasks will appear here after you select a target.'}
+                </small>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Active Scanning Progress Banner (Real Pipeline) ── */}
+      {scanning && (
+        <section className="knoux-ai-scan-banner" aria-live="polite">
+          <Loader2 size={18} className="animate-spin text-cyan-400" />
+          <div className="flex-1">
+            <strong>{isRtl ? 'جمع أدلة الفحص المعتمدة من النظام' : 'Collecting verified system evidence'}</strong>
+            <p className="text-cyan-200/80 font-mono text-[11px] mt-0.5">{scanStage}</p>
+          </div>
+        </section>
+      )}
+
+      {/* ── Evidence / Findings Expansion Workspace ── */}
+      {(findings !== null || scanError) && (
+        <section id="ai-recommendation-workspace" className="knoux-ai-findings-workspace" aria-label="Scan Results">
+          <header className="knoux-ai-findings-head">
+            <div>
+              <span className="knoux-ai-context-label">{isRtl ? 'نتائج الفحص والأدلة' : 'DIAGNOSTIC EVIDENCE'}</span>
+              <strong>
+                {findings === null || findings.length === 0
+                  ? (isRtl ? 'اكتمال فحص الأدلة' : 'Completed Evidence Audit')
+                  : (isRtl ? `${findings.length} نتائج موثقة بالأدلة` : `${findings.length} Evidence-Backed Findings`)}
+              </strong>
+            </div>
+            {selectedFinding?.metric && <b className="knoux-ai-metric-pill">{selectedFinding.metric}</b>}
           </header>
 
-          {scanning ? (
-            <div className="knoux-ai-workspace-state">
-              <Loader2 size={22} className="animate-spin" />
-              <div><strong>{isRtl ? 'يتم جمع الأدلة من الجسر' : 'Collecting bridge evidence'}</strong><p>{scanStage}</p></div>
-            </div>
-          ) : findings === null ? (
-            <div className="knoux-ai-workspace-state">
-              <BrainCircuit size={22} />
-              <div><strong>{isRtl ? 'لم يبدأ الفحص بعد' : 'Scan has not started'}</strong><p>{isRtl ? 'لن تظهر أرقام أو حالة صحة قبل رجوع بيانات فعلية.' : 'No scores or health claims are shown before real evidence is returned.'}</p></div>
-            </div>
-          ) : evidenceSourceCount === 0 ? (
+          {evidenceSourceCount === 0 && !scanning ? (
             <div className="knoux-ai-workspace-state is-error">
-              <AlertTriangle size={22} />
-              <div><strong>{isRtl ? 'نتيجة الفحص غير متاحة' : 'Diagnostic result unavailable'}</strong><p>{scanError || (isRtl ? 'لم يرجع الجسر أي مصدر دليل يمكن التحقق منه.' : 'The bridge returned no verifiable evidence source.')}</p></div>
+              <AlertTriangle size={24} />
+              <div>
+                <strong>{isRtl ? 'نتيجة الفحص غير متاحة' : 'Diagnostic result unavailable'}</strong>
+                <p>{scanError || (isRtl ? 'تعذر جمع أدلة تشخيص موثوقة من الجسر.' : 'The bridge returned no verifiable evidence source.')}</p>
+              </div>
             </div>
-          ) : findings.length === 0 ? (
+          ) : findings?.length === 0 && !scanning ? (
             <div className="knoux-ai-workspace-state is-success">
-              <CheckCircle2 size={22} />
-              <div><strong>{isRtl ? 'لم تُرصد مشكلة ضمن الفحوصات المكتملة' : 'No issue detected in completed checks'}</strong><p>{isRtl ? `تم التحقق من ${evidenceSourceCount} مصادر. هذا لا يعني أن الجهاز خالٍ من كل المشكلات.` : `${evidenceSourceCount} evidence sources completed. This does not claim the entire device is issue-free.`}</p></div>
+              <CheckCircle2 size={24} />
+              <div>
+                <strong>{isRtl ? 'لم تُرصد مشكلة ضمن الفحوصات المكتملة' : 'No issue detected in completed checks'}</strong>
+                <p>
+                  {isRtl
+                    ? `تم التحقق من ${evidenceSourceCount} مصادر أدلة بنجاح. هذا لا يعني أن الجهاز خالٍ من كل المشكلات.`
+                    : `${evidenceSourceCount} evidence sources completed without detected pressure. This does not claim the entire device is issue-free.`}
+                </p>
+              </div>
             </div>
-          ) : selectedFinding ? (
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={selectedFinding.id}
-                className="knoux-ai-selected-finding"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-              >
-                <div className="knoux-ai-finding-severity" data-severity={selectedFinding.severity}>{selectedFinding.severity}</div>
-                <p>{isRtl ? selectedFinding.detailAr : selectedFinding.detailEn}</p>
-                <div className="knoux-ai-destination-path">
-                  <span>{selectedFinding.dest.family}</span>
-                  {selectedFinding.dest.service && <><b>/</b><span>{selectedFinding.dest.service}</span></>}
-                  {selectedFinding.dest.toolId && <><b>/</b><strong>{selectedFinding.dest.toolId}</strong></>}
+          ) : findings && findings.length > 0 ? (
+            <div className="knoux-ai-findings-list">
+              {findings.map(finding => (
+                <div
+                  key={finding.id}
+                  className="knoux-ai-finding-card"
+                  data-active={selectedFindingId === finding.id}
+                  data-severity={finding.severity}
+                  onClick={() => setSelectedFindingId(finding.id)}
+                >
+                  <div className="knoux-ai-finding-header">
+                    <span className="knoux-ai-finding-dot" />
+                    <span className="knoux-ai-finding-severity" data-severity={finding.severity}>
+                      {finding.severity}
+                    </span>
+                    <strong className="knoux-ai-finding-title">
+                      {isRtl ? finding.titleAr : finding.titleEn}
+                    </strong>
+                    {finding.metric && <span className="knoux-ai-metric-tag">{finding.metric}</span>}
+                  </div>
+                  <p className="knoux-ai-finding-desc">
+                    {isRtl ? finding.detailAr : finding.detailEn}
+                  </p>
+                  <div className="knoux-ai-finding-actions">
+                    <button
+                      type="button"
+                      className="knoux-ai-navigate-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (selectedFinding) {
+                          onNavigate(selectedFinding.dest);
+                        } else {
+                          onNavigate(finding.dest);
+                        }
+                      }}
+                    >
+                      <Wrench size={13} />
+                      <span>{isRtl ? finding.actionLabelAr : finding.actionLabelEn}</span>
+                      {isRtl ? <ArrowLeft size={13} /> : <ArrowRight size={13} />}
+                    </button>
+                  </div>
                 </div>
-                <button type="button" onClick={() => onNavigate(selectedFinding.dest)}>
-                  {isRtl ? selectedFinding.actionLabelAr : selectedFinding.actionLabelEn}
-                  {isRtl ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}
-                </button>
-              </motion.div>
-            </AnimatePresence>
+              ))}
+            </div>
           ) : null}
         </section>
-      </main>
-
-      <aside className="knoux-ai-rail knoux-ai-findings-rail" aria-label={isRtl ? 'النتائج والتوصيات' : 'Findings and recommendations'}>
-        <header className="knoux-ai-rail-head">
-          <span>{isRtl ? 'الأدلة' : 'EVIDENCE'}</span>
-          <strong>{isRtl ? 'النتائج' : 'FINDINGS'}</strong>
-          <small>{findings === null ? '—' : findings.length}</small>
-        </header>
-
-        <div className="knoux-ai-findings-summary">
-          <div data-kind="critical"><span>{isRtl ? 'حرج' : 'Critical'}</span><strong>{findings === null ? '—' : findingCounts.critical}</strong></div>
-          <div data-kind="warning"><span>{isRtl ? 'تحذير' : 'Warning'}</span><strong>{findings === null ? '—' : findingCounts.warning}</strong></div>
-          <div><span>{isRtl ? 'مصادر' : 'Sources'}</span><strong>{findings === null ? '—' : evidenceSourceCount}</strong></div>
-        </div>
-
-        <div className="knoux-ai-rail-scroll">
-          {findings === null ? (
-            <div className="knoux-ai-findings-empty">
-              <ShieldCheck size={22} />
-              <strong>{isRtl ? 'لا توجد نتائج بعد' : 'No findings yet'}</strong>
-              <p>{isRtl ? 'ابدأ الفحص لجمع أدلة فعلية.' : 'Start AI Scan to collect real diagnostic evidence.'}</p>
-            </div>
-          ) : evidenceSourceCount === 0 ? (
-            <div className="knoux-ai-findings-empty is-error">
-              <AlertTriangle size={22} />
-              <strong>{isRtl ? 'لا توجد أدلة موثقة' : 'No verified evidence'}</strong>
-              <p>{scanError || (isRtl ? 'الجسر لم يرجع بيانات يمكن الاعتماد عليها.' : 'The bridge returned no trustworthy diagnostic source.')}</p>
-            </div>
-          ) : findings.length === 0 ? (
-            <div className="knoux-ai-findings-empty is-success">
-              <CheckCircle2 size={22} />
-              <strong>{isRtl ? 'الفحوصات المكتملة بلا نتيجة سلبية' : 'Completed checks found no issue'}</strong>
-              <p>{isRtl ? 'الحكم محصور في مصادر الأدلة التي اكتملت فقط.' : 'This statement is limited to the evidence sources that completed.'}</p>
-            </div>
-          ) : (
-            findings.map(finding => (
-              <button
-                key={finding.id}
-                type="button"
-                className="knoux-ai-finding-card"
-                data-active={selectedFindingId === finding.id}
-                data-severity={finding.severity}
-                onClick={() => setSelectedFindingId(finding.id)}
-              >
-                <span className="knoux-ai-finding-dot" />
-                <span className="knoux-ai-finding-copy">
-                  <strong>{isRtl ? finding.titleAr : finding.titleEn}</strong>
-                  <small>{isRtl ? finding.detailAr : finding.detailEn}</small>
-                </span>
-                {finding.metric && <b>{finding.metric}</b>}
-              </button>
-            ))
-          )}
-        </div>
-
-        <div className="knoux-ai-rail-foot">
-          <Clock size={12} />
-          <span>{scanTimestamp ? (isRtl ? `آخر فحص ${scanTimestamp}` : `Last scan ${scanTimestamp}`) : (isRtl ? 'لم يتم الفحص بعد' : 'Not scanned yet')}</span>
-        </div>
-      </aside>
+      )}
     </div>
   );
 }

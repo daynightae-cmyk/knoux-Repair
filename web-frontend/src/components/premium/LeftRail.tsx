@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
 import {
-  Sparkles, Activity, Database, Shield, Package,
-  Code2, Search, Bell, Settings, LayoutGrid, House,
+  Activity, Database, Shield,
+  Code2, Search, Settings, LayoutGrid, House,
+  Zap, Clock,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
@@ -25,18 +26,18 @@ interface NavItem {
 
 const MAIN_ITEMS: NavItem[] = [
   { id: 'home', icon: House, labelEn: 'Home', labelAr: 'الرئيسية' },
-  { id: 'ai-scan', icon: Sparkles, labelEn: 'AI Scan', labelAr: 'فحص ذكي' },
+  { id: 'ai-scan', icon: Activity, labelEn: 'AI Scan', labelAr: 'فحص ذكي' },
   { id: 'vitality', icon: Activity, labelEn: 'System Vitality', labelAr: 'حيوية النظام' },
   { id: 'recovery', icon: Database, labelEn: 'Recovery & Storage', labelAr: 'الاستعادة والتخزين' },
   { id: 'assurance', icon: Shield, labelEn: 'Assurance', labelAr: 'الضمان والحماية' },
-  { id: 'software', icon: Package, labelEn: 'Software Library', labelAr: 'مكتبة البرامج' },
+  { id: 'software', icon: LayoutGrid, labelEn: 'Software Library', labelAr: 'مكتبة البرامج' },
   { id: 'workbench', icon: Code2, labelEn: 'Engineering Workbench', labelAr: 'ورشة الهندسة' },
   { id: 'investigation', icon: Search, labelEn: 'Investigation', labelAr: 'التحقيق' },
-  { id: 'navigator', icon: LayoutGrid, labelEn: 'All Services', labelAr: 'دليل الخدمات' },
 ];
 
 const BOTTOM_ITEMS: NavItem[] = [
-  { id: 'action-center', icon: Bell, labelEn: 'Action Center', labelAr: 'مركز الإجراءات' },
+  { id: 'action-center', icon: Zap, labelEn: 'Action Center', labelAr: 'مركز الإجراءات' },
+  { id: 'action-center', icon: Clock, labelEn: 'History', labelAr: 'السجل' },
   { id: 'settings', icon: Settings, labelEn: 'Settings', labelAr: 'الإعدادات' },
 ];
 
@@ -90,10 +91,10 @@ export default function LeftRail({ activeView, onSelect, lang, bridgeOnline }: L
         {BOTTOM_ITEMS.map(renderItem)}
       </div>
 
-      <div className="knoux-rail-brand-card" aria-label="KNOUX Repair version 2.0.2">
+      <div className="knoux-rail-brand-card" aria-label="KNOUX Repair version 1.0.0">
         <strong>KNOUX Repair</strong>
-        <span>v2.0.2</span>
-        <small>{lang === 'ar' ? 'جهاز أكثر صحة. غدٌ أكثر إشراقًا.' : 'A Healthier PC. A Brighter Tomorrow.'}</small>
+        <span>v1.0.0</span>
+        <small>{lang === 'ar' ? 'صُنع لجهاز أكثر صحة. غدٌ أكثر إشراقاً.' : 'Built for a Healthier PC. A Brighter Tomorrow.'}</small>
       </div>
 
       {/* Bridge status indicator at bottom */}

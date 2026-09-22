@@ -18,6 +18,11 @@ export interface SentinelPanelProps {
   activeFamily: FamilyId | null;
   activeTasks: SentinelTask[];
   systemSnapshot?: SystemSnapshot | null;
+  activeView?: string;
+  aiProviderState?: 'CHECKING' | 'CONFIGURED' | 'UNCONFIGURED' | 'UNAVAILABLE' | 'ERROR';
+  selectedTarget?: string | null;
+  evidenceCount?: number | null;
+  findingsCount?: number | null;
 }
 
 type ProbeState = 'idle' | 'checking' | 'online' | 'partial' | 'offline';
@@ -28,9 +33,15 @@ export default function SentinelPanel({
   bridgeOnline,
   activeFamily,
   activeTasks,
-  systemSnapshot
+  systemSnapshot,
+  activeView,
+  aiProviderState = 'UNCONFIGURED',
+  selectedTarget,
+  evidenceCount,
+  findingsCount,
 }: SentinelPanelProps) {
   const isRtl = lang === 'ar';
+  const isAiScan = activeView === 'ai-scan' || (!activeFamily && activeView !== 'home');
   const [liveSystem, setLiveSystem] = useState<SystemSnapshot | null>(systemSnapshot ?? null);
   const [apiHealth, setApiHealth] = useState<BridgeHealth | null>(null);
   const [developerToolCount, setDeveloperToolCount] = useState<number | null>(null);
@@ -155,9 +166,153 @@ export default function SentinelPanel({
     ? developerPreview.DeveloperTools.filter(item => item.Available).length
     : null;
 
+  if (isAiScan) {
+    const aiStatusText = aiProviderState === 'CONFIGURED' ? 'AI — CONFIGURED' : aiProviderState === 'CHECKING' ? 'AI — CHECKING' : aiProviderState === 'UNAVAILABLE' ? 'AI — UNAVAILABLE' : 'AI — OFF';
+    const aiDetailText = aiProviderState === 'CONFIGURED' ? (isRtl ? 'الميزات الذكية مفعلة' : 'AI features active') : (isRtl ? 'الميزات الذكية معطلة' : 'AI features disabled');
+    const bridgeStatusText = bridgeOnline === true ? (isRtl ? 'متصل' : 'CONNECTED') : bridgeOnline === false ? (isRtl ? 'غير متصل' : 'OFFLINE') : (isRtl ? 'لم يُفحص' : 'NOT CHECKED');
+    const bridgeDetailText = bridgeOnline === true ? (isRtl ? 'الجسر متصل' : 'Bridge connected') : (isRtl ? 'غير متصل' : 'Not connected');
+    const evidenceStatusText = findingsCount !== null && findingsCount !== undefined
+      ? (findingsCount === 0 ? (isRtl ? 'سليم' : 'CLEAN') : `${findingsCount} ${isRtl ? 'نتائج' : findingsCount === 1 ? 'FINDING' : 'FINDINGS'}`)
+      : (isRtl ? 'لا يوجد' : 'NONE');
+    const evidenceDetailText = evidenceCount
+      ? (isRtl ? `تم توثيق ${evidenceCount} مصادر` : `${evidenceCount} sources verified`)
+      : (isRtl ? 'لا توجد نتائج فحص' : 'No scan results');
+
+    return (
+      <aside className="knoux-sentinel w-[280px] h-full flex flex-col bg-[#040817]/85 backdrop-blur-xl border-l border-white/10 shrink-0 select-none" dir={isRtl ? 'rtl' : 'ltr'}>
+        {/* Sentinel Live Context Header */}
+        <div className="p-3.5 border-b border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h2 className="text-[12px] font-bold tracking-wider text-white flex items-center gap-1.5">
+              <span>KNOUX SENTINEL</span>
+              <span className="text-slate-600">/</span>
+              <span className="text-cyan-400 font-medium">{isRtl ? 'السياق المباشر' : 'LIVE CONTEXT'}</span>
+            </h2>
+          </div>
+          <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)] animate-pulse" />
+        </div>
+
+        {/* Live Context Cards Stack Matching Reference */}
+        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2.5">
+          {/* 1. KNOUX AI */}
+          <div className="knoux-sentinel-card group hover:border-violet-500/40 transition-colors">
+            <div className="w-7 h-7 rounded-full bg-violet-600/20 border border-violet-500/35 flex items-center justify-center text-violet-400 shrink-0">
+              <Zap size={14} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="knoux-sentinel-card-label">KNOUX AI</span>
+              <strong className="knoux-sentinel-card-val">{aiStatusText}</strong>
+              <small className="knoux-sentinel-card-sub">{aiDetailText}</small>
+            </div>
+            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs rtl:rotate-180">›</span>
+          </div>
+
+          {/* 2. PROVIDER */}
+          <div className="knoux-sentinel-card group hover:border-cyan-500/40 transition-colors">
+            <div className="w-7 h-7 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+              <Server size={14} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="knoux-sentinel-card-label">{isRtl ? 'المزود' : 'PROVIDER'}</span>
+              <strong className="knoux-sentinel-card-val">{aiProviderState === 'CONFIGURED' ? 'LOCAL GATEWAY' : 'NONE'}</strong>
+              <small className="knoux-sentinel-card-sub">{aiProviderState === 'CONFIGURED' ? (isRtl ? 'مزود متصل' : 'Active connection') : (isRtl ? 'غير مهيأ' : 'Not configured')}</small>
+            </div>
+            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs rtl:rotate-180">›</span>
+          </div>
+
+          {/* 3. SYSTEM BRIDGE */}
+          <div className="knoux-sentinel-card group hover:border-cyan-500/40 transition-colors">
+            <div className="w-7 h-7 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+              <Cpu size={14} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="knoux-sentinel-card-label">{isRtl ? 'جسر النظام' : 'SYSTEM BRIDGE'}</span>
+              <strong className={clsx('knoux-sentinel-card-val', bridgeOnline === true ? 'text-emerald-400' : 'text-slate-200')}>
+                {bridgeStatusText}
+              </strong>
+              <small className="knoux-sentinel-card-sub">{bridgeDetailText}</small>
+            </div>
+            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs rtl:rotate-180">›</span>
+          </div>
+
+          {/* 4. TARGET */}
+          <div className="knoux-sentinel-card group hover:border-cyan-500/40 transition-colors">
+            <div className="w-7 h-7 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+              <Radar size={14} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="knoux-sentinel-card-label">{isRtl ? 'الهدف' : 'TARGET'}</span>
+              <strong className="knoux-sentinel-card-val">{selectedTarget ? selectedTarget.toUpperCase() : 'NONE'}</strong>
+              <small className="knoux-sentinel-card-sub">{selectedTarget || (isRtl ? 'لم يُحدد هدف' : 'No target selected')}</small>
+            </div>
+            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs rtl:rotate-180">›</span>
+          </div>
+
+          {/* 5. SESSION */}
+          <div className="knoux-sentinel-card group hover:border-cyan-500/40 transition-colors">
+            <div className="w-7 h-7 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+              <Terminal size={14} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="knoux-sentinel-card-label">{isRtl ? 'الجلسة' : 'SESSION'}</span>
+              <strong className="knoux-sentinel-card-val">NONE</strong>
+              <small className="knoux-sentinel-card-sub">{isRtl ? 'لا توجد جلسة نشطة' : 'No active session'}</small>
+            </div>
+            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs rtl:rotate-180">›</span>
+          </div>
+
+          {/* 6. EVIDENCE */}
+          <div className="knoux-sentinel-card group hover:border-cyan-500/40 transition-colors">
+            <div className="w-7 h-7 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+              <ShieldCheck size={14} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="knoux-sentinel-card-label">{isRtl ? 'الأدلة' : 'EVIDENCE'}</span>
+              <strong className="knoux-sentinel-card-val">{evidenceStatusText}</strong>
+              <small className="knoux-sentinel-card-sub">{evidenceDetailText}</small>
+            </div>
+            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs rtl:rotate-180">›</span>
+          </div>
+
+          {/* 7. GET STARTED */}
+          <div className="knoux-sentinel-card is-get-started group hover:border-amber-500/40 transition-colors mt-1">
+            <div className="w-7 h-7 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+              <span className="text-sm">💡</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="knoux-sentinel-card-label text-amber-400/90">{isRtl ? 'ابدأ الآن' : 'GET STARTED'}</span>
+              <p className="text-[10px] text-slate-300 leading-relaxed mt-1">
+                {isRtl
+                  ? 'صف مشكلة، أو اختر هدفاً، أو ابدأ الفحص الذكي لإطلاق قوة KNOUX الكاملة.'
+                  : 'Describe an issue, choose a target, or start an AI scan to unlock the full power of KNOUX.'}
+              </p>
+            </div>
+            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs rtl:rotate-180 self-center">›</span>
+          </div>
+
+          {/* 8. Bottom Quote Card */}
+          <div className="mt-auto p-3 rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-between">
+            <div>
+              <p className="text-[10.5px] italic text-slate-400">
+                {isRtl ? '«أدوات دقيقة لمشاكل حقيقية.»' : '“Precision tools for real problems.”'}
+              </p>
+              <span className="block mt-1 font-mono text-[9px] font-bold tracking-[0.25em] text-slate-500">
+                K N O U X
+              </span>
+            </div>
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+              <Activity size={16} />
+            </div>
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside className="knoux-sentinel w-[280px] h-full flex flex-col bg-black/30 backdrop-blur-xl border-l border-white/10 shrink-0" dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
+
         <div className="flex items-center gap-2">
           <Activity size={16} className="text-cyan-400" />
           <h2 className="text-sm font-semibold tracking-wide text-white">

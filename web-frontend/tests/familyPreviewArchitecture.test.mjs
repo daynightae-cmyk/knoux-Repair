@@ -59,19 +59,16 @@ test('command center preserves execution results and honest runtime labels', () 
   assert.doesNotMatch(liveStage, /Math\.random/);
 });
 
-test('AI Scan preserves real evidence calls inside a persistent three-zone command center', () => {
+test('AI Scan preserves real evidence calls inside the approved single-center command workspace', () => {
   const source = read('src/components/pages/AIScanPage.tsx');
-  for (const service of ['Scan', 'Analyze', 'Understand', 'Repair Together']) {
-    assert.match(source, new RegExp(`titleEn: '${service}'`));
-  }
   assert.match(source, /api\.system\(\)/);
   assert.match(source, /api\.cleanupPreview\(\)/);
   assert.match(source, /api\.driversPreview\(\)/);
   assert.match(source, /evidenceSourceCount === 0/);
   assert.match(source, /Diagnostic result unavailable/);
-  assert.match(source, /knoux-ai-workflow-rail/);
-  assert.match(source, /knoux-ai-live-column/);
-  assert.match(source, /knoux-ai-findings-rail/);
+  assert.match(source, /knoux-ai-diagnostic-core/);
+  assert.doesNotMatch(source, /knoux-ai-workflow-rail/);
+  assert.doesNotMatch(source, /knoux-ai-findings-rail/);
   assert.match(source, /id="ai-recommendation-workspace"/);
   assert.match(source, /data-active=\{selectedFindingId === finding\.id\}/);
   assert.match(source, /onNavigate\(selectedFinding\.dest\)/);
@@ -89,12 +86,10 @@ test('command center CSS keeps rails independently scrollable and supports narro
   assert.match(source, /@media \(prefers-reduced-motion: reduce\)/);
 });
 
-test('AI command center has independent rails, responsive fallback, and reduced motion', () => {
+test('AI command center has dominant reactor styling, responsive fallback, and reduced motion', () => {
   const source = read('src/ai-command-center.css');
   assert.match(source, /\.knoux-ai-command-center/);
-  assert.match(source, /\.knoux-ai-rail-scroll/);
-  assert.match(source, /overflow:auto/);
-  assert.match(source, /@container \(max-width: 1100px\)/);
-  assert.match(source, /@container \(max-width: 760px\)/);
+  assert.match(source, /\.knoux-ai-diagnostic-core/);
+  assert.match(source, /@media \(max-width: 900px\)/);
   assert.match(source, /@media \(prefers-reduced-motion: reduce\)/);
 });
