@@ -324,7 +324,7 @@ export default function AIScanPage({
 
   const currentSystemSummary = useMemo(() => {
     if (!systemSnapshot) return isRtl ? 'لم يتم تحديد هدف.' : 'No target selected.';
-    const os = systemSnapshot.Os || 'Windows 11';
+    const os = systemSnapshot.Os || (isRtl ? 'ويندوز — لم يتم الفحص' : 'Windows — Not checked');
     const ram = systemSnapshot.TotalRamGB ? `${systemSnapshot.TotalRamGB} GB RAM` : '';
     const sysDrive = systemSnapshot.Drives?.find(d => d.IsSystem) || systemSnapshot.Drives?.[0];
     const free = sysDrive ? `${sysDrive.FreeGB.toFixed(0)} GB Free` : '';

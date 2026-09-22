@@ -36,3 +36,30 @@ test('Settings reports bridge checking separately from offline', () => {
   assert.match(settings, /bridgeOnline===true\?c\.ready:bridgeOnline===false\?'OFFLINE':'CHECKING'/);
   assert.match(settings, /is-checking/);
 });
+
+test('AI Scan shell footer derives workspace readiness and runtime metadata truthfully without hardcoded fallbacks', () => {
+  const leftRail = read('src/components/premium/LeftRail.tsx');
+  const aiScan = read('src/components/pages/AIScanPage.tsx');
+
+  // No hardcoded Windows 11 Pro fallback
+  assert.doesNotMatch(app, /'Windows 11 Pro'/);
+  assert.doesNotMatch(app, /"Windows 11 Pro"/);
+  assert.doesNotMatch(aiScan, /'Windows 11'/);
+  assert.doesNotMatch(aiScan, /"Windows 11"/);
+
+  // No hardcoded build 22631.3155
+  assert.doesNotMatch(app, /22631\.3155/);
+  assert.doesNotMatch(aiScan, /22631\.3155/);
+
+  // Workspace readiness is derived from runtime state (bridgeOnline), not hardcoded "System Workspace: Ready"
+  assert.match(app, /bridgeOnline === true/);
+  assert.match(app, /System Workspace: Ready/);
+  assert.match(app, /System Workspace: Offline/);
+  assert.doesNotMatch(app, /<span>System Workspace: Ready<\/span>/);
+
+  // App version is derived from canonical package version, not conflicting v1.0.0
+  assert.doesNotMatch(app, /v1\.0\.0/);
+  assert.doesNotMatch(leftRail, /v1\.0\.0/);
+  assert.match(app, /APP_VERSION/);
+  assert.match(leftRail, /APP_VERSION/);
+});

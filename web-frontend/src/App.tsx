@@ -29,6 +29,8 @@ import SettingsCenter from './components/SettingsCenter';
 import NexusSplash from './components/NexusSplash';
 import AuthGate from './components/AuthGate';
 import AccountCenter from './components/AccountCenter';
+import { APP_VERSION } from './version';
+import clsx from 'clsx';
 import './account-shell.css';
 
 type ActiveView = FamilyId | 'home' | 'ai-scan' | 'action-center' | 'settings' | 'navigator';
@@ -400,19 +402,25 @@ function MasterWorkstation() {
       <footer className="knoux-footer flex items-center justify-between h-7 px-4 bg-[#030612]/95 border-t border-white/[0.08] text-[11px] font-mono text-slate-400 z-20 relative overflow-hidden" dir="ltr">
         <div className="absolute left-1/2 bottom-0 -translate-x-1/2 w-48 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_12px_rgba(34,211,238,0.9)] pointer-events-none" />
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-cyan-400 font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]" />
-            <span>System Workspace: Ready</span>
+          <span className={clsx('flex items-center gap-1.5 font-semibold', bridgeOnline === true ? 'text-cyan-400' : bridgeOnline === false ? 'text-rose-400' : 'text-amber-400')}>
+            <span className={clsx('w-1.5 h-1.5 rounded-full', bridgeOnline === true ? 'bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]' : bridgeOnline === false ? 'bg-rose-400 shadow-[0_0_6px_rgba(244,63,94,0.8)]' : 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)] animate-pulse')} />
+            <span>
+              {bridgeOnline === true
+                ? (lang === 'ar' ? 'مساحة النظام: جاهزة' : 'System Workspace: Ready')
+                : bridgeOnline === false
+                  ? (lang === 'ar' ? 'مساحة النظام: غير متصلة' : 'System Workspace: Offline')
+                  : (lang === 'ar' ? 'مساحة النظام: جارٍ الفحص...' : 'System Workspace: Checking...')}
+            </span>
           </span>
           <span className="text-slate-600">|</span>
           <span className="flex items-center gap-1.5 text-slate-300">
             <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor" className="text-cyan-400"><path d="M0 2.222L6.37 1.35v6.082H0V2.222zm0 6.643h6.37v6.082L0 14.075V8.865zm7.63-7.685L16 0v7.432H7.63V1.18zm0 7.685H16V16l-8.37-1.18V8.865z"/></svg>
-            <span>{systemSnapshot?.Os?.includes('Windows') ? systemSnapshot.Os : 'Windows 11 Pro'}</span>
+            <span>{systemSnapshot?.Os ? systemSnapshot.Os : (lang === 'ar' ? 'ويندوز — لم يتم الفحص' : 'Windows — Not checked')}</span>
           </span>
-          <span className="text-slate-500">Build {systemSnapshot?.Build || '22631.3155'}</span>
+          <span className="text-slate-500">{systemSnapshot?.Build ? `Build ${systemSnapshot.Build}` : (lang === 'ar' ? 'البناء — لم يتم الفحص' : 'Build — Not checked')}</span>
           <span className="text-slate-600">|</span>
           <span className="font-bold tracking-wider text-slate-300">KNOUX Repair</span>
-          <span className="text-slate-500">v1.0.0</span>
+          <span className="text-slate-500">{APP_VERSION}</span>
         </div>
         <div className="flex items-center gap-2" title={`${bridgeToolCount ?? 0} tools registered`}>
           <span className="sr-only">{bridgeToolCount ?? 0} tools registered</span>

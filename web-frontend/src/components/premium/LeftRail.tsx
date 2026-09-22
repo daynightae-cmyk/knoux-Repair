@@ -7,6 +7,7 @@ import {
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import type { FamilyId } from '../../data/family-map';
+import { APP_VERSION } from '../../version';
 
 export type ActiveView = FamilyId | 'home' | 'ai-scan' | 'action-center' | 'settings' | 'navigator';
 
@@ -91,9 +92,9 @@ export default function LeftRail({ activeView, onSelect, lang, bridgeOnline }: L
         {BOTTOM_ITEMS.map(renderItem)}
       </div>
 
-      <div className="knoux-rail-brand-card" aria-label="KNOUX Repair version 1.0.0">
+      <div className="knoux-rail-brand-card" aria-label={`KNOUX Repair version ${APP_VERSION}`}>
         <strong>KNOUX Repair</strong>
-        <span>v1.0.0</span>
+        <span>{APP_VERSION}</span>
         <small>{lang === 'ar' ? 'صُنع لجهاز أكثر صحة. غدٌ أكثر إشراقاً.' : 'Built for a Healthier PC. A Brighter Tomorrow.'}</small>
       </div>
 
