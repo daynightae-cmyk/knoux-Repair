@@ -440,6 +440,16 @@ export interface PostInstallCatalogItem {
   MatchedDisplayName: string | null;
   MatchedVersion: string | null;
   Evidence: string;
+  // Live WinGet resolution (additive, nullable until PI06 live-proves)
+  WingetResolved?: boolean | null;
+  WingetAvailableVersion?: string | null;
+  WingetSource?: string | null;
+  WingetError?: string | null;
+  Publisher?: string | null;
+  OfficialSite?: string | null;
+  Provider?: string | null;
+  License?: string | null;
+  LastVerified?: string | null;
 }
 
 export interface PostInstallPreview {

@@ -1,6 +1,6 @@
 ﻿#Requires -Version 5.1
 # Knoux Repair v2.0.2 | 17-PostInstall-Setup | PI06 - Interactive Post-Install Preview
-# Risk: READ_ONLY
+# Risk: READ_ONLY | Live baseline: installed registry + winget resolution per-package.
 [CmdletBinding()]
 param([switch]$AnalyzeOnly, [switch]$WhatIf, [switch]$EmitJson)
 
@@ -11,110 +11,124 @@ $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $OutputEncoding = $utf8NoBom
 Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 
-function Get-KnouxInstalledPrograms {
-  $paths = @(
-    'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
-    'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
-    'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
-  )
-  $programs = foreach ($path in $paths) {
-    Get-ItemProperty -Path $path -ErrorAction SilentlyContinue | ForEach-Object {
-      $displayName = $_.PSObject.Properties['DisplayName']
-      if ($null -ne $displayName -and -not [string]::IsNullOrWhiteSpace([string]$displayName.Value)) {
-        $displayVersion = $_.PSObject.Properties['DisplayVersion']
-        $publisher = $_.PSObject.Properties['Publisher']
-        [pscustomobject]@{
-          Name = [string]$displayName.Value
-          Version = if ($null -ne $displayVersion) { [string]$displayVersion.Value } else { '' }
-          Publisher = if ($null -ne $publisher) { [string]$publisher.Value } else { '' }
-        }
-      }
-    }
-  }
-  return @($programs | Sort-Object Name -Unique)
-}
-
 $Session = Start-KnouxSession -ToolId 'PI06' -ToolName 'Interactive Post-Install Preview' -Category '17-PostInstall-Setup' -RiskLevel 'READ_ONLY'
 try {
-  $catalog = @(
-    [pscustomobject]@{ Selection = 1; Name = 'Google Chrome'; PackageId = 'Google.Chrome'; Category = 'Browser'; Pattern = '(^|\s)Google Chrome($|\s)' },
-    [pscustomobject]@{ Selection = 2; Name = '7-Zip'; PackageId = '7zip.7zip'; Category = 'Utilities'; Pattern = '(^|\s)7-Zip($|\s)' },
-    [pscustomobject]@{ Selection = 3; Name = 'VLC media player'; PackageId = 'VideoLAN.VLC'; Category = 'Media'; Pattern = 'VLC media player|VideoLAN VLC' },
-    [pscustomobject]@{ Selection = 4; Name = 'Visual Studio Code'; PackageId = 'Microsoft.VisualStudioCode'; Category = 'Developer'; Pattern = 'Visual Studio Code' },
-    [pscustomobject]@{ Selection = 5; Name = 'PowerToys'; PackageId = 'Microsoft.PowerToys'; Category = 'Productivity'; Pattern = 'PowerToys' },
-    [pscustomobject]@{ Selection = 6; Name = 'Notepad++'; PackageId = 'Notepad++.Notepad++'; Category = 'Utilities'; Pattern = 'Notepad\+\+' },
-    [pscustomobject]@{ Selection = 7; Name = 'Everything'; PackageId = 'voidtools.Everything'; Category = 'Search'; Pattern = '^Everything(\s|$)' },
-    [pscustomobject]@{ Selection = 8; Name = 'WinDirStat'; PackageId = 'WinDirStat.WinDirStat'; Category = 'Storage'; Pattern = 'WinDirStat' }
-  )
+  $catalogPath = Join-Path $PSScriptRoot 'post-install.catalog.json'
+  if (-not (Test-Path -LiteralPath $catalogPath)) { throw "Structured catalog not found at $catalogPath" }
+  $catalogRaw = Get-Content -LiteralPath $catalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
+
+  # Host-local truth: installed programs via registry
   $installedPrograms = Get-KnouxInstalledPrograms
-  $catalogState = @($catalog | ForEach-Object {
-    $catalogItem = $_
-    $match = @($installedPrograms | Where-Object { $_.Name -match $catalogItem.Pattern } | Select-Object -First 1)
-    [pscustomobject]@{
-      Selection = $catalogItem.Selection; Name = $catalogItem.Name; PackageId = $catalogItem.PackageId; Category = $catalogItem.Category
-      Detected = ($match.Count -gt 0)
-      MatchedDisplayName = if ($match.Count) { $match[0].Name } else { $null }
-      MatchedVersion = if ($match.Count) { $match[0].Version } else { $null }
-      Evidence = 'Local installed-program registry match only; absence is not an installation recommendation.'
-    }
-  })
+  $wingetCap = Get-KnouxWingetCapability
 
-  $winget = [ordered]@{ Available = $false; SourceCount = $null; Version = $null; Error = $null }
-  try {
-    $wingetVersion = & winget.exe --version 2>$null | Select-Object -First 1
-    if ($LASTEXITCODE -eq 0 -and $wingetVersion) {
-      $winget.Available = $true; $winget.Version = [string]$wingetVersion
-      $sourceLines = @(& winget.exe source list --disable-interactivity 2>$null)
-      if ($LASTEXITCODE -eq 0) { $winget.SourceCount = @($sourceLines | Where-Object { $_ -match '^\s*\S+\s+https?://' }).Count }
-    }
-  } catch { $winget.Error = $_.Exception.Message }
+  # Per-package live WinGet resolution (external reference, bounded, truthful)
+  $catalogState = @()
+  foreach ($entry in ($catalogRaw | Sort-Object selection)) {
+    $selection = [int]$entry.selection
+    $name = [string]$entry.displayName
+    $pkgId = [string]$entry.providerPackageId
+    $category = [string]$entry.category
+    $pattern = [string]$entry.detectionPattern
 
-  $updateServices = @('wuauserv', 'BITS') | ForEach-Object {
-    try { $service = Get-Service -Name $_ -ErrorAction Stop; [pscustomobject]@{ Name = $service.Name; Status = [string]$service.Status; StartType = [string]$service.StartType } } catch { [pscustomobject]@{ Name = $_; Status = 'Unavailable'; StartType = 'Unavailable' } }
+    # Local detection (registry only)
+    $match = @()
+    try { $match = @($installedPrograms | Where-Object { $_.Name -match $pattern } | Select-Object -First 1) } catch { $match = @() }
+    $detected = ($match.Count -gt 0)
+    $matchedName = if ($match.Count) { $match[0].Name } else { $null }
+    $matchedVersion = if ($match.Count) { $match[0].Version } else { $null }
+
+    # Live WinGet resolution (may be unavailable, may fail per-package)
+    $resolve = $null
+    if ($wingetCap.Available) {
+      try { $resolve = Resolve-KnouxWingetPackage -PackageId $pkgId } catch {
+        $resolve = [pscustomobject]@{ Resolved = $false; AvailableVersion = $null; Source = $null; Error = $_.Exception.Message }
+      }
+    } else {
+      $resolve = [pscustomobject]@{ Resolved = $false; AvailableVersion = $null; Source = $null; Error = 'Winget not available on this host' }
+    }
+
+    $evidence = if ($detected) {
+      "Local installed-program registry match (DisplayName pattern '$pattern'); winget live resolution Resolved=$($resolve.Resolved) Source=$($resolve.Source) Version=$($resolve.AvailableVersion)"
+    } else {
+      "Not detected in local installed-program registry (pattern '$pattern'); winget live resolution Resolved=$($resolve.Resolved) Source=$($resolve.Source) Version=$($resolve.AvailableVersion). Absence is not an installation recommendation."
+    }
+
+    $catalogState += [pscustomobject]@{
+      Selection               = $selection
+      Name                    = $name
+      PackageId               = $pkgId
+      Category                = $category
+      Detected                = $detected
+      MatchedDisplayName      = $matchedName
+      MatchedVersion          = $matchedVersion
+      Evidence                = $evidence
+      # Extended live-resolution truth (additive, non-breaking)
+      WingetResolved          = [bool]$resolve.Resolved
+      WingetAvailableVersion  = $resolve.AvailableVersion
+      WingetSource            = $resolve.Source
+      WingetError             = $resolve.Error
+      Publisher               = [string]$entry.publisher
+      OfficialSite            = [string]$entry.officialSite
+      Provider                = [string]$entry.provider
+      License                 = [string]$entry.license
+      LastVerified            = [string]$entry.lastVerified
+    }
   }
 
-  # IMPORTANT: PI06 is the fast workstation-baseline preview. It must not start
-  # a live Windows Update COM search during page bootstrap because that search can
-  # take an unbounded amount of time and previously blocked the single local bridge
-  # process, starving unrelated /api/categories/.../tools requests. PI01 owns live
-  # Windows Update driver discovery and is an explicit user action.
+  $updateServices = @('wuauserv', 'BITS') | ForEach-Object {
+    try { $svc = Get-Service -Name $_ -ErrorAction Stop; [pscustomobject]@{ Name = $svc.Name; Status = [string]$svc.Status; StartType = [string]$svc.StartType } } catch { [pscustomobject]@{ Name = $_; Status = 'Unavailable'; StartType = 'Unavailable' } }
+  }
+
+  # Driver offers: truthful - PI06 does NOT query Windows Update COM search (unbounded, blocks bridge).
+  # PI01 owns live discovery. We keep state truthful and document blocker.
   $driverOffers = [ordered]@{
     Available = $false
-    Count = $null
-    Offers = @()
-    Error = 'Driver offers were not queried by PI06. Run PI01 Discover Windows Driver Updates for live Windows Update driver evidence.'
+    Count     = $null
+    Offers    = @()
+    Error     = 'Driver offers were not queried by PI06. Run PI01 Discover Windows Driver Updates for live Windows Update driver evidence.'
   }
 
   $pendingRestart = @()
   if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired') { $pendingRestart += 'WindowsUpdate' }
   if (Test-Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\PendingFileRenameOperations') { $pendingRestart += 'PendingFileRenameOperations' }
   $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+
+  $wingetForPreview = [pscustomobject]@{
+    Available   = [bool]$wingetCap.Available
+    SourceCount = $wingetCap.SourceCount
+    Version     = $wingetCap.Version
+    Error       = $wingetCap.Error
+  }
+
   $preview = [pscustomobject]@{
     CapturedAt = (Get-Date).ToString('o')
     System = [pscustomobject]@{
       Caption = [string]$os.Caption; Build = [string]$os.BuildNumber; LastBoot = if ($os.LastBootUpTime) { ([datetime]$os.LastBootUpTime).ToString('o') } else { $null }
       InstalledProgramCount = $installedPrograms.Count; PendingRestartSignals = $pendingRestart
     }
-    Winget = [pscustomobject]$winget
+    Winget = $wingetForPreview
     UpdateServices = $updateServices
     DriverOffers = [pscustomobject]$driverOffers
     Catalog = $catalogState
     Safety = [pscustomobject]@{
       ChangesMade = $false
-      Sources = @('Installed-program registry', 'winget --version and source list', 'Windows Update and BITS services', 'reboot evidence registry keys')
-      Notice = 'Read-only post-install baseline. Driver offers are intentionally not queried here; PI01 owns live Windows Update driver discovery. No package source is refreshed, no update is downloaded, and no app or driver is installed by this preview.'
+      Sources = @('Installed-program registry', 'post-install.catalog.json (verified seed)', 'winget show --id per-package live resolution', 'winget --version and source list', 'Windows Update and BITS services', 'reboot evidence registry keys')
+      Notice = 'Read-only post-install baseline with per-package live winget resolution. Driver offers are intentionally not queried here; PI01 owns live Windows Update driver discovery. No package source is refreshed, no update is downloaded, and no app or driver is installed by this preview.'
     }
   }
   $preview | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath (Join-Path $Session.RawDir 'interactive-postinstall-preview.json') -Encoding UTF8
+  # Also export catalog-resolved evidence
+  $catalogState | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $Session.RawDir 'catalog-resolved.json') -Encoding UTF8
   $Session.ItemsFound = $catalogState.Count
   $Session.VerificationPerformed = $true
-  $Session.VerificationResult = 'Post-install baseline was read only; driver offers remain unverified until PI01 is run explicitly. No package source, application, driver, service, or system setting was changed.'
+  $resolvedCount = @($catalogState | Where-Object { $_.WingetResolved }).Count
+  $Session.VerificationResult = "Post-install baseline was read only; $resolvedCount/$($catalogState.Count) catalog packages resolved live via winget; driver offers remain unverified until PI01 is run explicitly. No package source, application, driver, service, or system setting was changed."
   if ($EmitJson) {
     Write-Output '---KNOUX_POST_INSTALL_JSON_START---'
     $preview | ConvertTo-Json -Depth 7 -Compress
     Write-Output '---KNOUX_POST_INSTALL_JSON_END---'
   } else {
-    Write-Host ('[OK] Read post-install baseline for {0} catalog item(s); driver offers not queried; no changes made.' -f $catalogState.Count) -ForegroundColor Green
+    Write-Host ("[OK] Read post-install baseline for {0} catalog item(s) ($resolvedCount live-resolved); driver offers not queried; no changes made." -f $catalogState.Count) -ForegroundColor Green
   }
 } catch {
   $Session.Status = 'Failed'
