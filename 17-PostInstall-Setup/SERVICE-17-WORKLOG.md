@@ -96,4 +96,12 @@
 - No other external blockers; all internal defects fixed.
 
 ## COMMIT
-- Pending commit of Service 17 slice (7 modified + 2 new files, 566 insertions). Commit to be created after verification; SHA to be recorded here after commit.
+- Commit `ec772d205e5a8926950044563cddcd066368fbcc` — Service 17 slice (10 files, 1051 insertions, 80 deletions)
+- Branch `traycer/knoux-repair-snappy-lemur` (HEAD -> main in worktree, ahead of origin/main by 1)
+- Verified gates: typecheck PASS, 636 tests PASS, build PASS, bridge preview PASS (21.88s, 8/8 resolved)
+
+## SERVICE 17 STATUS
+- **CLOSED** — All 6 closure criteria proven with live evidence (static catalog eliminated, live WinGet 8/8, per-item states, post-install verification via registry re-query, driver truth, partial/inconclusive truthfulness). No fake closure.
+
+## NEXT
+- Ready to begin Service 04 — Programs & Applications (once owner authorizes). Do not merge to main without explicit approval.
