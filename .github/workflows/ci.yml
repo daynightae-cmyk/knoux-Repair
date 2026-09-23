@@ -99,7 +99,7 @@ jobs:
 
       - name: Capture Final Visual Proof (Project Sonar, Software Trio, Investigation, RTL, Navigation)
         working-directory: web-frontend
-        run: node scripts/capture-final-visual-evidence.mjs
+        run: node scripts/run-capture-final-visual-evidence-ci.mjs
 
       - name: Upload rendered UI evidence
         if: always()
