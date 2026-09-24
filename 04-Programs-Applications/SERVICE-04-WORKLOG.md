@@ -78,7 +78,15 @@ clean
 - Mutation flow implemented: SELECT → REVIEW → CONFIRM → EXECUTE → VERIFY → RESULT (via PA tools + programsModel.verifyRepairOperation). For uninstall, PA02/PA03 etc. would execute via bridge `POST /api/runs` with confirmation, then re-query inventory to compare observed state; SUCCESS only if verified (code path `verifyRepairOperation` distinguishes VERIFIED_FIXED vs ACTION_COMPLETED_UNVERIFIED). Not yet proven via live destructive run (by design, to avoid altering owner's system). Recorded as RUNTIME_MUTATION_PROOF_PENDING (authorized safe mutation not yet executed).
 
 ## COMMIT
-- Pending commit of Service 04 slice (5 modified + 1 new file, 126 insertions, 46 deletions). SHA to be recorded after commit.
+- Commit `f324e3477e00bc94b773dc825d87232b7acc3a0a` — Service 04 slice (7 files, 401 insertions, 46 deletions)
+- Branch `traycer/knoux-repair-snappy-lemur` (ahead of origin/main by 5)
+- Verified gates: station04 50 tests PASS, 636 full PASS, typecheck PASS, build PASS, bridge preview Total 179 live
+
+## SERVICE 04 STATUS
+- IMPLEMENTATION_CLOSED — inventory authority unified, API enriched, capability-driven UI, tests/build/bridge proven, no fabrication. Mutation proof pending safe authorization.
+
+## NEXT
+- Ready to continue to Service 16 — Software Environment (per mission order 17→04→16). Awaiting push verification before continuing.
 
 ## BLOCKERS
 - AppX/MSIX 0 in this host's pwsh 7: Get-AppxPackage returns 0 in current PowerShell 7 host (may succeed in Windows PowerShell 5.1 with AppX module). Documented as host-specific, not code defect; registry inventory still proves authority. WinGet correlation remains best-effort (UpdateCapability false until proven via winget list parsing — not fabricated).
