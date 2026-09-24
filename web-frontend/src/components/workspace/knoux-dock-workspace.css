@@ -3,9 +3,9 @@
 
 .knoux-dock-workspace {
   width: 100%;
-  height: clamp(430px, 58vh, 660px);
+  height: 100%;
   min-width: 0;
-  min-height: 430px;
+  min-height: 0;
   overflow: hidden;
   border: 1px solid rgba(103, 232, 249, 0.15);
   border-radius: 16px;
@@ -88,12 +88,6 @@
 .knoux-dock-slot--center .knoux-stage-service-app {
   height: 100%;
   min-height: 0;
-}
-
-@media (max-width: 1180px) {
-  .knoux-dock-workspace {
-    height: clamp(440px, 64vh, 700px);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
