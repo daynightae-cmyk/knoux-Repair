@@ -11,9 +11,10 @@ const readWeb = (p) => fs.readFileSync(path.join(webRoot, p), 'utf8');
 
 const station = readWeb('src/components/premium/workbench/EngineeringWorkbenchStation.tsx');
 const css = readWeb('src/workbench-command-deck.css');
+const dockShell = readWeb('src/components/workspace/KnouxDockWorkspace.tsx');
 
 test('workbench is a 3-zone IDE workspace, not a card wall or giant hero', () => {
-  assert.match(station, /data-workspace="ide"/);
+  assert.match(`${station}\n${dockShell}`, /data-workspace="ide"/);
   assert.match(station, /data-zone="explorer"/);
   assert.match(station, /data-zone="center"/);
   assert.match(station, /data-zone="context"/);
