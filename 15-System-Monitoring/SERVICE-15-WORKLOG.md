@@ -45,10 +45,11 @@ clean
 - Read-only slice — no monitoring config change without explicit confirm + verification.
 
 ## COMMIT
-- Pending commit of Service 15 work log (1 file). SHA to be recorded after commit.
+- Commit `2b3af40252cf6c222646138acda50d72b730b0f6` — heavy-wave batch (5 files, 276 insertions)
 
 ## BLOCKERS
 - No internal blockers; PDH sampling where useful, unavailable metrics correctly state unavailable.
 
 ## SERVICE 15 STATUS
 - IMPLEMENTATION_CLOSED — live monitoring via CIM/PDH, snapshot/continuous/historical separated, read-only safety, tests/build/bridge proven, no fabrication.
+

@@ -45,10 +45,11 @@ clean
 - Read-only slice — no file deletion, no dependency install, no git change, no cloud upload of private repo. `SN07` read-only via `AnalyzeOnly`.
 
 ## COMMIT
-- Pending commit of Service 18 work log (1 file). SHA to be recorded after commit.
+- Commit `2b3af40252cf6c222646138acda50d72b730b0f6` — heavy-wave batch (5 files, 276 insertions)
 
 ## BLOCKERS
 - No internal blockers; all parsing local, enrichment via authoritative registries with bounded API calls, secrets never stored in SQLite.
 
 ## SERVICE 18 STATUS
 - IMPLEMENTATION_CLOSED — local project parsing + authoritative registry enrichment + security OSV/GHSA/NVD/SPDX without private upload, read-only safety, tests/build/bridge proven, no fabrication.
+

@@ -47,10 +47,11 @@ clean
 - Read-only slice — no cache quarantine, no port kill, no git change without explicit SELECT→REVIEW→CONFIRM + verification. `DT02-QuarantineDeveloperCaches` (SAFE_CLEANUP) requires confirmation.
 
 ## COMMIT
-- Pending commit of Service 12 work log (1 file). SHA to be recorded after commit.
+- Commit `2b3af40252cf6c222646138acda50d72b730b0f6` — heavy-wave batch (5 files, 276 insertions)
 
 ## BLOCKERS
 - No internal blockers; all toolchain via executable + registry, not folder name alone.
 
 ## SERVICE 12 STATUS
 - IMPLEMENTATION_CLOSED — live toolchain via executable+registry, read-only safety, tests/build/bridge proven, no fabrication.
+
