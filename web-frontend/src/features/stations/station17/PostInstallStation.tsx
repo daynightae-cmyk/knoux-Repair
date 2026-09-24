@@ -842,12 +842,16 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                       <th>Winget Identifier</th>
                       <th>Category</th>
                       <th>Status</th>
+                      <th>Winget Resolution</th>
                       <th>Evidence</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredCatalog.map(item => {
                       const isSelected = selectedAppSelections.includes(item.Selection);
+                      const wingetResolved = (item as unknown as Record<string, unknown>).WingetResolved as boolean | undefined;
+                      const wingetVersion = (item as unknown as Record<string, unknown>).WingetAvailableVersion as string | null | undefined;
+                      const wingetSource = (item as unknown as Record<string, unknown>).WingetSource as string | null | undefined;
                       return (
                         <tr
                           key={item.PackageId}
@@ -875,12 +879,31 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                               {item.Detected ? 'Installed' : 'Available'}
                             </span>
                           </td>
+                          <td className="monospace-cell" style={{ fontSize: '11px' }}>
+                            {wingetResolved === undefined ? (
+                              <span className="text-muted">—</span>
+                            ) : wingetResolved ? (
+                              <span className="status-pill success" title={`Source: ${wingetSource || 'winget'}`}>
+                                ✓ {wingetVersion || 'resolved'}
+                              </span>
+                            ) : (
+                              <span className="status-pill warning" title={(item as unknown as Record<string, unknown>).WingetError as string || 'unresolved'}>
+                                ✗ unresolved
+                              </span>
+                            )}
+                            {wingetSource && <div className="text-muted" style={{ fontSize: '10px' }}>{wingetSource}</div>}
+                          </td>
                           <td className="desc-cell text-muted">{item.Evidence || '—'}</td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
+              </div>
+              <div className="text-muted" style={{ fontSize: '11px', marginTop: '6px' }}>
+                {lang === 'ar'
+                  ? 'حل وينغيت الحي لكل حزمة يتم تقديمه أولاً؛ الحزمة غير المحلولة لا يثبت وجودها أو حالتها.'
+                  : 'Per-package live winget resolution is attempted first; an unresolved package is never assumed to exist or to be installable.'}
               </div>
             </div>
           )}

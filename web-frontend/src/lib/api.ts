@@ -440,6 +440,16 @@ export interface PostInstallCatalogItem {
   MatchedDisplayName: string | null;
   MatchedVersion: string | null;
   Evidence: string;
+  // Live WinGet resolution (additive, nullable until PI06 live-proves)
+  WingetResolved?: boolean | null;
+  WingetAvailableVersion?: string | null;
+  WingetSource?: string | null;
+  WingetError?: string | null;
+  Publisher?: string | null;
+  OfficialSite?: string | null;
+  Provider?: string | null;
+  License?: string | null;
+  LastVerified?: string | null;
 }
 
 export interface PostInstallPreview {
@@ -468,15 +478,34 @@ export interface SoftwarePreviewItem {
   Publisher: string;
   Kind: 'Desktop' | 'Appx';
   CanUninstall: boolean;
+  // Normalized capability truth (optional until SW07 proves)
+  Id?: string | null;
+  Architecture?: string | null;
+  InstallLocation?: string | null;
+  InstallDate?: string | null;
+  PackageProvider?: string | null;
+  PackageId?: string | null;
+  UninstallCapability?: boolean | null;
+  UninstallString?: string | null;
+  RepairCapability?: boolean | null;
+  UpdateCapability?: boolean | null;
+  OpenCapability?: boolean | null;
+  Source?: string | null;
+  Scope?: string | null;
+  Evidence?: string | null;
+  CapturedAt?: string | null;
+  EstimatedSizeMB?: number | null;
 }
 
 export interface SoftwarePreview {
+  CapturedAt?: string | null;
   Items: SoftwarePreviewItem[];
   Total: number;
   DesktopCount: number;
   AppxCount: number;
   Truncated: boolean;
-  Safety: { ChangesMade: boolean; InventorySources: string[] };
+  Safety: { ChangesMade: boolean; InventorySources: string[]; WingetAvailable?: boolean | null; CorrelationNote?: string | null };
+  InventorySources?: string[] | null;
 }
 
 export type DuplicateFileType = 'all' | 'images' | 'video' | 'documents' | 'audio' | 'archives' | 'other';

@@ -7,7 +7,9 @@ Import-Module (Join-Path $PSScriptRoot '..\Core\KnouxRepair.Core.psm1') -Force
 $Session = Start-KnouxSession -ToolId 'PI05' -ToolName 'Refresh Winget Sources' -Category '17-PostInstall-Setup' -RiskLevel 'SAFE_CLEANUP'
 Write-KnouxHeader -Session $Session -AnalyzeOnly:$AnalyzeOnly -WhatIf:$WhatIf
 try {
-  if($AnalyzeOnly -or $WhatIf){& winget.exe source list 2>&1|Tee-Object -FilePath (Join-Path $Session.RawDir 'winget-sources.txt');$Session.VerificationPerformed=$true;$Session.VerificationResult='Winget sources listed';Write-Host '[OK] Winget sources listed.' -ForegroundColor Green}else{& winget.exe source update 2>&1|Tee-Object -FilePath (Join-Path $Session.RawDir 'winget-source-update.txt');if($LASTEXITCODE -ne 0){throw 'winget source update failed'};$Session.ChangedSystem=$true;$Session.VerificationPerformed=$true;$Session.VerificationResult='Winget sources refreshed';Write-Host '[OK] Winget sources refreshed.' -ForegroundColor Green}
+  $wingetPath = Get-KnouxWingetExePath
+  if (-not $wingetPath) { throw 'winget.exe not found on this host. Install Windows App Installer.' }
+  if($AnalyzeOnly -or $WhatIf){& $wingetPath source list 2>&1|Tee-Object -FilePath (Join-Path $Session.RawDir 'winget-sources.txt');$Session.VerificationPerformed=$true;$Session.VerificationResult='Winget sources listed';Write-Host '[OK] Winget sources listed.' -ForegroundColor Green}else{& $wingetPath source update 2>&1|Tee-Object -FilePath (Join-Path $Session.RawDir 'winget-source-update.txt');if($LASTEXITCODE -ne 0){throw 'winget source update failed'};$Session.ChangedSystem=$true;$Session.VerificationPerformed=$true;$Session.VerificationResult='Winget sources refreshed';Write-Host '[OK] Winget sources refreshed.' -ForegroundColor Green}
 } catch {
   $Session.Status = 'Failed'; $Session.ErrorMessage = $_.Exception.Message
   Write-Host ('[ERROR] ' + $Session.ErrorMessage) -ForegroundColor Red
