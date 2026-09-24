@@ -69,7 +69,15 @@ clean
 - Read-only preservation slice — no file deletion, no quarantine, no private upload. `quarantineDuplicatePaths` moves to `Quarantine/DF11/<id>/` with verification, keeper preserved, restore via `engine-restore`. Pending explicit user-selected quarantine with keeper decision for live mutation proof (by design, to avoid altering owner files in audit).
 
 ## COMMIT
-- Pending commit of Service 05 work log (1 file, preserve, no code change). SHA to be recorded after commit.
+- Commit `d9256ba8cd5e73a43993b89539a0bbd52c9af378` — Service 05 preserve (1 file)
+- Branch `traycer/knoux-repair-snappy-lemur` (ahead of origin/main by 19)
+- Verified gates: duplicatesEngine 15+ PASS, station05 40 PASS via full 636 PASS, typecheck PASS, build PASS, bridge engine-scan proven
+
+## SERVICE 05 STATUS
+- PRESERVED — existing Node+SQLite engine verified, correct model (walk → size grouping → bounded fingerprint → SHA-256 → groups → keeper → quarantine → verification → restore), no private upload, no content in SQLite, tests/build/bridge proven, no fabrication. Ready for heavy-wave reuse.
+
+## NEXT
+- Heavy wave: Service 03 Network & Internet (per mission order 17→04→16→02→06→11→14→13→05→03). Awaiting push verification before continuing.
 
 ## BLOCKERS
 - No internal blockers; engine already implements size grouping → bounded SHA-256 → keeper → quarantine → verification → restore. SQLite operational index preserved, file contents never stored. No reimplementation required.
