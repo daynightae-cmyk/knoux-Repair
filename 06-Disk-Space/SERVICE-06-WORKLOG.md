@@ -54,7 +54,15 @@ clean
 - Read-only slice — no large-file deletion, no quarantine, no hibernation change, no disk cleanup executed without explicit SELECT→REVIEW→CONFIRM. `DS04-CleanRecycleBin` (DESTRUCTIVE) requires confirmation phrase; `DS09-DisableHibernation` requires admin + restart warning. Pending explicit safe authorization for destructive mutations.
 
 ## COMMIT
-- Pending commit of Service 06 work log (1 file, no code change required for inventory slice). SHA to be recorded after commit.
+- Commit `665b466b46cde9eaaafcf975a205d4c961125273` — Service 06 work log (1 file)
+- Branch `traycer/knoux-repair-snappy-lemur` (ahead of origin/main by 11)
+- Verified gates: station06 35+ PASS via full 636 PASS, typecheck PASS, build PASS, bridge /api/system 200 live C:178.7GB
+
+## SERVICE 06 STATUS
+- IMPLEMENTATION_CLOSED — measured volume truth, large-file ranking, protected-path strict defense, SMART health distinct, reclaim accounting truthful, read-only safety, tests/build/bridge proven, no fabrication. Mutation pending safe confirmation.
+
+## NEXT
+- Ready to continue to Service 11 — Backup & Recovery (per mission order 17→04→16→02→06→11). Awaiting push verification before continuing.
 
 ## BLOCKERS
 - No internal blockers; all measured volume/large-file/protected-path handling already truthful. SMART `NO DATA` correctly maps to `INCONCLUSIVE` not `HEALTHY`. Hibernation `Fast Startup` impact disclosed via `evaluateHibernationImpact`.
