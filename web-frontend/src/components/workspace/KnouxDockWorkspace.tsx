@@ -6,9 +6,11 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  DockviewDefaultTab,
   DockviewReact,
   themeAbyss,
   type DockviewReadyEvent,
+  type IDockviewPanelHeaderProps,
   type IDockviewPanelProps,
 } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
@@ -50,6 +52,14 @@ const dockComponents = {
   context: (_props: IDockviewPanelProps) => <WorkspaceSlot name="context" />,
 };
 
+function LockedWorkspaceTab(props: IDockviewPanelHeaderProps) {
+  return <DockviewDefaultTab {...props} hideClose />;
+}
+
+const tabComponents = {
+  locked: LockedWorkspaceTab,
+};
+
 export default function KnouxDockWorkspace({
   lang,
   enabled,
@@ -84,6 +94,7 @@ export default function KnouxDockWorkspace({
       minimumWidth: 420,
       minimumHeight: 260,
       renderer: 'always',
+      tabComponent: 'locked',
     });
 
     event.api.addPanel({
@@ -98,6 +109,7 @@ export default function KnouxDockWorkspace({
       minimumWidth: 170,
       maximumWidth: 360,
       renderer: 'always',
+      tabComponent: 'locked',
     });
 
     event.api.addPanel({
@@ -112,6 +124,7 @@ export default function KnouxDockWorkspace({
       minimumWidth: 200,
       maximumWidth: 420,
       renderer: 'always',
+      tabComponent: 'locked',
     });
   };
 
@@ -128,6 +141,7 @@ export default function KnouxDockWorkspace({
           className="knoux-dockview"
           theme={themeAbyss}
           components={dockComponents}
+          tabComponents={tabComponents}
           onReady={onReady}
         />
       </div>
