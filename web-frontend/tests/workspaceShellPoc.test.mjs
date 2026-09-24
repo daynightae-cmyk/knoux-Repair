@@ -46,11 +46,22 @@ test('Developer Tools alone opts into the PoC and canonical ServiceApps remains 
   );
 });
 
-test('PoC shell has an explicit bounded height so Dockview can render', () => {
+test('PoC shell consumes the real flex remainder instead of leaving a blank lower viewport', () => {
   const css = read('src/components/workspace/knoux-dock-workspace.css');
 
   assert.match(css, /\.knoux-dock-workspace\s*\{/);
-  assert.match(css, /height:\s*clamp\(/);
-  assert.match(css, /min-height:\s*430px/);
+  assert.match(css, /flex:\s*1 1 auto/);
+  assert.match(css, /height:\s*auto/);
+  assert.match(css, /min-height:\s*0/);
+  assert.doesNotMatch(css, /height:\s*clamp\(/);
   assert.match(css, /\.knoux-dock-slot--center/);
+});
+
+test('core workspace tabs cannot be accidentally closed while panels stay dockable', () => {
+  const shell = read('src/components/workspace/KnouxDockWorkspace.tsx');
+
+  assert.match(shell, /DockviewDefaultTab/);
+  assert.match(shell, /hideClose/);
+  assert.match(shell, /tabComponents=\{tabComponents\}/);
+  assert.equal((shell.match(/tabComponent: 'locked'/g) ?? []).length, 3);
 });
