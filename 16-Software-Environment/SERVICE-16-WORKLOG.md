@@ -52,7 +52,15 @@ clean
 - Read-only slice — no cache quarantine, no winget upgrade, no uninstall executed (safe). SELECT→REVIEW→CONFIRM→EXECUTE→VERIFY flow exists for SW04/SW05/SW06 (via bridge `POST /api/runs` with confirmation). Pending explicit safe authorization for destructive mutations.
 
 ## COMMIT
-- Pending commit of Service 16 slice (2 modified, 126 insertions). SHA to be recorded after commit.
+- Commit `ec64ba38fafddb1f06efd91f1d87df18ba0062bf` — Service 16 slice (3 files, 167 insertions, 7 deletions)
+- Branch `traycer/knoux-repair-snappy-lemur` (ahead of origin/main by 7)
+- Verified gates: station16 7 PASS, 636 full PASS, typecheck PASS, build PASS, bridge previews live (software 179, advanced 28 tools + 54 extensions)
+
+## SERVICE 16 STATUS
+- IMPLEMENTATION_CLOSED — runtime toolchain detection expanded to spec list via executable + registry, advanced preview enriched, bridge live, tests/build proven, no fabrication.
+
+## NEXT
+- Ready to continue to Service 02 — System Cleanup (per mission order 17→04→16→02). Awaiting push verification before continuing.
 
 ## BLOCKERS
 - Visual C++ 2015-2022 Redist not detected in this host's uninstall registry (Available false) — truthful, not fabricated; host may have store-distributed VC++ without uninstall entry
