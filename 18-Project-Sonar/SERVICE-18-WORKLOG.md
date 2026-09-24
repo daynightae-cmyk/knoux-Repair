@@ -52,4 +52,3 @@ clean
 
 ## SERVICE 18 STATUS
 - IMPLEMENTATION_CLOSED — local project parsing + authoritative registry enrichment + security OSV/GHSA/NVD/SPDX without private upload, read-only safety, tests/build/bridge proven, no fabrication.
-

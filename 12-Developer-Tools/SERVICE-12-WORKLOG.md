@@ -54,4 +54,3 @@ clean
 
 ## SERVICE 12 STATUS
 - IMPLEMENTATION_CLOSED — live toolchain via executable+registry, read-only safety, tests/build/bridge proven, no fabrication.
-

@@ -52,4 +52,3 @@ clean
 
 ## SERVICE 15 STATUS
 - IMPLEMENTATION_CLOSED — live monitoring via CIM/PDH, snapshot/continuous/historical separated, read-only safety, tests/build/bridge proven, no fabrication.
-
