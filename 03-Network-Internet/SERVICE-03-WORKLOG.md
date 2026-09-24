@@ -55,7 +55,15 @@ clean
 - Read-only slice — no renew/release, no Winsock reset, no stack reset, no DNS flush without explicit SELECT→REVIEW→CONFIRM. `NI02-RenewIPAddress`, `NI04-ResetWinsock`, `NI08-ResetNetworkStack` etc. require confirmation/elevation and verify after. Pending explicit safe authorization for `RenewIPAddress`/`ResetWinsock` live proof.
 
 ## COMMIT
-- Pending commit of Service 03 work log (1 file, no code change required for inventory slice). SHA to be recorded after commit.
+- Commit `c816c48e152e34c00c270f83b5701c6623903c66` — Service 03 work log (1 file)
+- Branch `traycer/knoux-repair-snappy-lemur` (ahead of origin/main by 21)
+- Verified gates: station03 11+ PASS via full 636 PASS, typecheck PASS, build PASS, bridge /api/network/preview 200 live 2 adapters
+
+## SERVICE 03 STATUS
+- IMPLEMENTATION_CLOSED — adapter truth via Win32_NetworkAdapterConfiguration, layer derivation, recommendation ladder, read-only safety, tests/build/bridge proven, no fabrication. Mutation pending safe confirmation.
+
+## NEXT
+- Ready to continue to Service 08 — Performance (per mission order 17→04→16→02→06→11→14→13→05→03→08). Awaiting push verification before continuing.
 
 ## BLOCKERS
 - No internal blockers; all adapter truth via CIM, virtual classification via Description, gateway/DNS via IPEnabled filtering, ICMP-blocked correctly inconclusive.
