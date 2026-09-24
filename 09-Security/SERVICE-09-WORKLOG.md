@@ -49,7 +49,15 @@ clean
 - Read-only slice — no Defender enable, no Firewall disable (ENABLE-ONLY via `Set-KnouxFirewallState` with verification), no UAC change, no SecureBoot/TPM/BitLocker mutation without explicit SELECT→REVIEW→CONFIRM + verification. `SE02-EnableRealtimeProtection` (SYSTEM_REPAIR) requires admin + confirmation and verifies via re-query. Pending explicit safe authorization for `EnableFirewall` live proof.
 
 ## COMMIT
-- Pending commit of Service 09 work log (1 file, no code change required for inventory slice). SHA to be recorded after commit.
+- Commit `9835fdcd93ea50a4c907b488024f2954105a60d5` — Service 09 work log (1 file)
+- Branch `traycer/knoux-repair-snappy-lemur` (ahead of origin/main by 25)
+- Verified gates: station09 7+ PASS via full 636 PASS, typecheck PASS, build PASS, bridge /api/system live
+
+## SERVICE 09 STATUS
+- IMPLEMENTATION_CLOSED — machine security state via Defender/Firewall/UAC/SecureBoot/TPM/BitLocker, external advisories separated, read-only safety, tests/build/bridge proven, no fabrication. Mutation pending safe confirmation.
+
+## NEXT
+- Ready to continue to Service 01 — System Maintenance (per mission order 17→04→16→02→06→11→14→13→05→03→08→09→01). Awaiting push verification before continuing.
 
 ## BLOCKERS
 - No internal blockers; all security state via CIM/COM/registry, external feeds advisory only, never `CVE → VULNERABLE`. No secrets, no automatic remediation.
