@@ -731,6 +731,15 @@ export default function ProgramsStation({
                     <div><dt className="text-slate-500">Metadata Confidence</dt><dd className="text-slate-200">{selectedApp.metadataConfidence}</dd></div>
                     <div className="col-span-2"><dt className="text-slate-500">Install Location</dt><dd className="text-slate-300 font-mono text-[11px] break-all">{selectedApp.installLocation || '—'}</dd></div>
                     <div className="col-span-2"><dt className="text-slate-500">Uninstall Command</dt><dd className="text-slate-300 font-mono text-[11px] break-all">{selectedApp.uninstallString || '—'}</dd></div>
+                    <div className="col-span-2"><dt className="text-slate-500">Capabilities (truth)</dt>
+                      <dd className="flex flex-wrap gap-1.5 mt-1">
+                        <span className={`badge text-[10px] px-2 py-0.5 rounded ${selectedApp.uninstallAvailable ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-500'}`} title={selectedApp.uninstallAvailable ? 'Uninstall via UninstallString/QuietUninstallString or AppX' : 'No supported uninstall path observed'}>UNINSTALL {selectedApp.uninstallAvailable ? '✓' : '✗'}</span>
+                        <span className={`badge text-[10px] px-2 py-0.5 rounded ${(selectedApp as unknown as Record<string, unknown>).RepairCapability ? 'bg-sky-950 text-sky-300 border border-sky-500/30' : 'bg-slate-800 text-slate-500'}`}>REPAIR {((selectedApp as unknown as Record<string, unknown>).RepairCapability as boolean) ? '✓' : '✗'}</span>
+                        <span className={`badge text-[10px] px-2 py-0.5 rounded ${(selectedApp as unknown as Record<string, unknown>).UpdateCapability ? 'bg-amber-950 text-amber-300 border border-amber-500/30' : 'bg-slate-800 text-slate-500'}`}>UPDATE {((selectedApp as unknown as Record<string, unknown>).UpdateCapability as boolean) ? '✓' : '✗'}</span>
+                        <span className={`badge text-[10px] px-2 py-0.5 rounded ${(selectedApp as unknown as Record<string, unknown>).OpenCapability ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/30' : 'bg-slate-800 text-slate-500'}`}>OPEN {((selectedApp as unknown as Record<string, unknown>).OpenCapability as boolean) ? '✓' : '✗'}</span>
+                      </dd>
+                    </div>
+                    {!selectedApp.uninstallAvailable && <div className="col-span-2 text-[11px] text-amber-400">{isAr ? 'لا يوجد مسار إلغاء تثبيت مدعوم لهذا التطبيق.' : 'No supported uninstall path; action will remain disabled.'}</div>}
                   </dl>
                 </aside>
               )}
