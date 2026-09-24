@@ -12,6 +12,7 @@ import { pickName } from '../../../lib/i18n';
 import ServiceApps from '../../ServiceApps';
 import ExecutionConfirmDialog from '../../ExecutionConfirmDialog';
 import KnouxAiContextButton from '../../KnouxAiContextButton';
+import KnouxDockWorkspace from '../../workspace/KnouxDockWorkspace';
 
 interface EngineeringWorkbenchStationProps {
   family: FamilyDefinition;
@@ -402,7 +403,10 @@ export default function EngineeringWorkbenchStation({
           );
         })}
       </div>
-      <div className="knoux-deck-workspace" data-workspace="ide">
+      <KnouxDockWorkspace
+        lang={lang}
+        enabled={activeService.id === '12-Developer-Tools' && activeTab === 'overview'}
+      >
         {/* LEFT — compact project / service explorer over real registered tools */}
         <aside className="knoux-deck-explorer" data-zone="explorer" aria-label={isRtl ? 'مستكشف المشروع' : 'Project explorer'}>
           <p className="knoux-deck-explorer__title">{isRtl ? 'المستكشف' : 'EXPLORER'}</p>
@@ -522,7 +526,7 @@ export default function EngineeringWorkbenchStation({
             <p className="knoux-deck-side__row"><span>{isRtl ? 'الخدمة' : 'Service'}</span><b>{isRtl ? activeService.name.ar : activeService.name.en}</b></p>
           </div>
         </aside>
-      </div>
+      </KnouxDockWorkspace>
 
       {pending && (
         <ExecutionConfirmDialog
