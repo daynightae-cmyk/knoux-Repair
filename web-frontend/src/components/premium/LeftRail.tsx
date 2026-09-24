@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import {
   Activity, Database, Shield,
   Code2, Search, Settings, LayoutGrid, House,
-  Zap, Clock,
+  Zap,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
@@ -38,7 +38,6 @@ const MAIN_ITEMS: NavItem[] = [
 
 const BOTTOM_ITEMS: NavItem[] = [
   { id: 'action-center', icon: Zap, labelEn: 'Action Center', labelAr: 'مركز الإجراءات' },
-  { id: 'action-center', icon: Clock, labelEn: 'History', labelAr: 'السجل' },
   { id: 'settings', icon: Settings, labelEn: 'Settings', labelAr: 'الإعدادات' },
 ];
 
