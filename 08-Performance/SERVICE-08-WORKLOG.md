@@ -53,7 +53,15 @@ clean
 - Read-only slice — no power plan, visual effects, disk, memory, or process configuration changed without explicit SELECT→REVIEW→CONFIRM. `PF03-PowerPlanAudit` (READ_ONLY), `PF09-VisualEffectsConfig` (SYSTEM_REPAIR) requires confirmation. Pending explicit safe authorization for `Set Power Plan` live proof.
 
 ## COMMIT
-- Pending commit of Service 08 work log (1 file, no code change required for telemetry slice). SHA to be recorded after commit.
+- Commit `b5ecd70539bea0efee77b2e8cd3d81206886b8a2` — Service 08 work log (1 file)
+- Branch `traycer/knoux-repair-snappy-lemur` (ahead of origin/main by 23)
+- Verified gates: station08 7 PASS via full 636 PASS, typecheck PASS, build PASS, bridge /api/performance/preview 200 live i5-4570
+
+## SERVICE 08 STATUS
+- IMPLEMENTATION_CLOSED — live perf counters via CIM/PerfFormattedData, no invented percentages, read-only safety, tests/build/bridge proven, no fabrication. Mutation pending safe confirmation.
+
+## NEXT
+- Ready to continue to Service 09 — Security (per mission order 17→04→16→02→06→11→14→13→05→03→08→09). Awaiting push verification before continuing.
 
 ## BLOCKERS
 - No internal blockers; all metrics have source/capturedAt/sampling; temperature unavailable correctly reported, not fabricated. Historical samples separate from snapshot.
