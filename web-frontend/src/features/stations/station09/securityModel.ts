@@ -11,8 +11,8 @@ export type SecurityPostureStatus = 'SECURE' | 'PROTECTED_WITH_WARNINGS' | 'EXPO
 
 export interface DefenderStatus {
   available: boolean;
-  running: boolean;
-  realtimeEnabled: boolean;
+  running: boolean | null;
+  realtimeEnabled: boolean | null;
   signatures: string;
   signatureAgeDays: number | null;
   tamperProtected: boolean | null;
@@ -25,7 +25,7 @@ export interface FirewallProfileStatus {
 }
 
 export interface FirewallEvaluation {
-  allEnabled: boolean;
+  allEnabled: boolean | null;
   anyDisabled: boolean;
   totalProfiles: number;
   enabledCount: number;
@@ -58,7 +58,7 @@ export interface StationHistoryEntry {
   toolName: string;
   timestamp: string;
   status: 'SUCCESS' | 'WARNING' | 'FAILED' | 'CANCELLED' | 'INCONCLUSIVE';
-  itemsProcessed: number;
+  itemsProcessed: number | null;
   summary: string;
 }
 
@@ -87,7 +87,8 @@ export function deriveSecurityPosture(
   firewallAllEnabled: boolean | null | undefined,
   uacEnabled?: boolean | null
 ): SecurityPostureStatus {
-  if (defenderRealtime === null && defenderRunning === null && firewallAllEnabled === null) {
+  const observations = [defenderRealtime, defenderRunning, firewallAllEnabled];
+  if (observations.every(value => value === null || value === undefined)) {
     return 'UNKNOWN';
   }
 
@@ -97,7 +98,7 @@ export function deriveSecurityPosture(
   }
 
   // All confirmed active
-  if (defenderRealtime === true && defenderRunning === true && firewallAllEnabled === true && (uacEnabled === undefined || uacEnabled === true)) {
+  if (defenderRealtime === true && defenderRunning === true && firewallAllEnabled === true && uacEnabled === true) {
     return 'SECURE';
   }
 
@@ -115,8 +116,8 @@ export function evaluateDefender(snapshot: {
   if (!snapshot) {
     return {
       available: false,
-      running: false,
-      realtimeEnabled: false,
+      running: null,
+      realtimeEnabled: null,
       signatures: '',
       signatureAgeDays: null,
       tamperProtected: null,
@@ -124,12 +125,12 @@ export function evaluateDefender(snapshot: {
     };
   }
 
-  const running = Boolean(snapshot.DefenderRunning);
-  const realtime = Boolean(snapshot.DefenderRealtime);
+  const running = typeof snapshot.DefenderRunning === 'boolean' ? snapshot.DefenderRunning : null;
+  const realtime = typeof snapshot.DefenderRealtime === 'boolean' ? snapshot.DefenderRealtime : null;
   const signatures = snapshot.DefenderSignatures || '';
 
   return {
-    available: running || realtime || Boolean(signatures),
+    available: running !== null || realtime !== null || Boolean(signatures),
     running,
     realtimeEnabled: realtime,
     signatures,
@@ -147,7 +148,7 @@ export function evaluateFirewall(
 ): FirewallEvaluation {
   if (!profiles || profiles.length === 0) {
     return {
-      allEnabled: false,
+      allEnabled: null,
       anyDisabled: false,
       totalProfiles: 0,
       enabledCount: 0,
@@ -202,7 +203,7 @@ export function detectSecuritySignals(
 ): SecuritySignal[] {
   const signals: SecuritySignal[] = [];
 
-  if (defender.available && !defender.running) {
+  if (defender.available && defender.running === false) {
     signals.push({
       code: 'DEFENDER_SERVICE_STOPPED',
       level: 'CRITICAL',
@@ -213,7 +214,7 @@ export function detectSecuritySignals(
     });
   }
 
-  if (defender.available && !defender.realtimeEnabled) {
+  if (defender.available && defender.realtimeEnabled === false) {
     signals.push({
       code: 'DEFENDER_REALTIME_DISABLED',
       level: 'CRITICAL',

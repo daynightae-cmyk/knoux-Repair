@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ShieldCheck, Shield, Lock,
   RefreshCw, Play, CheckCircle2, AlertTriangle, XCircle,
-  FileText, DatabaseZap, LockKeyhole
+  FileText, LockKeyhole
 } from 'lucide-react';
 import type { BridgeTool, ExecutionMode, SystemSnapshot, ToolRunConfirmation, ToolRunOptions } from '../../../lib/api';
 import { api } from '../../../lib/api';
@@ -44,6 +44,7 @@ const COPY = {
     tabHistory: 'History',
     refresh: 'Refresh Status',
     refreshing: 'Querying telemetry...',
+    bridgeChecking: 'Checking local execution bridge availability...',
     postureLabel: 'Defense Posture',
     postureSecure: 'Protected & Baseline Verified',
     postureWarnings: 'Protected with Review Signals',
@@ -57,7 +58,7 @@ const COPY = {
     updateSignatures: 'Update Definitions',
     runAudit: 'Security Audit',
     signalsTitle: 'Security Signals & Observations',
-    noSignals: 'All monitored security baselines are actively enforced without critical exposure.',
+    noSignals: 'No confirmed risk signal was found in the controls currently observed. Unverified controls remain unverified.',
     firewallTitle: 'Windows Firewall Profile Enforcement',
     firewallSubtitle: 'Real profile states read via Windows Advanced Firewall API.',
     enableFirewallAction: 'Enable All Profiles',
@@ -68,6 +69,10 @@ const COPY = {
     uacInactiveDesc: 'UAC is disabled! Standard applications can gain elevated rights without prompt.',
     repairUacAction: 'Enforce Standard UAC',
     adminRequired: 'Administrator elevation is required for this action.',
+    runRequiresConfirmation: 'Run requires confirmation',
+    countUnavailable: 'Count not reported',
+    noTerminalResult: 'No terminal result was returned.',
+    noSuccessEvidence: 'The action ended without a verified successful result.',
     emptyHistory: 'No security actions executed yet during this session.',
     exportJson: 'Export JSON',
     exportCsv: 'Export CSV',
@@ -86,6 +91,7 @@ const COPY = {
     tabHistory: 'السجل',
     refresh: 'تحديث الحالة',
     refreshing: 'جارٍ جلب البيانات...',
+    bridgeChecking: 'جارٍ التحقق من توفر جسر التنفيذ المحلي...',
     postureLabel: 'الموقف الأمني',
     postureSecure: 'محمي ومطابق للمعايير',
     postureWarnings: 'محمي مع إشارات للمراجعة',
@@ -99,7 +105,7 @@ const COPY = {
     updateSignatures: 'تحديث التعريفات',
     runAudit: 'تدقيق أمني',
     signalsTitle: 'إشارات وملاحظات الأمان',
-    noSignals: 'جميع خطوط الدفاع المراقبة مفعّلة ونشطة دون ثغرات مكشوفة.',
+    noSignals: 'لم يُرصد خطر مؤكد في الضوابط التي تمت مراقبتها، أما الضوابط غير المفحوصة فتبقى غير مؤكدة.',
     firewallTitle: 'حالة ملفات الجدار الناري لويندوز',
     firewallSubtitle: 'الحالات الفعلية لملفات التعريف مقروءة عبر واجهة Netsh وAdvFirewall.',
     enableFirewallAction: 'تفعيل كل الملفات',
@@ -110,6 +116,10 @@ const COPY = {
     uacInactiveDesc: 'التحكم في حساب المستخدم معطل! يمكن للبرامج رفع صلاحياتها دون إذن.',
     repairUacAction: 'تفعيل وتأكيد UAC',
     adminRequired: 'يتطلب هذا الإجراء صلاحيات المسؤول.',
+    runRequiresConfirmation: 'يتطلب التشغيل تأكيدًا',
+    countUnavailable: 'لم يتم الإبلاغ عن العدد',
+    noTerminalResult: 'لم تُرجع نتيجة نهائية.',
+    noSuccessEvidence: 'انتهى الإجراء دون نتيجة ناجحة موثقة.',
     emptyHistory: 'لم يتم تنفيذ أي إجراء أمني بعد خلال هذه الجلسة.',
     exportJson: 'تصدير JSON',
     exportCsv: 'تصدير CSV',
@@ -174,7 +184,7 @@ function SecurityStationContent({
   const uac = useMemo(() => evaluateUac(null), []);
   const defenderRealtimeObserved = snapshot ? defender.realtimeEnabled : null;
   const defenderRunningObserved = snapshot ? defender.running : null;
-  const firewallObserved = snapshot?.Firewall ? firewall.allEnabled : null;
+  const firewallObserved = firewall.allEnabled;
   const posture: SecurityPostureStatus = useMemo(
     () =>
       deriveSecurityPosture(
@@ -210,18 +220,31 @@ function SecurityStationContent({
         const completedRun = await pollExecution(runId);
 
         const status = outcomeFromRun(completedRun.result);
-        onToolStatus(tool.ToolId, status === 'SUCCESS' ? 'success' : status === 'WARNING' ? 'inconclusive' : 'error');
+        onToolStatus(
+          tool.ToolId,
+          status === 'SUCCESS'
+            ? 'success'
+            : status === 'CANCELLED'
+              ? 'cancelled'
+              : status === 'WARNING' || status === 'INCONCLUSIVE'
+                ? 'inconclusive'
+                : 'error',
+        );
 
+        const terminalResult = completedRun.result;
         const newEntry: StationHistoryEntry = {
           id: runId || `run-${Date.now()}`,
           toolId: tool.ToolId,
           toolName: pickName(tool, lang),
           timestamp: new Date().toLocaleTimeString(lang),
           status,
-          itemsProcessed: completedRun.result?.ItemsProcessed ?? 1,
-          summary: completedRun.result?.Status === 'Success'
-            ? (lang === 'ar' ? 'اكتمل الإجراء الأمني بنجاح' : 'Security action completed successfully')
-            : (completedRun.result?.ErrorMessage || 'Completed with warnings'),
+          itemsProcessed: terminalResult?.ItemsProcessed ?? null,
+          summary: terminalResult?.ErrorMessage
+            || (status === 'SUCCESS'
+              ? (lang === 'ar' ? 'اكتمل الإجراء الأمني بنجاح' : 'Security action completed successfully')
+              : terminalResult
+                ? text.noSuccessEvidence
+                : text.noTerminalResult),
         };
         setHistory((prev) => [newEntry, ...prev.slice(0, 19)]);
 
@@ -235,14 +258,22 @@ function SecurityStationContent({
     [lang, onToolStatus, refreshSnapshot]
   );
 
-  const launchAction = useCallback(
-    (toolId: string, defaultMode: ExecutionMode = 'run') => {
-      const tool = stTools.find((t) => t.ToolId === toolId);
-      if (!tool) return;
-      const mode = tool.AnalyzeOnlySupported ? 'analyze' : defaultMode;
-      setPendingTool({ tool, mode });
+  const canLaunchAction = useCallback(
+    (toolId: string) => {
+      const tool = stTools.find((candidate) => candidate.ToolId === toolId);
+      return Boolean(tool && bridgeOnline === true && (!tool.RequiresAdmin || bridgeElevated));
     },
-    [stTools]
+    [bridgeElevated, bridgeOnline, stTools]
+  );
+
+  const launchAction = useCallback(
+    (toolId: string, mode: ExecutionMode = 'analyze', options?: ToolRunOptions) => {
+      if (!canLaunchAction(toolId)) return;
+      const tool = stTools.find((candidate) => candidate.ToolId === toolId);
+      if (!tool) return;
+      setPendingTool({ tool, mode, options });
+    },
+    [canLaunchAction, stTools]
   );
 
   if (bridgeOnline === false) {
@@ -267,10 +298,6 @@ function SecurityStationContent({
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-teal-400">
                 {text.eyebrow}
-              </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                <DatabaseZap size={10} />
-                SE01–SE10
               </span>
             </div>
             <h1 className="text-2xl font-black tracking-tight text-white">{text.title}</h1>
@@ -305,7 +332,7 @@ function SecurityStationContent({
           <button
             type="button"
             onClick={() => void refreshSnapshot()}
-            disabled={loading}
+            disabled={loading || bridgeOnline !== true}
             className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white transition shadow-lg shadow-teal-900/30"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
@@ -315,7 +342,7 @@ function SecurityStationContent({
       </header>
 
       {/* Mini-Nav Tabs */}
-      <nav className="flex items-center gap-1.5 mt-4 pb-2 overflow-x-auto border-b border-slate-800/60 no-scrollbar">
+      <nav className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pb-2 border-b border-slate-800/60">
         {[
           { key: 'overview', label: text.tabOverview, icon: Shield },
           { key: 'defender', label: text.tabDefender, icon: ShieldCheck },
@@ -329,7 +356,7 @@ function SecurityStationContent({
             key={key}
             type="button"
             onClick={() => setActiveTab(key as TabKey)}
-            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition whitespace-nowrap ${
+            className={`w-full min-w-0 justify-center flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition ${
               activeTab === key
                 ? 'bg-teal-500/15 text-teal-300 border border-teal-500/30 font-semibold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
@@ -345,6 +372,20 @@ function SecurityStationContent({
         <div className="flex items-center gap-2 p-3 mt-4 text-xs font-medium rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300">
           <AlertTriangle size={16} />
           <span>{error}</span>
+        </div>
+      )}
+
+      {bridgeOnline === null && (
+        <div className="flex items-center gap-2 p-3 mt-4 text-xs font-medium rounded-xl bg-slate-900/60 border border-slate-700 text-slate-300">
+          <RefreshCw size={16} className="animate-spin" />
+          <span>{text.bridgeChecking}</span>
+        </div>
+      )}
+
+      {bridgeOnline === true && !bridgeElevated && (
+        <div className="flex items-center gap-2 p-3 mt-4 text-xs font-medium rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200">
+          <LockKeyhole size={16} />
+          <span>{text.adminRequired}</span>
         </div>
       )}
 
@@ -432,24 +473,27 @@ function SecurityStationContent({
                 </span>
                 <button
                   type="button"
-                  onClick={() => launchAction('SE10')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-teal-600/80 hover:bg-teal-500 text-white transition"
+                  onClick={() => launchAction('SE10', 'run')}
+                  disabled={!canLaunchAction('SE10')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-teal-600/80 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white transition"
                 >
                   <RefreshCw size={13} />
                   {text.updateSignatures}
                 </button>
                 <button
                   type="button"
-                  onClick={() => launchAction('SE08')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition border border-slate-700"
+                  onClick={() => launchAction('SE08', 'run', { quick: true })}
+                  disabled={!canLaunchAction('SE08')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 transition border border-slate-700"
                 >
                   <ShieldCheck size={13} />
                   {text.quickScan}
                 </button>
                 <button
                   type="button"
-                  onClick={() => launchAction('SE01')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition border border-slate-700"
+                  onClick={() => launchAction('SE01', 'analyze')}
+                  disabled={!canLaunchAction('SE01')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 transition border border-slate-700"
                 >
                   <FileText size={13} />
                   {text.runAudit}
@@ -487,8 +531,9 @@ function SecurityStationContent({
                         {sig.suggestedTool && (
                           <button
                             type="button"
-                            onClick={() => launchAction(sig.suggestedTool)}
-                            className="shrink-0 px-2.5 py-1 text-[11px] font-semibold rounded bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
+                            onClick={() => launchAction(sig.suggestedTool, 'analyze')}
+                            disabled={!canLaunchAction(sig.suggestedTool)}
+                            className="shrink-0 px-2.5 py-1 text-[11px] font-semibold rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white border border-slate-700"
                           >
                             {lang === 'ar' ? 'مراجعة الإجراء' : 'Review action'}
                           </button>
@@ -542,29 +587,33 @@ function SecurityStationContent({
               <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={() => launchAction('SE02')}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-500 text-white"
+                  onClick={() => launchAction('SE02', 'run')}
+                  disabled={!canLaunchAction('SE02')}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white"
                 >
                   {lang === 'ar' ? 'تفعيل الحماية الفورية' : 'Enable Real-time Protection'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => launchAction('SE10')}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                  onClick={() => launchAction('SE10', 'run')}
+                  disabled={!canLaunchAction('SE10')}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 border border-slate-700"
                 >
                   {text.updateSignatures}
                 </button>
                 <button
                   type="button"
-                  onClick={() => launchAction('SE08')}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                  onClick={() => launchAction('SE08', 'run', { quick: true })}
+                  disabled={!canLaunchAction('SE08')}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 border border-slate-700"
                 >
                   {text.quickScan}
                 </button>
                 <button
                   type="button"
-                  onClick={() => launchAction('SE03')}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                  onClick={() => launchAction('SE03', 'run')}
+                  disabled={!canLaunchAction('SE03')}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 border border-slate-700"
                 >
                   {lang === 'ar' ? 'إصلاح خدمة Defender' : 'Repair Defender Service'}
                 </button>
@@ -614,22 +663,25 @@ function SecurityStationContent({
               <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={() => launchAction('SE05')}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-500 text-white"
+                  onClick={() => launchAction('SE05', 'run')}
+                  disabled={!canLaunchAction('SE05')}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white"
                 >
                   {text.enableFirewallAction}
                 </button>
                 <button
                   type="button"
-                  onClick={() => launchAction('SE06')}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                  onClick={() => launchAction('SE06', 'run')}
+                  disabled={!canLaunchAction('SE06')}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 border border-slate-700"
                 >
                   {text.repairFirewallAction}
                 </button>
                 <button
                   type="button"
-                  onClick={() => launchAction('SE04')}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                  onClick={() => launchAction('SE04', 'analyze')}
+                  disabled={!canLaunchAction('SE04')}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 border border-slate-700"
                 >
                   {lang === 'ar' ? 'فحص حالة الجدار' : 'Audit Firewall Status'}
                 </button>
@@ -664,8 +716,9 @@ function SecurityStationContent({
               <div className="pt-2 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={() => launchAction('SE07')}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-500 text-white"
+                  onClick={() => launchAction('SE07', 'run')}
+                  disabled={!canLaunchAction('SE07')}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white"
                 >
                   {text.repairUacAction}
                 </button>
@@ -679,7 +732,6 @@ function SecurityStationContent({
             {stTools.map((t) => {
               const status = toolStatuses[t.ToolId];
               const isRunning = status === 'running';
-              const needsAdmin = t.RequiresAdmin && !bridgeElevated;
 
               return (
                 <article
@@ -712,12 +764,16 @@ function SecurityStationContent({
 
                   <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-slate-800/80">
                     <span className="text-[10px] text-slate-400">
-                      {t.AnalyzeOnlySupported ? 'Analyze supported' : 'Direct execution'}
+                      {t.RequiresAdmin && !bridgeElevated
+                        ? text.adminRequired
+                        : t.RiskLevel === 'READ_ONLY'
+                          ? (lang === 'ar' ? 'يدعم التحليل' : 'Analyze supported')
+                          : text.runRequiresConfirmation}
                     </span>
                     <button
                       type="button"
-                      disabled={isRunning || needsAdmin}
-                      onClick={() => launchAction(t.ToolId)}
+                      disabled={isRunning || !canLaunchAction(t.ToolId)}
+                      onClick={() => launchAction(t.ToolId, t.RiskLevel === 'READ_ONLY' ? 'analyze' : 'run')}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white transition"
                     >
                       {isRunning ? (
@@ -728,7 +784,7 @@ function SecurityStationContent({
                       ) : (
                         <>
                           <Play size={12} />
-                          <span>{lang === 'ar' ? 'تشغيل' : 'Run'}</span>
+                          <span>{t.RiskLevel === 'READ_ONLY' ? (lang === 'ar' ? 'مراجعة' : 'Review') : (lang === 'ar' ? 'تشغيل' : 'Run')}</span>
                         </>
                       )}
                     </button>
@@ -753,8 +809,9 @@ function SecurityStationContent({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => launchAction('SE09')}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-500 text-white"
+                  onClick={() => launchAction('SE09', 'analyze')}
+                  disabled={!canLaunchAction('SE09')}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white"
                 >
                   {lang === 'ar' ? 'توليد تقرير' : 'Generate Report'}
                 </button>
@@ -834,7 +891,9 @@ function SecurityStationContent({
                   <div className="text-right">
                     <span className="text-slate-400 text-[11px] block">{h.timestamp}</span>
                     <span className="text-[10px] text-slate-400">
-                      {h.itemsProcessed} {lang === 'ar' ? 'عنصر' : 'items'}
+                      {h.itemsProcessed === null
+                        ? text.countUnavailable
+                        : `${h.itemsProcessed} ${lang === 'ar' ? 'عنصر' : 'items'}`}
                     </span>
                   </div>
                 </div>

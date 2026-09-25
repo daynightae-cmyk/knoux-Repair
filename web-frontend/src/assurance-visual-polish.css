@@ -127,7 +127,7 @@
   box-shadow: inset 0 0 28px rgba(var(--assurance-accent-rgb), .035), 0 10px 28px rgba(0, 0, 0, .18);
 }
 
-.knoux-command-center[data-service='09-Security'] .security-evidence-station > div[class*='overflow-x-auto'][class*='border-b'] {
+.knoux-command-center[data-service='09-Security'] .security-evidence-station > nav {
   gap: 6px !important;
   padding: 6px !important;
   border: 1px solid rgba(255, 255, 255, .07) !important;
@@ -290,7 +290,7 @@
 
 @media (max-width: 900px) {
   .knoux-command-center[data-service='03-Network-Internet'] .network-mini-nav,
-  .knoux-command-center[data-service='09-Security'] .security-evidence-station > div[class*='overflow-x-auto'][class*='border-b'] {
+  .knoux-command-center[data-service='09-Security'] .security-evidence-station > nav {
     flex-wrap: wrap;
     overflow-x: visible !important;
   }

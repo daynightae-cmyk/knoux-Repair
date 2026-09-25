@@ -77,6 +77,7 @@ test('Station 09: deriveSecurityPosture evaluates categorical posture truthfully
 
   // Missing data -> UNKNOWN
   assert.equal(model.deriveSecurityPosture(null, null, null, null), 'UNKNOWN');
+  assert.equal(model.deriveSecurityPosture(true, true, true, null), 'PROTECTED_WITH_WARNINGS');
 });
 
 test('Station 09: evaluateDefender parses Defender status without hallucination', () => {
@@ -92,11 +93,22 @@ test('Station 09: evaluateDefender parses Defender status without hallucination'
 
   const emptyDef = model.evaluateDefender(null);
   assert.equal(emptyDef.available, false);
-  assert.equal(emptyDef.running, false);
+  assert.equal(emptyDef.running, null);
+  assert.equal(emptyDef.realtimeEnabled, null);
   assert.equal(emptyDef.signatureStatus, 'UNKNOWN');
+
+  const partialDef = model.evaluateDefender({ DefenderSignatures: '1.405.210.0' });
+  assert.equal(partialDef.available, true);
+  assert.equal(partialDef.running, null);
+  assert.equal(partialDef.realtimeEnabled, null);
 });
 
 test('Station 09: evaluateFirewall evaluates all profiles and flags disabled ones', () => {
+  const empty = model.evaluateFirewall([]);
+  assert.equal(empty.allEnabled, null);
+  assert.equal(empty.anyDisabled, false);
+  assert.equal(empty.totalProfiles, 0);
+
   const allOn = model.evaluateFirewall([
     { Profile: 'Domain', Enabled: true },
     { Profile: 'Private', Enabled: true },
@@ -136,6 +148,13 @@ test('Station 09: detectSecuritySignals identifies risks with specific tool cita
   assert.ok(signals.some((s) => s.code === 'DEFENDER_REALTIME_DISABLED' && s.suggestedTool === 'SE02'));
   assert.ok(signals.some((s) => s.code === 'FIREWALL_PROFILE_DISABLED' && s.suggestedTool === 'SE05'));
   assert.ok(signals.some((s) => s.code === 'UAC_DISABLED' && s.suggestedTool === 'SE07'));
+
+  const unknownSignals = model.detectSecuritySignals(
+    { available: true, running: null, realtimeEnabled: null, signatures: '', signatureAgeDays: null, tamperProtected: null, signatureStatus: 'UNKNOWN' },
+    { allEnabled: null, anyDisabled: false, totalProfiles: 0, enabledCount: 0, profiles: [] },
+    { enabled: null, levelDescription: '' }
+  );
+  assert.equal(unknownSignals.length, 0);
 });
 
 test('Station 09: isAllowedSecurityAction strictly forbids disabling security defenses', () => {
@@ -154,7 +173,7 @@ test('Station 09: isAllowedSecurityAction strictly forbids disabling security de
 test('Station 09: SecurityStation and SecurityHeroVisual components exist', () => {
   const stationSrc = readWeb('src/features/stations/station09/SecurityStation.tsx');
   assert.ok(stationSrc.includes('export default function SecurityStation'), 'SecurityStation component must be exported');
-  assert.ok(stationSrc.includes('SE01–SE10'), 'Must cite Station 09 tool span');
+  assert.doesNotMatch(stationSrc, /SE01–SE10/, 'Customer UI must not expose an internal ToolId range');
 
   const heroSrc = readWeb('src/features/stations/station09/SecurityHeroVisual.tsx');
   assert.ok(heroSrc.includes('export default function SecurityHeroVisual'), 'SecurityHeroVisual component must be exported');
@@ -164,4 +183,20 @@ test('Station 09: ServiceApps routes activeSection security directly to Security
   const src = readWeb('src/components/ServiceApps.tsx');
   assert.ok(src.includes("activeSection === 'security'"), 'ServiceApps must route activeSection security');
   assert.ok(src.includes('<SecurityStation'), 'ServiceApps must render SecurityStation');
+});
+
+test('Station 09: execution eligibility and unknown evidence remain explicit', () => {
+  const stationSrc = readWeb('src/features/stations/station09/SecurityStation.tsx');
+
+  assert.match(stationSrc, /const canLaunchAction = useCallback/);
+  assert.match(stationSrc, /bridgeOnline === true && \(!tool\.RequiresAdmin \|\| bridgeElevated\)/);
+  assert.match(stationSrc, /disabled=\{!canLaunchAction\('SE02'\)\}/);
+  assert.match(stationSrc, /launchAction\('SE02', 'run'\)/);
+  assert.match(stationSrc, /launchAction\('SE08', 'run', \{ quick: true \}\)/);
+  assert.match(stationSrc, /launchAction\('SE01', 'analyze'\)/);
+  assert.match(stationSrc, /text\.runRequiresConfirmation/);
+  assert.match(stationSrc, /Unverified controls remain unverified/);
+  assert.match(stationSrc, /itemsProcessed: terminalResult\?\.ItemsProcessed \?\? null/);
+  assert.match(stationSrc, /grid w-full grid-cols-2 sm:grid-cols-4/);
+  assert.doesNotMatch(stationSrc, /itemsProcessed: completedRun\.result\?\.ItemsProcessed \?\? 1/);
 });

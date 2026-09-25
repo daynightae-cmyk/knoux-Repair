@@ -136,19 +136,22 @@ export default function FamilyLiveStage({
   const postInstallDockEnabled = service.id === '17-PostInstall-Setup' && serviceAppMode;
   const diagnosticsDockEnabled = service.id === '10-Diagnostics-Reports' && serviceAppMode;
   const performanceDockEnabled = service.id === '08-Performance' && serviceAppMode;
+  const securityDockEnabled = service.id === '09-Security' && serviceAppMode;
   const servicesDockEnabled = service.id === '07-Services-Processes' && serviceAppMode;
-  const serviceDockEnabled = programsDockEnabled || softwareDockEnabled || postInstallDockEnabled || diagnosticsDockEnabled || performanceDockEnabled || servicesDockEnabled;
+  const serviceDockEnabled = programsDockEnabled || softwareDockEnabled || postInstallDockEnabled || diagnosticsDockEnabled || performanceDockEnabled || securityDockEnabled || servicesDockEnabled;
   const serviceDockWorkspace = servicesDockEnabled
     ? 'services'
-    : performanceDockEnabled
-      ? 'performance'
-      : diagnosticsDockEnabled
-        ? 'diagnostics'
-        : postInstallDockEnabled
-          ? 'postinstall'
-          : softwareDockEnabled
-            ? 'software'
-            : 'programs';
+    : securityDockEnabled
+      ? 'security'
+      : performanceDockEnabled
+        ? 'performance'
+        : diagnosticsDockEnabled
+          ? 'diagnostics'
+          : postInstallDockEnabled
+            ? 'postinstall'
+            : softwareDockEnabled
+              ? 'software'
+              : 'programs';
   const serviceAppSurface = (
     <ServiceApps
       activeSection={service.legacySection}
@@ -336,25 +339,29 @@ export default function FamilyLiveStage({
                       ? (isRtl
                           ? 'بيانات الخدمات والعمليات والطوبولوجيا والتنفيذ تظل مملوكة لمحطة الخدمات والعمليات الحالية.'
                           : 'Service, process, topology, and execution evidence remain owned by the existing Services & Processes station.')
-                      : performanceDockEnabled
+                      : securityDockEnabled
                         ? (isRtl
-                            ? 'قياسات الأداء والأدلة والتوصيات والتنفيذ تظل مملوكة لمرصد الأداء الحالي.'
-                            : 'Performance telemetry, evidence, recommendations, and execution remain owned by the existing Performance Observatory station.')
-                        : diagnosticsDockEnabled
+                            ? 'أدلة الحماية والإشارات والإجراءات تبقى مملوكة لمركز أدلة الأمان الحالي.'
+                            : 'Protection evidence, signals, and actions remain owned by the existing Security Evidence Center station.')
+                        : performanceDockEnabled
                           ? (isRtl
-                              ? 'القياسات التشخيصية والأدلة والتقارير والتنفيذ تظل مملوكة لمحطة التشخيص الحالية.'
-                              : 'Diagnostic telemetry, evidence, reports, and execution remain owned by the existing Diagnostics station.')
-                          : postInstallDockEnabled
+                              ? 'قياسات الأداء والأدلة والتوصيات والتنفيذ تظل مملوكة لمرصد الأداء الحالي.'
+                              : 'Performance telemetry, evidence, recommendations, and execution remain owned by the existing Performance Observatory station.')
+                          : diagnosticsDockEnabled
                             ? (isRtl
-                                ? 'بيانات التجهيز والاختيارات والتنفيذ والنتائج تظل مملوكة بمحطة ما بعد التثبيت الحالية.'
-                                : 'Provisioning data, selections, execution, and evidence remain owned by the existing Post-Install station.')
-                            : softwareDockEnabled
+                                ? 'القياسات التشخيصية والأدلة والتقارير والتنفيذ تظل مملوكة بمحطة التشخيص الحالية.'
+                                : 'Diagnostic telemetry, evidence, reports, and execution remain owned by the existing Diagnostics station.')
+                            : postInstallDockEnabled
                               ? (isRtl
-                                  ? 'بيانات البيئة والتشغيل والنتائج تظل مملوكة بمحطة بيئة البرامج الحالية.'
-                                  : 'Environment data, execution, and evidence remain owned by the existing Software Environment station.')
-                              : (isRtl
-                                  ? 'التشغيل والنتائج تظل مملوكة بمحطة البرامج الحالية.'
-                                  : 'Execution and evidence remain owned by the existing Programs station.')}
+                                  ? 'بيانات التجهيز والاختيارات والتنفيذ والنتائج تظل مملوكة بمحطة ما بعد التثبيت الحالية.'
+                                  : 'Provisioning data, selections, execution, and evidence remain owned by the existing Post-Install station.')
+                              : softwareDockEnabled
+                                ? (isRtl
+                                    ? 'بيانات البيئة والتشغيل والنتائج تظل مملوكة بمحطة بيئة البرامج الحالية.'
+                                    : 'Environment data, execution, and evidence remain owned by the existing Software Environment station.')
+                                : (isRtl
+                                    ? 'التشغيل والنتائج تظل مملوكة بمحطة البرامج الحالية.'
+                                    : 'Execution and evidence remain owned by the existing Programs station.')}
                   </p>
                 </aside>
               </KnouxDockWorkspace>
