@@ -96,6 +96,8 @@ test('Programs migrates only its service-mode surface into Dockview and keeps on
   assert.match(stage, /data-service-dock-zone="context"/);
   assert.match(stage, /bridgeOnline === true \? serviceTools\.length : '—'/);
   assert.match(stage, /activeSignals/);
+  assert.match(shell, /explorerWidth: 180/);
+  assert.match(shell, /contextWidth: 200/);
   assert.equal((stage.match(/<ServiceApps/g) ?? []).length, 1);
   assert.match(css, /\.knoux-stage-service-app--dock/);
   assert.match(css, /height:\s*100%/);
