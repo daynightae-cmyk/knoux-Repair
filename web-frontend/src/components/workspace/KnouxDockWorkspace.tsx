@@ -96,6 +96,12 @@ export default function KnouxDockWorkspace({
         center: lang === 'ar' ? 'مساحة سونار' : 'Project Sonar Workspace',
         explorer: lang === 'ar' ? 'مستكشف المشروع' : 'Project Explorer',
         context: lang === 'ar' ? 'الأدلة والنتائج' : 'Evidence & Findings',
+        explorerWidth: 230,
+        explorerMin: 170,
+        explorerMax: 360,
+        contextWidth: 270,
+        contextMin: 200,
+        contextMax: 420,
       }
     : workspace === 'programs'
       ? {
@@ -103,6 +109,12 @@ export default function KnouxDockWorkspace({
           center: lang === 'ar' ? 'استوديو التطبيقات' : 'Application Studio',
           explorer: lang === 'ar' ? 'أدوات البرامج' : 'Program Tools',
           context: lang === 'ar' ? 'التشغيل والأدلة' : 'Runtime & Evidence',
+          explorerWidth: 180,
+          explorerMin: 150,
+          explorerMax: 260,
+          contextWidth: 200,
+          contextMin: 170,
+          contextMax: 300,
         }
       : {
           prefix: 'knoux-developer',
@@ -130,9 +142,9 @@ export default function KnouxDockWorkspace({
         referencePanel: center,
         direction: 'left',
       },
-      initialWidth: 230,
-      minimumWidth: 170,
-      maximumWidth: 360,
+      initialWidth: panelText.explorerWidth,
+      minimumWidth: panelText.explorerMin,
+      maximumWidth: panelText.explorerMax,
       renderer: 'always',
       tabComponent: 'locked',
     });
@@ -145,9 +157,9 @@ export default function KnouxDockWorkspace({
         referencePanel: center,
         direction: 'right',
       },
-      initialWidth: 270,
-      minimumWidth: 200,
-      maximumWidth: 420,
+      initialWidth: panelText.contextWidth,
+      minimumWidth: panelText.contextMin,
+      maximumWidth: panelText.contextMax,
       renderer: 'always',
       tabComponent: 'locked',
     });
