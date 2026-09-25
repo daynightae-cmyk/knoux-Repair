@@ -225,6 +225,10 @@ export default function EngineeringWorkbenchStation({
     ? tabs.filter(tab => ['overview', 'dependencies', 'insights', 'output'].includes(tab.id))
     : tabs.filter(tab => ['overview', 'code', 'dependencies', 'scripts', 'environment', 'output'].includes(tab.id));
 
+  useEffect(() => {
+    setActiveTab('overview');
+  }, [activeService.id]);
+
   return (
     <section
       className="knoux-workspace-stage knoux-command-workspace knoux-engineering-workbench knoux-command-deck"
@@ -405,7 +409,8 @@ export default function EngineeringWorkbenchStation({
       </div>
       <KnouxDockWorkspace
         lang={lang}
-        enabled={activeService.id === '12-Developer-Tools' && activeTab === 'overview'}
+        workspace={activeService.id === '18-Project-Sonar' ? 'sonar' : 'developer'}
+        enabled={WORKBENCH_SERVICES.includes(activeService.id) && activeTab === 'overview'}
       >
         {/* LEFT — compact project / service explorer over real registered tools */}
         <aside className="knoux-deck-explorer" data-zone="explorer" aria-label={isRtl ? 'مستكشف المشروع' : 'Project explorer'}>
