@@ -53,13 +53,17 @@ const COPY = {
     conditionLabel: 'System Condition',
     topProcesses: 'Top Memory Consumers',
     bottlenecksTitle: 'Measured Bottlenecks & Evidence',
-    bottlenecksSubtitle: 'Observations derived directly from live hardware counters without synthetic gamified scoring.',
+    bottlenecksSubtitle: 'Observations derived directly from captured hardware counters without synthetic gamified scoring.',
     noBottlenecks: 'No sustained hardware bottleneck detected during current sampling window.',
     startupTitle: 'Boot Duration & Startup Telemetry',
     startupSubtitle: 'Assess startup applications and system boot timeline.',
     powerTitle: 'Power Plan & Hardware Thermal State',
     powerSubtitle: 'Energy profile configuration and thermal sensors where supported by hardware controller.',
     thermalUnavailable: 'Thermal sensors not reported by current ACPI/hardware driver.',
+    notCheckedYet: 'Not checked yet',
+    noSignals: 'No performance signals were returned in this snapshot.',
+    noTopProcesses: 'No top-process evidence was returned in this snapshot.',
+    notReported: 'Not reported',
     startAction: 'Execute Action',
     emptyHistory: 'No performance actions executed yet during this session.',
   },
@@ -84,13 +88,17 @@ const COPY = {
     conditionLabel: 'حالة النظام',
     topProcesses: 'أعلى التطبيقات استهلاكاً للذاكرة',
     bottlenecksTitle: 'الاختناقات المقاسة والأدلة',
-    bottlenecksSubtitle: 'ملاحظات مستخرجة مباشرة من عدادات العتاد الحية دون درجات اصطناعية أو وهمية.',
+    bottlenecksSubtitle: 'ملاحظات مستخرجة مباشرة من عدادات العتاد الملتقطة دون درجات اصطناعية أو وهمية.',
     noBottlenecks: 'لم يتم رصد أي اختناق عتادي مستمر خلال نافذة القياس الحالية.',
     startupTitle: 'مدة الإقلاع وتأثير بدء التشغيل',
     startupSubtitle: 'تقييم برامج بدء التشغيل والخط الزمني لإقلاع النظام.',
     powerTitle: 'خطة الطاقة والحالة الحرارية',
     powerSubtitle: 'تكوين ملف الطاقة وحساسات الحرارة إن كانت مدعومة من مشغل العتاد.',
     thermalUnavailable: 'حساسات الحرارة غير متاحة من مشغل ACPI الحالي.',
+    notCheckedYet: 'لم يتم الفحص بعد',
+    noSignals: 'لم تُرجع اللقطة الحالية أي إشارات أداء.',
+    noTopProcesses: 'لم تُرجع اللقطة الحالية بيانات أعلى العمليات استهلاكاً.',
+    notReported: 'غير مُبلّغ عنه',
     startAction: 'بدء الإجراء',
     emptyHistory: 'لم يتم تنفيذ أي إجراء أداء خلال هذه الجلسة حتى الآن.',
   },
@@ -195,12 +203,23 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
   }, [cpuPercent, memPercent, data]);
   const percentText = (value: number | null) => value === null ? '—' : `${value}%`;
   const conditionText = condition === 'INCONCLUSIVE'
-    ? (lang === 'ar' ? 'لم يتم القياس بعد' : 'NOT CHECKED YET')
+    ? t.notCheckedYet
     : condition.replace(/_/g, ' ');
   const topProcesses: TopConsumerProcess[] = useMemo(
     () => parseTopConsumers(data?.TopProcesses),
     [data]
   );
+  const hasTelemetry = data !== null;
+  const bottlenecksChecked = cpuPercent !== null && memPercent !== null;
+  const bottleneckStatus = bottlenecksChecked
+    ? (bottlenecks.length === 0 ? t.noBottlenecks : null)
+    : t.notCheckedYet;
+  const signalsStatus = hasTelemetry && (data?.Signals?.length ?? 0) === 0
+    ? t.noSignals
+    : null;
+  const topProcessesStatus = topProcesses.length === 0
+    ? (hasTelemetry ? t.noTopProcesses : t.notCheckedYet)
+    : null;
 
   // Offline Presentation Gate
   if (bridgeOnline === false) {
@@ -238,7 +257,7 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
         </header>
 
         {/* Local Mini-Nav Rail */}
-        <nav className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-white/5 scrollbar-none">
+        <nav className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 pb-1 border-b border-white/5">
           {[
             { id: 'overview', label: t.tabOverview, icon: Gauge },
             { id: 'resources', label: t.tabResources, icon: Activity },
@@ -256,7 +275,7 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as TabKey)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-medium tracking-wide flex items-center gap-2 transition-all cursor-pointer ${
+                className={`w-full min-w-0 justify-center px-3.5 py-1.5 rounded-lg text-xs font-medium tracking-wide flex items-center gap-2 transition-all cursor-pointer ${
                   active
                     ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'
@@ -277,7 +296,7 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
               <div className="flex-1 flex flex-col gap-3 z-10">
                 <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs w-max font-mono">
                   <Sparkles size={12} />
-                  <span>{lang === 'ar' ? 'نبض معالجة الموارد الحية' : 'Live Resource Core Pulse'}</span>
+                  <span>{lang === 'ar' ? 'لقطة نواة الموارد الأخيرة' : 'Latest Resource Core Snapshot'}</span>
                 </div>
                 <h2 className="text-xl font-bold text-white tracking-wide">
                   {conditionText} · {percentText(cpuPercent)} {lang === 'ar' ? 'تحميل المعالج' : 'CPU Load'}
@@ -320,13 +339,13 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
               <div className="glass-panel p-5 rounded-2xl border border-white/10 flex flex-col gap-3">
                 <h3 className="text-sm font-semibold text-white tracking-wide flex items-center gap-2">
                   <AlertTriangle size={16} className="text-amber-400" />
-                  <span>{lang === 'ar' ? 'إشارات الأداء الفورية' : 'Live Performance Signals'}</span>
+                  <span>{lang === 'ar' ? 'إشارات الأداء الأخيرة' : 'Latest Performance Signals'}</span>
                 </h3>
 
                 {data?.Signals && data.Signals.length > 0 ? (
                   <div className="divide-y divide-white/5">
                     {data.Signals.slice(0, 4).map((s) => (
-                      <div key={s.Code} className="py-2.5 flex items-center justify-between gap-3">
+                      <div key={`${s.Code}:${s.SuggestedTool}:${s.Message}`} className="py-2.5 flex items-center justify-between gap-3">
                         <div>
                           <strong className="text-xs text-white block">{s.Message}</strong>
                           <span className="text-[10px] text-slate-400">{s.Code} · {s.Level}</span>
@@ -345,9 +364,9 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
                     ))}
                   </div>
                 ) : (
-                  <div className="py-4 flex items-center gap-2 text-emerald-400 text-xs font-mono">
-                    <CheckCircle2 size={16} />
-                    <span>{lang === 'ar' ? 'لا توجد إشارات أداء حرجة الآن.' : 'No urgent performance signals detected.'}</span>
+                  <div className={`py-4 flex items-center gap-2 text-xs font-mono ${hasTelemetry ? 'text-emerald-400' : 'text-amber-300'}`}>
+                    {hasTelemetry ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+                    <span>{signalsStatus ?? t.notCheckedYet}</span>
                   </div>
                 )}
               </div>
@@ -359,14 +378,20 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
                   <span>{t.topProcesses}</span>
                 </h3>
 
-                <div className="divide-y divide-white/5 font-mono text-xs">
-                  {topProcesses.slice(0, 4).map((p) => (
-                    <div key={p.id} className="py-2 flex items-center justify-between gap-3">
-                      <span className="text-white font-semibold">{p.name}</span>
-                      <span className="text-amber-400">{p.memoryMB} MB</span>
-                    </div>
-                  ))}
-                </div>
+                {topProcessesStatus ? (
+                  <div className="py-4 text-xs font-mono text-slate-400">
+                    {topProcessesStatus}
+                  </div>
+                ) : (
+                  <div className="divide-y divide-white/5 font-mono text-xs">
+                    {topProcesses.slice(0, 4).map((p) => (
+                      <div key={p.id} className="py-2 flex items-center justify-between gap-3">
+                        <span className="text-white font-semibold">{p.name}</span>
+                        <span className="text-amber-400">{p.memoryMB} MB</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -380,8 +405,8 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
                 <Cpu size={16} />
                 <span>CPU Specification</span>
               </div>
-              <strong className="text-sm text-white">{data?.Cpu?.Name || 'Windows Processor'}</strong>
-              <span className="text-xs text-slate-400">{data?.Cpu?.LogicalProcessors || 0} Logical Cores</span>
+              <strong className="text-sm text-white">{data ? (data.Cpu.Name || t.notReported) : t.notCheckedYet}</strong>
+              <span className="text-xs text-slate-400">{data ? `${data.Cpu.LogicalProcessors} Logical Cores` : t.notCheckedYet}</span>
               <div className="mt-2 text-lg font-bold text-cyan-300">{cpuPercent === null ? '—' : `${cpuPercent}% Active`}</div>
             </div>
 
@@ -390,8 +415,8 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
                 <MemoryStick size={16} />
                 <span>Physical Memory</span>
               </div>
-              <strong className="text-sm text-white">{data?.Memory?.TotalGB || 0} GB Total</strong>
-              <span className="text-xs text-slate-400">{data?.Memory?.FreeGB || 0} GB Free</span>
+              <strong className="text-sm text-white">{data ? `${data.Memory.TotalGB} GB Total` : t.notCheckedYet}</strong>
+              <span className="text-xs text-slate-400">{data ? `${data.Memory.FreeGB} GB Free` : t.notCheckedYet}</span>
               <div className="mt-2 text-lg font-bold text-purple-300">{memPercent === null ? '—' : `${memPercent}% Used`}</div>
             </div>
 
@@ -400,9 +425,9 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
                 <HardDrive size={16} />
                 <span>Disk Utilization</span>
               </div>
-              <strong className="text-sm text-white">{data?.Disks?.length || 0} Fixed Disks</strong>
-              <span className="text-xs text-slate-400">Primary: {data?.Disks?.[0]?.Name || 'C:'}</span>
-              <div className="mt-2 text-lg font-bold text-emerald-300">{data?.Disks?.[0]?.UsedPercent || 0}% Allocated</div>
+              <strong className="text-sm text-white">{data ? `${data.Disks.length} Fixed Disks` : t.notCheckedYet}</strong>
+              <span className="text-xs text-slate-400">Primary: {data ? (data.Disks[0]?.Name || t.notReported) : t.notCheckedYet}</span>
+              <div className="mt-2 text-lg font-bold text-emerald-300">{data?.Disks?.[0] ? `${data.Disks[0].UsedPercent}% Allocated` : data ? t.notReported : t.notCheckedYet}</div>
             </div>
 
             <div className="glass-panel p-4 rounded-xl border border-white/10 flex flex-col gap-2 font-mono">
@@ -410,9 +435,9 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
                 <Activity size={16} />
                 <span>Processes</span>
               </div>
-              <strong className="text-sm text-white">{data?.ProcessCount || 0} Threads/Tasks</strong>
-              <span className="text-xs text-slate-400">Sampling Window: Live</span>
-              <div className="mt-2 text-lg font-bold text-amber-300">Monitored</div>
+              <strong className="text-sm text-white">{data ? `${data.ProcessCount} Processes` : t.notCheckedYet}</strong>
+              <span className="text-xs text-slate-400">Sampling Window: {hasTelemetry ? 'Latest snapshot' : t.notCheckedYet}</span>
+              <div className="mt-2 text-lg font-bold text-amber-300">{hasTelemetry ? 'Evidence available' : t.notCheckedYet}</div>
             </div>
           </div>
         )}
@@ -427,7 +452,7 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
 
             {bottlenecks.length === 0 ? (
               <div className="py-8 text-center text-slate-400 text-xs">
-                {t.noBottlenecks}
+                {bottleneckStatus}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -629,9 +654,9 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
               <p>Condition Status: {condition}</p>
               <p>CPU Load: {percentText(cpuPercent)}</p>
               <p>Memory Load: {percentText(memPercent)}</p>
-              <p>Logical Processors: {data?.Cpu?.LogicalProcessors || 'N/A'}</p>
-              <p>Physical Disks Active: {data?.Disks?.length || 0}</p>
-              <p>Detected Bottlenecks: {bottlenecks.length}</p>
+              <p>Logical Processors: {data?.Cpu?.LogicalProcessors ?? '—'}</p>
+              <p>Physical Disks Active: {data ? data.Disks.length : t.notCheckedYet}</p>
+              <p>Detected Bottlenecks: {bottlenecksChecked ? bottlenecks.length : t.notCheckedYet}</p>
             </div>
           </div>
         )}

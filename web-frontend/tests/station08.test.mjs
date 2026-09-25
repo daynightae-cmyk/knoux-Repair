@@ -116,3 +116,19 @@ test('Station 08: ServiceApps routes activeSection performance directly to Perfo
   assert.match(serviceAppsCode, /activeSection === ['"]performance['"]/);
   assert.match(serviceAppsCode, /<PerformanceStation/);
 });
+
+test('Station 08: missing telemetry remains explicitly unchecked instead of becoming healthy zeroes', () => {
+  const stationCode = readWeb('src/features/stations/station08/PerformanceStation.tsx');
+
+  assert.match(stationCode, /const hasTelemetry = data !== null/);
+  assert.match(stationCode, /const bottlenecksChecked = cpuPercent !== null && memPercent !== null/);
+  assert.match(stationCode, /signalsStatus \?\? t\.notCheckedYet/);
+  assert.match(stationCode, /hasTelemetry \? t\.noTopProcesses : t\.notCheckedYet/);
+  assert.match(stationCode, /key=\{`\$\{s\.Code\}:\$\{s\.SuggestedTool\}:\$\{s\.Message\}`\}/);
+  assert.doesNotMatch(stationCode, /key=\{s\.Code\}/);
+  assert.doesNotMatch(stationCode, /No urgent performance signals detected/);
+  assert.doesNotMatch(stationCode, /Windows Processor/);
+  assert.doesNotMatch(stationCode, /data\?\.Memory\?\.TotalGB \|\| 0/);
+  assert.doesNotMatch(stationCode, /data\?\.Disks\?\.length \|\| 0/);
+  assert.doesNotMatch(stationCode, /data\?\.ProcessCount \|\| 0/);
+});

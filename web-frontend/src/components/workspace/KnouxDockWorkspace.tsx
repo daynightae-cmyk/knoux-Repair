@@ -23,7 +23,7 @@ interface WorkspaceSlotState {
   slots: Record<SlotName, ReactNode>;
 }
 
-type WorkspaceKind = 'developer' | 'sonar' | 'programs' | 'software' | 'postinstall' | 'diagnostics' | 'services';
+type WorkspaceKind = 'developer' | 'sonar' | 'programs' | 'software' | 'postinstall' | 'diagnostics' | 'performance' | 'services';
 
 interface KnouxDockWorkspaceProps {
   lang: 'en' | 'ar';
@@ -155,38 +155,51 @@ export default function KnouxDockWorkspace({
                 contextMin: 170,
                 contextMax: 300,
               }
-            : workspace === 'services'
+            : workspace === 'performance'
               ? {
-                  prefix: 'knoux-services',
-                  center: lang === 'ar' ? 'طوبولوجيا النظام' : 'System Topology',
-                  explorer: lang === 'ar' ? 'أدوات الخدمات' : 'Service Tools',
-                  context: lang === 'ar' ? 'أدلة العمليات' : 'Process Evidence',
-                  explorerWidth: 140,
-                  explorerMin: 120,
-                  explorerMax: 220,
-                  contextWidth: 150,
-                  contextMin: 130,
-                  contextMax: 220,
+                  prefix: 'knoux-performance',
+                  center: lang === 'ar' ? 'مرصد الأداء' : 'Performance Observatory',
+                  explorer: lang === 'ar' ? 'أدوات الأداء' : 'Performance Tools',
+                  context: lang === 'ar' ? 'أدلة الموارد' : 'Resource Evidence',
+                  explorerWidth: 180,
+                  explorerMin: 150,
+                  explorerMax: 260,
+                  contextWidth: 200,
+                  contextMin: 170,
+                  contextMax: 300,
                 }
-              : {
-          prefix: 'knoux-developer',
-          center: lang === 'ar' ? 'مساحة المطور' : 'Developer Workspace',
-          explorer: lang === 'ar' ? 'المستكشف' : 'Explorer',
-          context: lang === 'ar' ? 'السياق والأدلة' : 'Context & Evidence',
-          explorerWidth: 230,
-          explorerMin: 170,
-          explorerMax: 360,
-          contextWidth: 270,
-          contextMin: 200,
-          contextMax: 420,
-        };
+              : workspace === 'services'
+                ? {
+                    prefix: 'knoux-services',
+                    center: lang === 'ar' ? 'طوبولوجيا النظام' : 'System Topology',
+                    explorer: lang === 'ar' ? 'أدوات الخدمات' : 'Service Tools',
+                    context: lang === 'ar' ? 'أدلة العمليات' : 'Process Evidence',
+                    explorerWidth: 140,
+                    explorerMin: 120,
+                    explorerMax: 220,
+                    contextWidth: 150,
+                    contextMin: 130,
+                    contextMax: 220,
+                  }
+                : {
+                    prefix: 'knoux-developer',
+                    center: lang === 'ar' ? 'مساحة المطور' : 'Developer Workspace',
+                    explorer: lang === 'ar' ? 'المستكشف' : 'Explorer',
+                    context: lang === 'ar' ? 'السياق والأدلة' : 'Context & Evidence',
+                    explorerWidth: 230,
+                    explorerMin: 170,
+                    explorerMax: 360,
+                    contextWidth: 270,
+                    contextMin: 200,
+                    contextMax: 420,
+                  };
 
   const onReady = (event: DockviewReadyEvent) => {
     const center = event.api.addPanel({
       id: `${panelText.prefix}-center`,
       component: 'center',
       title: panelText.center,
-      minimumWidth: workspace === 'services' ? 640 : 420,
+      minimumWidth: workspace === 'performance' ? 560 : workspace === 'services' ? 640 : 420,
       minimumHeight: 260,
       renderer: 'always',
       tabComponent: 'locked',
