@@ -23,7 +23,7 @@ interface WorkspaceSlotState {
   slots: Record<SlotName, ReactNode>;
 }
 
-type WorkspaceKind = 'developer' | 'sonar';
+type WorkspaceKind = 'developer' | 'sonar' | 'programs';
 
 interface KnouxDockWorkspaceProps {
   lang: 'en' | 'ar';
@@ -97,12 +97,19 @@ export default function KnouxDockWorkspace({
         explorer: lang === 'ar' ? 'مستكشف المشروع' : 'Project Explorer',
         context: lang === 'ar' ? 'الأدلة والنتائج' : 'Evidence & Findings',
       }
-    : {
-        prefix: 'knoux-developer',
-        center: lang === 'ar' ? 'مساحة المطور' : 'Developer Workspace',
-        explorer: lang === 'ar' ? 'المستكشف' : 'Explorer',
-        context: lang === 'ar' ? 'السياق والأدلة' : 'Context & Evidence',
-      };
+    : workspace === 'programs'
+      ? {
+          prefix: 'knoux-programs',
+          center: lang === 'ar' ? 'استوديو التطبيقات' : 'Application Studio',
+          explorer: lang === 'ar' ? 'أدوات البرامج' : 'Program Tools',
+          context: lang === 'ar' ? 'التشغيل والأدلة' : 'Runtime & Evidence',
+        }
+      : {
+          prefix: 'knoux-developer',
+          center: lang === 'ar' ? 'مساحة المطور' : 'Developer Workspace',
+          explorer: lang === 'ar' ? 'المستكشف' : 'Explorer',
+          context: lang === 'ar' ? 'السياق والأدلة' : 'Context & Evidence',
+        };
 
   const onReady = (event: DockviewReadyEvent) => {
     const center = event.api.addPanel({
