@@ -1,6 +1,7 @@
 import type { RecoveryReadinessState } from './recoveryModel';
 
 export interface RecoveryHeroVisualProps {
+  hasTelemetry: boolean;
   state: RecoveryReadinessState;
   restorePointsCount: number;
   shadowCopiesCount: number;
@@ -9,6 +10,7 @@ export interface RecoveryHeroVisualProps {
 }
 
 export default function RecoveryHeroVisual({
+  hasTelemetry,
   state,
   restorePointsCount,
   shadowCopiesCount,
@@ -23,6 +25,10 @@ export default function RecoveryHeroVisual({
       : state === 'UNPROTECTED'
       ? '#f43f5e'
       : '#64748b';
+
+  const restorePointColor = !hasTelemetry ? '#64748b' : restorePointsCount > 0 ? '#10b981' : '#f43f5e';
+  const shadowCopyColor = !hasTelemetry ? '#64748b' : shadowCopiesCount > 0 ? '#38bdf8' : '#64748b';
+  const localBackupColor = !hasTelemetry ? '#64748b' : localBackupsCount > 0 ? '#10b981' : '#f59e0b';
 
   return (
     <div
@@ -114,16 +120,16 @@ export default function RecoveryHeroVisual({
         {/* Three Vault Lock Bolts (Restore Points, VSS, Local Backup) */}
         <g filter="url(#glowVault)">
           {/* Top Bolt: Restore Points */}
-          <circle cx="200" cy="95" r="6.5" fill={restorePointsCount > 0 ? '#10b981' : '#f43f5e'} />
-          <line x1="200" y1="95" x2="200" y2="120" stroke={restorePointsCount > 0 ? '#10b981' : '#f43f5e'} strokeWidth="2.5" />
+          <circle cx="200" cy="95" r="6.5" fill={restorePointColor} />
+          <line x1="200" y1="95" x2="200" y2="120" stroke={restorePointColor} strokeWidth="2.5" />
 
           {/* Bottom Left Bolt: Shadow Copies */}
-          <circle cx="109" cy="252" r="6.5" fill={shadowCopiesCount > 0 ? '#38bdf8' : '#64748b'} />
-          <line x1="109" y1="252" x2="130" y2="238" stroke={shadowCopiesCount > 0 ? '#38bdf8' : '#64748b'} strokeWidth="2.5" />
+          <circle cx="109" cy="252" r="6.5" fill={shadowCopyColor} />
+          <line x1="109" y1="252" x2="130" y2="238" stroke={shadowCopyColor} strokeWidth="2.5" />
 
           {/* Bottom Right Bolt: Local Backup */}
-          <circle cx="291" cy="252" r="6.5" fill={localBackupsCount > 0 ? '#10b981' : '#f59e0b'} />
-          <line x1="291" y1="252" x2="270" y2="238" stroke={localBackupsCount > 0 ? '#10b981' : '#f59e0b'} strokeWidth="2.5" />
+          <circle cx="291" cy="252" r="6.5" fill={localBackupColor} />
+          <line x1="291" y1="252" x2="270" y2="238" stroke={localBackupColor} strokeWidth="2.5" />
         </g>
 
         {/* Central Vault Wheel Core */}

@@ -264,7 +264,7 @@
   box-shadow: inset 0 0 28px rgba(var(--recovery-accent-rgb), .04), 0 10px 28px rgba(0, 0, 0, .18);
 }
 
-.knoux-command-center[data-service='11-Backup-Recovery'] .recovery-vault-station > div[class*='overflow-x-auto'][class*='border-b'] {
+.knoux-command-center[data-service='11-Backup-Recovery'] .recovery-vault-station > nav {
   gap: 6px !important;
   padding: 6px !important;
   border: 1px solid rgba(255, 255, 255, .07) !important;
@@ -376,7 +376,7 @@
 @media (max-width: 900px) {
   .knoux-command-center[data-service='02-System-Cleanup'] .cleanup-mini-nav,
   .knoux-command-center[data-service='06-Disk-Space'] .disk-space-station > div[class*='overflow-x-auto'][class*='border-b'],
-  .knoux-command-center[data-service='11-Backup-Recovery'] .recovery-vault-station > div[class*='overflow-x-auto'][class*='border-b'] {
+  .knoux-command-center[data-service='11-Backup-Recovery'] .recovery-vault-station > nav {
     flex-wrap: wrap;
     overflow-x: visible !important;
   }

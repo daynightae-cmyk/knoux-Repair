@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArchiveRestore, HardDrive, RefreshCw, Play,
+  ArchiveRestore, HardDrive,   RefreshCw, Play,
   CheckCircle2, AlertTriangle, XCircle, FileText,
-  DatabaseZap, Lock, History, FolderCheck, ShieldAlert
+  Lock, History, FolderCheck, ShieldAlert
 } from 'lucide-react';
 import type {
   BackupRecoveryPreview, BridgeTool, ExecutionMode,
@@ -47,6 +47,7 @@ const COPY = {
     tabHistory: 'History',
     refresh: 'Query Vault',
     refreshing: 'Reading recovery records...',
+    bridgeChecking: 'Checking local execution bridge availability...',
     readinessLabel: 'Continuity & Recovery Readiness',
     readyDesc: 'Protected — System restore points and local user backups available',
     partialDesc: 'Partial Coverage — One recovery line active, secondary backup missing',
@@ -61,7 +62,7 @@ const COPY = {
     quickBackupProfile: 'Backup Profile',
     quickVerifyBackup: 'Verify Latest',
     signalsTitle: 'Recovery Findings & Continuity Signals',
-    noSignals: 'System recovery mechanisms and local archives are operating within nominal thresholds.',
+    noSignals: 'No confirmed recovery signal was found in the currently observed data. Unverified recovery vectors remain unverified.',
     restorePointsTitle: 'Windows System Restore Point History',
     restorePointsSubtitle: 'Recorded snapshots managed by Windows Volume Shadow Service (VSS).',
     shadowCopiesTitle: 'Volume Shadow Copy Snapshots',
@@ -74,6 +75,12 @@ const COPY = {
     noShadowCopies: 'No Volume Shadow Copies discovered on monitored volumes.',
     noLocalBackups: 'No local user profile backups have been generated yet.',
     adminNote: 'Creating a system restore point requires administrator elevation.',
+    adminRequired: 'Administrator elevation is required for this action.',
+    runRequiresConfirmation: 'Run requires confirmation',
+    notCheckedYet: 'Not checked yet',
+    countUnavailable: 'Count not reported',
+    noTerminalResult: 'No terminal result was returned.',
+    noSuccessEvidence: 'The action ended without a verified successful result.',
   },
   ar: {
     eyebrow: 'خزنة الاستعادة واستمرارية النظام',
@@ -88,6 +95,7 @@ const COPY = {
     tabHistory: 'السجل',
     refresh: 'فحص الخزنة',
     refreshing: 'جارٍ قراءة بيانات الاستعادة...',
+    bridgeChecking: 'جارٍ التحقق من توفر جسر التنفيذ المحلي...',
     readinessLabel: 'جاهزية الاستعادة والأمان',
     readyDesc: 'محمي — تتوفر نقاط استعادة للنظام ونسخ احتياطية للمستخدم',
     partialDesc: 'تغطية جزئية — يتوفر خط استعادة واحد مع غياب الآخر',
@@ -102,7 +110,7 @@ const COPY = {
     quickBackupProfile: 'نسخ ملف المستخدم',
     quickVerifyBackup: 'التحقق من النسخة',
     signalsTitle: 'ملاحظات وإشارات الاستعادة',
-    noSignals: 'خطوط الاستعادة والنسخ الاحتياطي في حالة سليمة وضمن الحدود الطبيعية.',
+    noSignals: 'لم يُرصد خطر استعادة مؤكد في البيانات التي تمت مراقبتها، أما خطوط الاستعادة غير المفحوصة فتبقى غير مؤكدة.',
     restorePointsTitle: 'سجل نقاط استعادة نظام ويندوز',
     restorePointsSubtitle: 'لقطات النظام المسجلة والمدارة بواسطة خدمة VSS في ويندوز.',
     shadowCopiesTitle: 'لقطات نسخ الظل للأقراص (VSS)',
@@ -115,6 +123,12 @@ const COPY = {
     noShadowCopies: 'لا توجد أي نسخ ظل مكتشفة على الأقراص المراقبة.',
     noLocalBackups: 'لم يتم إنشاء أي نسخة احتياطية محلية لملفات المستخدم بعد.',
     adminNote: 'إنشاء نقطة استعادة للنظام يتطلب تشغيل البرنامج بصلاحيات المسؤول.',
+    adminRequired: 'يتطلب هذا الإجراء صلاحيات المسؤول.',
+    runRequiresConfirmation: 'يتطلب التشغيل تأكيدًا',
+    notCheckedYet: 'لم يتم الفحص بعد',
+    countUnavailable: 'لم يتم الإبلاغ عن العدد',
+    noTerminalResult: 'لم تُرجع نتيجة نهائية.',
+    noSuccessEvidence: 'انتهى الإجراء دون نتيجة ناجحة موثقة.',
   },
 };
 
@@ -175,6 +189,7 @@ function RecoveryStationContent({
   const localBackups = useMemo(() => preview?.LocalBackups?.Items ?? [], [preview?.LocalBackups?.Items]);
   const backupSources = useMemo(() => preview?.BackupSources ?? [], [preview?.BackupSources]);
   const signals: RecoverySignal[] = useMemo(() => detectRecoverySignals(summary), [summary]);
+  const countText = (value: number) => summary.hasTelemetry ? value.toLocaleString(lang) : text.notCheckedYet;
 
   // Execution trigger
   const executeTool = useCallback(
@@ -190,18 +205,31 @@ function RecoveryStationContent({
 
         const completedRun = await pollExecution(runId);
         const status = outcomeFromRun(completedRun.result);
-        onToolStatus(tool.ToolId, status === 'SUCCESS' ? 'success' : status === 'WARNING' ? 'inconclusive' : 'error');
+        onToolStatus(
+          tool.ToolId,
+          status === 'SUCCESS'
+            ? 'success'
+            : status === 'CANCELLED'
+              ? 'cancelled'
+              : status === 'WARNING' || status === 'INCONCLUSIVE'
+                ? 'inconclusive'
+                : 'error',
+        );
 
+        const terminalResult = completedRun.result;
         const newEntry: StationHistoryEntry = {
           id: runId || `run-${Date.now()}`,
           toolId: tool.ToolId,
           toolName: pickName(tool, lang),
           timestamp: new Date().toLocaleTimeString(lang),
           status,
-          itemsProcessed: completedRun.result?.ItemsProcessed ?? 1,
-          summary: completedRun.result?.Status === 'Success'
-            ? (lang === 'ar' ? 'اكتملت عملية الاستعادة بنجاح' : 'Recovery operation completed successfully')
-            : (completedRun.result?.ErrorMessage || 'Completed with warnings'),
+          itemsProcessed: terminalResult?.ItemsProcessed ?? null,
+          summary: terminalResult?.ErrorMessage
+            || (status === 'SUCCESS'
+              ? (lang === 'ar' ? 'اكتملت عملية الاستعادة بنجاح' : 'Recovery operation completed successfully')
+              : terminalResult
+                ? text.noSuccessEvidence
+                : text.noTerminalResult),
         };
         setHistory((prev) => [newEntry, ...prev.slice(0, 19)]);
         void refreshVault();
@@ -213,14 +241,22 @@ function RecoveryStationContent({
     [lang, onToolStatus, refreshVault]
   );
 
-  const launchAction = useCallback(
-    (toolId: string, defaultMode: ExecutionMode = 'run') => {
-      const tool = stTools.find((t) => t.ToolId === toolId);
-      if (!tool) return;
-      const mode = tool.AnalyzeOnlySupported ? 'analyze' : defaultMode;
-      setPendingTool({ tool, mode });
+  const canLaunchAction = useCallback(
+    (toolId: string) => {
+      const tool = stTools.find((candidate) => candidate.ToolId === toolId);
+      return Boolean(tool && bridgeOnline === true && (!tool.RequiresAdmin || bridgeElevated));
     },
-    [stTools]
+    [bridgeElevated, bridgeOnline, stTools]
+  );
+
+  const launchAction = useCallback(
+    (toolId: string, mode: ExecutionMode = 'analyze', options?: ToolRunOptions) => {
+      if (!canLaunchAction(toolId)) return;
+      const tool = stTools.find((candidate) => candidate.ToolId === toolId);
+      if (!tool) return;
+      setPendingTool({ tool, mode, options });
+    },
+    [canLaunchAction, stTools]
   );
 
   if (bridgeOnline === false) {
@@ -245,10 +281,6 @@ function RecoveryStationContent({
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-sky-400">
                 {text.eyebrow}
-              </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                <DatabaseZap size={10} />
-                BR01–BR05
               </span>
             </div>
             <h1 className="text-2xl font-black tracking-tight text-white">{text.title}</h1>
@@ -283,7 +315,7 @@ function RecoveryStationContent({
           <button
             type="button"
             onClick={() => void refreshVault()}
-            disabled={loading}
+            disabled={loading || bridgeOnline !== true}
             className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white transition shadow-lg shadow-sky-900/30"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
@@ -293,7 +325,7 @@ function RecoveryStationContent({
       </header>
 
       {/* Mini-Nav Tabs */}
-      <nav className="flex items-center gap-1.5 mt-4 pb-2 overflow-x-auto border-b border-slate-800/60 no-scrollbar">
+      <nav className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pb-2 border-b border-slate-800/60">
         {[
           { key: 'overview', label: text.tabOverview, icon: ArchiveRestore },
           { key: 'restorePoints', label: text.tabRestorePoints, icon: History },
@@ -307,7 +339,7 @@ function RecoveryStationContent({
             key={key}
             type="button"
             onClick={() => setActiveTab(key as TabKey)}
-            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition whitespace-nowrap ${
+            className={`w-full min-w-0 justify-center flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition ${
               activeTab === key
                 ? 'bg-sky-500/15 text-sky-300 border border-sky-500/30 font-semibold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
@@ -326,6 +358,20 @@ function RecoveryStationContent({
         </div>
       )}
 
+      {bridgeOnline === null && (
+        <div className="flex items-center gap-2 p-3 mt-4 text-xs font-medium rounded-xl bg-slate-900/60 border border-slate-700 text-slate-300">
+          <RefreshCw size={16} className="animate-spin" />
+          <span>{text.bridgeChecking}</span>
+        </div>
+      )}
+
+      {bridgeOnline === true && !bridgeElevated && (
+        <div className="flex items-center gap-2 p-3 mt-4 text-xs font-medium rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200">
+          <Lock size={16} />
+          <span>{text.adminRequired}</span>
+        </div>
+      )}
+
       {/* Tab Contents */}
       <main className="flex-1 mt-6">
         {activeTab === 'overview' && (
@@ -333,6 +379,7 @@ function RecoveryStationContent({
             {/* Vault Dial Visual */}
             <div className="lg:col-span-5 flex flex-col items-center justify-center p-6 rounded-2xl bg-slate-900/40 border border-slate-800/80">
               <RecoveryHeroVisual
+                hasTelemetry={summary.hasTelemetry}
                 state={summary.state}
                 restorePointsCount={summary.restorePointsCount}
                 shadowCopiesCount={summary.shadowCopiesCount}
@@ -368,7 +415,7 @@ function RecoveryStationContent({
                     <History size={16} className={summary.restorePointsCount > 0 ? 'text-emerald-400' : 'text-rose-400'} />
                   </div>
                   <strong className="text-lg font-bold text-white block">
-                    {summary.restorePointsCount.toLocaleString(lang)}
+                    {countText(summary.restorePointsCount)}
                   </strong>
                   <span className="text-[11px] text-slate-400 block mt-0.5">
                     {summary.restorePointsCount > 0
@@ -383,7 +430,7 @@ function RecoveryStationContent({
                     <HardDrive size={16} className={summary.shadowCopiesCount > 0 ? 'text-sky-400' : 'text-slate-400'} />
                   </div>
                   <strong className="text-lg font-bold text-white block">
-                    {summary.shadowCopiesCount.toLocaleString(lang)}
+                    {countText(summary.shadowCopiesCount)}
                   </strong>
                   <span className="text-[11px] text-slate-400 block mt-0.5">
                     {lang === 'ar' ? 'لقطات VSS فيزيائية' : 'VSS snapshots'}
@@ -396,12 +443,14 @@ function RecoveryStationContent({
                     <FolderCheck size={16} className={summary.localBackupsCount > 0 ? 'text-emerald-400' : 'text-amber-400'} />
                   </div>
                   <strong className="text-lg font-bold text-white block">
-                    {summary.localBackupsCount.toLocaleString(lang)}
+                    {countText(summary.localBackupsCount)}
                   </strong>
                   <span className="text-[11px] text-slate-400 block mt-0.5">
-                    {summary.latestBackupBytes > 0
-                      ? formatBytes(summary.latestBackupBytes, lang)
-                      : (lang === 'ar' ? 'لا توجد ملفات' : '0 B saved')}
+                    {!summary.hasTelemetry
+                      ? text.notCheckedYet
+                      : summary.latestBackupBytes > 0
+                        ? formatBytes(summary.latestBackupBytes, lang)
+                        : (lang === 'ar' ? 'لا توجد ملفات' : '0 B saved')}
                   </span>
                 </div>
               </div>
@@ -413,24 +462,27 @@ function RecoveryStationContent({
                 </span>
                 <button
                   type="button"
-                  onClick={() => launchAction('BR01')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-sky-600/80 hover:bg-sky-500 text-white transition"
+                  onClick={() => launchAction('BR01', 'run')}
+                  disabled={!canLaunchAction('BR01')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-sky-600/80 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed text-white transition"
                 >
                   <History size={13} />
                   {text.quickRestorePoint}
                 </button>
                 <button
                   type="button"
-                  onClick={() => launchAction('BR02')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition border border-slate-700"
+                  onClick={() => launchAction('BR02', 'run')}
+                  disabled={!canLaunchAction('BR02')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 transition border border-slate-700"
                 >
                   <FolderCheck size={13} />
                   {text.quickBackupProfile}
                 </button>
                 <button
                   type="button"
-                  onClick={() => launchAction('BR03')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition border border-slate-700"
+                  onClick={() => launchAction('BR03', 'analyze')}
+                  disabled={!canLaunchAction('BR03')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 transition border border-slate-700"
                 >
                   <CheckCircle2 size={13} />
                   {text.quickVerifyBackup}
@@ -468,8 +520,9 @@ function RecoveryStationContent({
                         {sig.suggestedTool && (
                           <button
                             type="button"
-                            onClick={() => launchAction(sig.suggestedTool)}
-                            className="shrink-0 px-2.5 py-1 text-[11px] font-semibold rounded bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
+                            onClick={() => launchAction(sig.suggestedTool, 'analyze')}
+                            disabled={!canLaunchAction(sig.suggestedTool)}
+                            className="shrink-0 px-2.5 py-1 text-[11px] font-semibold rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white border border-slate-700"
                           >
                             {lang === 'ar' ? 'مراجعة الإجراء' : 'Review action'}
                           </button>
@@ -502,8 +555,9 @@ function RecoveryStationContent({
               </div>
               <button
                 type="button"
-                onClick={() => launchAction('BR01')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white"
+                onClick={() => launchAction('BR01', 'run')}
+                disabled={!canLaunchAction('BR01')}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed text-white"
               >
                 <History size={13} />
                 <span>{text.quickRestorePoint}</span>
@@ -536,7 +590,7 @@ function RecoveryStationContent({
               </div>
             ) : (
               <div className="p-8 text-center rounded-xl bg-slate-900/30 border border-slate-800/60 text-slate-400 text-xs">
-                {text.noRestorePoints}
+                {!summary.hasTelemetry ? text.notCheckedYet : text.noRestorePoints}
               </div>
             )}
           </div>
@@ -551,8 +605,9 @@ function RecoveryStationContent({
               </div>
               <button
                 type="button"
-                onClick={() => launchAction('BR04')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white"
+                onClick={() => launchAction('BR04', 'analyze')}
+                disabled={!canLaunchAction('BR04')}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed text-white"
               >
                 <RefreshCw size={13} />
                 <span>{lang === 'ar' ? 'تحديث الفحص' : 'Refresh VSS'}</span>
@@ -590,7 +645,7 @@ function RecoveryStationContent({
               </div>
             ) : (
               <div className="p-8 text-center rounded-xl bg-slate-900/30 border border-slate-800/60 text-slate-400 text-xs">
-                {text.noShadowCopies}
+                {!summary.hasTelemetry ? text.notCheckedYet : text.noShadowCopies}
               </div>
             )}
           </div>
@@ -606,16 +661,18 @@ function RecoveryStationContent({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => launchAction('BR02')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white"
+                  onClick={() => launchAction('BR02', 'run')}
+                  disabled={!canLaunchAction('BR02')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed text-white"
                 >
                   <FolderCheck size={13} />
                   <span>{text.quickBackupProfile}</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => launchAction('BR05')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                  onClick={() => launchAction('BR05', 'run')}
+                  disabled={!canLaunchAction('BR05')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 border border-slate-700"
                 >
                   <ArchiveRestore size={13} />
                   <span>{lang === 'ar' ? 'استعادة المفقود' : 'Restore Missing'}</span>
@@ -662,8 +719,9 @@ function RecoveryStationContent({
                     </div>
                     <button
                       type="button"
-                      onClick={() => launchAction('BR03')}
-                      className="px-2.5 py-1 text-[11px] font-semibold rounded bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
+                      onClick={() => launchAction('BR03', 'analyze')}
+                      disabled={!canLaunchAction('BR03')}
+                      className="px-2.5 py-1 text-[11px] font-semibold rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white border border-slate-700"
                     >
                       {lang === 'ar' ? 'تدقيق' : 'Verify'}
                     </button>
@@ -672,7 +730,7 @@ function RecoveryStationContent({
               </div>
             ) : (
               <div className="p-8 text-center rounded-xl bg-slate-900/30 border border-slate-800/60 text-slate-400 text-xs">
-                {text.noLocalBackups}
+                {!summary.hasTelemetry ? text.notCheckedYet : text.noLocalBackups}
               </div>
             )}
           </div>
@@ -683,7 +741,6 @@ function RecoveryStationContent({
             {stTools.map((t) => {
               const status = toolStatuses[t.ToolId];
               const isRunning = status === 'running';
-              const needsAdmin = t.RequiresAdmin && !bridgeElevated;
 
               return (
                 <article
@@ -716,12 +773,16 @@ function RecoveryStationContent({
 
                   <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-slate-800/80">
                     <span className="text-[10px] text-slate-400">
-                      {t.AnalyzeOnlySupported ? 'Analyze supported' : 'Execution'}
+                      {t.RequiresAdmin && !bridgeElevated
+                        ? text.adminRequired
+                        : t.RiskLevel === 'READ_ONLY'
+                          ? (lang === 'ar' ? 'يدعم التحليل' : 'Analyze supported')
+                          : text.runRequiresConfirmation}
                     </span>
                     <button
                       type="button"
-                      disabled={isRunning || needsAdmin}
-                      onClick={() => launchAction(t.ToolId)}
+                      disabled={isRunning || !canLaunchAction(t.ToolId)}
+                      onClick={() => launchAction(t.ToolId, t.RiskLevel === 'READ_ONLY' ? 'analyze' : 'run')}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white transition"
                     >
                       {isRunning ? (
@@ -732,7 +793,7 @@ function RecoveryStationContent({
                       ) : (
                         <>
                           <Play size={12} />
-                          <span>{lang === 'ar' ? 'تشغيل' : 'Run'}</span>
+                          <span>{t.RiskLevel === 'READ_ONLY' ? (lang === 'ar' ? 'مراجعة' : 'Review') : (lang === 'ar' ? 'تشغيل' : 'Run')}</span>
                         </>
                       )}
                     </button>
@@ -756,8 +817,9 @@ function RecoveryStationContent({
               </div>
               <button
                 type="button"
-                onClick={() => launchAction('BR04')}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white"
+                onClick={() => launchAction('BR04', 'analyze')}
+                disabled={!canLaunchAction('BR04')}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed text-white"
               >
                 {lang === 'ar' ? 'فحص شامل' : 'Audit Vault'}
               </button>
@@ -775,25 +837,31 @@ function RecoveryStationContent({
                 <tbody className="divide-y divide-slate-800/60">
                   <tr>
                     <td className="py-2.5 font-medium text-slate-200">Windows System Restore Points</td>
-                    <td className="py-2.5 text-slate-300">{summary.restorePointsCount} active snapshots</td>
+                    <td className="py-2.5 text-slate-300">
+                      {summary.hasTelemetry ? `${summary.restorePointsCount} active snapshots` : text.notCheckedYet}
+                    </td>
                     <td className="py-2.5 text-right font-bold text-emerald-400">
-                      {summary.restorePointsCount > 0 ? 'READY' : 'EXPOSED'}
+                      {summary.hasTelemetry ? (summary.restorePointsCount > 0 ? 'READY' : 'EXPOSED') : 'UNKNOWN'}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 font-medium text-slate-200">Volume Shadow Copies (VSS)</td>
-                    <td className="py-2.5 text-slate-300">{summary.shadowCopiesCount} VSS snapshots</td>
+                    <td className="py-2.5 text-slate-300">
+                      {summary.hasTelemetry ? `${summary.shadowCopiesCount} VSS snapshots` : text.notCheckedYet}
+                    </td>
                     <td className="py-2.5 text-right font-bold text-sky-400">
-                      {summary.shadowCopiesCount > 0 ? 'ACTIVE' : 'NONE'}
+                      {summary.hasTelemetry ? (summary.shadowCopiesCount > 0 ? 'ACTIVE' : 'NONE') : 'UNKNOWN'}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 font-medium text-slate-200">Local User Profile Archives</td>
                     <td className="py-2.5 text-slate-300">
-                      {summary.localBackupsCount} archive(s) ({formatBytes(summary.latestBackupBytes, lang)})
+                      {summary.hasTelemetry
+                        ? `${summary.localBackupsCount} archive(s) (${formatBytes(summary.latestBackupBytes, lang)})`
+                        : text.notCheckedYet}
                     </td>
                     <td className="py-2.5 text-right font-bold text-cyan-400">
-                      {summary.localBackupsCount > 0 ? 'READY' : 'UNARCHIVED'}
+                      {summary.hasTelemetry ? (summary.localBackupsCount > 0 ? 'READY' : 'UNARCHIVED') : 'UNKNOWN'}
                     </td>
                   </tr>
                 </tbody>
@@ -838,7 +906,9 @@ function RecoveryStationContent({
                   <div className="text-right">
                     <span className="text-slate-400 text-[11px] block">{h.timestamp}</span>
                     <span className="text-[10px] text-slate-400">
-                      {h.itemsProcessed} {lang === 'ar' ? 'عنصر' : 'items'}
+                      {h.itemsProcessed === null
+                        ? text.countUnavailable
+                        : `${h.itemsProcessed} ${lang === 'ar' ? 'عنصر' : 'items'}`}
                     </span>
                   </div>
                 </div>

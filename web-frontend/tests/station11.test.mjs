@@ -91,6 +91,7 @@ test('Station 11: summarizeRecoveryVault aggregates preview metadata', () => {
   };
 
   const summary = model.summarizeRecoveryVault(mockPreview);
+  assert.equal(summary.hasTelemetry, true);
   assert.equal(summary.state, 'READY');
   assert.equal(summary.restorePointsCount, 2);
   assert.equal(summary.shadowCopiesCount, 1);
@@ -146,7 +147,7 @@ test('Station 11: detectRecoverySignals detects unprotected vectors and cites to
 test('Station 11: RecoveryStation and RecoveryHeroVisual components exist', () => {
   const stationSrc = readWeb('src/features/stations/station11/RecoveryStation.tsx');
   assert.ok(stationSrc.includes('export default function RecoveryStation'), 'RecoveryStation component must be exported');
-  assert.ok(stationSrc.includes('BR01–BR05'), 'Must cite Station 11 tool range');
+  assert.doesNotMatch(stationSrc, /BR01–BR05/, 'Customer UI must not expose an internal ToolId range');
 
   const heroSrc = readWeb('src/features/stations/station11/RecoveryHeroVisual.tsx');
   assert.ok(heroSrc.includes('export default function RecoveryHeroVisual'), 'RecoveryHeroVisual component must be exported');
@@ -156,4 +157,18 @@ test('Station 11: ServiceApps routes activeSection backupRecovery directly to Re
   const src = readWeb('src/components/ServiceApps.tsx');
   assert.ok(src.includes("activeSection === 'backupRecovery'"), 'ServiceApps must route activeSection backupRecovery');
   assert.ok(src.includes('<RecoveryStation'), 'ServiceApps must render RecoveryStation');
+});
+
+test('Station 11: recovery actions preserve eligibility and unknown evidence', () => {
+  const stationSrc = readWeb('src/features/stations/station11/RecoveryStation.tsx');
+
+  assert.match(stationSrc, /const canLaunchAction = useCallback/);
+  assert.match(stationSrc, /bridgeOnline === true && \(!tool\.RequiresAdmin \|\| bridgeElevated\)/);
+  assert.match(stationSrc, /launchAction\('BR01', 'run'\)/);
+  assert.match(stationSrc, /launchAction\('BR02', 'run'\)/);
+  assert.match(stationSrc, /launchAction\('BR03', 'analyze'\)/);
+  assert.match(stationSrc, /Unverified recovery vectors remain unverified/);
+  assert.match(stationSrc, /itemsProcessed: terminalResult\?\.ItemsProcessed \?\? null/);
+  assert.match(stationSrc, /grid w-full grid-cols-2 sm:grid-cols-4/);
+  assert.doesNotMatch(stationSrc, /itemsProcessed: completedRun\.result\?\.ItemsProcessed \?\? 1/);
 });

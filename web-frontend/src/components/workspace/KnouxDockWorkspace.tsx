@@ -23,7 +23,7 @@ interface WorkspaceSlotState {
   slots: Record<SlotName, ReactNode>;
 }
 
-type WorkspaceKind = 'developer' | 'sonar' | 'programs' | 'software' | 'postinstall' | 'diagnostics' | 'performance' | 'security' | 'services';
+type WorkspaceKind = 'developer' | 'sonar' | 'programs' | 'software' | 'postinstall' | 'diagnostics' | 'performance' | 'security' | 'recovery' | 'services';
 
 interface KnouxDockWorkspaceProps {
   lang: 'en' | 'ar';
@@ -181,6 +181,19 @@ export default function KnouxDockWorkspace({
                     contextMin: 170,
                     contextMax: 300,
                   }
+              : workspace === 'recovery'
+                ? {
+                    prefix: 'knoux-recovery',
+                    center: lang === 'ar' ? 'خزنة الاستعادة' : 'Recovery Vault',
+                    explorer: lang === 'ar' ? 'أدوات الاستعادة' : 'Recovery Tools',
+                    context: lang === 'ar' ? 'أدلة الاستمرارية' : 'Continuity Evidence',
+                    explorerWidth: 180,
+                    explorerMin: 150,
+                    explorerMax: 260,
+                    contextWidth: 200,
+                    contextMin: 170,
+                    contextMax: 300,
+                  }
                 : workspace === 'services'
                   ? {
                       prefix: 'knoux-services',
@@ -212,7 +225,7 @@ export default function KnouxDockWorkspace({
       id: `${panelText.prefix}-center`,
       component: 'center',
       title: panelText.center,
-      minimumWidth: workspace === 'performance' || workspace === 'security' ? 560 : workspace === 'services' ? 640 : 420,
+      minimumWidth: workspace === 'performance' || workspace === 'security' || workspace === 'recovery' ? 560 : workspace === 'services' ? 640 : 420,
       minimumHeight: 260,
       renderer: 'always',
       tabComponent: 'locked',

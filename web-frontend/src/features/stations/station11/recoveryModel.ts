@@ -16,6 +16,7 @@ import type {
 export type RecoveryReadinessState = 'READY' | 'PARTIAL_COVERAGE' | 'UNPROTECTED' | 'INCONCLUSIVE';
 
 export interface RecoveryReadinessSummary {
+  hasTelemetry: boolean;
   state: RecoveryReadinessState;
   restorePointsCount: number;
   shadowCopiesCount: number;
@@ -44,7 +45,7 @@ export interface StationHistoryEntry {
   toolName: string;
   timestamp: string;
   status: 'SUCCESS' | 'WARNING' | 'FAILED' | 'CANCELLED' | 'INCONCLUSIVE';
-  itemsProcessed: number;
+  itemsProcessed: number | null;
   summary: string;
 }
 
@@ -85,6 +86,7 @@ export function summarizeRecoveryVault(
 ): RecoveryReadinessSummary {
   if (!preview) {
     return {
+      hasTelemetry: false,
       state: 'INCONCLUSIVE',
       restorePointsCount: 0,
       shadowCopiesCount: 0,
@@ -113,6 +115,7 @@ export function summarizeRecoveryVault(
   );
 
   return {
+    hasTelemetry: true,
     state,
     restorePointsCount,
     shadowCopiesCount,
