@@ -43,6 +43,7 @@ try {
      })
     $rows | Export-Csv -LiteralPath (Join-Path $Session.RawDir 'processes.csv') -NoTypeInformation -Encoding UTF8
     $rows | ConvertTo-Json -Depth 3 | Out-File -LiteralPath (Join-Path $Session.RawDir 'processes.json') -Encoding UTF8
+    $Session | Add-Member -NotePropertyName Evidence -NotePropertyValue ([pscustomobject]@{ Items = $rows }) -Force
     $Session.ItemsFound = $procs.Count
     $Session.ItemsProcessed = 1
     $Session.Status = 'Success'

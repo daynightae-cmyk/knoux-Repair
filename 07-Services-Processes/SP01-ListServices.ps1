@@ -25,6 +25,7 @@ try {
     $rows = @($svcs | ForEach-Object { [pscustomobject]@{ Name = $_.Name; DisplayName = $_.DisplayName; State = $_.State; StartMode = $_.StartMode; PathName = $_.PathName } })
     $rows | Export-Csv -LiteralPath (Join-Path $Session.RawDir 'services.csv') -NoTypeInformation -Encoding UTF8
     $rows | ConvertTo-Json -Depth 3 | Out-File -LiteralPath (Join-Path $Session.RawDir 'services.json') -Encoding UTF8
+    $Session | Add-Member -NotePropertyName Evidence -NotePropertyValue ([pscustomobject]@{ Items = $rows }) -Force
     $Session.ItemsFound = $svcs.Count
     $Session.ItemsProcessed = 1
     $Session.Status = 'Success'

@@ -44,11 +44,12 @@ test('Diagnostics keeps evidence lab tabs and stable tool-card hooks', () => {
   assert.match(operational, /flex-wrap:\s*wrap\s*!important/);
 });
 
-test('Services keeps topology and stable repair-card hooks', () => {
+test('Services keeps topology and stable read-only evidence hooks', () => {
   assert.match(services, /services-topology-station/);
-  assert.match(services, /services-operation-tool-grid/);
-  assert.match(services, /services-operation-tool-card/);
-  assert.match(css, /services-operation-tool-card[\s\S]*linear-gradient/);
+  assert.match(services, /data-readonly-tool="SP01"/);
+  assert.match(services, /data-readonly-tool="SP02"/);
+  assert.match(services, /data-services-evidence=/);
+  assert.doesNotMatch(services, /services-operation-tool-grid|services-operation-tool-card/);
 });
 
 test('Investigation visual layer does not fabricate health or service values', () => {
