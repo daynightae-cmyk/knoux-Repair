@@ -133,8 +133,9 @@ export default function FamilyLiveStage({
 
   const programsDockEnabled = service.id === '04-Programs-Applications' && serviceAppMode;
   const softwareDockEnabled = service.id === '16-Software-Environment' && serviceAppMode;
-  const serviceDockEnabled = programsDockEnabled || softwareDockEnabled;
-  const serviceDockWorkspace = softwareDockEnabled ? 'software' : 'programs';
+  const postInstallDockEnabled = service.id === '17-PostInstall-Setup' && serviceAppMode;
+  const serviceDockEnabled = programsDockEnabled || softwareDockEnabled || postInstallDockEnabled;
+  const serviceDockWorkspace = postInstallDockEnabled ? 'postinstall' : softwareDockEnabled ? 'software' : 'programs';
   const serviceAppSurface = (
     <ServiceApps
       activeSection={service.legacySection}
@@ -318,13 +319,17 @@ export default function FamilyLiveStage({
                     </div>
                   </dl>
                   <p className="knoux-service-dock-note">
-                    {softwareDockEnabled
+                    {postInstallDockEnabled
                       ? (isRtl
-                          ? 'بيانات البيئة والتشغيل والنتائج تظل مملوكة لمحطة بيئة البرامج الحالية.'
-                          : 'Environment data, execution, and evidence remain owned by the existing Software Environment station.')
-                      : (isRtl
-                          ? 'التشغيل والنتائج تظل مملوكة لمحطة البرامج الحالية.'
-                          : 'Execution and evidence remain owned by the existing Programs station.')}
+                          ? 'بيانات التجهيز والاختيارات والتنفيذ والنتائج تظل مملوكة لمحطة ما بعد التثبيت الحالية.'
+                          : 'Provisioning data, selections, execution, and evidence remain owned by the existing Post-Install station.')
+                      : softwareDockEnabled
+                        ? (isRtl
+                            ? 'بيانات البيئة والتشغيل والنتائج تظل مملوكة لمحطة بيئة البرامج الحالية.'
+                            : 'Environment data, execution, and evidence remain owned by the existing Software Environment station.')
+                        : (isRtl
+                            ? 'التشغيل والنتائج تظل مملوكة لمحطة البرامج الحالية.'
+                            : 'Execution and evidence remain owned by the existing Programs station.')}
                   </p>
                 </aside>
               </KnouxDockWorkspace>
