@@ -18,3 +18,12 @@ test('final visual evidence ignores only the exact local Vite HMR CSP diagnostic
   assert.match(source, /http:\\\/\\\/127\\\.0\\\.0\\\.1:8787/);
   assert.doesNotMatch(source, /Content Security Policy\.\*ws:/);
 });
+
+
+test('navigation blank-frame classifier accepts only substantive visible route surfaces', () => {
+  assert.match(source, /substantive=route\.filter/);
+  assert.match(source, /r\.width>320&&r\.height>180/);
+  assert.match(source, /text\.length>=24\|\|signal/);
+  assert.match(source, /meaningful=Math\.max/);
+  assert.doesNotMatch(source, /meaningful=route\.length/);
+});
