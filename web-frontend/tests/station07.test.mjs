@@ -233,7 +233,8 @@ test('Station 07: customer UI exposes only read-only inventory actions', () => {
   const source = readWeb('src/features/stations/station07/ServicesStation.tsx');
   assert.doesNotMatch(source, /activeTab === ['"]actions['"]/);
   for (const toolId of ['SP03', 'SP04', 'SP05', 'SP06', 'SP08', 'SP09']) {
-    assert.doesNotMatch(source, new RegExp(`handleLaunchTool\(['"]${toolId}['"]\)`));
+    assert.equal(source.includes(`handleLaunchTool('${toolId}')`), false);
+    assert.equal(source.includes(`handleLaunchTool("${toolId}")`), false);
   }
   assert.match(source, /data-readonly-tool="SP01"/);
   assert.match(source, /data-readonly-tool="SP02"/);
