@@ -26,6 +26,7 @@ test('Dockview adapter owns layout only and preserves existing KNOUX children', 
   assert.match(shell, /prefix: 'knoux-sonar'/);
   assert.match(shell, /prefix: 'knoux-programs'/);
   assert.match(shell, /prefix: 'knoux-software'/);
+  assert.match(shell, /prefix: 'knoux-postinstall'/);
   assert.match(shell, /prefix: 'knoux-developer'[\s\S]*explorerWidth: 230[\s\S]*contextWidth: 270/);
   assert.match(shell, /\$\{panelText\.prefix\}-explorer/);
   assert.match(shell, /\$\{panelText\.prefix\}-center/);
@@ -92,7 +93,7 @@ test('Programs migrates only its service-mode surface into Dockview and keeps on
   const css = read('src/components/workspace/knoux-dock-workspace.css');
 
   assert.match(stage, /service\.id === '04-Programs-Applications' && serviceAppMode/);
-  assert.match(stage, /serviceDockWorkspace = softwareDockEnabled \? 'software' : 'programs'/);
+  assert.match(stage, /serviceDockWorkspace = postInstallDockEnabled \? 'postinstall' : softwareDockEnabled \? 'software' : 'programs'/);
   assert.match(stage, /workspace=\{serviceDockWorkspace\}/);
   assert.match(stage, /embedded=\{serviceDockEnabled\}/);
   assert.match(stage, /data-service-dock-zone="explorer"/);
@@ -122,5 +123,22 @@ test('Software Environment migrates only its service-mode surface into Dockview 
   assert.match(shell, /Environment Tools/);
   assert.match(shell, /Environment Evidence/);
   assert.match(serviceApps, /SoftwareStation/);
+  assert.equal((stage.match(/<ServiceApps/g) ?? []).length, 1);
+});
+
+
+test('Post-Install migrates only its service-mode surface into Dockview without replacing PostInstallStation', () => {
+  const stage = read('src/components/premium/FamilyLiveStage.tsx');
+  const shell = read('src/components/workspace/KnouxDockWorkspace.tsx');
+  const serviceApps = read('src/components/ServiceApps.tsx');
+
+  assert.match(stage, /postInstallDockEnabled = service\.id === '17-PostInstall-Setup' && serviceAppMode/);
+  assert.match(stage, /serviceDockEnabled = programsDockEnabled \|\| softwareDockEnabled \|\| postInstallDockEnabled/);
+  assert.match(stage, /embedded=\{serviceDockEnabled\}/);
+  assert.match(shell, /prefix: 'knoux-postinstall'/);
+  assert.match(shell, /Provisioning Pipeline/);
+  assert.match(shell, /Provisioning Tools/);
+  assert.match(shell, /Install Evidence/);
+  assert.match(serviceApps, /PostInstallStation/);
   assert.equal((stage.match(/<ServiceApps/g) ?? []).length, 1);
 });
