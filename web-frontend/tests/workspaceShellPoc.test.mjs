@@ -25,6 +25,7 @@ test('Dockview adapter owns layout only and preserves existing KNOUX children', 
   assert.match(shell, /prefix: 'knoux-developer'/);
   assert.match(shell, /prefix: 'knoux-sonar'/);
   assert.match(shell, /prefix: 'knoux-programs'/);
+  assert.match(shell, /prefix: 'knoux-developer'[\s\S]*explorerWidth: 230[\s\S]*contextWidth: 270/);
   assert.match(shell, /\$\{panelText\.prefix\}-explorer/);
   assert.match(shell, /\$\{panelText\.prefix\}-center/);
   assert.match(shell, /\$\{panelText\.prefix\}-context/);
