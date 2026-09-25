@@ -27,3 +27,13 @@ test('navigation blank-frame classifier accepts only substantive visible route s
   assert.match(source, /meaningful=Math\.max/);
   assert.doesNotMatch(source, /meaningful=route\.length/);
 });
+
+
+test('navigation gate accepts only verified POST /api/runs RUN_IN_PROGRESS conflicts', () => {
+  assert.match(source, /responseChecks/);
+  assert.match(source, /pathname==='\/api\/runs'/);
+  assert.match(source, /rec\.error==='RUN_IN_PROGRESS'/);
+  assert.match(source, /unexpected409/);
+  assert.match(source, /expectedRunConflicts/);
+  assert.doesNotMatch(source, /ignored=.*409/);
+});
