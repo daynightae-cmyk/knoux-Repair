@@ -28,6 +28,7 @@ test('Dockview adapter owns layout only and preserves existing KNOUX children', 
   assert.match(shell, /prefix: 'knoux-software'/);
   assert.match(shell, /prefix: 'knoux-postinstall'/);
   assert.match(shell, /prefix: 'knoux-diagnostics'/);
+  assert.match(shell, /prefix: 'knoux-performance'/);
   assert.match(shell, /prefix: 'knoux-services'/);
   assert.match(shell, /prefix: 'knoux-developer'[\s\S]*explorerWidth: 230[\s\S]*contextWidth: 270/);
   assert.match(shell, /\$\{panelText\.prefix\}-explorer/);
@@ -150,7 +151,7 @@ test('Diagnostics migrates only its service-mode surface into Dockview without r
   const serviceApps = read('src/components/ServiceApps.tsx');
 
   assert.match(stage, /diagnosticsDockEnabled = service\.id === '10-Diagnostics-Reports' && serviceAppMode/);
-  assert.match(stage, /serviceDockEnabled = programsDockEnabled \|\| softwareDockEnabled \|\| postInstallDockEnabled \|\| diagnosticsDockEnabled \|\| servicesDockEnabled/);
+  assert.match(stage, /serviceDockEnabled = programsDockEnabled \|\| softwareDockEnabled \|\| postInstallDockEnabled \|\| diagnosticsDockEnabled \|\| performanceDockEnabled \|\| servicesDockEnabled/);
   assert.match(stage, /workspace=\{serviceDockWorkspace\}/);
   assert.match(stage, /embedded=\{serviceDockEnabled\}/);
   assert.match(shell, /prefix: 'knoux-diagnostics'/);
@@ -162,13 +163,32 @@ test('Diagnostics migrates only its service-mode surface into Dockview without r
 });
 
 
+test('Performance migrates only its service-mode surface into Dockview without replacing PerformanceStation', () => {
+  const stage = read('src/components/premium/FamilyLiveStage.tsx');
+  const shell = read('src/components/workspace/KnouxDockWorkspace.tsx');
+  const serviceApps = read('src/components/ServiceApps.tsx');
+
+  assert.match(stage, /performanceDockEnabled = service\.id === '08-Performance' && serviceAppMode/);
+  assert.match(stage, /serviceDockEnabled = programsDockEnabled \|\| softwareDockEnabled \|\| postInstallDockEnabled \|\| diagnosticsDockEnabled \|\| performanceDockEnabled \|\| servicesDockEnabled/);
+  assert.match(stage, /workspace=\{serviceDockWorkspace\}/);
+  assert.match(stage, /embedded=\{serviceDockEnabled\}/);
+  assert.match(shell, /prefix: 'knoux-performance'/);
+  assert.match(shell, /Performance Observatory/);
+  assert.match(shell, /Performance Tools/);
+  assert.match(shell, /Resource Evidence/);
+  assert.match(shell, /workspace === 'performance' \|\| workspace === 'services' \? 640 : 420/);
+  assert.match(serviceApps, /PerformanceStation/);
+  assert.equal((stage.match(/<ServiceApps/g) ?? []).length, 1);
+});
+
+
 test('Services & Processes migrates only its service-mode surface into Dockview without replacing ServicesStation', () => {
   const stage = read('src/components/premium/FamilyLiveStage.tsx');
   const shell = read('src/components/workspace/KnouxDockWorkspace.tsx');
   const serviceApps = read('src/components/ServiceApps.tsx');
 
   assert.match(stage, /servicesDockEnabled = service\.id === '07-Services-Processes' && serviceAppMode/);
-  assert.match(stage, /serviceDockEnabled = programsDockEnabled \|\| softwareDockEnabled \|\| postInstallDockEnabled \|\| diagnosticsDockEnabled \|\| servicesDockEnabled/);
+  assert.match(stage, /serviceDockEnabled = programsDockEnabled \|\| softwareDockEnabled \|\| postInstallDockEnabled \|\| diagnosticsDockEnabled \|\| performanceDockEnabled \|\| servicesDockEnabled/);
   assert.match(stage, /workspace=\{serviceDockWorkspace\}/);
   assert.match(stage, /embedded=\{serviceDockEnabled\}/);
   assert.match(shell, /prefix: 'knoux-services'/);
@@ -177,7 +197,7 @@ test('Services & Processes migrates only its service-mode surface into Dockview 
   assert.match(shell, /Process Evidence/);
   assert.match(shell, /explorerWidth: 140/);
   assert.match(shell, /contextWidth: 150/);
-  assert.match(shell, /workspace === 'services' \? 640 : 420/);
+  assert.match(shell, /workspace === 'performance' \|\| workspace === 'services' \? 640 : 420/);
   assert.match(serviceApps, /ServicesStation/);
   assert.equal((stage.match(/<ServiceApps/g) ?? []).length, 1);
 });
