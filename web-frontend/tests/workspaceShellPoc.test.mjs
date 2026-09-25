@@ -94,7 +94,7 @@ test('Programs migrates only its service-mode surface into Dockview and keeps on
   assert.match(stage, /service\.id === '04-Programs-Applications' && serviceAppMode/);
   assert.match(stage, /serviceDockWorkspace = softwareDockEnabled \? 'software' : 'programs'/);
   assert.match(stage, /workspace=\{serviceDockWorkspace\}/);
-  assert.match(stage, /embedded=\{programsDockEnabled\}/);
+  assert.match(stage, /embedded=\{serviceDockEnabled\}/);
   assert.match(stage, /data-service-dock-zone="explorer"/);
   assert.match(stage, /data-service-dock-zone="center"/);
   assert.match(stage, /data-service-dock-zone="context"/);
