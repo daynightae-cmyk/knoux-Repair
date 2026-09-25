@@ -175,6 +175,9 @@ test('Services & Processes migrates only its service-mode surface into Dockview 
   assert.match(shell, /System Topology/);
   assert.match(shell, /Service Tools/);
   assert.match(shell, /Process Evidence/);
+  assert.match(shell, /explorerWidth: 140/);
+  assert.match(shell, /contextWidth: 150/);
+  assert.match(shell, /workspace === 'services' \? 640 : 420/);
   assert.match(serviceApps, /ServicesStation/);
   assert.equal((stage.match(/<ServiceApps/g) ?? []).length, 1);
 });
