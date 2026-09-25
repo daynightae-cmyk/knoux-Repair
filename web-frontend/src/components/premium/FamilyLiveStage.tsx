@@ -265,7 +265,7 @@ export default function FamilyLiveStage({
         ) : serviceAppMode ? (
           <motion.div
             key={`service-app-${service.id}`}
-            className="knoux-stage-service-app"
+            className={`knoux-stage-service-app${programsDockEnabled ? ' knoux-stage-service-app--dock' : ''}`}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
