@@ -9,6 +9,7 @@ import ExecutionConfirmDialog from '../ExecutionConfirmDialog';
 import KnouxAiContextButton from '../KnouxAiContextButton';
 import ServiceApps from '../ServiceApps';
 import ToolWorkspace from './ToolWorkspace';
+import KnouxDockWorkspace from '../workspace/KnouxDockWorkspace';
 
 interface FamilyLiveStageProps {
   family: FamilyDefinition;
@@ -130,6 +131,26 @@ export default function FamilyLiveStage({
                     ? (isRtl ? 'غير حاسم' : 'INCONCLUSIVE')
                     : (isRtl ? 'جاهز' : 'READY');
 
+  const programsDockEnabled = service.id === '04-Programs-Applications' && serviceAppMode;
+  const serviceAppSurface = (
+    <ServiceApps
+      activeSection={service.legacySection}
+      tools={serviceTools}
+      toolStatuses={effectiveToolStatuses}
+      lang={lang}
+      bridgeElevated={bridgeElevated}
+      bridgeOnline={bridgeOnline}
+      onRetryBridge={onRetryBridge}
+      onToolStatus={(toolId, status) => {
+        setServiceToolStatuses(prev => ({ ...prev, [toolId]: status }));
+      }}
+      onRunTool={onRunTool}
+      onCancelTool={onCancelTool}
+      embedded={programsDockEnabled}
+    />
+  );
+
+
   return (
     <section
       id="family-tool-workspace"
@@ -250,20 +271,57 @@ export default function FamilyLiveStage({
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.16, ease: 'easeOut' }}
           >
-            <ServiceApps
-              activeSection={service.legacySection}
-              tools={serviceTools}
-              toolStatuses={effectiveToolStatuses}
-              lang={lang}
-              bridgeElevated={bridgeElevated}
-              bridgeOnline={bridgeOnline}
-              onRetryBridge={onRetryBridge}
-              onToolStatus={(toolId, status) => {
-                setServiceToolStatuses(prev => ({ ...prev, [toolId]: status }));
-              }}
-              onRunTool={onRunTool}
-              onCancelTool={onCancelTool}
-            />
+            {programsDockEnabled ? (
+              <KnouxDockWorkspace lang={lang} workspace="programs" enabled>
+                <aside className="knoux-service-dock-explorer" data-service-dock-zone="explorer">
+                  <p className="knoux-service-dock-eyebrow">{isRtl ? 'الأدوات المسجلة' : 'REGISTERED TOOLS'}</p>
+                  <strong>{isRtl ? service.name.ar : service.name.en}</strong>
+                  <ul>
+                    {serviceTools.map(tool => {
+                      const status = effectiveToolStatuses[tool.ToolId] ?? 'idle';
+                      return (
+                        <li key={tool.ToolId} data-tool-id={tool.ToolId} data-tool-status={status}>
+                          <span className="knoux-service-dock-status" data-status={status} aria-hidden="true" />
+                          <span className="knoux-service-dock-tool-id">{tool.ToolId}</span>
+                          <span>{isRtl ? tool.ArabicName : tool.EnglishName}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </aside>
+
+                <div className="knoux-service-dock-center" data-service-dock-zone="center">
+                  {serviceAppSurface}
+                </div>
+
+                <aside className="knoux-service-dock-context" data-service-dock-zone="context">
+                  <p className="knoux-service-dock-eyebrow">{isRtl ? 'حالة التشغيل' : 'RUNTIME STATE'}</p>
+                  <dl>
+                    <div>
+                      <dt>{isRtl ? 'الجسر' : 'Bridge'}</dt>
+                      <dd>{bridgeLabel}</dd>
+                    </div>
+                    <div>
+                      <dt>{isRtl ? 'الامتياز' : 'Privilege'}</dt>
+                      <dd>{bridgeElevated ? (isRtl ? 'مرتفع' : 'Elevated') : (isRtl ? 'قياسي' : 'Standard')}</dd>
+                    </div>
+                    <div>
+                      <dt>{isRtl ? 'الإجراءات المسجلة' : 'Registered actions'}</dt>
+                      <dd>{bridgeOnline === true ? serviceTools.length : '—'}</dd>
+                    </div>
+                    <div>
+                      <dt>{isRtl ? 'عمليات نشطة' : 'Running actions'}</dt>
+                      <dd>{activeSignals}</dd>
+                    </div>
+                  </dl>
+                  <p className="knoux-service-dock-note">
+                    {isRtl
+                      ? 'التشغيل والنتائج تظل مملوكة لمحطة البرامج الحالية.'
+                      : 'Execution and evidence remain owned by the existing Programs station.'}
+                  </p>
+                </aside>
+              </KnouxDockWorkspace>
+            ) : serviceAppSurface}
           </motion.div>
         ) : (
           <motion.div
