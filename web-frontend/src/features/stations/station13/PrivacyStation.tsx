@@ -77,6 +77,10 @@ const COPY = {
     detailLabel: 'Registry Detail',
     runTool: 'Execute Tool',
     adminRequired: 'Admin Required',
+    notCheckedYet: 'Not checked yet',
+    countNotReported: 'Count not reported',
+    noTerminalResult: 'No terminal result was returned.',
+    noSuccessEvidence: 'The action ended without a verified successful result.',
   },
   ar: {
     eyebrow: 'مركز التحكم بالخصوصية والبيانات',
@@ -121,6 +125,10 @@ const COPY = {
     detailLabel: 'تفاصيل السجل',
     runTool: 'تنفيذ الأداة',
     adminRequired: 'يتطلب صلاحية المسؤول',
+    notCheckedYet: 'لم يتم الفحص بعد',
+    countNotReported: 'لم يتم الإبلاغ عن العدد',
+    noTerminalResult: 'لم تُرجع نتيجة نهائية.',
+    noSuccessEvidence: 'انتهى الإجراء دون نتيجة ناجحة موثقة.',
   },
 };
 
