@@ -43,6 +43,9 @@ test('Network keeps measured layer evidence and operational cards', () => {
 test('Security stays evidence-backed and does not invent a security score', () => {
   assert.match(security, /security-evidence-station/);
   assert.match(security, /toolStatuses\[t\.ToolId\]/);
+  assert.match(security, /const canLaunchAction = useCallback/);
+  assert.match(security, /grid w-full grid-cols-2 sm:grid-cols-4/);
+  assert.doesNotMatch(security, /All monitored security baselines are actively enforced/);
   assert.match(css, /security-evidence-station[\s\S]*radial-gradient/);
   assert.doesNotMatch(css, /--(?:security-)?score\s*:/i);
   assert.doesNotMatch(css, /secure\s*:\s*100/i);
