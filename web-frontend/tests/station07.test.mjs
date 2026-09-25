@@ -115,6 +115,21 @@ test('Station 07: parseProcessesInventory parses metrics and categorizes process
   assert.equal(parsed[2].responding, false);
 });
 
+test('Station 07: parsers accept canonical SP01 and SP02 output schemas', () => {
+  const services = model.parseServicesInventory([{ Name: 'Spooler', State: 'Running', StartMode: 'Auto' }]);
+  assert.equal(services[0].status, 'Running');
+  const processes = model.parseProcessesInventory([{ Name: 'System', PID: 4, MemMB: 20, CPUSec: 120 }]);
+  assert.equal(processes[0].pid, 4);
+  assert.equal(processes[0].memoryMB, 20);
+  assert.equal(processes[0].cpuSeconds, 120);
+  assert.equal(processes[0].responding, null);
+});
+
+test('Station 07: SP01 and SP02 scripts expose canonical evidence rows', () => {
+  assert.match(readRepo('07-Services-Processes/SP01-ListServices.ps1'), /Add-Member -NotePropertyName Evidence/);
+  assert.match(readRepo('07-Services-Processes/SP02-AnalyzeProcesses.ps1'), /Add-Member -NotePropertyName Evidence/);
+});
+
 test('Station 07: isProcessProtected strictly defends Windows critical processes', () => {
   assert.equal(model.isProcessProtected('System'), true);
   assert.equal(model.isProcessProtected('csrss.exe'), true);
@@ -152,6 +167,12 @@ test('Station 07: calculateServiceTopology computes accurate counts without simu
   assert.equal(topo.manual, 1);
   assert.equal(topo.disabled, 1);
   assert.equal(topo.attentionCount, 1); // s2 is Automatic but Stopped
+  const mixed = model.calculateServiceTopology([
+    { name: 'unknown', displayName: 'Unknown', status: 'Unknown', startType: 'Automatic', isProtected: false, dependentCount: 0, blastRadius: 'LOW' },
+    { name: 'paused', displayName: 'Paused', status: 'Paused', startType: 'Manual', isProtected: false, dependentCount: 0, blastRadius: 'LOW' },
+  ]);
+  assert.equal(mixed.total, 2);
+  assert.equal(mixed.stopped, 0);
 });
 
 test('Station 07: filterServices and filterProcesses filter accurately', () => {
@@ -187,4 +208,36 @@ test('Station 07: ServiceApps routes activeSection services directly to Services
   assert.match(serviceAppsCode, /import\s+ServicesStation\s+from/);
   assert.match(serviceAppsCode, /activeSection === ['"]services['"]/);
   assert.match(serviceAppsCode, /<ServicesStation/);
+});
+
+test('Station 07: evidence state prevents a false zero before real evidence', () => {
+  const source = readWeb('src/features/stations/station07/ServicesStation.tsx');
+  const hero = readWeb('src/features/stations/station07/ServicesHeroVisual.tsx');
+  assert.match(source, /hasServiceEvidence \? topology\.running : ['"]—['"]/);
+  assert.match(source, /data-services-evidence=\{baseline\.serviceEvidence\?\.source \?\? \(hasServiceInventory \? ['"]SP01['"] : ['"]unchecked['"]\)\}/);
+  assert.match(hero, /hasEvidence = false/);
+  assert.match(hero, /hasEvidence && Boolean\(topology\)/);
+  assert.match(hero, /hasTopologyEvidence \? `\$\{running\} Running` : ['"]UNKNOWN['"]/);
+});
+
+test('Station 07: SP11 review subsets are not loaded as full inventories', () => {
+  const source = readWeb('src/features/stations/station07/ServicesStation.tsx');
+  assert.doesNotMatch(source, /parseServicesInventory\(res\.preview\.Services\.AutomaticStoppedForReview\)/);
+  assert.doesNotMatch(source, /parseProcessesInventory\(res\.preview\.Processes\.TopMemory\)/);
+  assert.match(source, /data-service-inventory-state=\{hasServiceInventory \? ['"]complete['"] : ['"]preview['"]\}/);
+  assert.match(source, /attentionKnown: false/);
+  assert.match(source, /data-process-inventory-state=\{hasProcessInventory \? ['"]complete['"] : ['"]preview['"]\}/);
+});
+
+test('Station 07: customer UI exposes only read-only inventory actions', () => {
+  const source = readWeb('src/features/stations/station07/ServicesStation.tsx');
+  assert.doesNotMatch(source, /activeTab === ['"]actions['"]/);
+  for (const toolId of ['SP03', 'SP04', 'SP05', 'SP06', 'SP08', 'SP09']) {
+    assert.equal(source.includes(`handleLaunchTool('${toolId}')`), false);
+    assert.equal(source.includes(`handleLaunchTool("${toolId}")`), false);
+  }
+  assert.match(source, /data-readonly-tool="SP01"/);
+  assert.match(source, /data-readonly-tool="SP02"/);
+  assert.match(source, /handleLaunchTool\(['"]SP07['"]\)/);
+  assert.match(source, /handleLaunchTool\(['"]SP10['"]\)/);
 });

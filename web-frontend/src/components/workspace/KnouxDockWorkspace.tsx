@@ -23,7 +23,7 @@ interface WorkspaceSlotState {
   slots: Record<SlotName, ReactNode>;
 }
 
-type WorkspaceKind = 'developer' | 'sonar' | 'programs' | 'software' | 'postinstall' | 'diagnostics';
+type WorkspaceKind = 'developer' | 'sonar' | 'programs' | 'software' | 'postinstall' | 'diagnostics' | 'services';
 
 interface KnouxDockWorkspaceProps {
   lang: 'en' | 'ar';
@@ -155,7 +155,20 @@ export default function KnouxDockWorkspace({
                 contextMin: 170,
                 contextMax: 300,
               }
-            : {
+            : workspace === 'services'
+              ? {
+                  prefix: 'knoux-services',
+                  center: lang === 'ar' ? 'طوبولوجيا النظام' : 'System Topology',
+                  explorer: lang === 'ar' ? 'أدوات الخدمات' : 'Service Tools',
+                  context: lang === 'ar' ? 'أدلة العمليات' : 'Process Evidence',
+                  explorerWidth: 140,
+                  explorerMin: 120,
+                  explorerMax: 220,
+                  contextWidth: 150,
+                  contextMin: 130,
+                  contextMax: 220,
+                }
+              : {
           prefix: 'knoux-developer',
           center: lang === 'ar' ? 'مساحة المطور' : 'Developer Workspace',
           explorer: lang === 'ar' ? 'المستكشف' : 'Explorer',
@@ -173,7 +186,7 @@ export default function KnouxDockWorkspace({
       id: `${panelText.prefix}-center`,
       component: 'center',
       title: panelText.center,
-      minimumWidth: 420,
+      minimumWidth: workspace === 'services' ? 640 : 420,
       minimumHeight: 260,
       renderer: 'always',
       tabComponent: 'locked',

@@ -1,18 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity, Cpu, Sparkles, RefreshCw, Layers,
-  FileText, Search, LockKeyhole, Play, Square,
-  Network, ShieldCheck, Terminal
+  FileText, Search, Play, Square,
+  Network, ShieldCheck
 } from 'lucide-react';
-import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../../lib/api';
+import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions, OperationsPreview } from '../../../lib/api';
 import { api } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
-import { pickName } from '../../../lib/i18n';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
 import { StationErrorBoundary, StationOfflineState } from '../_shared';
 import { startExecution, pollExecution } from '../_shared/StationExecutionController';
 import {
-  type ServiceItem, type ProcessItem, type StationHistoryEntry,
+  type ServiceItem, type ProcessItem, type ServiceTopology, type StationHistoryEntry,
   parseServicesInventory, parseProcessesInventory, calculateServiceTopology,
   filterServices, filterProcesses, stationTools, outcomeFromRun
 } from './servicesModel';
@@ -28,21 +27,22 @@ export interface ServicesStationProps {
   onToolStatus: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
 }
 
-type TabKey = 'overview' | 'services' | 'processes' | 'dependencies' | 'actions' | 'report' | 'history';
+type TabKey = 'overview' | 'services' | 'processes' | 'dependencies' | 'report' | 'history';
+type ServiceEvidence = { source: 'SP11' | 'SP01'; topology: ServiceTopology; attentionKnown: boolean };
+type BaselineState = { serviceEvidence: ServiceEvidence | null; processTotal: number | null };
 
 const COPY = {
   en: {
     eyebrow: 'SERVICE OPERATIONS CENTER',
     title: 'Service Operations Center',
-    subtitle: 'Real-time Windows services topology, process monitoring, dependency tracing, and repair.',
+    subtitle: 'Read-only Windows service inventories, process monitoring, and dependency evidence.',
     tabOverview: 'Overview',
     tabServices: 'Services',
     tabProcesses: 'Processes',
     tabDependencies: 'Dependencies',
-    tabActions: 'Repairs & Operations',
     tabReport: 'Report',
     tabHistory: 'History',
-    scanAction: 'Refresh Operations Data',
+    scanAction: 'Scan Service Inventory',
     scanning: 'Querying service states...',
     runningServices: 'Running Services',
     stoppedServices: 'Stopped Services',
@@ -62,9 +62,7 @@ const COPY = {
     highMemoryFilter: 'High Memory',
     userFilter: 'User Apps',
     blastRadius: 'Blast Radius',
-    startAction: 'Execute Action',
-    adminRequired: 'Administrator elevation required for this action',
-    emptyHistory: 'No service actions executed yet during this session.',
+    emptyHistory: 'No read-only inventory or report actions executed yet during this session.',
     dependenciesTitle: 'Service Dependency Graph & Blast Radius',
     dependenciesSubtitle: 'Analyze what other services depend on a target before stopping or restarting.',
     queryDependencies: 'Inspect Service Dependencies',
@@ -72,12 +70,11 @@ const COPY = {
   ar: {
     eyebrow: 'مركز عمليات الخدمات والعمليات',
     title: 'مركز عمليات الخدمات والعمليات',
-    subtitle: 'طوبولوجيا خدمات ويندوز الحية، مراقبة العمليات، تتبع التبعيات، وإجراءات الإصلاح المعتمدة.',
+    subtitle: 'جرد خدمات ويندوز للقراءة فقط، مراقبة العمليات، وأدلة التبعيات.',
     tabOverview: 'نظرة عامة',
     tabServices: 'الخدمات',
     tabProcesses: 'العمليات',
     tabDependencies: 'التبعيات والارتباطات',
-    tabActions: 'الإصلاحات والعمليات',
     tabReport: 'التقرير',
     tabHistory: 'السجل',
     scanAction: 'تحديث بيانات العمليات',
@@ -100,9 +97,7 @@ const COPY = {
     highMemoryFilter: 'استهلاك ذاكرة مرتفع',
     userFilter: 'تطبيقات المستخدم',
     blastRadius: 'نطاق الأثر',
-    startAction: 'بدء الإجراء',
-    adminRequired: 'يتطلب هذا الإجراء صلاحيات المدير (Administrator)',
-    emptyHistory: 'لم يتم تنفيذ أي إجراء في الخدمات خلال هذه الجلسة حتى الآن.',
+    emptyHistory: 'لم يتم تنفيذ أي جرد أو تقرير للقراءة فقط خلال هذه الجلسة حتى الآن.',
     dependenciesTitle: 'مخطط تبعيات الخدمات ونطاق الأثر',
     dependenciesSubtitle: 'تحليل الخدمات التي تعتمد على خدمة معينة قبل إيقافها أو إعادة تشغيلها لمنع انقطاع النظام.',
     queryDependencies: 'فحص تبعيات الخدمات',
@@ -112,8 +107,6 @@ const COPY = {
 export const ServicesStation: React.FC<ServicesStationProps> = ({
   lang,
   tools,
-  toolStatuses,
-  bridgeElevated,
   bridgeOnline = null,
   onRetryBridge,
   onToolStatus,
@@ -128,27 +121,49 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
   const [processQuery, setProcessQuery] = useState<string>('');
   const [serviceFilter, setServiceFilter] = useState<'all' | 'running' | 'stopped' | 'automatic' | 'disabled'>('all');
   const [processFilter, setProcessFilter] = useState<'all' | 'notResponding' | 'highMemory' | 'user'>('all');
+  const [baseline, setBaseline] = useState<BaselineState>({ serviceEvidence: null, processTotal: null });
+  const [hasServiceInventory, setHasServiceInventory] = useState(false);
+  const [hasProcessInventory, setHasProcessInventory] = useState(false);
   const [pendingTool, setPendingTool] = useState<{ tool: BridgeTool; mode: ExecutionMode } | null>(null);
 
   const stationToolsList = useMemo(() => stationTools(tools), [tools]);
 
-  // Load baseline snapshot from api.operationsPreview()
   const loadBaseline = useCallback(async () => {
     try {
       const res = await api.operationsPreview();
-      if (res?.preview) {
-        if (Array.isArray(res.preview.Services?.AutomaticStoppedForReview)) {
-          // Merge preview services
-          const parsed = parseServicesInventory(res.preview.Services.AutomaticStoppedForReview);
-          setServices(parsed);
-        }
-        if (Array.isArray(res.preview.Processes?.TopMemory)) {
-          const parsedProc = parseProcessesInventory(res.preview.Processes.TopMemory);
-          setProcesses(parsedProc);
-        }
-      }
+      const preview: OperationsPreview | undefined = res?.preview;
+      if (!preview) return;
+      const serviceCounts = preview.Services;
+      const countsAreValid = [serviceCounts?.Total, serviceCounts?.Running, serviceCounts?.Stopped, serviceCounts?.Automatic]
+        .every((value) => typeof value === 'number' && Number.isFinite(value) && value >= 0)
+        && serviceCounts.Running <= serviceCounts.Total
+        && serviceCounts.Stopped <= serviceCounts.Total
+        && serviceCounts.Running + serviceCounts.Stopped <= serviceCounts.Total
+        && serviceCounts.Automatic <= serviceCounts.Total;
+      const serviceEvidence = countsAreValid
+        ? {
+            source: 'SP11' as const,
+            topology: {
+              total: serviceCounts.Total,
+              running: serviceCounts.Running,
+              stopped: serviceCounts.Stopped,
+              automatic: serviceCounts.Automatic,
+              manual: 0,
+              disabled: 0,
+              attentionCount: Array.isArray(serviceCounts.AutomaticStoppedForReview)
+                ? serviceCounts.AutomaticStoppedForReview.length
+                : 0,
+            },
+            attentionKnown: false,
+          }
+        : null;
+      setBaseline({
+        serviceEvidence,
+        processTotal: typeof preview.Processes?.Total === 'number' && Number.isFinite(preview.Processes.Total) && preview.Processes.Total >= 0
+          ? preview.Processes.Total
+          : null,
+      });
     } catch {
-      // handled by bridgeOnline
     }
   }, []);
 
@@ -172,7 +187,13 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
         onToolStatus('SP01', entry.status === 'SUCCESS' ? 'success' : 'error');
         const rawItems = (poll.result.evidence as any)?.Items || (poll.result.rawOutput as any)?.Items;
         if (Array.isArray(rawItems)) {
-          setServices(parseServicesInventory(rawItems));
+          const inventory = parseServicesInventory(rawItems);
+          setServices(inventory);
+          setHasServiceInventory(true);
+          setBaseline((current) => ({
+            ...current,
+            serviceEvidence: { source: 'SP01', topology: calculateServiceTopology(inventory), attentionKnown: true },
+          }));
         } else {
           await loadBaseline();
         }
@@ -201,6 +222,8 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
         const rawItems = (poll.result.evidence as any)?.Items || (poll.result.rawOutput as any)?.Items;
         if (Array.isArray(rawItems)) {
           setProcesses(parseProcessesInventory(rawItems));
+          setHasProcessInventory(true);
+          setBaseline((current) => ({ ...current, processTotal: rawItems.length }));
         } else {
           await loadBaseline();
         }
@@ -234,15 +257,16 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
         const entry = outcomeFromRun(tool, poll.result, lang);
         setHistory((prev) => [entry, ...prev]);
         onToolStatus(tool.ToolId, entry.status === 'SUCCESS' ? 'success' : 'error');
-        await loadBaseline();
       }
     } catch {
       onToolStatus(tool.ToolId, 'error');
     }
   };
 
-  // Calculations
-  const topology = useMemo(() => calculateServiceTopology(services), [services]);
+  const topology = hasServiceInventory
+    ? calculateServiceTopology(services)
+    : baseline.serviceEvidence?.topology ?? calculateServiceTopology(services);
+  const hasServiceEvidence = hasServiceInventory || baseline.serviceEvidence !== null;
   const filteredServicesList = useMemo(() => filterServices(services, serviceQuery, serviceFilter), [services, serviceQuery, serviceFilter]);
   const filteredProcessesList = useMemo(() => filterProcesses(processes, processQuery, processFilter), [processes, processQuery, processFilter]);
 
@@ -288,7 +312,6 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
             { id: 'services', label: t.tabServices, icon: Layers },
             { id: 'processes', label: t.tabProcesses, icon: Cpu },
             { id: 'dependencies', label: t.tabDependencies, icon: Network },
-            { id: 'actions', label: t.tabActions, icon: Terminal },
             { id: 'report', label: t.tabReport, icon: FileText },
             { id: 'history', label: t.tabHistory, icon: Activity },
           ].map((tab) => {
@@ -322,81 +345,88 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
                   <Sparkles size={12} />
                   <span>{lang === 'ar' ? 'كوكبة الخدمات والعمليات' : 'Service Topology Constellation'}</span>
                 </div>
-                <h2 className="text-xl font-bold text-white tracking-wide">
-                  {topology.running} {lang === 'ar' ? 'خدمة تعمل حالياً' : 'Services Active'}
+                <h2 className="text-xl font-bold text-white tracking-wide" data-services-evidence={baseline.serviceEvidence?.source ?? (hasServiceInventory ? 'SP01' : 'unchecked')}>
+                  {hasServiceEvidence ? topology.running : '—'} {hasServiceEvidence
+                    ? (lang === 'ar' ? 'خدمة تعمل حالياً' : 'Services Active')
+                    : (lang === 'ar' ? 'لم يتم التحقق بعد' : 'Not checked yet')}
                 </h2>
                 <p className="text-xs text-slate-300 max-w-md leading-relaxed">
-                  {lang === 'ar'
-                    ? 'تعكس هذه الكوكبة خريطة الخدمات الحية، وتفصل بين الخدمات المحمية التابعة للنظام وتلك التي تحتاج انتباهاً.'
-                    : 'This constellation maps running and stopped services from real machine state, isolating critical protected system services.'}
+                  {hasServiceEvidence
+                    ? (baseline.serviceEvidence?.source === 'SP01'
+                      ? (lang === 'ar' ? 'جرد خدمات كامل للقراءة فقط من الفحص الصريح.' : 'Complete read-only service inventory from the explicit scan.')
+                      : (lang === 'ar' ? 'ملخص للقراءة فقط من لقطة SP11. الجرد الكامل متاح بعد فحص الخدمات.' : 'Read-only aggregate snapshot from SP11. A full inventory is available after an explicit service scan.'))
+                    : (lang === 'ar'
+                      ? 'لم يتم فحص حالة الخدمات على هذا الجهاز بعد.'
+                      : 'Service state has not been checked on this machine yet.')}
                 </p>
 
-                <div className="grid grid-cols-3 gap-3 mt-2 font-mono">
+                <div className="grid grid-cols-3 gap-3 mt-2 font-mono" data-services-summary={hasServiceInventory ? 'full-inventory' : hasServiceEvidence ? 'aggregate' : 'unchecked'}>
                   <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
                     <span className="text-[10px] text-slate-400 block">{t.runningServices}</span>
-                    <strong className="text-base text-emerald-400">{topology.running}</strong>
+                    <strong className="text-base text-emerald-400">{hasServiceEvidence ? topology.running : '—'}</strong>
                   </div>
                   <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
                     <span className="text-[10px] text-slate-400 block">{t.stoppedServices}</span>
-                    <strong className="text-base text-slate-300">{topology.stopped}</strong>
+                    <strong className="text-base text-slate-300">{hasServiceEvidence ? topology.stopped : '—'}</strong>
                   </div>
                   <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
                     <span className="text-[10px] text-slate-400 block">{t.attentionCount}</span>
-                    <strong className={`text-base ${topology.attentionCount > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                      {topology.attentionCount}
+                    <strong className={`text-base ${hasServiceEvidence && baseline.serviceEvidence?.attentionKnown && topology.attentionCount > 0 ? 'text-amber-400' : 'text-slate-300'}`}>
+                      {hasServiceEvidence && baseline.serviceEvidence?.attentionKnown ? topology.attentionCount : '—'}
                     </strong>
                   </div>
                 </div>
               </div>
 
               <div className="flex-1 flex items-center justify-center z-10 w-full">
-                <ServicesHeroVisual lang={lang} stage={isScanning ? 'scanning' : 'idle'} topology={topology} />
+                <ServicesHeroVisual lang={lang} stage={isScanning ? 'scanning' : 'idle'} topology={topology} hasEvidence={hasServiceEvidence} attentionKnown={baseline.serviceEvidence?.attentionKnown ?? hasServiceInventory} />
               </div>
             </div>
 
-            {/* Quick Operations Recommender */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="glass-panel p-4 rounded-xl border border-white/10 flex flex-col justify-between gap-3">
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs text-amber-400 font-bold">SP03</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] bg-indigo-500/20 text-indigo-300">SYSTEM_REPAIR</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300">READ ONLY</span>
                   </div>
                   <strong className="text-sm text-white block mt-1">
-                    {lang === 'ar' ? 'إعادة تشغيل مستكشف ويندوز (Windows Explorer)' : 'Restart Windows Explorer'}
+                    {lang === 'ar' ? 'جرد الخدمات الكامل' : 'Scan Full Service Inventory'}
                   </strong>
                   <p className="text-xs text-slate-400 mt-1">
-                    {lang === 'ar' ? 'إنعاش واجهة سطح المكتب وشريط المهام دون إعادة تشغيل كامل الجهاز.' : 'Refresh shell taskbar and desktop smoothly without a full reboot.'}
+                    {lang === 'ar' ? 'قراءة حالة كل خدمة دون تغيير إعدادات النظام.' : 'Read every service status and start mode without changing system settings.'}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleLaunchTool('SP03')}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-amber-600 hover:bg-amber-500 transition-all self-end cursor-pointer"
+                  data-readonly-tool="SP01"
+                  onClick={runServicesScan}
+                  disabled={isScanning}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-amber-600 hover:bg-amber-500 disabled:opacity-40 transition-all self-end cursor-pointer"
                 >
-                  {t.startAction}
+                  {lang === 'ar' ? 'فحص الخدمات' : 'Scan Services'}
                 </button>
               </div>
 
               <div className="glass-panel p-4 rounded-xl border border-white/10 flex flex-col justify-between gap-3">
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs text-amber-400 font-bold">SP04</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] bg-indigo-500/20 text-indigo-300">SYSTEM_REPAIR</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300">READ ONLY</span>
                   </div>
                   <strong className="text-sm text-white block mt-1">
-                    {lang === 'ar' ? 'إنهاء العمليات المتجمدة (Cleanup Hanging Processes)' : 'Cleanup Hanging Processes'}
+                    {lang === 'ar' ? 'جرد العمليات الكامل' : 'Scan Full Process Inventory'}
                   </strong>
                   <p className="text-xs text-slate-400 mt-1">
-                    {lang === 'ar' ? 'إنهاء العمليات التي لا تستجيب بأمان مع حماية عمليات النظام الحرجة.' : 'Safely terminate non-responsive processes while strictly protecting system services.'}
+                    {lang === 'ar' ? 'قراءة بيانات المعالجة والذاكرة دون إنهاء أي عملية.' : 'Read CPU and memory telemetry without terminating any process.'}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleLaunchTool('SP04')}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-amber-600 hover:bg-amber-500 transition-all self-end cursor-pointer"
+                  data-readonly-tool="SP02"
+                  onClick={runProcessesScan}
+                  disabled={isScanning}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-amber-600 hover:bg-amber-500 disabled:opacity-40 transition-all self-end cursor-pointer"
                 >
-                  {t.startAction}
+                  {lang === 'ar' ? 'فحص العمليات' : 'Scan Processes'}
                 </button>
               </div>
             </div>
@@ -456,6 +486,14 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
               </div>
             </div>
 
+            <p className="text-xs text-slate-400" data-service-inventory-state={hasServiceInventory ? 'complete' : 'preview'}>
+              {hasServiceInventory
+                ? (lang === 'ar' ? 'جرد كامل من فحص SP01 للقراءة فقط.' : 'Complete read-only inventory from the explicit SP01 scan.')
+                : (lang === 'ar'
+                  ? 'لم يتم جرد الخدمات. تعروض SP11 إجمالياً للقراءة فقط ومجموعة مراجعة جزئية وليست قائمة كاملة.'
+                  : 'Services have not been inventoried. SP11 is a read-only aggregate snapshot with a partial review subset, not a complete service list.')}
+            </p>
+
             {/* Services Table */}
             <div className="overflow-x-auto max-h-96 overflow-y-auto font-mono text-xs">
               <table className="w-full text-left text-slate-300">
@@ -469,6 +507,18 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
+                  {!hasServiceInventory && (
+                    <tr>
+                      <td colSpan={5} className="py-8 px-3 text-center text-slate-400">
+                        {lang === 'ar' ? 'لم يتم فحص الخدمات بعد. اضغط فحص الخدمات لجرد كامل.' : 'Services not checked yet. Run the full service scan to populate this inventory.'}
+                      </td>
+                    </tr>
+                  )}
+                  {hasServiceInventory && filteredServicesList.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-8 px-3 text-center text-slate-400">No services match this filter.</td>
+                    </tr>
+                  )}
                   {filteredServicesList.map((s) => (
                     <tr key={s.name} className="hover:bg-white/5">
                       <td className="py-2.5 px-3">
@@ -569,7 +619,14 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
               </div>
             </div>
 
-            {/* Processes Table */}
+            <p className="text-xs text-slate-400" data-process-inventory-state={hasProcessInventory ? 'complete' : 'preview'}>
+              {hasProcessInventory
+                ? (lang === 'ar' ? 'جرد كامل من فحص SP02 للقراءة فقط.' : 'Complete read-only inventory from the explicit SP02 scan.')
+                : (lang === 'ar'
+                  ? `لقطة SP11 للقراءة فقط: ${baseline.processTotal ?? '—'} عملية. لم يتم تحميل قائمة العمليات الكاملة.`
+                  : `Read-only SP11 snapshot: ${baseline.processTotal ?? '—'} processes. The full process list has not been loaded.`)}
+            </p>
+
             <div className="overflow-x-auto max-h-96 overflow-y-auto font-mono text-xs">
               <table className="w-full text-left text-slate-300">
                 <thead className="border-b border-white/10 text-slate-400 uppercase text-[10px] sticky top-0 bg-slate-950/90 backdrop-blur-sm">
@@ -583,6 +640,18 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
+                  {!hasProcessInventory && (
+                    <tr>
+                      <td colSpan={6} className="py-8 px-3 text-center text-slate-400">
+                        {lang === 'ar' ? 'لم يتم فحص العمليات بعد. اضغط فحص العمليات لجرد كامل.' : 'Processes not checked yet. Run the full process scan to populate this inventory.'}
+                      </td>
+                    </tr>
+                  )}
+                  {hasProcessInventory && filteredProcessesList.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-8 px-3 text-center text-slate-400">No processes match this filter.</td>
+                    </tr>
+                  )}
                   {filteredProcessesList.map((p) => (
                     <tr key={`${p.name}-${p.pid}`} className="hover:bg-white/5">
                       <td className="py-2.5 px-3 text-slate-500">{p.pid}</td>
@@ -603,8 +672,10 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
                           <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px]">
                             HUNG
                           </span>
-                        ) : (
+                        ) : p.responding === true ? (
                           <span className="text-emerald-400 text-[11px]">OK</span>
+                        ) : (
+                          <span className="text-slate-400 text-[11px]">Unknown</span>
                         )}
                       </td>
                       <td className="py-2.5 px-3 text-slate-400 capitalize">{p.category}</td>
@@ -646,58 +717,7 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
           </div>
         )}
 
-        {/* Tab 5: ACTIONS & REPAIRS */}
-        {activeTab === 'actions' && (
-          <div className="services-operation-tool-grid grid grid-cols-1 md:grid-cols-2 gap-4">
-            {stationToolsList
-              .filter((tool) => ['SP03', 'SP04', 'SP05', 'SP06', 'SP08', 'SP09'].includes(tool.ToolId))
-              .map((tool) => {
-                const status = toolStatuses[tool.ToolId];
-                const isRunning = status === 'running';
-                const needsAdmin = tool.RequiresAdmin && !bridgeElevated;
-
-                return (
-                  <div
-                    key={tool.ToolId}
-                    className="services-operation-tool-card p-4 rounded-xl bg-white/5 border border-white/10 flex flex-col justify-between gap-3 hover:border-amber-500/30 transition-all"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/20 text-indigo-300">
-                          {tool.RiskLevel}
-                        </span>
-                      </div>
-                      <strong className="text-sm text-white block mt-1">
-                        {pickName(tool, lang)}
-                      </strong>
-                      <p className="text-xs text-slate-400 mt-1">{tool.Purpose}</p>
-                    </div>
-
-                    {needsAdmin && (
-                      <div className="flex items-center gap-1.5 text-amber-400 text-[11px]">
-                        <LockKeyhole size={13} />
-                        <span>{t.adminRequired}</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
-                      <button
-                        type="button"
-                        disabled={needsAdmin || isRunning}
-                        onClick={() => handleLaunchTool(tool.ToolId)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-amber-600 hover:bg-amber-500 disabled:opacity-40 transition-all flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <RefreshCw size={13} className={isRunning ? 'animate-spin' : ''} />
-                        <span>{isRunning ? (lang === 'ar' ? 'جارٍ التنفيذ...' : 'Running...') : t.startAction}</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-
-        {/* Tab 6: REPORT */}
+        {/* Tab 5: REPORT */}
         {activeTab === 'report' && (
           <div className="glass-panel p-5 rounded-2xl border border-white/10 flex flex-col gap-4">
             <div className="flex items-center justify-between">
@@ -715,15 +735,27 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
               </button>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-white/5 font-mono text-xs text-slate-300 space-y-2">
-              <p>SERVICE OPERATIONS AUDIT SUMMARY</p>
+            <div className="p-4 rounded-xl bg-slate-900/60 border border-white/5 font-mono text-xs text-slate-300 space-y-2" data-report-evidence={hasServiceInventory ? 'full-inventory' : hasServiceEvidence ? 'read-only-aggregate' : 'unchecked'}>
+              <p>SERVICE OPERATIONS EVIDENCE SUMMARY</p>
               <p>----------------------------------------</p>
-              <p>Total Services Enumerated: {topology.total}</p>
-              <p>Running Services: {topology.running}</p>
-              <p>Stopped Services: {topology.stopped}</p>
-              <p>Automatic Start Services: {topology.automatic}</p>
-              <p>Automatic Stopped (Needs Review): {topology.attentionCount}</p>
-              <p>Active Processes Monitored: {processes.length}</p>
+              {hasServiceInventory ? (
+                <>
+                  <p>Full SP01 service inventory: {topology.total} enumerated</p>
+                  <p>Running Services: {topology.running}</p>
+                  <p>Stopped Services: {topology.stopped}</p>
+                  <p>Automatic Start Services: {topology.automatic}</p>
+                  <p>Automatic Stopped (Needs Review): {topology.attentionCount}</p>
+                </>
+              ) : (
+                <>
+                  <p>Read-only SP11 service aggregates: {hasServiceEvidence ? topology.total : 'not checked'}</p>
+                  <p>Running Services: {hasServiceEvidence ? topology.running : '—'}</p>
+                  <p>Stopped Services: {hasServiceEvidence ? topology.stopped : '—'}</p>
+                  <p>Automatic Start Services: {hasServiceEvidence ? topology.automatic : '—'}</p>
+                  <p>Automatic Stopped (Review Subset): {hasServiceEvidence && baseline.serviceEvidence?.attentionKnown ? topology.attentionCount : '—'}</p>
+                </>
+              )}
+              <p>{hasProcessInventory ? `Full SP02 process inventory: ${processes.length}` : `Read-only SP11 process aggregate: ${baseline.processTotal ?? '—'}`}</p>
             </div>
           </div>
         )}

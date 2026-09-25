@@ -28,6 +28,7 @@ test('Dockview adapter owns layout only and preserves existing KNOUX children', 
   assert.match(shell, /prefix: 'knoux-software'/);
   assert.match(shell, /prefix: 'knoux-postinstall'/);
   assert.match(shell, /prefix: 'knoux-diagnostics'/);
+  assert.match(shell, /prefix: 'knoux-services'/);
   assert.match(shell, /prefix: 'knoux-developer'[\s\S]*explorerWidth: 230[\s\S]*contextWidth: 270/);
   assert.match(shell, /\$\{panelText\.prefix\}-explorer/);
   assert.match(shell, /\$\{panelText\.prefix\}-center/);
@@ -94,7 +95,7 @@ test('Programs migrates only its service-mode surface into Dockview and keeps on
   const css = read('src/components/workspace/knoux-dock-workspace.css');
 
   assert.match(stage, /service\.id === '04-Programs-Applications' && serviceAppMode/);
-  assert.match(stage, /const serviceDockWorkspace = diagnosticsDockEnabled/);
+  assert.match(stage, /const serviceDockWorkspace = servicesDockEnabled/);
   assert.match(stage, /workspace=\{serviceDockWorkspace\}/);
   assert.match(stage, /embedded=\{serviceDockEnabled\}/);
   assert.match(stage, /data-service-dock-zone="explorer"/);
@@ -117,7 +118,6 @@ test('Software Environment migrates only its service-mode surface into Dockview 
   const serviceApps = read('src/components/ServiceApps.tsx');
 
   assert.match(stage, /softwareDockEnabled = service\.id === '16-Software-Environment' && serviceAppMode/);
-  assert.match(stage, /softwareDockEnabled = service\.id === '16-Software-Environment' && serviceAppMode/);
   assert.match(stage, /embedded=\{serviceDockEnabled\}/);
   assert.match(shell, /prefix: 'knoux-software'/);
   assert.match(shell, /Runtime Matrix/);
@@ -133,7 +133,6 @@ test('Post-Install migrates only its service-mode surface into Dockview without 
   const shell = read('src/components/workspace/KnouxDockWorkspace.tsx');
   const serviceApps = read('src/components/ServiceApps.tsx');
 
-  assert.match(stage, /postInstallDockEnabled = service\.id === '17-PostInstall-Setup' && serviceAppMode/);
   assert.match(stage, /postInstallDockEnabled = service\.id === '17-PostInstall-Setup' && serviceAppMode/);
   assert.match(stage, /embedded=\{serviceDockEnabled\}/);
   assert.match(shell, /prefix: 'knoux-postinstall'/);
@@ -151,7 +150,7 @@ test('Diagnostics migrates only its service-mode surface into Dockview without r
   const serviceApps = read('src/components/ServiceApps.tsx');
 
   assert.match(stage, /diagnosticsDockEnabled = service\.id === '10-Diagnostics-Reports' && serviceAppMode/);
-  assert.match(stage, /serviceDockEnabled = programsDockEnabled \|\| softwareDockEnabled \|\| postInstallDockEnabled \|\| diagnosticsDockEnabled/);
+  assert.match(stage, /serviceDockEnabled = programsDockEnabled \|\| softwareDockEnabled \|\| postInstallDockEnabled \|\| diagnosticsDockEnabled \|\| servicesDockEnabled/);
   assert.match(stage, /workspace=\{serviceDockWorkspace\}/);
   assert.match(stage, /embedded=\{serviceDockEnabled\}/);
   assert.match(shell, /prefix: 'knoux-diagnostics'/);
@@ -159,5 +158,26 @@ test('Diagnostics migrates only its service-mode surface into Dockview without r
   assert.match(shell, /Diagnostic Tools/);
   assert.match(shell, /Findings & Reports/);
   assert.match(serviceApps, /DiagnosticsStation/);
+  assert.equal((stage.match(/<ServiceApps/g) ?? []).length, 1);
+});
+
+
+test('Services & Processes migrates only its service-mode surface into Dockview without replacing ServicesStation', () => {
+  const stage = read('src/components/premium/FamilyLiveStage.tsx');
+  const shell = read('src/components/workspace/KnouxDockWorkspace.tsx');
+  const serviceApps = read('src/components/ServiceApps.tsx');
+
+  assert.match(stage, /servicesDockEnabled = service\.id === '07-Services-Processes' && serviceAppMode/);
+  assert.match(stage, /serviceDockEnabled = programsDockEnabled \|\| softwareDockEnabled \|\| postInstallDockEnabled \|\| diagnosticsDockEnabled \|\| servicesDockEnabled/);
+  assert.match(stage, /workspace=\{serviceDockWorkspace\}/);
+  assert.match(stage, /embedded=\{serviceDockEnabled\}/);
+  assert.match(shell, /prefix: 'knoux-services'/);
+  assert.match(shell, /System Topology/);
+  assert.match(shell, /Service Tools/);
+  assert.match(shell, /Process Evidence/);
+  assert.match(shell, /explorerWidth: 140/);
+  assert.match(shell, /contextWidth: 150/);
+  assert.match(shell, /workspace === 'services' \? 640 : 420/);
+  assert.match(serviceApps, /ServicesStation/);
   assert.equal((stage.match(/<ServiceApps/g) ?? []).length, 1);
 });

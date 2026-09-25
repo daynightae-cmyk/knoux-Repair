@@ -135,14 +135,17 @@ export default function FamilyLiveStage({
   const softwareDockEnabled = service.id === '16-Software-Environment' && serviceAppMode;
   const postInstallDockEnabled = service.id === '17-PostInstall-Setup' && serviceAppMode;
   const diagnosticsDockEnabled = service.id === '10-Diagnostics-Reports' && serviceAppMode;
-  const serviceDockEnabled = programsDockEnabled || softwareDockEnabled || postInstallDockEnabled || diagnosticsDockEnabled;
-  const serviceDockWorkspace = diagnosticsDockEnabled
-    ? 'diagnostics'
-    : postInstallDockEnabled
-      ? 'postinstall'
-      : softwareDockEnabled
-        ? 'software'
-        : 'programs';
+  const servicesDockEnabled = service.id === '07-Services-Processes' && serviceAppMode;
+  const serviceDockEnabled = programsDockEnabled || softwareDockEnabled || postInstallDockEnabled || diagnosticsDockEnabled || servicesDockEnabled;
+  const serviceDockWorkspace = servicesDockEnabled
+    ? 'services'
+    : diagnosticsDockEnabled
+      ? 'diagnostics'
+      : postInstallDockEnabled
+        ? 'postinstall'
+        : softwareDockEnabled
+          ? 'software'
+          : 'programs';
   const serviceAppSurface = (
     <ServiceApps
       activeSection={service.legacySection}
@@ -326,21 +329,25 @@ export default function FamilyLiveStage({
                     </div>
                   </dl>
                   <p className="knoux-service-dock-note">
-                    {diagnosticsDockEnabled
+                    {servicesDockEnabled
                       ? (isRtl
-                          ? 'القياسات التشخيصية والأدلة والتقارير والتنفيذ تظل مملوكة لمحطة التشخيص الحالية.'
-                          : 'Diagnostic telemetry, evidence, reports, and execution remain owned by the existing Diagnostics station.')
-                      : postInstallDockEnabled
+                          ? 'بيانات الخدمات والعمليات والطوبولوجيا والتنفيذ تظل مملوكة لمحطة الخدمات والعمليات الحالية.'
+                          : 'Service, process, topology, and execution evidence remain owned by the existing Services & Processes station.')
+                      : diagnosticsDockEnabled
                         ? (isRtl
-                            ? 'بيانات التجهيز والاختيارات والتنفيذ والنتائج تظل مملوكة لمحطة ما بعد التثبيت الحالية.'
-                            : 'Provisioning data, selections, execution, and evidence remain owned by the existing Post-Install station.')
-                        : softwareDockEnabled
+                            ? 'القياسات التشخيصية والأدلة والتقارير والتنفيذ تظل مملوكة لمحطة التشخيص الحالية.'
+                            : 'Diagnostic telemetry, evidence, reports, and execution remain owned by the existing Diagnostics station.')
+                        : postInstallDockEnabled
                           ? (isRtl
-                              ? 'بيانات البيئة والتشغيل والنتائج تظل مملوكة لمحطة بيئة البرامج الحالية.'
-                              : 'Environment data, execution, and evidence remain owned by the existing Software Environment station.')
-                          : (isRtl
-                              ? 'التشغيل والنتائج تظل مملوكة لمحطة البرامج الحالية.'
-                              : 'Execution and evidence remain owned by the existing Programs station.')}
+                              ? 'بيانات التجهيز والاختيارات والتنفيذ والنتائج تظل مملوكة لمحطة ما بعد التثبيت الحالية.'
+                              : 'Provisioning data, selections, execution, and evidence remain owned by the existing Post-Install station.')
+                          : softwareDockEnabled
+                            ? (isRtl
+                                ? 'بيانات البيئة والتشغيل والنتائج تظل مملوكة لمحطة بيئة البرامج الحالية.'
+                                : 'Environment data, execution, and evidence remain owned by the existing Software Environment station.')
+                            : (isRtl
+                                ? 'التشغيل والنتائج تظل مملوكة لمحطة البرامج الحالية.'
+                                : 'Execution and evidence remain owned by the existing Programs station.')}
                   </p>
                 </aside>
               </KnouxDockWorkspace>

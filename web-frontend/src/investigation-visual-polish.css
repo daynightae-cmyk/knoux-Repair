@@ -155,25 +155,6 @@
   box-shadow: inset 0 0 34px rgba(var(--investigation-accent-rgb), .03), 0 12px 28px rgba(0, 0, 0, .16);
 }
 
-.knoux-command-center[data-service='07-Services-Processes'] .services-operation-tool-grid {
-  align-items: stretch;
-}
-
-.knoux-command-center[data-service='07-Services-Processes'] .services-operation-tool-card {
-  min-height: 166px;
-  border-color: rgba(var(--investigation-accent-rgb), .2) !important;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(var(--investigation-accent-rgb), .07), transparent 34%),
-    radial-gradient(circle at 0% 100%, rgba(34, 211, 238, .035), transparent 38%),
-    linear-gradient(145deg, rgba(23, 24, 44, .88), rgba(3, 10, 27, .96)) !important;
-  box-shadow: inset 0 0 22px rgba(var(--investigation-accent-rgb), .025), 0 10px 24px rgba(0, 0, 0, .14);
-}
-
-.knoux-command-center[data-service='07-Services-Processes'] .services-operation-tool-card:hover {
-  border-color: rgba(var(--investigation-accent-rgb), .4) !important;
-  box-shadow: inset 0 0 22px rgba(var(--investigation-accent-rgb), .04), 0 0 22px rgba(var(--investigation-accent-rgb), .05);
-}
-
 .knoux-command-center[data-family='investigation'] button:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--investigation-accent, #38bdf8) 76%, white);
   outline-offset: 2px;
