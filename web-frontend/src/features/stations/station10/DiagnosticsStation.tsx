@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity, Cpu, HardDrive, RefreshCw, Play,
   CheckCircle2, AlertTriangle, XCircle, FileText,
-  DatabaseZap, Wrench, Clock, FileWarning
+Wrench, Clock, FileWarning
 } from 'lucide-react';
 import type { BridgeRun, BridgeTool, DiagnosticsPreview, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../../lib/api';
 import { api } from '../../../lib/api';
@@ -71,6 +71,11 @@ const COPY = {
     emptyHistory: 'No diagnostic tools executed yet during this session.',
     noProblemDevices: 'No hardware device problems detected in Device Manager.',
     noEventsRecorded: 'No critical errors recorded in the monitored window.',
+    adminRequired: 'Administrator elevation is required for this action.',
+    notCheckedYet: 'Not checked yet',
+    countNotReported: 'Count not reported',
+    noTerminalResult: 'No terminal result was returned.',
+    noSuccessEvidence: 'The action ended without a verified successful result.',
   },
   ar: {
     eyebrow: 'مركز أدلة الفحص والتشخيص',
@@ -112,6 +117,11 @@ const COPY = {
     emptyHistory: 'لم يتم تشغيل أدوات فحص بعد خلال هذه الجلسة.',
     noProblemDevices: 'لم يتم رصد أي جهاز به عطل في إدارة الأجهزة.',
     noEventsRecorded: 'لا توجد أخطاء حرجة مسجلة خلال نافذة المراقبة.',
+    adminRequired: 'يتطلب هذا الإجراء صلاحيات المسؤول.',
+    notCheckedYet: 'لم يتم الفحص بعد',
+    countNotReported: 'لم يتم الإبلاغ عن العدد',
+    noTerminalResult: 'لم تُرجع نتيجة نهائية.',
+    noSuccessEvidence: 'انتهى الإجراء دون نتيجة ناجحة موثقة.',
   },
 };
 
@@ -366,10 +376,6 @@ function DiagnosticsStationContent({
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">
                 {text.eyebrow}
-              </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                <DatabaseZap size={10} />
-                DR01–DR11
               </span>
             </div>
             <h1 className="text-2xl font-black tracking-tight text-white">{text.title}</h1>
