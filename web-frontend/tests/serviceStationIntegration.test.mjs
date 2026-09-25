@@ -19,7 +19,8 @@ test('Family command center routes an idle selected service into its canonical S
   assert.match(liveStage, /import ServiceApps from '\.\.\/ServiceApps'/);
   assert.match(liveStage, /activeSection=\{service\.legacySection\}/);
   assert.match(liveStage, /tools=\{serviceTools\}/);
-  assert.match(liveStage, /className="knoux-stage-service-app"/);
+  assert.match(liveStage, /knoux-stage-service-app/);
+  assert.match(liveStage, /programsDockEnabled/);
   assert.match(liveStage, /serviceAppMode = !selectedTool && !executionRunning/);
 });
 
