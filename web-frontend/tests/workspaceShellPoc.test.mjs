@@ -176,7 +176,7 @@ test('Performance migrates only its service-mode surface into Dockview without r
   assert.match(shell, /Performance Observatory/);
   assert.match(shell, /Performance Tools/);
   assert.match(shell, /Resource Evidence/);
-  assert.match(shell, /workspace === 'performance' \|\| workspace === 'services' \? 640 : 420/);
+  assert.match(shell, /workspace === 'performance' \? 560 : workspace === 'services' \? 640 : 420/);
   assert.match(serviceApps, /PerformanceStation/);
   assert.equal((stage.match(/<ServiceApps/g) ?? []).length, 1);
 });
@@ -197,7 +197,7 @@ test('Services & Processes migrates only its service-mode surface into Dockview 
   assert.match(shell, /Process Evidence/);
   assert.match(shell, /explorerWidth: 140/);
   assert.match(shell, /contextWidth: 150/);
-  assert.match(shell, /workspace === 'performance' \|\| workspace === 'services' \? 640 : 420/);
+  assert.match(shell, /workspace === 'performance' \? 560 : workspace === 'services' \? 640 : 420/);
   assert.match(serviceApps, /ServicesStation/);
   assert.equal((stage.match(/<ServiceApps/g) ?? []).length, 1);
 });

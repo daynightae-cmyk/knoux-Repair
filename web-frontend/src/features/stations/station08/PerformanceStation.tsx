@@ -257,7 +257,7 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
         </header>
 
         {/* Local Mini-Nav Rail */}
-        <nav className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-white/5 scrollbar-none">
+        <nav className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 pb-1 border-b border-white/5">
           {[
             { id: 'overview', label: t.tabOverview, icon: Gauge },
             { id: 'resources', label: t.tabResources, icon: Activity },
@@ -275,7 +275,7 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as TabKey)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-medium tracking-wide flex items-center gap-2 transition-all cursor-pointer ${
+                className={`w-full min-w-0 justify-center px-3.5 py-1.5 rounded-lg text-xs font-medium tracking-wide flex items-center gap-2 transition-all cursor-pointer ${
                   active
                     ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'

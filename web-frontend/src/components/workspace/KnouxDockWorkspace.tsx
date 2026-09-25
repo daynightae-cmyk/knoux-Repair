@@ -199,7 +199,7 @@ export default function KnouxDockWorkspace({
       id: `${panelText.prefix}-center`,
       component: 'center',
       title: panelText.center,
-      minimumWidth: workspace === 'performance' || workspace === 'services' ? 640 : 420,
+      minimumWidth: workspace === 'performance' ? 560 : workspace === 'services' ? 640 : 420,
       minimumHeight: 260,
       renderer: 'always',
       tabComponent: 'locked',

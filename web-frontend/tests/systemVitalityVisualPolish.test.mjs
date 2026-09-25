@@ -47,6 +47,7 @@ test('Performance preserves verified counters and gives action cards a visible r
   assert.match(performance, /data\?\.Memory\?\.LoadPercent\s*\?\?\s*null/);
   assert.match(performance, /toolStatuses\[tool\.ToolId\]/);
   assert.match(performance, /isRunning\s*=\s*status\s*===\s*'running'/);
+  assert.match(performance, /grid w-full grid-cols-2 sm:grid-cols-4/);
   assert.match(css, /performance-observatory-station[\s\S]*glass-panel/);
   assert.match(css, /:has\(button:disabled\)/, 'running tool cards need an in-card visual state');
 });
