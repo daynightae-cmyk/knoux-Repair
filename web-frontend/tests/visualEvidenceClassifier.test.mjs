@@ -36,4 +36,6 @@ test('navigation gate accepts only verified POST /api/runs RUN_IN_PROGRESS confl
   assert.match(source, /unexpected409/);
   assert.match(source, /expectedRunConflicts/);
   assert.doesNotMatch(source, /ignored=.*409/);
+  assert.ok(source.includes('/status of 409\\s*\\(Conflict\\)/i'));
+  assert.ok(!source.includes('/status of 409\\\\s*\\\\(Conflict\\\\)/i'));
 });
