@@ -19,23 +19,30 @@ test('Dockview adapter owns layout only and preserves existing KNOUX children', 
   const shell = read('src/components/workspace/KnouxDockWorkspace.tsx');
 
   assert.match(shell, /DockviewReact/);
-  assert.match(shell, /data-workspace-shell="dockview-poc"/);
+  assert.match(shell, /data-workspace-shell="dockview"/);
+  assert.match(shell, /data-workspace-kind={workspace}/);
   assert.match(shell, /data-runtime-owner="existing-knoux"/);
-  assert.match(shell, /knoux-developer-explorer/);
-  assert.match(shell, /knoux-developer-center/);
-  assert.match(shell, /knoux-developer-context/);
+  assert.match(shell, /prefix: 'knoux-developer'/);
+  assert.match(shell, /prefix: 'knoux-sonar'/);
+  assert.match(shell, /\$\{panelText\.prefix\}-explorer/);
+  assert.match(shell, /\$\{panelText\.prefix\}-center/);
+  assert.match(shell, /\$\{panelText\.prefix\}-context/);
   assert.match(shell, /referencePanel: center/);
   assert.doesNotMatch(shell, /dockview-enterprise/);
   assert.doesNotMatch(shell, /keyboardNavigation/);
 });
 
-test('Developer Tools alone opts into the PoC and canonical ServiceApps remains single-mounted', () => {
+test('Developer Tools and Project Sonar opt into the workspace shell while canonical ServiceApps stays single-mounted', () => {
   const station = read('src/components/premium/workbench/EngineeringWorkbenchStation.tsx');
 
   assert.match(station, /KnouxDockWorkspace/);
   assert.match(
     station,
-    /enabled=\{activeService\.id === '12-Developer-Tools' && activeTab === 'overview'\}/,
+    /workspace=\{activeService\.id === '18-Project-Sonar' \? 'sonar' : 'developer'\}/,
+  );
+  assert.match(
+    station,
+    /enabled=\{WORKBENCH_SERVICES\.includes\(activeService\.id\) && activeTab === 'overview'\}/,
   );
 
   const serviceAppsMounts = station.match(/<ServiceApps/g) ?? [];
@@ -43,6 +50,15 @@ test('Developer Tools alone opts into the PoC and canonical ServiceApps remains 
     serviceAppsMounts.length,
     1,
     `expected exactly one canonical ServiceApps mount, found ${serviceAppsMounts.length}`,
+  );
+});
+
+test('workbench service switches return to Overview so the matching Dockview workspace mounts predictably', () => {
+  const station = read('src/components/premium/workbench/EngineeringWorkbenchStation.tsx');
+
+  assert.match(
+    station,
+    /useEffect\(\(\) => \{\s*setActiveTab\('overview'\);\s*\}, \[activeService\.id\]\)/,
   );
 });
 

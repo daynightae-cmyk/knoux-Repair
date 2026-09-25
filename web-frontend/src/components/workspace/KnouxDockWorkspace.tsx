@@ -23,9 +23,12 @@ interface WorkspaceSlotState {
   slots: Record<SlotName, ReactNode>;
 }
 
+type WorkspaceKind = 'developer' | 'sonar';
+
 interface KnouxDockWorkspaceProps {
   lang: 'en' | 'ar';
   enabled: boolean;
+  workspace: WorkspaceKind;
   children: ReactNode;
 }
 
@@ -63,6 +66,7 @@ const tabComponents = {
 export default function KnouxDockWorkspace({
   lang,
   enabled,
+  workspace,
   children,
 }: KnouxDockWorkspaceProps) {
   const nodes = Children.toArray(children);
@@ -86,11 +90,25 @@ export default function KnouxDockWorkspace({
     );
   }
 
+  const panelText = workspace === 'sonar'
+    ? {
+        prefix: 'knoux-sonar',
+        center: lang === 'ar' ? 'مساحة سونار' : 'Project Sonar Workspace',
+        explorer: lang === 'ar' ? 'مستكشف المشروع' : 'Project Explorer',
+        context: lang === 'ar' ? 'الأدلة والنتائج' : 'Evidence & Findings',
+      }
+    : {
+        prefix: 'knoux-developer',
+        center: lang === 'ar' ? 'مساحة المطور' : 'Developer Workspace',
+        explorer: lang === 'ar' ? 'المستكشف' : 'Explorer',
+        context: lang === 'ar' ? 'السياق والأدلة' : 'Context & Evidence',
+      };
+
   const onReady = (event: DockviewReadyEvent) => {
     const center = event.api.addPanel({
-      id: 'knoux-developer-center',
+      id: `${panelText.prefix}-center`,
       component: 'center',
-      title: lang === 'ar' ? 'مساحة المطور' : 'Developer Workspace',
+      title: panelText.center,
       minimumWidth: 420,
       minimumHeight: 260,
       renderer: 'always',
@@ -98,9 +116,9 @@ export default function KnouxDockWorkspace({
     });
 
     event.api.addPanel({
-      id: 'knoux-developer-explorer',
+      id: `${panelText.prefix}-explorer`,
       component: 'explorer',
-      title: lang === 'ar' ? 'المستكشف' : 'Explorer',
+      title: panelText.explorer,
       position: {
         referencePanel: center,
         direction: 'left',
@@ -113,9 +131,9 @@ export default function KnouxDockWorkspace({
     });
 
     event.api.addPanel({
-      id: 'knoux-developer-context',
+      id: `${panelText.prefix}-context`,
       component: 'context',
-      title: lang === 'ar' ? 'السياق والأدلة' : 'Context & Evidence',
+      title: panelText.context,
       position: {
         referencePanel: center,
         direction: 'right',
@@ -133,7 +151,8 @@ export default function KnouxDockWorkspace({
       <div
         className="knoux-dock-workspace"
         data-workspace="ide"
-        data-workspace-shell="dockview-poc"
+        data-workspace-shell="dockview"
+        data-workspace-kind={workspace}
         data-runtime-owner="existing-knoux"
         dir="ltr"
       >
