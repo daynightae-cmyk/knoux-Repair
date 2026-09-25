@@ -141,7 +141,7 @@ test('Station 10: detectDiagnosticSignals cites actionable tools', () => {
 test('Station 10: DiagnosticsStation and DiagnosticsHeroVisual components exist', () => {
   const stationSrc = readWeb('src/features/stations/station10/DiagnosticsStation.tsx');
   assert.ok(stationSrc.includes('export default function DiagnosticsStation'), 'DiagnosticsStation component must be exported');
-  assert.ok(stationSrc.includes('DR01–DR11'), 'Must cite Station 10 tool range');
+  assert.ok(!stationSrc.includes('DR01–DR11'), 'Station 10 must not render the internal ToolId range as decorative UI');
 
   const heroSrc = readWeb('src/features/stations/station10/DiagnosticsHeroVisual.tsx');
   assert.ok(heroSrc.includes('export default function DiagnosticsHeroVisual'), 'DiagnosticsHeroVisual component must be exported');
