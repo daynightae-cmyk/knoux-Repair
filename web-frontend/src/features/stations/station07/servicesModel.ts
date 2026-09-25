@@ -114,6 +114,7 @@ export function parseServicesInventory(
     Name?: string;
     DisplayName?: string;
     Status?: string;
+    State?: string;
     StartMode?: string;
     StartType?: string;
     ProcessId?: number;
@@ -125,9 +126,9 @@ export function parseServicesInventory(
   return services.map((s) => {
     const name = s.Name || 'UnknownService';
     const displayName = s.DisplayName || name;
-    const rawStatus = (s.Status || 'Stopped').toLowerCase();
+    const rawStatus = (s.Status || s.State || '').toLowerCase();
     const status: ServiceItem['status'] =
-      rawStatus === 'running' ? 'Running' : rawStatus === 'paused' ? 'Paused' : 'Stopped';
+      rawStatus === 'running' ? 'Running' : rawStatus === 'stopped' ? 'Stopped' : rawStatus === 'paused' ? 'Paused' : 'Unknown';
 
     const rawStart = (s.StartMode || s.StartType || 'Manual').toLowerCase();
     const startType: ServiceItem['startType'] =
@@ -159,9 +160,12 @@ export function parseProcessesInventory(
     ProcessName?: string;
     ProcessId?: number;
     Id?: number;
+    PID?: number;
     MemoryMB?: number;
+    MemMB?: number;
     WorkingSetMB?: number;
     CpuSeconds?: number;
+    CPUSec?: number;
     TotalProcessorTimeSeconds?: number;
     Responding?: boolean | null;
   }> = []
@@ -170,9 +174,9 @@ export function parseProcessesInventory(
 
   return processes.map((p) => {
     const name = p.Name || p.ProcessName || 'Process';
-    const pid = typeof p.ProcessId === 'number' ? p.ProcessId : typeof p.Id === 'number' ? p.Id : 0;
-    const memoryMB = typeof p.MemoryMB === 'number' ? p.MemoryMB : typeof p.WorkingSetMB === 'number' ? p.WorkingSetMB : 0;
-    const cpuSeconds = typeof p.CpuSeconds === 'number' ? p.CpuSeconds : typeof p.TotalProcessorTimeSeconds === 'number' ? p.TotalProcessorTimeSeconds : 0;
+    const pid = typeof p.ProcessId === 'number' ? p.ProcessId : typeof p.Id === 'number' ? p.Id : typeof p.PID === 'number' ? p.PID : 0;
+    const memoryMB = typeof p.MemoryMB === 'number' ? p.MemoryMB : typeof p.MemMB === 'number' ? p.MemMB : typeof p.WorkingSetMB === 'number' ? p.WorkingSetMB : 0;
+    const cpuSeconds = typeof p.CpuSeconds === 'number' ? p.CpuSeconds : typeof p.CPUSec === 'number' ? p.CPUSec : typeof p.TotalProcessorTimeSeconds === 'number' ? p.TotalProcessorTimeSeconds : 0;
     const responding = typeof p.Responding === 'boolean' ? p.Responding : null;
     const isProtected = isProcessProtected(name);
 
@@ -211,7 +215,7 @@ export function calculateServiceTopology(services: ServiceItem[]): ServiceTopolo
 
   for (const s of services) {
     if (s.status === 'Running') running += 1;
-    else stopped += 1;
+    else if (s.status === 'Stopped') stopped += 1;
 
     if (s.startType === 'Automatic') {
       automatic += 1;

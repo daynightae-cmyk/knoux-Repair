@@ -6,6 +6,8 @@ interface ServicesHeroVisualProps {
   lang: Lang;
   stage?: 'idle' | 'scanning';
   topology?: ServiceTopology;
+  hasEvidence?: boolean;
+  attentionKnown?: boolean;
   className?: string;
 }
 
@@ -13,10 +15,12 @@ export const ServicesHeroVisual: React.FC<ServicesHeroVisualProps> = ({
   lang,
   stage = 'idle',
   topology,
+  hasEvidence = false,
+  attentionKnown = true,
   className = '',
 }) => {
   const isScanning = stage === 'scanning';
-  const hasTopologyEvidence = Boolean(topology && topology.total > 0);
+  const hasTopologyEvidence = hasEvidence && Boolean(topology);
   const running = topology?.running ?? 0;
   const stopped = topology?.stopped ?? 0;
   const total = topology?.total ?? 0;
@@ -25,6 +29,7 @@ export const ServicesHeroVisual: React.FC<ServicesHeroVisualProps> = ({
   return (
     <div
       className={`knoux-services-hero-container ${stage} ${className}`}
+      data-services-evidence={hasTopologyEvidence ? 'available' : 'unchecked'}
       role="img"
       aria-label={
         lang === 'ar'
@@ -123,19 +128,19 @@ export const ServicesHeroVisual: React.FC<ServicesHeroVisualProps> = ({
         {/* Constellation Nodes */}
         {/* Node 1: Running (RPCS) */}
         <g transform="translate(180, 70)">
-          <circle r="12" fill="url(#spRunningNode)" />
-          <circle r="16" stroke="#10b981" strokeWidth="1" strokeOpacity="0.4" />
+          <circle r="12" fill={hasTopologyEvidence ? 'url(#spRunningNode)' : 'url(#spStoppedNode)'} />
+          <circle r="16" stroke={hasTopologyEvidence ? '#10b981' : '#64748b'} strokeWidth="1" strokeOpacity="0.4" />
           <text x="18" y="4" fill="#e2e8f0" fontSize="9" fontWeight="600">
-            RUNNING
+            {hasTopologyEvidence ? `${running} Running` : 'UNKNOWN'}
           </text>
         </g>
 
         {/* Node 2: Running (Winmgmt) */}
         <g transform="translate(400, 70)">
-          <circle r="12" fill="url(#spRunningNode)" />
-          <circle r="16" stroke="#10b981" strokeWidth="1" strokeOpacity="0.4" />
+          <circle r="12" fill={hasTopologyEvidence ? 'url(#spRunningNode)' : 'url(#spStoppedNode)'} />
+          <circle r="16" stroke={hasTopologyEvidence ? '#10b981' : '#64748b'} strokeWidth="1" strokeOpacity="0.4" />
           <text x="18" y="4" fill="#e2e8f0" fontSize="9" fontWeight="600">
-            RUNNING
+            {hasTopologyEvidence ? `${running} Running` : 'UNKNOWN'}
           </text>
         </g>
 
@@ -143,32 +148,32 @@ export const ServicesHeroVisual: React.FC<ServicesHeroVisualProps> = ({
         <g transform="translate(160, 170)">
           <circle r="10" fill="url(#spStoppedNode)" />
           <text x="16" y="4" fill="#94a3b8" fontSize="9">
-            STOPPED
+            {hasTopologyEvidence ? `${stopped} Stopped` : 'UNKNOWN'}
           </text>
         </g>
 
         {/* Node 4: Attention (wuauserv or Stopped Automatic) */}
         <g transform="translate(420, 170)">
-          <circle r="12" fill="url(#spAttentionNode)" />
-          <circle r="16" stroke="#f59e0b" strokeWidth="1" strokeOpacity="0.5" />
+          <circle r="12" fill={hasTopologyEvidence ? 'url(#spAttentionNode)' : 'url(#spStoppedNode)'} />
+          <circle r="16" stroke={hasTopologyEvidence ? '#f59e0b' : '#64748b'} strokeWidth="1" strokeOpacity="0.5" />
           <text x="18" y="4" fill="#fcd34d" fontSize="9" fontWeight="600">
-            {hasTopologyEvidence ? (attention > 0 ? `${attention} REVIEW` : 'NO FLAGS') : 'UNOBSERVED'}
+            {hasTopologyEvidence ? (attentionKnown ? (attention > 0 ? `${attention} REVIEW` : 'NO FLAGS') : 'UNKNOWN') : 'UNOBSERVED'}
           </text>
         </g>
 
         {/* Node 5: DcomLaunch */}
         <g transform="translate(100, 110)">
-          <circle r="8" fill="url(#spRunningNode)" />
+          <circle r="8" fill={hasTopologyEvidence ? 'url(#spRunningNode)' : 'url(#spStoppedNode)'} />
           <text x="-4" y="-12" textAnchor="middle" fill="#64748b" fontSize="8">
-            SERVICE
+            {hasTopologyEvidence ? 'SERVICE' : 'UNKNOWN'}
           </text>
         </g>
 
         {/* Node 6: CryptSvc */}
         <g transform="translate(480, 110)">
-          <circle r="8" fill="url(#spRunningNode)" />
+          <circle r="8" fill={hasTopologyEvidence ? 'url(#spRunningNode)' : 'url(#spStoppedNode)'} />
           <text x="4" y="-12" textAnchor="middle" fill="#64748b" fontSize="8">
-            SERVICE
+            {hasTopologyEvidence ? 'SERVICE' : 'UNOBSERVED'}
           </text>
         </g>
 

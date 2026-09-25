@@ -211,16 +211,18 @@ try {
   await page.screenshot({ path: path.join(OUT, '01-diagnostics-tool-cards-1366.png'), fullPage: false });
   evidence.push({ service: '10-Diagnostics-Reports', view: 'diagnostic-tools', cards: diagnosticCards, tabs: diagnosticTabs, proof: diagnosticProof, execution: 'not-started' });
 
-  // Services & Processes: reveal Repairs & Operations only. No service/process action is executed.
   await openRoute(page, '07-Services-Processes', '.services-topology-station');
-  await clickButtonByText(page, '.services-topology-station', 'Repairs & Operations');
-  await page.waitForSelector('.services-operation-tool-grid', { visible: true, timeout: 20_000 });
-  const serviceCards = await page.$$eval('.services-operation-tool-card', nodes => nodes.length);
-  if (serviceCards < 6) throw new Error(`Services & Processes: expected 6 operation cards, found ${serviceCards}`);
-  await scrollTo(page, '.services-operation-tool-grid');
-  const servicesProof = await assertSurface(page, '.services-topology-station', 'Services operation cards');
-  await page.screenshot({ path: path.join(OUT, '02-services-operation-cards-1366.png'), fullPage: false });
-  evidence.push({ service: '07-Services-Processes', view: 'repairs-operations', cards: serviceCards, proof: servicesProof, execution: 'not-started' });
+  await page.waitForSelector('[data-readonly-tool="SP01"]', { visible: true, timeout: 20_000 });
+  await page.waitForSelector('[data-readonly-tool="SP02"]', { visible: true, timeout: 20_000 });
+  await page.waitForSelector('[data-services-evidence]', { visible: true, timeout: 20_000 });
+  const serviceCards = await page.$$eval('[data-readonly-tool]', nodes => nodes.length);
+  if (serviceCards !== 2) throw new Error(`Services & Processes: expected 2 read-only inventory cards, found ${serviceCards}`);
+  const legacyOperationCards = await page.$$eval('.services-operation-tool-grid, .services-operation-tool-card', nodes => nodes.length);
+  if (legacyOperationCards !== 0) throw new Error(`Services & Processes: legacy operation cards remain: ${legacyOperationCards}`);
+  await scrollTo(page, '[data-services-evidence]');
+  const servicesProof = await assertSurface(page, '.services-topology-station', 'Services read-only evidence');
+  await page.screenshot({ path: path.join(OUT, '02-services-read-only-evidence-1366.png'), fullPage: false });
+  evidence.push({ service: '07-Services-Processes', view: 'overview-read-only', cards: serviceCards, proof: servicesProof, execution: 'not-started' });
 
   fs.writeFileSync(
     path.join(OUT, 'investigation-polish-evidence.json'),
