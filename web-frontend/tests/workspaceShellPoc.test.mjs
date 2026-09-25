@@ -86,6 +86,7 @@ test('core workspace tabs cannot be accidentally closed while panels stay dockab
 
 test('Programs migrates only its service-mode surface into Dockview and keeps one canonical ServiceApps mount', () => {
   const stage = read('src/components/premium/FamilyLiveStage.tsx');
+  const shell = read('src/components/workspace/KnouxDockWorkspace.tsx');
   const css = read('src/components/workspace/knoux-dock-workspace.css');
 
   assert.match(stage, /service\.id === '04-Programs-Applications' && serviceAppMode/);
