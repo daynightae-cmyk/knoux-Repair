@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # ============================================================
 #  KnouxRepair.WinGet.psm1
 #  Shared WinGet provider: live package resolution and host

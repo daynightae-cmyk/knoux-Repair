@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # KnouxRepair.Software.psm1 — Unified installed-software inventory provider
 #  Registry (HKLM x64/x86, HKCU) + AppX/MSIX + optional WinGet list correlation
 #  Produces normalized records without fabricating capabilities.
