@@ -48,7 +48,7 @@ export default function LeftRail({ activeView, onSelect, lang, bridgeOnline }: L
 
     return (
       <button
-        key={item.id}
+        key={`${item.id}:${item.labelEn}`}
         type="button"
         onClick={() => onSelect(item.id)}
         className="knoux-rail-item"
