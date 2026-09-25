@@ -132,6 +132,9 @@ export default function FamilyLiveStage({
                     : (isRtl ? 'جاهز' : 'READY');
 
   const programsDockEnabled = service.id === '04-Programs-Applications' && serviceAppMode;
+  const softwareDockEnabled = service.id === '16-Software-Environment' && serviceAppMode;
+  const serviceDockEnabled = programsDockEnabled || softwareDockEnabled;
+  const serviceDockWorkspace = softwareDockEnabled ? 'software' : 'programs';
   const serviceAppSurface = (
     <ServiceApps
       activeSection={service.legacySection}
@@ -146,7 +149,7 @@ export default function FamilyLiveStage({
       }}
       onRunTool={onRunTool}
       onCancelTool={onCancelTool}
-      embedded={programsDockEnabled}
+      embedded={serviceDockEnabled}
     />
   );
 
@@ -265,14 +268,14 @@ export default function FamilyLiveStage({
         ) : serviceAppMode ? (
           <motion.div
             key={`service-app-${service.id}`}
-            className={`knoux-stage-service-app${programsDockEnabled ? ' knoux-stage-service-app--dock' : ''}`}
+            className={`knoux-stage-service-app${serviceDockEnabled ? ' knoux-stage-service-app--dock' : ''}`}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.16, ease: 'easeOut' }}
           >
-            {programsDockEnabled ? (
-              <KnouxDockWorkspace lang={lang} workspace="programs" enabled>
+            {serviceDockEnabled ? (
+              <KnouxDockWorkspace lang={lang} workspace={serviceDockWorkspace} enabled>
                 <aside className="knoux-service-dock-explorer" data-service-dock-zone="explorer">
                   <p className="knoux-service-dock-eyebrow">{isRtl ? 'الأدوات المسجلة' : 'REGISTERED TOOLS'}</p>
                   <strong>{isRtl ? service.name.ar : service.name.en}</strong>
@@ -315,9 +318,13 @@ export default function FamilyLiveStage({
                     </div>
                   </dl>
                   <p className="knoux-service-dock-note">
-                    {isRtl
-                      ? 'التشغيل والنتائج تظل مملوكة لمحطة البرامج الحالية.'
-                      : 'Execution and evidence remain owned by the existing Programs station.'}
+                    {softwareDockEnabled
+                      ? (isRtl
+                          ? 'بيانات البيئة والتشغيل والنتائج تظل مملوكة لمحطة بيئة البرامج الحالية.'
+                          : 'Environment data, execution, and evidence remain owned by the existing Software Environment station.')
+                      : (isRtl
+                          ? 'التشغيل والنتائج تظل مملوكة لمحطة البرامج الحالية.'
+                          : 'Execution and evidence remain owned by the existing Programs station.')}
                   </p>
                 </aside>
               </KnouxDockWorkspace>
