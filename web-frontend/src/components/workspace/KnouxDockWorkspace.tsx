@@ -121,6 +121,12 @@ export default function KnouxDockWorkspace({
           center: lang === 'ar' ? 'مساحة المطور' : 'Developer Workspace',
           explorer: lang === 'ar' ? 'المستكشف' : 'Explorer',
           context: lang === 'ar' ? 'السياق والأدلة' : 'Context & Evidence',
+          explorerWidth: 230,
+          explorerMin: 170,
+          explorerMax: 360,
+          contextWidth: 270,
+          contextMin: 200,
+          contextMax: 420,
         };
 
   const onReady = (event: DockviewReadyEvent) => {
