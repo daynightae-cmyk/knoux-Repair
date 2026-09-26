@@ -226,6 +226,27 @@
   animation: knoux-dup-pulse 1.6s ease-in-out infinite alternate;
 }
 
+/* The scan bar only reads as finished once the engine reported a terminal status.
+   A running job stays an indeterminate sweep and never claims a percentage. */
+.duplicate-job-bar i.is-indeterminate {
+  width: 100%;
+  opacity: 0.65;
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.35), rgba(34, 211, 238, 0.35), rgba(124, 58, 237, 0.35));
+  background-size: 200% 100%;
+  animation: knoux-dup-sweep 1.4s linear infinite;
+}
+
+.duplicate-job-bar i.is-complete {
+  width: 100%;
+  animation: none;
+  background: linear-gradient(90deg, #7c3aed, #22d3ee);
+}
+
+@keyframes knoux-dup-sweep {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
 @keyframes knoux-dup-pulse {
   from { opacity: 0.55; }
   to { opacity: 1; }

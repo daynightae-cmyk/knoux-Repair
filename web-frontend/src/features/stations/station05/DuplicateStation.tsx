@@ -434,7 +434,7 @@ export default function DuplicateStation({
         setError(lang === 'ar' ? 'لا يوجد فحص سابق محفوظ.' : 'No saved scan to resume.');
         return;
       }
-      setJobState({ scanId: `resumed`, phase: 'COMPLETED', status: 'COMPLETED', progress: {} });
+      setJobState({ scanId: 'resumed', phase: 'RESULTS', status: 'RESUMED', progress: {} });
       applyPreviewGroups(next);
     } catch {
       setError(lang === 'ar' ? 'تعذر استئناف الفحص الأخير.' : 'Could not resume the last scan.');
@@ -559,7 +559,10 @@ export default function DuplicateStation({
     }
   }, [applyPreviewGroups, excludedSubfolders, folderPath, keeperPolicy, lang, loadQuarantine, minSizeKB, pollJob, scanSource, types]);
 
-  const engineSource = preview && (preview as DuplicatePreview & { Engine?: string }).Engine === 'node';
+  const engineLabel = (preview as (DuplicatePreview & { Engine?: string }) | null)?.Engine;
+  // 'node' and 'node-index' are the same local index engine; DF11 is the PowerShell provider.
+  const engineSource = engineLabel === 'node' || engineLabel === 'node-index';
+  const engineIsPowerShell = engineLabel === 'df11' || engineLabel === 'powershell';
 
   const filteredGroups = useMemo(() => {
     if (!preview) return [];
@@ -1282,7 +1285,7 @@ export default function DuplicateStation({
                     {jobCancelling ? (lang === 'ar' ? 'جارٍ الإلغاء…' : 'Cancelling…') : (lang === 'ar' ? 'إلغاء الفحص' : 'Cancel scan')}
                   </button>
                 </div>
-                <div className="duplicate-job-bar" aria-hidden="true"><i style={{ width: '100%' }} /></div>
+                <div className="duplicate-job-bar" aria-hidden="true"><i className={['COMPLETED', 'RESUMED', 'VERIFIED'].includes(jobState.status) ? 'is-complete' : 'is-indeterminate'} /></div>
               </div>
             )}
           </div>
@@ -1316,7 +1319,9 @@ export default function DuplicateStation({
               <div>
                 <p>
                   {lang === 'ar' ? 'نتائج الفحص التكراري' : 'Duplicate Scan Workspace'}
-                  {engineSource ? (lang === 'ar' ? ' · محرك Node' : ' · Node engine') : (lang === 'ar' ? ' · مسار DF11' : ' · DF11 path')}
+                  {engineIsPowerShell
+          ? (lang === 'ar' ? ' · مسار DF11' : ' · DF11 PowerShell path')
+          : (lang === 'ar' ? ' · فهرس الفهارس' : ' · Local index engine')}
                 </p>
                 <h2>
                   {lang === 'ar'
@@ -1572,7 +1577,9 @@ export default function DuplicateStation({
               <section className="duplicate-insight-card" aria-label={lang === 'ar' ? 'سجل الفحص' : 'Scan log'}>
                 <header>
                   <strong>{lang === 'ar' ? 'سجل الفحص' : 'Scan log'}</strong>
-                  <small>{engineSource ? (lang === 'ar' ? 'محرك Node الأصلي' : 'Native Node engine') : (lang === 'ar' ? 'مسار DF11' : 'DF11 path')}</small>
+                  <small>{engineIsPowerShell
+          ? (lang === 'ar' ? 'مزوّد القورة DF11' : 'DF11 PowerShell provider')
+          : (lang === 'ar' ? 'فهرس الفهارس المحلي' : 'Local index engine')}</small>
                 </header>
                 <ul className="duplicate-scan-log">
                   <li><span>{lang === 'ar' ? 'المجلد' : 'Folder'}</span><b className="duplicate-scan-log-path">{preview.Folder}</b></li>

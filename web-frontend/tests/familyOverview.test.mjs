@@ -9,6 +9,7 @@ const root = path.resolve(here, '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 
 const familyPage = read('src/components/premium/FamilyPage.tsx');
+const serviceApps = read('src/components/ServiceApps.tsx');
 const overview = read('src/components/pages/FamilyOverviewPage.tsx');
 const overviewCss = read('src/components/pages/FamilyOverviewPage.css');
 const software = read('src/components/pages/SoftwareLibraryPage.tsx');
@@ -29,8 +30,11 @@ test('family landing is distinct from service execution and does not replace the
   assert.match(familyPage, /<SoftwareLibraryPage/);
   assert.match(familyPage, /<FamilyLiveStage/);
   assert.match(familyPage, /<EngineeringWorkbenchStation/);
-  assert.match(familyPage, /<DuplicateStation/);
   assert.match(familyPage, /data-service=\{activeService\.id\}/);
+  // Every station, including Duplicate Files, mounts through the one canonical
+  // ServiceApps path so no service owns a second, divergent station surface.
+  assert.doesNotMatch(familyPage, /<DuplicateStation/);
+  assert.equal((serviceApps.match(/<DuplicateStation/g) ?? []).length, 1);
 });
 
 test('five non-software family landings use distinct operational visual languages', () => {

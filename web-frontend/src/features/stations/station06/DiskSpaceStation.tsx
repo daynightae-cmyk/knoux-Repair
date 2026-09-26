@@ -74,6 +74,10 @@ const COPY = {
     healthTitle: 'Physical Storage Diagnostics',
     healthSubtitle: 'S.M.A.R.T. predictive failure indicators and hardware device telemetry.',
     smartOk: 'No predicted hardware failure signal observed',
+    notCheckedYet: 'Not checked yet',
+    smartNominal: 'NOMINAL (every tested drive reported OK)',
+    smartInconclusive: 'Inconclusive (no drive reported a conclusive status)',
+    smartFailurePredicted: 'FAILURE PREDICTED',
     smartWarn: 'Hardware failure predicted by drive controller!',
     smartUnavailable: 'SMART device telemetry not exposed by controller',
   },
@@ -120,6 +124,10 @@ const COPY = {
     healthTitle: 'فحص التخزين الفيزيائي',
     healthSubtitle: 'مؤشرات S.M.A.R.T التنبؤية وبيانات أجهزة التخزين الحقيقية.',
     smartOk: 'لم تظهر أي إشارة فشل عتادي متوقعة من وحدة التحكم',
+    notCheckedYet: 'لم يتم الفحص بعد',
+    smartNominal: 'سليم (كل الأقراص المختبرة أبلغت عن الحالة)',
+    smartInconclusive: 'غير حاسم (لم يأبلغ أي قرص حالة بحالة محددة)',
+    smartFailurePredicted: 'تم التنبؤ بفشل عتادي وشيك',
     smartWarn: 'تم التنبؤ بفشل عتادي وشيك من وحدة التحكم!',
     smartUnavailable: 'بيانات SMART غير متاحة من مشغل وحدة التخزين',
   },
@@ -898,7 +906,7 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <HardDrive size={16} className="text-cyan-400" />
-                        <strong className="text-sm text-white font-mono">Drive {h.index}: {h.model}</strong>
+                        <strong className="text-sm text-white font-mono">Drive {h.index}: {h.model ?? t.notCheckedYet}</strong>
                       </div>
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] font-mono ${
@@ -914,7 +922,7 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
                     </div>
 
                     <div className="text-xs text-slate-300 font-mono flex items-center justify-between">
-                      <span>Size: {h.sizeGB} GB</span>
+                      <span>Size: {h.sizeGB === null ? t.notCheckedYet : `${h.sizeGB} GB`}</span>
                       <span>SMART Status: {h.status}</span>
                     </div>
 
@@ -953,12 +961,21 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
             <div className="p-4 rounded-xl bg-slate-900/60 border border-white/5 font-mono text-xs text-slate-300 space-y-2">
               <p>STORAGE AUDIT SUMMARY</p>
               <p>----------------------------------------</p>
-              <p>Detected Volumes: {volumes.length}</p>
-              <p>Total Capacity: {formatBytes(totalCapacity, lang)}</p>
-              <p>Total Free: {formatBytes(totalFree, lang)}</p>
-              <p>System Volume: {primaryVolume ? `${primaryVolume.name} (${primaryVolume.usedPercent}% used)` : 'N/A'}</p>
-              <p>Physical Drives Tested: {healthItems.length}</p>
-              <p>S.M.A.R.T Status: {healthItems.some((h) => h.smartPredictFailure) ? 'FAILURE PREDICTED' : 'NOMINAL'}</p>
+              <p>Detected Volumes: {volumes.length === 0 ? t.notCheckedYet : volumes.length}</p>
+              <p>Total Capacity: {volumes.length === 0 ? t.notCheckedYet : formatBytes(totalCapacity, lang)}</p>
+              <p>Total Free: {volumes.length === 0 ? t.notCheckedYet : formatBytes(totalFree, lang)}</p>
+              <p>System Volume: {primaryVolume ? `${primaryVolume.name} (${primaryVolume.usedPercent}% used)` : t.notCheckedYet}</p>
+              <p>Physical Drives Tested: {healthItems.length === 0 ? t.notCheckedYet : healthItems.length}</p>
+              <p>
+                S.M.A.R.T Status:{' '}
+                {healthItems.length === 0
+                  ? t.notCheckedYet
+                  : healthItems.some((h) => h.smartPredictFailure)
+                    ? t.smartFailurePredicted
+                    : healthItems.every((h) => h.evaluation === 'HEALTHY')
+                      ? t.smartNominal
+                      : t.smartInconclusive}
+              </p>
             </div>
           </div>
         )}

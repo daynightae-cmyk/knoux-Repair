@@ -23,7 +23,202 @@ interface WorkspaceSlotState {
   slots: Record<SlotName, ReactNode>;
 }
 
-type WorkspaceKind = 'developer' | 'sonar' | 'programs' | 'software' | 'postinstall' | 'diagnostics' | 'performance' | 'security' | 'recovery' | 'services';
+export type WorkspaceKind =
+  | 'developer'
+  | 'sonar'
+  | 'programs'
+  | 'software'
+  | 'postinstall'
+  | 'diagnostics'
+  | 'performance'
+  | 'security'
+  | 'recovery'
+  | 'services'
+  | 'maintenance'
+  | 'cleanup'
+  | 'network'
+  | 'duplicates'
+  | 'disk'
+  | 'privacy'
+  | 'drivers'
+  | 'monitoring';
+
+interface PanelText {
+  prefix: string;
+  center: string;
+  explorer: string;
+  context: string;
+  explorerWidth: number;
+  explorerMin: number;
+  explorerMax: number;
+  contextWidth: number;
+  contextMin: number;
+  contextMax: number;
+}
+
+function panelText(lang: 'en' | 'ar', en: string, ar: string): string {
+  return lang === 'ar' ? ar : en;
+}
+
+function buildPanelText(workspace: WorkspaceKind, lang: 'en' | 'ar'): PanelText {
+  const standard = {
+    explorerWidth: 180,
+    explorerMin: 150,
+    explorerMax: 260,
+    contextWidth: 200,
+    contextMin: 170,
+    contextMax: 300,
+  };
+  const labels: Record<WorkspaceKind, Omit<PanelText, keyof typeof standard>> = {
+    developer: {
+      prefix: 'knoux-developer',
+      center: panelText(lang, 'Developer Workspace', 'مساحة المطور'),
+      explorer: panelText(lang, 'Explorer', 'المستكشف'),
+      context: panelText(lang, 'Context & Evidence', 'السياق والأدلة'),
+    },
+    sonar: {
+      prefix: 'knoux-sonar',
+      center: panelText(lang, 'Project Sonar Workspace', 'مساحة سونار'),
+      explorer: panelText(lang, 'Project Explorer', 'مستكشف المشروع'),
+      context: panelText(lang, 'Evidence & Findings', 'الأدلة والنتائج'),
+    },
+    programs: {
+      prefix: 'knoux-programs',
+      center: panelText(lang, 'Application Studio', 'استوديو التطبيقات'),
+      explorer: panelText(lang, 'Program Tools', 'أدوات البرامج'),
+      context: panelText(lang, 'Runtime & Evidence', 'التشغيل والأدلة'),
+    },
+    software: {
+      prefix: 'knoux-software',
+      center: panelText(lang, 'Runtime Matrix', 'مصفوفة بيئة التشغيل'),
+      explorer: panelText(lang, 'Environment Tools', 'أدوات البيئة'),
+      context: panelText(lang, 'Environment Evidence', 'أدلة البيئة'),
+    },
+    postinstall: {
+      prefix: 'knoux-postinstall',
+      center: panelText(lang, 'Provisioning Pipeline', 'مسار التجهيز'),
+      explorer: panelText(lang, 'Provisioning Tools', 'أدوات التجهيز'),
+      context: panelText(lang, 'Install Evidence', 'أدلة التثبيت'),
+    },
+    diagnostics: {
+      prefix: 'knoux-diagnostics',
+      center: panelText(lang, 'Evidence Lab', 'مختبر الأدلة'),
+      explorer: panelText(lang, 'Diagnostic Tools', 'أدوات التشخيص'),
+      context: panelText(lang, 'Findings & Reports', 'النتائج والتقارير'),
+    },
+    performance: {
+      prefix: 'knoux-performance',
+      center: panelText(lang, 'Performance Observatory', 'مرصد الأداء'),
+      explorer: panelText(lang, 'Performance Tools', 'أدوات الأداء'),
+      context: panelText(lang, 'Resource Evidence', 'أدلة الموارد'),
+    },
+    security: {
+      prefix: 'knoux-security',
+      center: panelText(lang, 'Security Evidence Center', 'مركز أدلة الأمان'),
+      explorer: panelText(lang, 'Security Tools', 'أدوات الأمان'),
+      context: panelText(lang, 'Protection Evidence', 'أدلة الحماية'),
+    },
+    recovery: {
+      prefix: 'knoux-recovery',
+      center: panelText(lang, 'Recovery Vault', 'خزنة الاستعادة'),
+      explorer: panelText(lang, 'Recovery Tools', 'أدوات الاستعادة'),
+      context: panelText(lang, 'Continuity Evidence', 'أدلة الاستمرارية'),
+    },
+    services: {
+      prefix: 'knoux-services',
+      center: panelText(lang, 'System Topology', 'طوبولوجيا النظام'),
+      explorer: panelText(lang, 'Service Tools', 'أدوات الخدمات'),
+      context: panelText(lang, 'Process Evidence', 'أدلة العمليات'),
+    },
+    maintenance: {
+      prefix: 'knoux-maintenance',
+      center: panelText(lang, 'System Integrity Center', 'مركز سلامة النظام'),
+      explorer: panelText(lang, 'Maintenance Tools', 'أدوات الصيانة'),
+      context: panelText(lang, 'Scan Evidence', 'أدلة الفحص'),
+    },
+    cleanup: {
+      prefix: 'knoux-cleanup',
+      center: panelText(lang, 'Space Recovery Map', 'مخطط استعادة المساحة'),
+      explorer: panelText(lang, 'Cleanup Tools', 'أدوات التنظيف'),
+      context: panelText(lang, 'Reclaim Evidence', 'أدلة الاستعادة'),
+    },
+    network: {
+      prefix: 'knoux-network',
+      center: panelText(lang, 'Network Topology', 'طوبولوجيا الشبكة'),
+      explorer: panelText(lang, 'Network Tools', 'أدوات الشبكة'),
+      context: panelText(lang, 'Path Evidence', 'أدلة المسار'),
+    },
+    duplicates: {
+      prefix: 'knoux-duplicates',
+      center: panelText(lang, 'Duplicate Intelligence Lab', 'مختبر استخبارات التكرارات'),
+      explorer: panelText(lang, 'Duplicate Tools', 'أدوات التكرارات'),
+      context: panelText(lang, 'Restore Evidence', 'أدلة الاسترجاع'),
+    },
+    disk: {
+      prefix: 'knoux-disk',
+      center: panelText(lang, 'Storage Atlas', 'أطلس التخزين'),
+      explorer: panelText(lang, 'Storage Tools', 'أدوات التخزين'),
+      context: panelText(lang, 'Capacity Evidence', 'أدلة السعة'),
+    },
+    privacy: {
+      prefix: 'knoux-privacy',
+      center: panelText(lang, 'Privacy Audit Center', 'مركز تدقيق الخصوصية'),
+      explorer: panelText(lang, 'Privacy Tools', 'أدوات الخصوصية'),
+      context: panelText(lang, 'Permission Evidence', 'أدلة الأذونات'),
+    },
+    drivers: {
+      prefix: 'knoux-drivers',
+      center: panelText(lang, 'Driver Matrix', 'مصفوفة التعريفات'),
+      explorer: panelText(lang, 'Driver Tools', 'أدوات التعريفات'),
+      context: panelText(lang, 'Device Evidence', 'أدلة الأجهزة'),
+    },
+    monitoring: {
+      prefix: 'knoux-monitoring',
+      center: panelText(lang, 'Live Resource Observatory', 'مرصد الموارد الحي'),
+      explorer: panelText(lang, 'Monitoring Tools', 'أدوات المراقبة'),
+      context: panelText(lang, 'Sample Evidence', 'أدلة العيّنات'),
+    },
+  };
+  const text = labels[workspace];
+  if (workspace === 'developer' || workspace === 'sonar') {
+    return {
+      ...text,
+      explorerWidth: 230,
+      explorerMin: 170,
+      explorerMax: 360,
+      contextWidth: 270,
+      contextMin: 200,
+      contextMax: 420,
+    };
+  }
+  if (workspace === 'services') {
+    return {
+      ...text,
+      explorerWidth: 140,
+      explorerMin: 120,
+      explorerMax: 220,
+      contextWidth: 150,
+      contextMin: 130,
+      contextMax: 220,
+    };
+  }
+  return { ...text, ...standard };
+}
+
+/** Stations whose center stage owns a multi-tab operational surface and needs the wider floor. */
+const WIDE_CENTER_WORKSPACES: ReadonlySet<WorkspaceKind> = new Set<WorkspaceKind>([
+  'performance',
+  'security',
+  'recovery',
+  'maintenance',
+  'cleanup',
+  'network',
+  'duplicates',
+  'disk',
+  'privacy',
+  'drivers',
+  'monitoring',
+]);
 
 interface KnouxDockWorkspaceProps {
   lang: 'en' | 'ar';
@@ -90,144 +285,18 @@ export default function KnouxDockWorkspace({
     );
   }
 
-  const panelText = workspace === 'sonar'
-    ? {
-        prefix: 'knoux-sonar',
-        center: lang === 'ar' ? 'مساحة سونار' : 'Project Sonar Workspace',
-        explorer: lang === 'ar' ? 'مستكشف المشروع' : 'Project Explorer',
-        context: lang === 'ar' ? 'الأدلة والنتائج' : 'Evidence & Findings',
-        explorerWidth: 230,
-        explorerMin: 170,
-        explorerMax: 360,
-        contextWidth: 270,
-        contextMin: 200,
-        contextMax: 420,
-      }
-    : workspace === 'programs'
-      ? {
-          prefix: 'knoux-programs',
-          center: lang === 'ar' ? 'استوديو التطبيقات' : 'Application Studio',
-          explorer: lang === 'ar' ? 'أدوات البرامج' : 'Program Tools',
-          context: lang === 'ar' ? 'التشغيل والأدلة' : 'Runtime & Evidence',
-          explorerWidth: 180,
-          explorerMin: 150,
-          explorerMax: 260,
-          contextWidth: 200,
-          contextMin: 170,
-          contextMax: 300,
-        }
-      : workspace === 'software'
-        ? {
-            prefix: 'knoux-software',
-            center: lang === 'ar' ? 'مصفوفة بيئة التشغيل' : 'Runtime Matrix',
-            explorer: lang === 'ar' ? 'أدوات البيئة' : 'Environment Tools',
-            context: lang === 'ar' ? 'أدلة البيئة' : 'Environment Evidence',
-            explorerWidth: 180,
-            explorerMin: 150,
-            explorerMax: 260,
-            contextWidth: 200,
-            contextMin: 170,
-            contextMax: 300,
-          }
-        : workspace === 'postinstall'
-          ? {
-              prefix: 'knoux-postinstall',
-              center: lang === 'ar' ? 'مسار التجهيز' : 'Provisioning Pipeline',
-              explorer: lang === 'ar' ? 'أدوات التجهيز' : 'Provisioning Tools',
-              context: lang === 'ar' ? 'أدلة التثبيت' : 'Install Evidence',
-              explorerWidth: 180,
-              explorerMin: 150,
-              explorerMax: 260,
-              contextWidth: 200,
-              contextMin: 170,
-              contextMax: 300,
-            }
-          : workspace === 'diagnostics'
-            ? {
-                prefix: 'knoux-diagnostics',
-                center: lang === 'ar' ? 'مختبر الأدلة' : 'Evidence Lab',
-                explorer: lang === 'ar' ? 'أدوات التشخيص' : 'Diagnostic Tools',
-                context: lang === 'ar' ? 'النتائج والتقارير' : 'Findings & Reports',
-                explorerWidth: 180,
-                explorerMin: 150,
-                explorerMax: 260,
-                contextWidth: 200,
-                contextMin: 170,
-                contextMax: 300,
-              }
-            : workspace === 'performance'
-              ? {
-                  prefix: 'knoux-performance',
-                  center: lang === 'ar' ? 'مرصد الأداء' : 'Performance Observatory',
-                  explorer: lang === 'ar' ? 'أدوات الأداء' : 'Performance Tools',
-                  context: lang === 'ar' ? 'أدلة الموارد' : 'Resource Evidence',
-                  explorerWidth: 180,
-                  explorerMin: 150,
-                  explorerMax: 260,
-                  contextWidth: 200,
-                  contextMin: 170,
-                  contextMax: 300,
-                }
-              : workspace === 'security'
-                ? {
-                    prefix: 'knoux-security',
-                    center: lang === 'ar' ? 'مركز أدلة الأمان' : 'Security Evidence Center',
-                    explorer: lang === 'ar' ? 'أدوات الأمان' : 'Security Tools',
-                    context: lang === 'ar' ? 'أدلة الحماية' : 'Protection Evidence',
-                    explorerWidth: 180,
-                    explorerMin: 150,
-                    explorerMax: 260,
-                    contextWidth: 200,
-                    contextMin: 170,
-                    contextMax: 300,
-                  }
-              : workspace === 'recovery'
-                ? {
-                    prefix: 'knoux-recovery',
-                    center: lang === 'ar' ? 'خزنة الاستعادة' : 'Recovery Vault',
-                    explorer: lang === 'ar' ? 'أدوات الاستعادة' : 'Recovery Tools',
-                    context: lang === 'ar' ? 'أدلة الاستمرارية' : 'Continuity Evidence',
-                    explorerWidth: 180,
-                    explorerMin: 150,
-                    explorerMax: 260,
-                    contextWidth: 200,
-                    contextMin: 170,
-                    contextMax: 300,
-                  }
-                : workspace === 'services'
-                  ? {
-                      prefix: 'knoux-services',
-                      center: lang === 'ar' ? 'طوبولوجيا النظام' : 'System Topology',
-                      explorer: lang === 'ar' ? 'أدوات الخدمات' : 'Service Tools',
-                      context: lang === 'ar' ? 'أدلة العمليات' : 'Process Evidence',
-                      explorerWidth: 140,
-                      explorerMin: 120,
-                      explorerMax: 220,
-                      contextWidth: 150,
-                      contextMin: 130,
-                      contextMax: 220,
-                    }
-                  : {
-                      prefix: 'knoux-developer',
-                      center: lang === 'ar' ? 'مساحة المطور' : 'Developer Workspace',
-                      explorer: lang === 'ar' ? 'المستكشف' : 'Explorer',
-                      context: lang === 'ar' ? 'السياق والأدلة' : 'Context & Evidence',
-                      explorerWidth: 230,
-                      explorerMin: 170,
-                      explorerMax: 360,
-                      contextWidth: 270,
-                      contextMin: 200,
-                      contextMax: 420,
-                    };
+  const panelText = buildPanelText(workspace, lang);
 
   const onReady = (event: DockviewReadyEvent) => {
     const center = event.api.addPanel({
       id: `${panelText.prefix}-center`,
       component: 'center',
       title: panelText.center,
-      minimumWidth: workspace === 'performance' || workspace === 'security' || workspace === 'recovery' ? 560 : workspace === 'services' ? 640 : 420,
+      minimumWidth: WIDE_CENTER_WORKSPACES.has(workspace)
+        ? 560
+        : workspace === 'performance' || workspace === 'security' || workspace === 'recovery' ? 560 : workspace === 'services' ? 640 : 420,
       minimumHeight: 260,
-      renderer: 'always',
+      renderer: 'onlyWhenVisible',
       tabComponent: 'locked',
     });
 
@@ -242,7 +311,7 @@ export default function KnouxDockWorkspace({
       initialWidth: panelText.explorerWidth,
       minimumWidth: panelText.explorerMin,
       maximumWidth: panelText.explorerMax,
-      renderer: 'always',
+      renderer: 'onlyWhenVisible',
       tabComponent: 'locked',
     });
 
@@ -257,7 +326,7 @@ export default function KnouxDockWorkspace({
       initialWidth: panelText.contextWidth,
       minimumWidth: panelText.contextMin,
       maximumWidth: panelText.contextMax,
-      renderer: 'always',
+      renderer: 'onlyWhenVisible',
       tabComponent: 'locked',
     });
   };

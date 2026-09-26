@@ -9,8 +9,6 @@ import ServiceCard from './ServiceCard';
 import ToolCard from './ToolCard';
 import FamilyLiveStage from './FamilyLiveStage';
 import EngineeringWorkbenchStation from './workbench/EngineeringWorkbenchStation';
-import DuplicateStation from '../../features/stations/station05/DuplicateStation';
-import ExecutionConfirmDialog from '../ExecutionConfirmDialog';
 import SoftwareLibraryPage from '../pages/SoftwareLibraryPage';
 import FamilyOverviewPage from '../pages/FamilyOverviewPage';
 
@@ -35,6 +33,7 @@ interface FamilyPageProps {
 
 const STATION_OWNS_ACTIONS_IDS = new Set<ServiceId>([
   '04-Programs-Applications',
+  '05-Duplicate-Files',
   '06-Disk-Space',
   '07-Services-Processes',
   '10-Diagnostics-Reports',
@@ -109,12 +108,8 @@ export default function FamilyPage({
   const isRtl = lang === 'ar';
   const serviceAppActive = !selectedTool;
   const showWorkbenchStation = family.id === 'workbench' && selectedService !== null;
-  const showDuplicateStudio = activeService.id === '05-Duplicate-Files' && !selectedTool && !executionTool;
   const hideGenericToolRail =
     showWorkbenchStation || STATION_OWNS_ACTIONS_IDS.has(activeService.id);
-  const [duplicatePending, setDuplicatePending] = useState<{
-    tool: BridgeTool; mode: 'run' | 'analyze' | 'preview'; options: ToolRunOptions;
-  } | null>(null);
 
   const showFamilyOverview = selectedService === null && selectedTool === null && executionTool === null;
   if (showFamilyOverview) {
@@ -181,7 +176,7 @@ export default function FamilyPage({
       )}
 
       <main className="knoux-command-live-column">
-        {family.id !== 'workbench' && !showDuplicateStudio && (
+        {family.id !== 'workbench' && (
         <HeroSection
           family={family}
           service={activeService}
@@ -214,12 +209,6 @@ export default function FamilyPage({
             onCancelTool={onCancelTool}
             onRetryBridge={onRetryBridge}
           />
-        ) : showDuplicateStudio ? (
-          <DuplicateStation
-            lang={lang}
-            tools={serviceTools}
-            onPrepareRun={(tool, mode, options) => setDuplicatePending({ tool, mode, options })}
-          />
         ) : (
           <FamilyLiveStage
             family={family}
@@ -241,20 +230,6 @@ export default function FamilyPage({
           />
         )}
       </main>
-
-      {duplicatePending && (
-        <ExecutionConfirmDialog
-          tool={duplicatePending.tool}
-          mode={duplicatePending.mode}
-          lang={lang}
-          initialOptions={duplicatePending.options}
-          onCancel={() => setDuplicatePending(null)}
-          onConfirm={(options, confirmation) => {
-            onRunTool(duplicatePending.tool, duplicatePending.mode, options, confirmation);
-            setDuplicatePending(null);
-          }}
-        />
-      )}
 
       {!hideGenericToolRail && (
       <aside className="knoux-command-rail knoux-command-tool-rail" aria-label={isRtl ? 'إجراءات الخدمة' : 'Service actions'}>

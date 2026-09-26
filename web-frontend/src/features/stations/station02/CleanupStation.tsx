@@ -289,7 +289,7 @@ export default function CleanupStation({
       setOutcomes([]);
       setHistory((current) =>
         appendHistory(current, {
-          kind: 'scan', toolId: 'SC11', mode: 'run', status: 'SUCCESS',
+          kind: 'scan', toolId: 'SC11', mode: 'run', status: preview ? 'INCONCLUSIVE' : 'ERROR',
           candidateBytes: Number(snapshot.Summary?.EstimatedReclaimableBytes || 0),
           selectedBytes: 0, recoveredBytes: 0, quarantined: 0, deleted: 0, skipped: 0, failed: 0,
           verification: '', reportPath: '', finishedAt: new Date().toISOString(),

@@ -191,6 +191,8 @@ export default function MaintenanceStation({
   ].filter(Boolean).sort().at(-1) || '', [evidence, history]);
   const currentCheck = activeRun ? checks.find((check) => check.toolId === activeRun.toolId) : null;
   const progress = queue.length ? Math.round((completedCount / queue.length) * 100) : 0;
+  // A clean result is only truthful once at least one selected check reported back.
+  const scanReportedBack = completedCount > 0;
 
   const recordEvidence = useCallback((run: BridgeRun) => {
     const item = evidenceFromRun(run);
@@ -406,7 +408,7 @@ export default function MaintenanceStation({
 
             {(workflow === 'REVIEW' || workflow === 'APPLYING') && <>
               <div className="care-section-head"><div><p>{text.review}</p><h2>{text.reviewTitle}</h2><span>{text.reviewSub}</span></div><div><b>{recommendations.length} {text.findings}</b></div></div>
-              {recommendations.length === 0 ? <div className="care-clean-result"><CheckCircle2 size={28}/><strong>{text.noFindings}</strong></div> : <div className="care-findings">{recommendations.map((recommendation) => {
+              {recommendations.length === 0 ? <div className="care-clean-result">{scanReportedBack ? <CheckCircle2 size={28}/> : <AlertTriangle size={28}/>}<strong>{scanReportedBack ? text.noFindings : (lang === 'ar' ? 'لم تُرجع الفحوص المحددة أي نتيجة. لم يُشخَّص شيء بعد.' : 'The selected checks returned no result. Nothing has been diagnosed yet.')}</strong></div> : <div className="care-findings">{recommendations.map((recommendation) => {
                 const tool = byId.get(recommendation.toolId)!;
                 const sourceId = recommendation.toolId === 'SM02' ? 'SM01' : recommendation.toolId === 'SM05' ? (evidence.SM04 ? 'SM04' : 'SM03') : 'SM06';
                 const source = evidence[sourceId];

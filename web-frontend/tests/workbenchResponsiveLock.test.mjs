@@ -31,5 +31,6 @@ test('single ServiceApps mount is preserved (no double render regression)', () =
   assert.equal(mounts.length, 1, `expected exactly 1 ServiceApps mount in workbench, found ${mounts.length}`);
   const family = fs.readFileSync(path.join(webRoot, 'src', 'components', 'premium', 'FamilyPage.tsx'), 'utf8');
   assert.match(family, /showWorkbenchStation \? \(/);
-  assert.match(family, /: showDuplicateStudio \? \(/);
+  assert.equal((family.match(/<FamilyLiveStage/g) ?? []).length, 1);
+  assert.doesNotMatch(family, /showDuplicateStudio/);
 });

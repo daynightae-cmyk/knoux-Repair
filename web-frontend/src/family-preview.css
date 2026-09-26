@@ -456,6 +456,16 @@
 }
 .knoux-workspace-stage[data-mode='tool'] { min-height: 570px; }
 .knoux-workspace-stage[data-mode='empty'] { min-height: 178px; }
+/* Decorative stage chrome must never take layout space: an in-flow scanline
+   pushed a 120px empty band above the header on every service workspace. */
+.knoux-workspace-stage .knoux-stage-scanline {
+  position: absolute;
+  z-index: -1;
+  inset-inline: 0;
+  height: 120px;
+  top: -120px;
+  pointer-events: none;
+}
 .knoux-workspace-stage .knoux-stage-header { position: relative; z-index: 2; }
 .knoux-workspace-stage .knoux-stage-tool { padding: 12px !important; }
 .knoux-workspace-stage .knoux-tool-workspace {

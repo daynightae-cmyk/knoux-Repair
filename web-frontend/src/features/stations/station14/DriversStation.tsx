@@ -61,7 +61,7 @@ const COPY = {
     quickSignatures: 'Signature Audit',
     quickExport: 'Export OEM Drivers',
     signalsTitle: 'Driver Findings & Hardware Signals',
-    noSignals: 'All hardware drivers are signed, verified, and operating without PnP problem codes.',
+    noSignals: 'No device problem codes, unsigned packages, or third-party drivers were found in this inventory. This audit does not verify signature policy beyond those three checks.',
     reviewTitle: 'Drivers Requiring Engineering Review',
     reviewSubtitle: 'Drivers flagged for lack of digital signature, old release dates, or device problem codes.',
     noReviewNeeded: 'No drivers currently flagged for review.',
@@ -118,7 +118,7 @@ const COPY = {
     quickSignatures: 'تدقيق التواقيع',
     quickExport: 'تصدير تعريفات OEM',
     signalsTitle: 'ملاحظات التعريفات وإشارات العتاد',
-    noSignals: 'كافة تعريفات الأجهزة موقعة رقمياً وتعمل بدون أي رموز أعطال في إدارة الأجهزة.',
+    noSignals: 'لم يعثر هذا الجرد على رموز أعطال في إدارة الأجهزة أو حزم غير موقعة أو تعريفات من جهات خارجية. هذا التدقيق لا يتحقق من سياسة التوقيع أبعد من هذه الفحوصات الثلاثة.',
     reviewTitle: 'التعريفات التي تحتاج تدقيقاً هندسياً',
     reviewSubtitle: 'التعريفات المحددة بسبب غياب التوقيع الرقمي، أو قِدم تاريخ الإصدار، أو ارتباطها بجهاز به عطل.',
     noReviewNeeded: 'لا توجد تعريفات تحتاج تدقيقاً حالياً.',
@@ -166,6 +166,7 @@ function DriversStationContent({
   lang,
   tools,
   bridgeOnline,
+  bridgeElevated,
   onRetryBridge,
   onToolStatus,
 }: DriversStationProps) {
@@ -223,6 +224,10 @@ function DriversStationContent({
   const signals = useMemo<DriverSignal[]>(() => {
     return detectDriverSignals(preview);
   }, [preview]);
+
+  // Nothing in the driver matrix may report a number, a pass, or a clean state
+  // until the local inventory actually returned driver evidence.
+  const inventoryMeasured = Boolean(preview?.RecentInventory?.length || preview?.ReviewDrivers?.length);
 
   const allDrivers = useMemo(() => {
     const list: DriverPreviewItem[] = [];
@@ -484,41 +489,57 @@ function DriversStationContent({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
         <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid #1e293b', borderRadius: 10, padding: 14 }}>
           <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{t.totalDrivers}</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#f8fafc', marginTop: 4 }}>
-            {summary.totalDrivers}
+          <div style={{ fontSize: inventoryMeasured ? 24 : 13, fontWeight: 800, color: '#f8fafc', marginTop: 4 }}>
+            {inventoryMeasured ? summary.totalDrivers : t.notCheckedYet}
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Across {summary.classesCount} device classes</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+            {inventoryMeasured
+              ? (lang === 'ar' ? `عبر ${summary.classesCount} من فئات الأجهزة` : `Across ${summary.classesCount} device classes`)
+              : t.countNotReported}
+          </div>
         </div>
 
         <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid #1e293b', borderRadius: 10, padding: 14 }}>
           <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{t.signedDrivers}</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#10b981', marginTop: 4 }}>
-            {summary.signedDrivers}
+          <div style={{ fontSize: inventoryMeasured ? 24 : 13, fontWeight: 800, color: inventoryMeasured ? '#10b981' : '#94a3b8', marginTop: 4 }}>
+            {inventoryMeasured ? summary.signedDrivers : t.notCheckedYet}
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>WHQL / Authenticode valid</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+            {inventoryMeasured
+              ? (lang === 'ar' ? 'WHQL / Authenticode صالح' : 'WHQL / Authenticode valid')
+              : t.countNotReported}
+          </div>
         </div>
 
         <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid #1e293b', borderRadius: 10, padding: 14 }}>
           <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{t.thirdPartyDrivers}</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#38bdf8', marginTop: 4 }}>
-            {summary.thirdPartyDrivers}
+          <div style={{ fontSize: inventoryMeasured ? 24 : 13, fontWeight: 800, color: '#38bdf8', marginTop: 4 }}>
+            {inventoryMeasured ? summary.thirdPartyDrivers : t.notCheckedYet}
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>OEM Driver Store packages</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+            {inventoryMeasured
+              ? (lang === 'ar' ? 'حزم متجر تعريفات OEM' : 'OEM Driver Store packages')
+              : t.countNotReported}
+          </div>
         </div>
 
         <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid #1e293b', borderRadius: 10, padding: 14 }}>
           <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{t.deviceProblems}</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: summary.deviceProblemsCount > 0 ? '#ef4444' : '#10b981', marginTop: 4 }}>
-            {summary.deviceProblemsCount}
+          <div style={{ fontSize: inventoryMeasured ? 24 : 13, fontWeight: 800, color: !inventoryMeasured ? '#94a3b8' : summary.deviceProblemsCount > 0 ? '#ef4444' : '#10b981', marginTop: 4 }}>
+            {inventoryMeasured ? summary.deviceProblemsCount : t.notCheckedYet}
           </div>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-            {summary.deviceProblemsCount > 0 ? 'PnP problem codes flagged' : 'No device errors'}
+            {!inventoryMeasured
+              ? t.countNotReported
+              : summary.deviceProblemsCount > 0
+                ? (lang === 'ar' ? 'رموز أعطال في إدارة الأجهزة' : 'PnP problem codes flagged')
+                : (lang === 'ar' ? 'لا توجد أخطاء في الأجهزة' : 'No device errors')}
           </div>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #1e293b', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', borderBottom: '1px solid #1e293b', gap: 6, paddingBottom: 4 }}>
         {[
           { key: 'overview', label: t.tabOverview, icon: ShieldCheck },
           { key: 'review', label: t.tabReview, icon: TriangleAlert },
@@ -702,9 +723,9 @@ function DriversStationContent({
           </div>
 
           {(!preview?.ReviewDrivers || preview.ReviewDrivers.length === 0) ? (
-            <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: 8, padding: 24, textAlign: 'center', color: '#10b981', fontSize: 13 }}>
-              <CheckCircle2 size={24} style={{ margin: '0 auto 8px auto' }} />
-              <div>{t.noReviewNeeded}</div>
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: 8, padding: 24, textAlign: 'center', color: inventoryMeasured ? '#10b981' : '#94a3b8', fontSize: 13 }}>
+              {inventoryMeasured ? <CheckCircle2 size={24} style={{ margin: '0 auto 8px auto' }} /> : <AlertTriangle size={24} style={{ margin: '0 auto 8px auto' }} />}
+              <div>{inventoryMeasured ? t.noReviewNeeded : t.notCheckedYet}</div>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 10 }}>
@@ -897,9 +918,9 @@ function DriversStationContent({
           </div>
 
           {(!preview?.DeviceProblems || preview.DeviceProblems.length === 0) ? (
-            <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: 8, padding: 24, textAlign: 'center', color: '#10b981', fontSize: 13 }}>
-              <CheckCircle2 size={24} style={{ margin: '0 auto 8px auto' }} />
-              <div>{t.noProblems}</div>
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: 8, padding: 24, textAlign: 'center', color: inventoryMeasured ? '#10b981' : '#94a3b8', fontSize: 13 }}>
+              {inventoryMeasured ? <CheckCircle2 size={24} style={{ margin: '0 auto 8px auto' }} /> : <AlertTriangle size={24} style={{ margin: '0 auto 8px auto' }} />}
+              <div>{inventoryMeasured ? t.noProblems : t.notCheckedYet}</div>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 10 }}>
@@ -944,29 +965,36 @@ function DriversStationContent({
               <FolderArchive size={24} color="#6366f1" />
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#f8fafc' }}>
-                  {summary.thirdPartyDrivers} OEM Driver Packages Ready for Export
+                  {inventoryMeasured
+                    ? lang === 'ar'
+                      ? `${summary.thirdPartyDrivers} حزم تعريفات OEM جاهزة للتصدير`
+                      : `${summary.thirdPartyDrivers} OEM Driver Packages Ready for Export`
+                    : t.notCheckedYet}
                 </div>
                 <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{t.exportNotice}</div>
               </div>
             </div>
 
             <div style={{ marginTop: 16 }}>
-              {tools.find((t) => t.ToolId === 'DV03') && (
+              {tools.find((tool) => tool.ToolId === 'DV03') && (
                 <button
                   type="button"
-                  onClick={() => handleLaunchTool(tools.find((t) => t.ToolId === 'DV03')!, 'run')}
+                  onClick={() => handleLaunchTool(tools.find((tool) => tool.ToolId === 'DV03')!, 'run')}
+                  disabled={!bridgeElevated}
+                  title={!bridgeElevated ? t.adminRequired : undefined}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
                     padding: '10px 18px',
-                    background: '#4f46e5',
+                    background: bridgeElevated ? '#4f46e5' : 'rgba(79,70,229,.35)',
                     border: '1px solid #6366f1',
                     borderRadius: 8,
                     color: '#fff',
                     fontSize: 13,
                     fontWeight: 700,
-                    cursor: 'pointer',
+                    cursor: bridgeElevated ? 'pointer' : 'not-allowed',
+                    opacity: bridgeElevated ? 1 : 0.7,
                   }}
                 >
                   <Download size={14} />

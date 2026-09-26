@@ -67,6 +67,8 @@
 
 .knoux-dock-slot--center {
   overflow: hidden;
+  container-type: inline-size;
+  container-name: knouxcenter;
 }
 
 .knoux-dock-slot--center > .knoux-deck-center,
@@ -233,5 +235,92 @@
   .knoux-service-dock-explorer,
   .knoux-service-dock-context {
     padding: 10px 8px;
+  }
+}
+
+/* Station surfaces are laid out for the viewport, but inside Dockview they live
+   in a ~560px center column at 1366px. Re-apply the narrow station layouts from
+   the center column's own width so no required control is pushed off-panel. */
+@container knouxcenter (max-width: 720px) {
+  .knoux-command-center[data-service='01-System-Maintenance'] .care-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .knoux-command-center[data-service='01-System-Maintenance'] .care-scan-stage {
+    min-height: 330px;
+    border-inline-end: 0;
+    border-bottom: 1px solid rgba(130, 151, 205, .12);
+  }
+
+  .knoux-command-center[data-service='01-System-Maintenance'] .care-groups,
+  .knoux-command-center[data-service='01-System-Maintenance'] .care-result-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .knoux-command-center[data-service='01-System-Maintenance'] .care-header {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .knoux-command-center[data-service='01-System-Maintenance'] .care-runtime-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .knoux-command-center[data-service='05-Duplicate-Files'] .duplicate-mini-nav {
+    width: auto;
+    min-width: 0;
+  }
+
+  .knoux-command-center[data-service='05-Duplicate-Files'] .duplicate-landing-canvas {
+    min-height: 390px;
+    padding: 24px 18px;
+  }
+
+  .knoux-command-center[data-service='05-Duplicate-Files'] .duplicate-landing-canvas > .knoux-duplicate-hero-container {
+    max-width: 460px;
+    margin: 0 auto 18px;
+  }
+
+  .knoux-command-center[data-service='02-System-Cleanup'] .cleanup-mini-nav,
+  .knoux-command-center[data-service='06-Disk-Space'] .disk-space-station > nav,
+  .knoux-command-center[data-service='07-Services-Processes'] .services-topology-station > nav,
+  .knoux-command-center[data-service='11-Backup-Recovery'] .recovery-vault-station > nav,
+  .knoux-command-center[data-service='03-Network-Internet'] .network-mini-nav,
+  .knoux-command-center[data-service='09-Security'] .security-evidence-station > nav {
+    flex-wrap: wrap;
+    overflow-x: visible !important;
+  }
+
+  .knoux-command-center[data-service='04-Programs-Applications'] .programs-landing-canvas {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1.2rem;
+  }
+
+  .knoux-dock-slot--center .programs-station,
+  .knoux-dock-slot--center .programs-landing-canvas,
+  .knoux-dock-slot--center .programs-landing-canvas > * {
+    min-width: 0;
+  }
+
+  /* The station and canvas glows are decorative and sized for the full viewport;
+     contain them so they cannot report a phantom horizontal overflow. */
+  .knoux-dock-slot--center .programs-station,
+  .knoux-dock-slot--center .programs-landing-canvas {
+    overflow: hidden;
+  }
+
+  .knoux-command-center[data-service='04-Programs-Applications'] .programs-station > header:first-child {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .knoux-command-center[data-service='04-Programs-Applications'] .programs-station > header:first-child > div:last-child {
+    width: 100%;
+  }
+
+  .knoux-command-center[data-service='04-Programs-Applications'] .programs-landing-copy,
+  .knoux-command-center[data-service='04-Programs-Applications'] .programs-landing-hero-visual {
+    grid-column: 1;
   }
 }
