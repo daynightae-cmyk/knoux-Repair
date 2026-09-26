@@ -120,29 +120,19 @@ export default function FamilyPage({
       setToolsExpanded(false);
     };
 
-    // The library overview keeps the same enter/exit treatment as a service
-    // route, so moving between the overview and a workspace never leaves the
-    // stage with no visible surface for a frame.
+    // The library overview renders without an enter fade: a brand new page must
+    // never paint itself invisible first. The outgoing surface still animates
+    // out, so switching never leaves the stage empty.
     if (family.id === 'software') {
       return (
-        <motion.div
-          key="software-library-overview"
-          className="knoux-family-overview-route"
-          data-family-overview="software"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.18, ease: 'easeOut' }}
-        >
-          <SoftwareLibraryPage
-            family={family}
-            tools={tools}
-            lang={lang}
-            bridgeOnline={bridgeOnline}
-            bridgeElevated={bridgeElevated}
-            onSelectService={selectOverviewService}
-          />
-        </motion.div>
+        <SoftwareLibraryPage
+          family={family}
+          tools={tools}
+          lang={lang}
+          bridgeOnline={bridgeOnline}
+          bridgeElevated={bridgeElevated}
+          onSelectService={selectOverviewService}
+        />
       );
     }
 

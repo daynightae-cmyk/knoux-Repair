@@ -340,7 +340,10 @@ export default function FamilyLiveStage({
 
       {/* mode="sync": the incoming station mounts concurrently with the outgoing
           exit so service switching never leaves the center stage empty
-          (proven by the final-visual in-app navigation gate). */}
+          (proven by the final-visual in-app navigation gate).
+          initial={false}: a newly mounted surface renders at its final opacity
+          instead of painting itself invisible first; the empty stage is already
+          prevented by the outgoing exit, so the enter fade added nothing. */}
       <AnimatePresence mode="sync" initial={false}>
         {selectedTool ? (
           <motion.div
