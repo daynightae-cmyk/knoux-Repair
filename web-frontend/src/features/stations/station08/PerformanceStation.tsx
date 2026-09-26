@@ -6,6 +6,10 @@ import {
   Sliders, Timer
 } from 'lucide-react';
 import type { BridgeTool, ExecutionMode, OptimizationPreview, ToolRunConfirmation, ToolRunOptions } from '../../../lib/api';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
+import { StationInventorySurface, type InventoryColumn, type InventoryFilter } from '../../../components/workspace/StationInventorySurface';
+import '../../../components/workspace/station-inventory.css';
+import './performance-evidence.css';
 import { api } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
 import { pickName } from '../../../lib/i18n';
@@ -27,7 +31,12 @@ export interface PerformanceStationProps {
   bridgeOnline: boolean | null;
   onRetryBridge: () => void;
   onToolStatus: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
+  /** Cross-station deep link, used to point at the station that owns process evidence. */
+  onNavigateService?: (family: FamilyId, service: ServiceId) => void;
 }
+
+/** One measured volume, exactly as the optimization preview reports it. */
+type PerformanceDisk = OptimizationPreview['Disks'][number];
 
 type TabKey = 'overview' | 'resources' | 'bottlenecks' | 'startup' | 'powerThermal' | 'actions' | 'report' | 'history';
 
@@ -64,6 +73,19 @@ const COPY = {
     noSignals: 'No performance signals were returned in this snapshot.',
     noTopProcesses: 'No top-process evidence was returned in this snapshot.',
     notReported: 'Not reported',
+    // A counter the bridge did not sample is not the same as a counter reading zero.
+    notCollected: 'Not collected',
+    activeTime: 'Active time',
+    pagesPerSecond: 'Pages per second',
+    totalCapacity: 'Capacity',
+    freeSpace: 'Free space',
+    usedPercent: 'Used',
+    evidenceScope: 'Evidence scope',
+    diskEvidenceTitle: 'Measured disk evidence',
+    diskEvidenceScopeNote: 'Capacity, free space and allocation come from the volume snapshot. Active time and paging rate are only shown when the bridge sampled them, and are marked "not collected" otherwise.',
+    processEvidenceElsewhere: 'This cockpit reads the live process count only. Per-process CPU and memory evidence lives in Services & Processes.',
+    openProcessEvidence: 'Open process evidence',
+    close: 'Close',
     startAction: 'Execute Action',
     emptyHistory: 'No performance actions executed yet during this session.',
   },
@@ -99,6 +121,18 @@ const COPY = {
     noSignals: 'لم تُرجع اللقطة الحالية أي إشارات أداء.',
     noTopProcesses: 'لم تُرجع اللقطة الحالية بيانات أعلى العمليات استهلاكاً.',
     notReported: 'غير مُبلّغ عنه',
+    notCollected: 'غير مقيس',
+    activeTime: 'نشاط القرص',
+    pagesPerSecond: 'الصفحات في الثانية',
+    totalCapacity: 'السعة',
+    freeSpace: 'المساحة المتاحة',
+    usedPercent: 'نسبة الاستخدام',
+    evidenceScope: 'نطاق الدليل',
+    diskEvidenceTitle: 'أدلة الأقراص المقيسة',
+    diskEvidenceScopeNote: 'السعة والمساحة المتاحة ونسبة الاستخدام تأتي من لقطة وحدة التخزين. أما نشاط القرص ومعدل التبديل فيُعرضان فقط عندما يقيسهما الجسر، وإلا ف打着 "غير مقيس".',
+    processEvidenceElsewhere: 'تقرأ هذه اللوحة عدد العمليات الحيّ فقط. تفاصيل استهلاك المعالج والذاكرة لكل عملية موجودة في محطة الخدمات والعمليات.',
+    openProcessEvidence: 'افتح أدلة العمليات',
+    close: 'إغلاق',
     startAction: 'بدء الإجراء',
     emptyHistory: 'لم يتم تنفيذ أي إجراء أداء خلال هذه الجلسة حتى الآن.',
   },
@@ -112,6 +146,7 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
   bridgeOnline = null,
   onRetryBridge,
   onToolStatus,
+  onNavigateService,
 }) => {
   const t = COPY[lang];
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
@@ -123,7 +158,9 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
   const stationToolsList = useMemo(() => stationTools(tools), [tools]);
 
   // Load telemetry from api.optimizationPreview()
+  const [loadingTelemetry, setLoadingTelemetry] = useState(false);
   const loadTelemetry = useCallback(async () => {
+    setLoadingTelemetry(true);
     try {
       const res = await api.optimizationPreview();
       if (res?.preview) {
@@ -131,6 +168,8 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
       }
     } catch {
       // handled by bridgeOnline
+    } finally {
+      setLoadingTelemetry(false);
     }
   }, []);
 
@@ -210,6 +249,94 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
     [data]
   );
   const hasTelemetry = data !== null;
+
+  /**
+   * Which disk counters the bridge actually measured on this machine.
+   *
+   * A null counter is "not collected", which is a different fact from 0%. Presenting
+   * a missing counter as zero would let the cockpit look complete while quietly
+   * asserting a level of activity that was never observed.
+   */
+  const diskCoverage = useMemo(() => {
+    const disks = data?.Disks ?? [];
+    return {
+      total: disks.length,
+      // True only when every reported disk carried a sampled active-time figure.
+      activeTime: disks.length > 0 && disks.every(disk => typeof disk.ActiveTimePercent === 'number'),
+    };
+  }, [data]);
+
+  const uncollectedCounters = useMemo(() => {
+    const missing: string[] = [];
+    if (data && !diskCoverage.activeTime) missing.push(t.activeTime);
+    if (data && data.Memory?.PagesPerSecond == null) missing.push(t.pagesPerSecond);
+    return missing;
+  }, [data, diskCoverage, t.activeTime, t.pagesPerSecond]);
+
+  const diskRows = useMemo(() => (data ? data.Disks : null), [data]);
+
+  /**
+   * Renders a counter the bridge may not have collected. `null` means "not collected",
+   * and must never be flattened into 0 — a 0% reading asserts an idle disk that was
+   * never observed.
+   */
+  const counterValue = (value: number | null | undefined, unit: string) =>
+    typeof value === 'number' ? `${value.toLocaleString()}${unit}` : t.notCollected;
+
+  const diskFilters = useMemo<InventoryFilter<PerformanceDisk>[]>(() => ([
+    { key: 'critical', label: { en: 'Over 90% used', ar: 'أكثر من 90% مستخدم' }, test: disk => disk.UsedPercent >= 90 },
+    { key: 'busy', label: { en: 'Over 75% used', ar: 'أكثر من 75% مستخدم' }, test: disk => disk.UsedPercent >= 75 },
+    { key: 'low-space', label: { en: 'Under 15 GB free', ar: 'أقل من 15 ج.ب متاحة' }, test: disk => disk.FreeGB < 15 },
+  ]), []);
+
+  const diskColumns = useMemo<InventoryColumn<PerformanceDisk>[]>(() => ([
+    {
+      key: 'name',
+      label: { en: 'Volume', ar: 'وحدة التخزين' },
+      width: 'minmax(0, 0.6fr)',
+      sortValue: disk => disk.Name,
+      render: disk => <span className="pf-disk-name">{disk.Name}</span>,
+    },
+    {
+      key: 'total',
+      label: { en: 'Capacity', ar: 'السعة' },
+      width: 'minmax(0, 0.7fr)',
+      align: 'end',
+      sortValue: disk => disk.TotalGB,
+      render: disk => <span className="pf-disk-num">{disk.TotalGB.toLocaleString()} GB</span>,
+    },
+    {
+      key: 'free',
+      label: { en: 'Free', ar: 'متاح' },
+      width: 'minmax(0, 0.7fr)',
+      align: 'end',
+      sortValue: disk => disk.FreeGB,
+      render: disk => <span className="pf-disk-num">{disk.FreeGB.toLocaleString()} GB</span>,
+    },
+    {
+      key: 'used',
+      label: { en: 'Used', ar: 'مستخدم' },
+      width: 'minmax(0, 1.1fr)',
+      sortValue: disk => disk.UsedPercent,
+      render: disk => (
+        <span className="pf-disk-used">
+          <span className="pf-disk-bar" data-tone={disk.UsedPercent >= 90 ? 'bad' : disk.UsedPercent >= 75 ? 'warn' : 'good'}>
+            <span style={{ width: `${Math.min(100, Math.max(0, disk.UsedPercent))}%` }} />
+          </span>
+          <span className="pf-disk-num">{disk.UsedPercent}%</span>
+        </span>
+      ),
+    },
+    {
+      key: 'active',
+      label: { en: 'Active time', ar: 'نشاط القرص' },
+      width: 'minmax(0, 0.8fr)',
+      align: 'end',
+      // null when the bridge never sampled it.
+      sortValue: disk => disk.ActiveTimePercent,
+      render: disk => <span className="pf-disk-num">{counterValue(disk.ActiveTimePercent, '%')}</span>,
+    },
+  ]), [t.notCollected]);
   const bottlenecksChecked = cpuPercent !== null && memPercent !== null;
   const bottleneckStatus = bottlenecksChecked
     ? (bottlenecks.length === 0 ? t.noBottlenecks : null)
@@ -399,6 +526,7 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
 
         {/* Tab 2: RESOURCES */}
         {activeTab === 'resources' && (
+          <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="glass-panel p-4 rounded-xl border border-white/10 flex flex-col gap-2 font-mono">
               <div className="flex items-center gap-2 text-cyan-400 text-xs">
@@ -437,9 +565,84 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
               </div>
               <strong className="text-sm text-white">{data ? `${data.ProcessCount} Processes` : t.notCheckedYet}</strong>
               <span className="text-xs text-slate-400">Sampling Window: {hasTelemetry ? 'Latest snapshot' : t.notCheckedYet}</span>
-              <div className="mt-2 text-lg font-bold text-amber-300">{hasTelemetry ? 'Evidence available' : t.notCheckedYet}</div>
+              {/* A process count is not process evidence. Point at the station that owns it
+                  rather than implying this cockpit can see individual processes. */}
+              <div className="mt-2 text-xs text-slate-400">
+                {hasTelemetry
+                  ? t.processEvidenceElsewhere
+                  : t.notCheckedYet}
+              </div>
+              {onNavigateService && hasTelemetry && (
+                <button
+                  type="button"
+                  onClick={() => onNavigateService('recovery' as FamilyId, '07-Services-Processes' as ServiceId)}
+                  className="self-start mt-1 inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] text-white"
+                >
+                  {t.openProcessEvidence}
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Real per-disk evidence, with counters the bridge did not collect marked as
+              such instead of being rendered as zero. */}
+          <div className="glass-panel p-4 rounded-2xl border border-white/10 flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <h3 className="text-sm font-semibold text-white tracking-wide">{t.diskEvidenceTitle}</h3>
+              {data && uncollectedCounters.length > 0 && (
+                <span className="text-[11px] text-amber-300/90 font-mono">
+                  {t.notCollected}: {uncollectedCounters.join(' · ')}
+                </span>
+              )}
+            </div>
+
+            <StationInventorySurface
+              lang={lang}
+              rows={diskRows}
+              loading={loadingTelemetry}
+              rowKey={disk => disk.Name}
+              columns={diskColumns}
+              filters={diskFilters}
+              searchPlaceholder={{ en: 'Search volume name…', ar: 'ابحث باسم وحدة التخزين…' }}
+              searchFields={disk => [disk.Name]}
+              sortInitial={{ key: 'used', direction: 'desc' }}
+              pageSize={20}
+              empty={{
+                notChecked: { en: 'Not checked yet. Read the performance snapshot to see real disk evidence.', ar: 'لم يتم الفحص بعد. اقرأ لقطة الأداء لرؤية أدلة الأقراص الحقيقية.' },
+                checking: { en: 'Reading disk evidence…', ar: 'جارٍ قراءة أدلة الأقراص…' },
+                noneFound: { en: 'The snapshot reported no fixed disks on this machine.', ar: 'أظهرت اللقطة وجود قرص ثابت واحد على الأقل في هذا الجهاز.' },
+                noMatch: { en: 'No disks match your search and filters.', ar: 'لا توجد أقراص مطابقة لبحثك ومرشّحاتك.' },
+                noMatchHint: { en: 'Clear a filter to see the rest of the measured disks.', ar: 'امسح أحد المرشّحات لعرض بقية الأقراص المقيسة.' },
+              }}
+              inspector={(disk, close) => (
+                <div className="pf-disk-inspector">
+                  <div className="pf-disk-inspector__head">
+                    <h4>{disk.Name}</h4>
+                    <button type="button" onClick={close} aria-label={t.close}>{'\u2715'}</button>
+                  </div>
+                  <dl>
+                    <div><dt>{t.totalCapacity}</dt><dd>{disk.TotalGB.toLocaleString()} GB</dd></div>
+                    <div><dt>{t.freeSpace}</dt><dd>{disk.FreeGB.toLocaleString()} GB</dd></div>
+                    <div>
+                      <dt>{t.usedPercent}</dt>
+                      <dd>{disk.UsedPercent}%</dd>
+                    </div>
+                    <div>
+                      <dt>{t.activeTime}</dt>
+                      <dd>{counterValue(disk.ActiveTimePercent, '%')}</dd>
+                    </div>
+                    <div className="pf-disk-inspector__wide">
+                      <dt>{t.evidenceScope}</dt>
+                      <dd>
+                        {t.diskEvidenceScopeNote}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              )}
+            />
+          </div>
+          </>
         )}
 
         {/* Tab 3: BOTTLENECKS */}

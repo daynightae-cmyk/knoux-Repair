@@ -1,0 +1,108 @@
+/* Station 08 — Performance cockpit disk evidence.
+   Field styling only; interaction grammar lives in the shared
+   station-inventory.css primitive. */
+
+.pf-disk-name {
+  color: #e2e8f0;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.pf-disk-num {
+  color: #94a3b8;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pf-disk-used {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pf-disk-bar {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 40px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.16);
+  overflow: hidden;
+}
+
+.pf-disk-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #34d399;
+}
+
+.pf-disk-bar[data-tone='warn'] > span {
+  background: #fbbf24;
+}
+
+.pf-disk-bar[data-tone='bad'] > span {
+  background: #f87171;
+}
+
+.pf-disk-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pf-disk-inspector__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pf-disk-inspector__head h4 {
+  margin: 0;
+  color: #7dd3fc;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.pf-disk-inspector__head button {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pf-disk-inspector__head button:hover {
+  color: #e2e8f0;
+}
+
+.pf-disk-inspector dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+  margin: 0;
+}
+
+.pf-disk-inspector__wide {
+  grid-column: 1 / -1;
+}
+
+.pf-disk-inspector dt {
+  color: #64748b;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.pf-disk-inspector dd {
+  margin: 2px 0 0;
+  color: #cbd5e1;
+  font-size: 11.5px;
+  line-height: 1.7;
+}
