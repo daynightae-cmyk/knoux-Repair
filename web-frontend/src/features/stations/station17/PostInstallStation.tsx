@@ -21,6 +21,7 @@ import {
   stationTools
 } from './postInstallModel';
 import PostInstallHeroVisual from './PostInstallHeroVisual';
+import '../../../post-install-overview.css';
 
 export interface PostInstallStationProps {
   lang: Lang;
@@ -555,41 +556,101 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                   pendingRestartCount={summary.pendingRestartCount}
                   wingetAvailable={summary.wingetAvailable}
                   hasPreview={Boolean(previewData)}
+                  systemCaption={previewData ? summary.systemCaption : undefined}
+                  onOpenSection={section => setActiveTab(section)}
                   lang={lang}
                 />
               </div>
 
-              {/* KPI Metrics Grid */}
+              {/* Every tile reports a real measured value and opens the section that
+                  owns it, so the overview is a launchpad rather than a row of
+                  placeholders that never resolve. */}
               <div className="metrics-grid">
-                <div className="metric-card">
+                <button
+                  type="button"
+                  className="metric-card metric-card--link"
+                  onClick={() => setActiveTab('catalog')}
+                >
                   <span className="metric-label">{t.installedApps}</span>
-                  <span className="metric-value primary">{previewData ? summary.installedAppsCount : '—'}</span>
-                  <span className="metric-sub">{summary.systemCaption}</span>
-                </div>
-                <div className="metric-card">
+                  <span className="metric-value primary">{previewData ? summary.installedAppsCount.toLocaleString(lang === 'ar' ? 'ar' : 'en') : '—'}</span>
+                  <span className="metric-sub">
+                    {previewData
+                      ? (lang === 'ar'
+                        ? `${summary.systemCaption} · بناء ${summary.build}`
+                        : `${summary.systemCaption} · build ${summary.build}`)
+                      : (lang === 'ar' ? 'لم يتم الفحص بعد' : 'Not checked yet')}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="metric-card metric-card--link"
+                  onClick={() => setActiveTab('overview')}
+                >
                   <span className="metric-label">{t.pendingReboot}</span>
                   <span className={`metric-value ${summary.pendingRestartCount > 0 ? 'danger' : 'success'}`}>
                     {!previewData ? '—' : summary.pendingRestartCount > 0 ? `${summary.pendingRestartCount} signals` : 'None'}
                   </span>
                   <span className="metric-sub">{!previewData ? (lang === 'ar' ? 'لم يتم الفحص بعد' : 'Not checked yet') : summary.pendingRestartCount > 0 ? 'Reboot recommended' : 'No restart signal observed'}</span>
-                </div>
-                <div className="metric-card">
+                </button>
+                <button
+                  type="button"
+                  className="metric-card metric-card--link"
+                  onClick={() => setActiveTab('catalog')}
+                >
                   <span className="metric-label">{t.missingApps}</span>
                   <span className={`metric-value ${summary.catalogMissing > 0 ? 'warning' : 'success'}`}>
                     {previewData ? `${summary.catalogMissing} / ${summary.catalogTotal}` : '—'}
                   </span>
-                  <span className="metric-sub">Catalog utilities</span>
-                </div>
-                <div className="metric-card">
+                  <span className="metric-sub">
+                    {previewData
+                      ? (lang === 'ar'
+                        ? `${summary.catalogDetected} مُكتشف من كتالوج البرامج الأساسية`
+                        : `${summary.catalogDetected} detected of the essentials catalog`)
+                      : (lang === 'ar' ? 'لم يتم الفحص بعد' : 'Not checked yet')}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="metric-card metric-card--link"
+                  onClick={() => setActiveTab('drivers')}
+                >
                   <span className="metric-label">{t.driverOffers}</span>
-                  <span className="metric-value info">{previewData && summary.driverOffersAvailable ? summary.driverOffersCount : '—'}</span>
-                  <span className="metric-sub">Windows Update</span>
-                </div>
-                <div className="metric-card">
+                  {previewData && summary.driverOffersAvailable ? (
+                    <span className="metric-value info">{summary.driverOffersCount}</span>
+                  ) : previewData ? (
+                    /* Queried and found nothing is not the same as never queried, and the
+                       bridge already told us which one this is. */
+                    <span className="metric-value muted">
+                      {lang === 'ar' ? 'لم يُستعلم' : 'Not queried'}
+                    </span>
+                  ) : (
+                    <span className="metric-value">—</span>
+                  )}
+                  <span className="metric-sub">
+                    {previewData
+                      ? summary.driverOffersError
+                        ?? (lang === 'ar' ? 'لا عروض متاحة من Windows Update' : 'No offers from Windows Update')
+                      : (lang === 'ar' ? 'لم يتم الفحص بعد' : 'Not checked yet')}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="metric-card metric-card--link"
+                  onClick={() => setActiveTab('winget')}
+                >
                   <span className="metric-label">{t.wingetStatus}</span>
-                  <span className="metric-value">{!previewData ? '—' : summary.wingetAvailable ? (summary.wingetVersion || 'Available') : 'Missing'}</span>
-                  <span className="metric-sub">{!previewData ? (lang === 'ar' ? 'لم يتم الفحص بعد' : 'Not checked yet') : `${summary.wingetSourcesCount} sources observed`}</span>
-                </div>
+                  <span className="metric-value">
+                    {!previewData ? '—' : summary.wingetAvailable ? (summary.wingetVersion ?? 'Available') : 'Missing'}
+                  </span>
+                  <span className="metric-sub">
+                    {!previewData
+                      ? (lang === 'ar' ? 'لم يتم الفحص بعد' : 'Not checked yet')
+                      : summary.wingetError
+                        ?? (summary.wingetAvailable
+                          ? `${summary.wingetSourcesCount} ${lang === 'ar' ? 'مصدر' : 'sources'} observed`
+                          : (lang === 'ar' ? 'عميل winget غير متاح' : 'Winget client not available'))}
+                  </span>
+                </button>
               </div>
 
               {/* Quick Actions Bar */}

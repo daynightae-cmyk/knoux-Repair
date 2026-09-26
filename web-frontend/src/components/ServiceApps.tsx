@@ -257,6 +257,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           bridgeOnline={bridgeOnline}
           onRetryBridge={onRetryBridge || reload}
           onToolStatus={onToolStatus || (() => {})}
+          onNavigateService={onNavigateService}
         />
       );
     }
