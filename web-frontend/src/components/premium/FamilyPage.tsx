@@ -120,6 +120,9 @@ export default function FamilyPage({
       setToolsExpanded(false);
     };
 
+    // The library overview renders without an enter fade: a brand new page must
+    // never paint itself invisible first. The outgoing surface still animates
+    // out, so switching never leaves the stage empty.
     if (family.id === 'software') {
       return (
         <SoftwareLibraryPage
