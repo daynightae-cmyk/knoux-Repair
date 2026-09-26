@@ -2,35 +2,43 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Wrench, ShieldCheck, TriangleAlert, Layers3,
   RefreshCw, Play, CheckCircle2, AlertTriangle,
-  XCircle, Download, History, FileText, Search,
+  XCircle, Download, History, FileText,
   FolderArchive, DatabaseZap
 } from 'lucide-react';
 import type {
   BridgeRun, BridgeTool, ExecutionMode,
-  DriverPreviewItem, DriversPreview,
+  DriverPreviewItem, DriversPreview, PostInstallPreview,
   ToolRunConfirmation, ToolRunOptions
 } from '../../../lib/api';
 import { api } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
 import { pickName } from '../../../lib/i18n';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
+import { StationInventorySurface, type InventoryColumn, type InventoryFilter } from '../../../components/workspace/StationInventorySurface';
+import '../../../components/workspace/station-inventory.css';
+import './drivers-inventory.css';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
 import { StationErrorBoundary, StationOfflineState, StationActiveRunBanner } from '../_shared';
 import { startExecution, pollUntilTerminal, requestConfirmedCancel, rememberRun, recallRun, forgetRun, historyMessageForRun } from '../_shared/StationExecutionController';
 import {
   type DriverSummary, type DriverSignal, type StationHistoryEntry,
   summarizeDrivers, detectDriverSignals, stationTools,
-  outcomeFromRun, filterDriversByQuery, filterDriversByClass
+  outcomeFromRun,
 } from './driversModel';
 import DriversHeroVisual from './DriversHeroVisual';
 
-export interface DriversStationProps {
-  lang: Lang;
+/** Localized copy helper for the inventory surface labels. */
+const T = (copy: { en: string; ar: string }, lang: Lang) => (lang === 'ar' ? copy.ar : copy.en);
+
+export interface DriversStationProps {  lang: Lang;
   tools: BridgeTool[];
   toolStatuses: Record<string, string>;
   bridgeElevated: boolean;
   bridgeOnline: boolean | null;
   onRetryBridge: () => void;
   onToolStatus: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
+  /** Cross-station deep link, used to hand driver-update discovery to Station 17. */
+  onNavigateService?: (family: FamilyId, service: ServiceId) => void;
 }
 
 type TabKey = 'overview' | 'review' | 'inventory' | 'classes' | 'problems' | 'export' | 'actions' | 'report' | 'history';
@@ -169,13 +177,15 @@ function DriversStationContent({
   bridgeElevated,
   onRetryBridge,
   onToolStatus,
+  onNavigateService,
 }: DriversStationProps) {
   const t = COPY[lang];
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<DriversPreview | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedClass, setSelectedClass] = useState('ALL');
+  const [driverOffers, setDriverOffers] = useState<PostInstallPreview['DriverOffers'] | null>(null);
+  const [offersLoading, setOffersLoading] = useState(false);
+  const [inventoryQuery, setInventoryQuery] = useState('');
   const [history, setHistory] = useState<StationHistoryEntry[]>([]);
   const [pendingTool, setPendingTool] = useState<{ tool: BridgeTool; mode: ExecutionMode } | null>(null);
   // Active run tracking: selection and execution are separate concepts.
@@ -217,6 +227,32 @@ function DriversStationContent({
     }
   }, [bridgeOnline, loadPreview]);
 
+  /**
+   * Driver update discovery is owned by Station 17 (Post-Install), which runs the
+   * real Windows Update driver-offer scan. This station only reads that result so
+   * it can never become a second, weaker engine. `null` means the scan has not been
+   * read, which must present as "Not checked yet" and never as "0 updates".
+   */
+  const loadDriverOffers = useCallback(async () => {
+    setOffersLoading(true);
+    try {
+      const res = await api.postInstallPreview();
+      if (res?.preview) setDriverOffers(res.preview.DriverOffers);
+    } catch {
+      // Retain null: unmeasured is not the same as measured-empty.
+    } finally {
+      setOffersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (bridgeOnline) void loadDriverOffers();
+  }, [bridgeOnline, loadDriverOffers]);
+
+  const offersKnown = driverOffers !== null;
+  const offersAvailable = driverOffers?.Available === true;
+  const offersCount = offersAvailable ? (driverOffers?.Count ?? null) : null;
+
   const summary = useMemo<DriverSummary>(() => {
     return summarizeDrivers(preview);
   }, [preview]);
@@ -242,16 +278,157 @@ function DriversStationContent({
     return list;
   }, [preview]);
 
-  const filteredInventory = useMemo(() => {
-    let result = allDrivers;
-    if (selectedClass !== 'ALL') {
-      result = filterDriversByClass(result, selectedClass);
-    }
-    if (searchQuery.trim()) {
-      result = filterDriversByQuery(result, searchQuery);
-    }
-    return result;
-  }, [allDrivers, selectedClass, searchQuery]);
+  const driverRows = useMemo<DriverPreviewItem[] | null>(
+    () => (inventoryMeasured ? allDrivers : null),
+    [inventoryMeasured, allDrivers],
+  );
+  /**
+   * A registry entry can come back with no device name, provider or class. That is a
+   * measured-but-empty field, which is a different fact from a field the source never
+   * measured — so it must not borrow the "not measured" wording.
+   */
+  const NOT_REPORTED = { en: 'Not reported', ar: 'غير مُبلَّغ عنه' };
+
+  /**
+   * A registry entry can come back with no device name, provider or class. That is a
+   * measured-but-empty field, which is a different fact from a field the source never
+   * measured — so it must not borrow the "not measured" wording.
+   */
+  const reported = (value: string | null | undefined) =>
+    value && value.trim() !== '' ? value : T(NOT_REPORTED, lang);
+
+  /**
+   * Some registry entries come back with no identity at all. On such a record
+   * `Signed: false` means "no signature information was returned", not "this package
+   * is unsigned", so it must never be counted as an unsigned or attention signal.
+   */
+  const hasIdentity = (driver: DriverPreviewItem) =>
+    driver.InfName.trim() !== ''
+    || driver.DeviceName.trim() !== ''
+    || driver.Provider.trim() !== '';
+
+  const signatureState = (driver: DriverPreviewItem): 'signed' | 'unsigned' | 'unreported' => {
+    if (!hasIdentity(driver)) return 'unreported';
+    return driver.Signed ? 'signed' : 'unsigned';
+  };
+
+  /** Stable identity for a row; an entry with no INF or name still needs its own key. */
+  const driverKey = (driver: DriverPreviewItem) =>
+    driver.InfName.trim() !== ''
+      ? `inf:${driver.InfName}`
+      : `name:${driver.DeviceName}|${driver.Version}|${driver.Provider}`;
+
+  const needsAttention = (driver: DriverPreviewItem) => {
+    if (!hasIdentity(driver)) return false;
+    return driver.ProblemCode !== 0
+      || (driver.DeviceStatus !== '' && driver.DeviceStatus.toUpperCase() !== 'OK')
+      || driver.ReviewSignals.length > 0;
+  };
+
+  /** The INF name is the stable identity a driver package always carries. */
+  const driverIdentity = (driver: DriverPreviewItem) => ({
+    name: hasIdentity(driver)
+      ? (driver.DeviceName.trim() !== '' ? driver.DeviceName : driver.InfName)
+      : T({ en: 'Unidentified registry entry', ar: 'مدخل سجل غير معرّف' }, lang),
+    fellBackToInf: hasIdentity(driver) && driver.DeviceName.trim() === '',
+  });
+
+  const driverFilters = useMemo<InventoryFilter<DriverPreviewItem>[]>(() => ([
+    { key: 'attention', label: { en: 'Needs attention', ar: 'يحتاج انتباهًا' }, test: needsAttention },
+    {
+      key: 'unsigned',
+      label: { en: 'Unsigned', ar: 'غير موقّع' },
+      test: driver => signatureState(driver) === 'unsigned',
+    },
+    {
+      key: 'signed',
+      label: { en: 'Signed', ar: 'موقّع' },
+      test: driver => signatureState(driver) === 'signed',
+    },
+    {
+      key: 'unreported',
+      label: { en: 'Signature not reported', ar: 'التوقيع غير مُبلَّغ عنه' },
+      test: driver => signatureState(driver) === 'unreported',
+    },
+    { key: 'third-party', label: { en: 'Third-party', ar: 'طرف ثالث' }, test: driver => driver.ProviderGroup === 'ThirdParty' },
+    { key: 'legacy', label: { en: 'Older than 5 yrs', ar: 'أقدم من 5 سنوات' }, test: driver => (driver.AgeYears ?? 0) > 5 },
+  ]), [lang]);
+
+  const driverColumns = useMemo<InventoryColumn<DriverPreviewItem>[]>(() => ([
+    {
+      key: 'device',
+      label: { en: 'Device', ar: 'الجهاز' },
+      sortValue: driver => driverIdentity(driver).name.toLocaleLowerCase(),
+      render: driver => {
+        const identity = driverIdentity(driver);
+        return (
+          <span className="drivers-inv-device">
+            <strong>{identity.name}</strong>
+            <em>
+              {reported(driver.Provider)}
+              {identity.fellBackToInf && <i className="drivers-inv-fallback">{T({ en: 'identified by INF', ar: 'معروف بملف INF' }, lang)}</i>}
+              {!hasIdentity(driver) && <i className="drivers-inv-fallback">{T({ en: 'no registry detail', ar: 'تفاصيل السجل غير متاحة' }, lang)}</i>}
+            </em>
+          </span>
+        );
+      },
+    },
+    {
+      key: 'class',
+      label: { en: 'Class', ar: 'الفئة' },
+      width: 'minmax(0, 0.7fr)',
+      sortValue: driver => driver.DeviceClass,
+      render: driver => (
+        <span className="drivers-inv-mono">{reported(driver.DeviceClass)}</span>
+      ),
+    },
+    {
+      key: 'version',
+      label: { en: 'Version', ar: 'الإصدار' },
+      width: 'minmax(0, 0.7fr)',
+      sortValue: driver => driver.Version,
+      render: driver => (
+        <span className="drivers-inv-mono">{reported(driver.Version)}</span>
+      ),
+    },
+    {
+      key: 'age',
+      label: { en: 'Date', ar: 'التاريخ' },
+      width: 'minmax(0, 0.6fr)',
+      align: 'end',
+      // null when the source never measured the date, so it never sorts as zero years.
+      sortValue: driver => driver.AgeYears,
+      render: driver => (
+        <span className="drivers-inv-age">
+          {driver.AgeYears === null
+            ? T({ en: 'Not measured', ar: 'غير مقيس' }, lang)
+            : T({ en: `${driver.AgeYears} yr`, ar: `${driver.AgeYears} سنة` }, lang)}
+        </span>
+      ),
+    },
+    {
+      key: 'state',
+      label: { en: 'State', ar: 'الحالة' },
+      width: 'minmax(0, 0.8fr)',
+      render: driver => {
+        const signature = signatureState(driver);
+        return (
+          <span className="drivers-inv-state">
+            <i data-tone={signature === 'signed' ? 'good' : signature === 'unsigned' ? 'bad' : 'none'}>
+              {signature === 'signed'
+                ? T({ en: 'Signed', ar: 'موقّع' }, lang)
+                : signature === 'unsigned'
+                  ? T({ en: 'Unsigned', ar: 'غير موقّع' }, lang)
+                  : T({ en: 'Signature not reported', ar: 'التوقيع غير مُبلَّغ عنه' }, lang)}
+            </i>
+            {needsAttention(driver) && (
+              <i data-tone="warn">{T({ en: 'Review', ar: 'مراجعة' }, lang)}</i>
+            )}
+          </span>
+        );
+      },
+    },
+  ]), [lang]);
 
   const handleLaunchTool = (tool: BridgeTool, mode: ExecutionMode = 'analyze') => {
     if (activeRun) {
@@ -790,83 +967,142 @@ function DriversStationContent({
 
       {/* Tab 3: Driver Inventory */}
       {activeTab === 'inventory' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+        <div className="drivers-inv">
+          <div className="drivers-inv__head">
             <div>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#f8fafc' }}>{t.inventoryTitle}</h3>
-              <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#94a3b8' }}>
-                Showing {filteredInventory.length} driver package(s)
-              </p>
+              <h3>{t.inventoryTitle}</h3>
+              <p>{t.inventorySubtitle}</p>
             </div>
-
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <select
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-                style={{
-                  background: '#0f172a',
-                  border: '1px solid #334155',
-                  borderRadius: 6,
-                  padding: '6px 12px',
-                  color: '#fff',
-                  fontSize: 12,
-                }}
-              >
-                <option value="ALL">All Device Classes</option>
-                {preview?.ClassSummary?.map((c) => (
-                  <option key={c.Class} value={c.Class}>
-                    {c.Class} ({c.Count})
-                  </option>
-                ))}
-              </select>
-
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="text"
-                  placeholder={t.searchPlaceholder}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    background: '#0f172a',
-                    border: '1px solid #334155',
-                    borderRadius: 6,
-                    padding: '6px 12px 6px 30px',
-                    color: '#fff',
-                    fontSize: 12,
-                    minWidth: 240,
-                  }}
-                />
-                <Search size={14} style={{ position: 'absolute', left: 10, top: 9, color: '#64748b' }} />
-              </div>
-            </div>
+            <span className="drivers-inv__source">
+              {driverRows === null
+                ? (lang === 'ar' ? 'لم يتم الفحص بعد' : 'Not checked yet')
+                : (lang === 'ar' ? `${driverRows.length} حزمة تعريف` : `${driverRows.length} driver package(s)`)}
+            </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
-            {filteredInventory.slice(0, 48).map((driver) => (
-              <div
-                key={driver.InfName}
-                style={{
-                  background: 'rgba(15, 23, 42, 0.7)',
-                  border: '1px solid #1e293b',
-                  borderRadius: 8,
-                  padding: 12,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 4,
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200 }}>
-                    {driver.DeviceName}
-                  </span>
-                  <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: driver.Signed ? '#064e3b' : '#7f1d1d', color: driver.Signed ? '#6ee7b7' : '#fca5a5' }}>
-                    {driver.Signed ? t.signed : t.unsigned}
-                  </span>
+          <StationInventorySurface
+            lang={lang}
+            rows={driverRows}
+            loading={loading}
+            rowKey={driverKey}
+            columns={driverColumns}
+            filters={driverFilters}
+            searchPlaceholder={lang === 'ar'
+              ? { en: 'Search device, provider, class or INF…', ar: 'ابحث بالجهاز أو المورّد أو الفئة أو ملف INF…' }
+              : { en: 'Search device, provider, class or INF…', ar: 'ابحث بالجهاز أو المورّد أو الفئة أو ملف INF…' }}
+            searchFields={driver => [
+              driver.DeviceName, driver.Provider, driver.DeviceClass,
+              driver.InfName, driver.Version, driver.ProviderGroup, driver.DeviceStatus,
+            ]}
+            initialQuery={inventoryQuery}
+            sortInitial={{ key: 'device', direction: 'asc' }}
+            pageSize={80}
+            empty={{
+              notChecked: {
+                en: 'Not checked yet. Connect the bridge to read the real driver inventory.',
+                ar: 'لم يتم الفحص بعد. اربط الجسر لقراءة جرد التعريفات الحقيقي.',
+              },
+              checking: { en: 'Inspecting the driver registry…', ar: 'جارٍ فحص سجل التعريفات…' },
+              noneFound: { en: 'No driver packages were reported by the registry or PnP inventory.', ar: 'لم يُبلّغ سجل النظام أو جرد PnP عن أي حزم تعريف.' },
+              noMatch: { en: 'No drivers match your search and filters.', ar: 'لا توجد تعريفات مطابقة لبحثك ومرشّحاتك.' },
+              noMatchHint: { en: 'Clear a filter or widen the search to see more of the real inventory.', ar: 'امسح أحد المرشّحات أو وسّع البحث لعرض المزيد من الجرد الحقيقي.' },
+            }}
+            inspector={(driver, close) => {
+              const identity = driverIdentity(driver);
+              return (
+              <div className="drivers-inv-inspector">
+                <div className="drivers-inv-inspector__head">
+                  <h4>{identity.name}</h4>
+                  <button type="button" onClick={close} aria-label={lang === 'ar' ? 'إغلاق' : 'Close'}>
+                    <XCircle size={14} />
+                  </button>
                 </div>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>{driver.Provider} • {driver.DeviceClass}</div>
-                <div style={{ fontSize: 10, color: '#64748b' }}>{driver.InfName} • v{driver.Version || '—'}</div>
+                {identity.fellBackToInf && (
+                  <p className="drivers-inv-note">
+                    {T({
+                      en: 'This package reported no device name, so it is identified by its INF file. That is what the registry returned, not a placeholder.',
+                      ar: 'لم تُبلّغ هذه الحزمة عن اسم جهاز، لذا تُعرَّف بملف INF. هذا ما أعادته سجل النظام، وليس قيمة افتراضية.',
+                    }, lang)}
+                  </p>
+                )}
+                <dl>
+                  <div><dt>{t.provider}</dt><dd>{reported(driver.Provider)}</dd></div>
+                  <div><dt>{t.inf}</dt><dd className="drivers-inv-mono">{driver.InfName}</dd></div>
+                  <div><dt>{t.version}</dt><dd className="drivers-inv-mono">{reported(driver.Version)}</dd></div>
+                  <div><dt>{T({ en: 'Class', ar: 'الفئة' }, lang)}</dt><dd className="drivers-inv-mono">{reported(driver.DeviceClass)}</dd></div>
+                  <div>
+                    <dt>{t.date}</dt>
+                    <dd>{driver.DriverDate
+                      ? new Date(driver.DriverDate).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-US')
+                      : T({ en: 'Not measured', ar: 'غير مقيس' }, lang)}</dd>
+                  </div>
+                  <div>
+                    <dt>{T({ en: 'Device status', ar: 'الحالة' }, lang)}</dt>
+                    <dd>{reported(driver.DeviceStatus)}</dd>
+                  </div>
+                  <div><dt>{T({ en: 'Provider group', ar: 'مزوّد الحزمة' }, lang)}</dt><dd>{driver.ProviderGroup}</dd></div>
+                  <div>
+                    <dt>{T({ en: 'Problem code', ar: 'رمز المشكلة' }, lang)}</dt>
+                    <dd>{driver.ProblemCode === 0
+                      ? T({ en: 'None', ar: 'لا يوجد' }, lang)
+                      : driver.ProblemCode}</dd>
+                  </div>
+                </dl>
+                <div className="drivers-inv-signature" data-signed={signatureState(driver)}>
+                  {signatureState(driver) === 'signed'
+                    ? T({ en: 'Digitally signed', ar: 'الحزمة موقّعة رقميًا' }, lang)
+                    : signatureState(driver) === 'unsigned'
+                      ? T({ en: 'Not digitally signed', ar: 'الحزمة غير موقّعة' }, lang)
+                      : T({
+                        en: 'No signature information was returned for this entry. That is not the same as being unsigned.',
+                        ar: 'لم تُعِد سجلات النظام أي معلومات توقيع لهذا المدخل، وهذا ليس نفس كونه غير موقّع.',
+                      }, lang)}
+                </div>
+                {driver.ReviewSignals.length > 0 ? (
+                  <ul className="drivers-inv-signals">
+                    {driver.ReviewSignals.map(signal => (
+                      <li key={signal}>{signal}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="drivers-inv-note">
+                    {T({
+                      en: 'No review signal was recorded for this package. This does not verify signature policy beyond the signature check itself.',
+                      ar: 'لم تُسجَّل أي إشارة مراجعة لهذه الحزمة. هذا لا يتحقق من سياسة التوقيع خارج فحص التوقيع نفسه.',
+                    }, lang)}
+                  </p>
+                )}
               </div>
-            ))}
+              );
+            }}
+          />
+
+          <div className="drivers-inv-offers" data-known={offersKnown} data-available={offersAvailable}>
+            <div className="drivers-inv-offers__text">
+              <strong>
+                {offersLoading
+                  ? (lang === 'ar' ? 'جارٍ فحص عروض تعريفات Windows Update…' : 'Checking Windows Update driver offers…')
+                  : !offersKnown
+                    ? (lang === 'ar' ? 'التحديثات المتاحة: لم يتم الفحص بعد' : 'Updates available: not checked yet')
+                    : !offersAvailable
+                      ? (lang === 'ar' ? 'التحديثات المتاحة: غير متاح من Windows Update' : 'Updates available: not offered by Windows Update')
+                      : (lang === 'ar' ? `التحديثات المتاحة: ${offersCount ?? '—'}` : `Updates available: ${offersCount ?? '—'}`)}
+              </strong>
+              <span>
+                {lang === 'ar'
+                  ? 'اكتشاف عروض تعريفات Windows Update ملك لمحطة التجهيز بعد التثبيت؛ تعرض هذه المحطة ناتجها فقط.'
+                  : 'Windows Update driver-offer discovery belongs to the Post-Install station; this station only reads its result.'}
+              </span>
+            </div>
+            {onNavigateService && (
+              <button
+                type="button"
+                onClick={() => onNavigateService('software' as FamilyId, '17-PostInstall-Setup' as ServiceId)}
+              >
+                {lang === 'ar' ? 'افتح عروض التعريفات' : 'Open driver offers'}
+                <Download size={13} />
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -884,7 +1120,8 @@ function DriversStationContent({
               <div
                 key={c.Class}
                 onClick={() => {
-                  setSelectedClass(c.Class);
+                  // Hand the real class name to the inventory as its search term.
+                  setInventoryQuery(c.Class);
                   setActiveTab('inventory');
                 }}
                 style={{

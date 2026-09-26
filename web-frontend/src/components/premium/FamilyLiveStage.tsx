@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import * as LucideIcons from 'lucide-react';
 import { Activity, Braces, CircleStop, Gauge, Radio, ShieldCheck, Terminal, TerminalSquare } from 'lucide-react';
 import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../lib/api';
-import type { FamilyDefinition, ServiceDefinition, ServiceId } from '../../data/family-map';
+import type { FamilyDefinition, FamilyId, ServiceDefinition, ServiceId } from '../../data/family-map';
 import type { ToolStatus, ConsoleEntry } from '../../types';
 import ExecutionConfirmDialog from '../ExecutionConfirmDialog';
 import KnouxAiContextButton from '../KnouxAiContextButton';
@@ -28,6 +28,8 @@ interface FamilyLiveStageProps {
   onRetryBridge: () => void;
   consoleEntries?: ConsoleEntry[];
   activeToolId?: string | null;
+  /** Cross-station deep link: change family and service in one move. */
+  onNavigateService?: (family: FamilyId, service: ServiceId) => void;
 }
 
 type PendingExecution = {
@@ -149,6 +151,7 @@ export default function FamilyLiveStage({
   onRetryBridge,
   consoleEntries,
   activeToolId,
+  onNavigateService,
 }: FamilyLiveStageProps) {
   const [pendingExecution, setPendingExecution] = useState<PendingExecution | null>(null);
   const [liveClock, setLiveClock] = useState(() => new Date());
@@ -254,6 +257,7 @@ export default function FamilyLiveStage({
       onRunTool={onRunTool}
       onCancelTool={onCancelTool}
       embedded={serviceDockEnabled}
+      onNavigateService={onNavigateService}
     />
   );
 

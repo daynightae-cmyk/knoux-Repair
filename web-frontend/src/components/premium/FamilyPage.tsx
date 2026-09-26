@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Layers3, Search } from 'lucide-react';
-import type { FamilyDefinition, ServiceId } from '../../data/family-map';
+import type { FamilyDefinition, FamilyId, ServiceId } from '../../data/family-map';
 import type { BridgeTool, ExecutionMode, ToolRunOptions, ToolRunConfirmation, SystemSnapshot } from '../../lib/api';
 import type { ToolStatus, ConsoleEntry } from '../../types';
 import HeroSection from './HeroSection';
@@ -29,6 +29,8 @@ interface FamilyPageProps {
   systemSnapshot?: SystemSnapshot | null;
   consoleEntries?: ConsoleEntry[];
   activeToolId?: string | null;
+  /** Cross-station deep link: change family and service in one move. */
+  onNavigateService?: (family: FamilyId, service: ServiceId) => void;
 }
 
 const STATION_OWNS_ACTIONS_IDS = new Set<ServiceId>([
@@ -46,8 +48,8 @@ export default function FamilyPage({
   toolStatuses, onRunTool, onCancelTool,
   selectedService, onSelectService,
   selectedToolId, onSelectTool, onRetryBridge,
-  systemSnapshot, consoleEntries, activeToolId,
-}: FamilyPageProps) {
+    systemSnapshot, consoleEntries, activeToolId, onNavigateService,
+  }: FamilyPageProps) {
   const [toolQuery, setToolQuery] = useState('');
   const [toolsExpanded, setToolsExpanded] = useState(false);
   const familyServiceIds = useMemo(() => new Set(family.services.map(service => service.id)), [family.services]);
@@ -228,9 +230,10 @@ export default function FamilyPage({
             onCancelTool={onCancelTool}
             onClearTool={() => onSelectTool(null)}
             onRetryBridge={onRetryBridge}
-            consoleEntries={consoleEntries}
-            activeToolId={activeToolId}
-          />
+  consoleEntries={consoleEntries}
+  activeToolId={activeToolId}
+  onNavigateService={onNavigateService}
+  />
         )}
       </main>
 

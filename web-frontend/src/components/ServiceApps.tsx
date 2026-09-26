@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import type { ElementType } from 'react';
 import type { ActiveSection, ToolStatus } from '../types';
+import type { FamilyId, ServiceId } from '../data/family-map';
 import type {
   BridgeTool, ExecutionMode,
   ToolRunConfirmation, ToolRunOptions,
@@ -48,6 +49,8 @@ interface ServiceAppsProps {
   onCancelTool: () => void;
   /** Render only the canonical station surface when a parent workspace already owns the chrome. */
   embedded?: boolean;
+  /** Cross-station deep link: change family and service in one move. */
+  onNavigateService?: (family: FamilyId, service: ServiceId) => void;
 }
 
 type Localized = Record<Lang, string>;
@@ -133,7 +136,7 @@ function SafetyNote({ lang }: { lang: Lang }) { const text = COPY[lang]; return 
 function GenericApp({ section, lang }: { section: ActiveSection; lang: Lang }) { const labels: Partial<Record<ActiveSection, Localized>> = { services: { en: 'Device activity room', ar: 'غرفة نشاط الجهاز' }, monitoring: { en: 'Live device monitor', ar: 'مراقب الجهاز الحي' } }; return <div className="generic-app-view"><MonitorCog size={45} /><h2>{labels[section]?.[lang] || (lang === 'ar' ? 'خدمة KNOUX' : 'KNOUX service')}</h2><span>{lang === 'ar' ? 'ستظهر المعلومات الفعلية والخطوات المناسبة هنا عندما تصبح الخدمة جاهزة.' : 'Live information and the right next steps will appear here when the service is ready.'}</span></div>; }
 function OfflineScene({ section, lang, icon: Icon }: { section: ActiveSection; lang: Lang; icon: ElementType }) { const labels: Partial<Record<ActiveSection, Localized>> = { maintenance: { en: 'Ready to measure your device health', ar: 'جاهز لقياس صحة جهازك' }, cleanup: { en: 'Ready to map cleanable space', ar: 'جاهز لرسم المساحة القابلة للتنظيف' }, performance: { en: 'Ready to build a speed picture', ar: 'جاهز لبناء صورة عن أداء الجهاز' }, disk: { en: 'Ready to explore your storage', ar: 'جاهز لاستكشاف مساحة التخزين' }, network: { en: 'Ready to trace your connection', ar: 'جاهز لتتبّع اتصالك' }, security: { en: 'Ready to check your protection', ar: 'جاهز لفحص حمايتك' }, diagnostics: { en: 'Ready to prepare a device checkup', ar: 'جاهز لإعداد فحص للجهاز' }, backupRecovery: { en: 'Ready to open your recovery vault', ar: 'جاهز لفتح خزنة الاستعادة' }, privacy: { en: 'Ready to review your privacy choices', ar: 'جاهز لمراجعة خيارات الخصوصية' }, softwareEnvironment: { en: 'Ready to organise your software library', ar: 'جاهز لتنظيم مكتبة برامجك' }, postInstall: { en: 'Ready to prepare a new device', ar: 'جاهز لتجهيز جهاز جديد' } }; const title = labels[section]?.[lang] || (lang === 'ar' ? 'جاهز لعرض بيانات هذه الخدمة' : 'Ready to show this service'); return <section className={`offline-scene offline-${section}`}><div className="offline-scene-motif"><i /><i /><i /><Icon size={34} /></div><div><p>{lang === 'ar' ? 'تجربة الخدمة' : 'Service experience'}</p><h2>{title}</h2><span>{lang === 'ar' ? 'سيظهر مخطط الخدمة وبيانات جهازك الحقيقية فور جاهزية الاتصال المحلي.' : 'The service canvas and real device details appear as soon as the local connection is ready.'}</span></div></section>; }
 
-export default function ServiceApps({ activeSection, tools, toolStatuses, lang, bridgeElevated, bridgeOnline = null, onRetryBridge, onToolStatus, onRunTool, onCancelTool, embedded = false }: ServiceAppsProps) {
+export default function ServiceApps({ activeSection, tools, toolStatuses, lang, bridgeElevated, bridgeOnline = null, onRetryBridge, onToolStatus, onRunTool, onCancelTool, embedded = false, onNavigateService }: ServiceAppsProps) {
   const [pending, setPending] = useState<{ tool: BridgeTool; mode: ExecutionMode; options?: ToolRunOptions } | null>(null);
   const { data, loading, available, reload } = useServiceData(activeSection);
   const launch = (tool: BridgeTool) => setPending({ tool, mode: preferredMode(tool) });
@@ -332,6 +335,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           bridgeOnline={bridgeOnline}
           onRetryBridge={onRetryBridge || reload}
           onToolStatus={onToolStatus || (() => {})}
+          onNavigateService={onNavigateService}
         />
       );
     }

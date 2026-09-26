@@ -5,19 +5,23 @@ import {
   History, Rocket, Boxes, Trash2, Wrench, Waypoints, Cpu
 } from 'lucide-react';
 import ProgramsHeroVisual from './ProgramsHeroVisual';
-import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../../lib/api';
+import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions, SoftwarePreviewItem } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
 import { pickName } from '../../../lib/i18n';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
+import { StationInventorySurface, type InventoryColumn, type InventoryFilter } from '../../../components/workspace/StationInventorySurface';
+import { api } from '../../../lib/api';
+import '../../../components/workspace/station-inventory.css';
+import './programs-inventory.css';
 import { StationErrorBoundary, StationOfflineState } from '../_shared';
 import { decideExecution, startExecution, pollExecution, cancelExecution } from '../_shared/StationExecutionController';
 import {
-  appendHistory, buildProgramsRecommendations, buildProgramsReport,
+  appendHistory, buildProgramInventory, buildProgramsRecommendations, buildProgramsReport,
   emptyEvidence, loadHistory, outcomeFromRun, parseInstalledApps,
   parseStartupItems, stationTools,
   STATION04_SERVICES, verifyRepairOperation,
-  type AssociationDiagnostic, type HistoryEntry, type InstalledApp,
-  type InstalledWindowsUpdate, type ProgramsEvidence,
+  type AssociationDiagnostic, type HistoryEntry,
+  type InstalledWindowsUpdate, type ProgramInventoryRow, type ProgramsEvidence,
   type Recommendation, type StartupItem, type WindowsFeatureItem,
 } from './programsModel';
 
@@ -209,9 +213,26 @@ export default function ProgramsStation({
     mode: ExecutionMode;
     options?: ToolRunOptions;
   } | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedApp, setSelectedApp] = useState<InstalledApp | null>(null);
   const [activeError, setActiveError] = useState<string | null>(null);
+  const [liveItems, setLiveItems] = useState<SoftwarePreviewItem[] | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const loadLiveInventory = useCallback(async () => {
+    setPreviewLoading(true);
+    try {
+      const res = await api.softwarePreview();
+      // A failed read must stay null ("Not checked yet"), never [].
+      if (res?.preview?.Items) setLiveItems(res.preview.Items);
+    } catch {
+      // Retain null/existing: unmeasured is not the same as measured-empty.
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (bridgeOnline) void loadLiveInventory();
+  }, [bridgeOnline, loadLiveInventory]);
 
   const station = useMemo(() => stationTools(tools), [tools]);
   const byId = useMemo(() => new Map(station.map((tool) => [tool.ToolId, tool])), [station]);
@@ -232,15 +253,79 @@ export default function ProgramsStation({
     return buildProgramsRecommendations(evidence, station);
   }, [evidence, station]);
 
-  const filteredApps = useMemo(() => {
-    if (!searchQuery.trim()) return evidence.inventory;
-    const q = searchQuery.toLowerCase();
-    return evidence.inventory.filter((app) =>
-      app.name.toLowerCase().includes(q) ||
-      app.publisher.toLowerCase().includes(q) ||
-      app.version.toLowerCase().includes(q)
-    );
-  }, [evidence.inventory, searchQuery]);
+  /**
+   * The inventory surface shows the read-only live preview when it has been read,
+   * and falls back to rows parsed from an executed tool run. `null` means the live
+   * source has not been read yet, which must render as "Not checked yet".
+   */
+  const inventoryRows = useMemo<ProgramInventoryRow[] | null>(() => {
+    if (liveItems === null && evidence.inventory.length === 0) return null;
+    return buildProgramInventory(liveItems, evidence.inventory);
+  }, [liveItems, evidence.inventory]);
+
+  const inventoryFilters = useMemo<InventoryFilter<ProgramInventoryRow>[]>(() => ([
+    { key: 'removable', label: { en: 'Removable', ar: 'قابل للإزالة' }, test: row => row.removable },
+    { key: 'repairable', label: { en: 'Repairable', ar: 'قابل للإصلاح' }, test: row => row.repairable },
+    { key: 'updatable', label: { en: 'Updates offered', ar: 'يتوفر تحديث' }, test: row => row.updatable },
+    { key: 'desktop', label: { en: 'Desktop', ar: 'سطح المكتب' }, test: row => (row.kind ?? 'Desktop') === 'Desktop' },
+    { key: 'appx', label: { en: 'Store', ar: 'متجر Store' }, test: row => row.kind === 'Appx' },
+    {
+      key: 'largest',
+      label: { en: 'Over 200 MB', ar: 'أكبر من 200 م.ب' },
+      test: row => row.estimatedSizeMB > 200,
+    },
+    {
+      key: 'unknown-size',
+      label: { en: 'Size not measured', ar: 'الحجم غير مقيس' },
+      test: row => !row.sizeable,
+    },
+  ]), []);
+
+  const inventoryColumns = useMemo<InventoryColumn<ProgramInventoryRow>[]>(() => ([
+    {
+      key: 'name',
+      label: { en: 'Application', ar: 'التطبيق' },
+      sortValue: row => row.name.toLocaleLowerCase(),
+      render: row => (
+        <span className="programs-inv-name">
+          <strong>{row.name}</strong>
+          <em>{row.publisher}</em>
+        </span>
+      ),
+    },
+    {
+      key: 'version',
+      label: { en: 'Version', ar: 'الإصدار' },
+      width: 'minmax(0, 0.8fr)',
+      sortValue: row => row.version,
+      render: row => <span className="programs-inv-mono">{row.version}</span>,
+    },
+    {
+      key: 'size',
+      label: { en: 'Size', ar: 'الحجم' },
+      width: 'minmax(0, 0.55fr)',
+      align: 'end',
+      // null when unmeasured, so the column never claims a fake zero.
+      sortValue: row => (row.sizeable ? row.estimatedSizeMB : null),
+      render: row => (
+        <span className="programs-inv-size">
+          {row.sizeable ? `${row.estimatedSizeMB.toLocaleString()} MB` : (isAr ? 'غير مقيس' : 'Not measured')}
+        </span>
+      ),
+    },
+    {
+      key: 'capabilities',
+      label: { en: 'Actions', ar: 'الإجراءات' },
+      width: 'minmax(0, 0.9fr)',
+      render: row => (
+        <span className="programs-inv-caps">
+          <i data-on={row.removable} title={isAr ? 'إزالة' : 'Uninstall'}>{isAr ? 'إزالة' : 'Uninstall'}</i>
+          <i data-on={row.repairable} title={isAr ? 'إصلاح' : 'Repair'}>{isAr ? 'إصلاح' : 'Repair'}</i>
+          <i data-on={row.updatable} title={isAr ? 'تحديث' : 'Update'}>{isAr ? 'تحديث' : 'Update'}</i>
+        </span>
+      ),
+    },
+  ]), [isAr]);
 
   // Handle execution lifecycle
   const handleLaunchTool = useCallback(
@@ -654,94 +739,108 @@ export default function ProgramsStation({
           {/* TAB 2: INSTALLED APPS INVENTORY */}
           {activeTab === 'inventory' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-4">
-                <input
-                  type="text"
-                  placeholder={t.searchPlaceholder}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 w-72 focus:outline-none focus:border-cyan-500"
-                />
-                <span className="text-xs text-slate-400">
-                  {filteredApps.length} / {evidence.inventory.length} {isAr ? 'تطبيق مثبت' : 'apps'}
-                </span>
-              </div>
-
-              {filteredApps.length === 0 ? (
-                <div className="p-8 text-center bg-slate-900/40 border border-slate-800 rounded-lg text-slate-400 text-xs">
-                  {evidence.inventory.length === 0 ? (
-                    <div className="space-y-3">
-                      <p>{isAr ? 'لم يتم فحص التطبيقات المثبتة بعد.' : 'No installed apps enumerated yet.'}</p>
-                      <button
-                        type="button"
-                        onClick={() => handleLaunchTool('PA01', 'run')}
-                        className="btn btn-primary text-xs"
-                      >
-                        {t.diagnose}
-                      </button>
+              <StationInventorySurface
+                lang={lang}
+                rows={inventoryRows}
+                loading={previewLoading}
+                rowKey={row => row.id}
+                columns={inventoryColumns}
+                filters={inventoryFilters}
+                searchPlaceholder={{ en: 'Search name, publisher, version, source, install path…', ar: 'ابحث بالاسم أو الناشر أو الإصدار أو المصدر أو مسار التثبيت…' }}
+                searchFields={row => [
+                  row.name, row.publisher, row.version, row.source, row.kind ?? '',
+                  row.installLocation, row.packageProvider ?? '', row.packageId ?? '',
+                ]}
+                sortInitial={{ key: 'name', direction: 'asc' }}
+                pageSize={120}
+                empty={{
+                  notChecked: {
+                    en: 'Not checked yet. Run the full inventory, or connect the bridge to read the live software list.',
+                    ar: 'لم يتم الفحص بعد. شغّل الجرد الكامل، أو اربط الجسر لقراءة قائمة البرامج الحية.',
+                  },
+                  checking: { en: 'Checking installed software…', ar: 'جارٍ فحص البرامج المثبتة…' },
+                  noneFound: { en: 'No installed applications were reported by this source.', ar: 'لم يُبلّغ هذا المصدر عن أي تطبيقات مثبتة.' },
+                  noMatch: { en: 'No applications match your search and filters.', ar: 'لا توجد تطبيقات مطابقة لبحثك ومرشّحاتك.' },
+                  noMatchHint: { en: 'Clear a filter or widen the search to see more of the real inventory.', ar: 'امسح أحد المرشّحات أو وسّع البحث لعرض المزيد من الجرد الحقيقي.' },
+                }}
+                inspector={(row, close) => (
+                  <div className="programs-inv-inspector">
+                    <div className="programs-inv-inspector__head">
+                      <h3>{row.name}</h3>
+                      <button type="button" onClick={close} aria-label={t.close}><X size={14} /></button>
                     </div>
-                  ) : (
-                    <p>{isAr ? 'لا توجد نتائج مطابقة للبحث.' : 'No matching applications found.'}</p>
-                  )}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {filteredApps.map((app) => (
-                    <div
-                      key={app.id}
-                      onClick={() => setSelectedApp(app)}
-                      className={`p-3 bg-slate-900/60 border rounded-lg cursor-pointer transition-all hover:border-cyan-500/50 ${
-                        selectedApp?.id === app.id ? 'border-cyan-400 bg-cyan-950/20' : 'border-slate-800'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <strong className="text-xs text-slate-200 line-clamp-1">{app.name}</strong>
-                        <span className="badge text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono shrink-0">
-                          {app.architecture}
-                        </span>
+                    <dl>
+                      <div><dt>{isAr ? 'الإصدار' : 'Version'}</dt><dd>{row.version}</dd></div>
+                      <div><dt>{isAr ? 'الناشر' : 'Publisher'}</dt><dd>{row.publisher}</dd></div>
+                      <div><dt>{isAr ? 'المصدر' : 'Source'}</dt><dd className="programs-inv-mono">{row.source}</dd></div>
+                      <div><dt>{isAr ? 'المعمارية' : 'Architecture'}</dt><dd>{row.architecture}</dd></div>
+                      <div><dt>{isAr ? 'النطاق' : 'Scope'}</dt><dd>{row.scope}</dd></div>
+                      <div><dt>{isAr ? 'تاريخ التثبيت' : 'Install date'}</dt><dd>{row.installDate || '—'}</dd></div>
+                      <div>
+                        <dt>{isAr ? 'الحجم' : 'Size'}</dt>
+                        <dd>{row.sizeable ? `${row.estimatedSizeMB.toLocaleString()} MB` : (isAr ? 'غير مقيس' : 'Not measured')}</dd>
                       </div>
-                      <div className="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
-                        <span>{app.publisher || 'Unknown Publisher'}</span>
-                        <span>{app.version}</span>
+                      <div>
+                        <dt>{isAr ? 'مصدر الصف' : 'Row origin'}</dt>
+                        <dd>{row.origin === 'live-preview'
+                          ? (isAr ? 'معاينة حية للقراءة فقط' : 'Read-only live preview')
+                          : (isAr ? 'مخرجات أداة منفّذة' : 'Executed tool output')}</dd>
                       </div>
-                      <div className="text-[10px] text-slate-500 mt-2 flex items-center justify-between">
-                        <span>{app.scope}</span>
-                        <span>{app.estimatedSizeMB > 0 ? `${app.estimatedSizeMB} MB` : '—'}</span>
+                      <div className="programs-inv-inspector__wide">
+                        <dt>{isAr ? 'مسار التثبيت' : 'Install location'}</dt>
+                        <dd className="programs-inv-mono">{row.installLocation || '—'}</dd>
                       </div>
+                      {row.uninstallString && (
+                        <div className="programs-inv-inspector__wide">
+                          <dt>{isAr ? 'أمر إزالة التثبيت' : 'Uninstall command'}</dt>
+                          <dd className="programs-inv-mono">{row.uninstallString}</dd>
+                        </div>
+                      )}
+                      {row.evidence && (
+                        <div className="programs-inv-inspector__wide">
+                          <dt>{isAr ? 'الدليل' : 'Evidence'}</dt>
+                          <dd className="programs-inv-mono programs-inv-evidence">{row.evidence}</dd>
+                        </div>
+                      )}
+                    </dl>
+                    <div className="programs-inv-caps-detailed">
+                      <span data-on={row.uninstallAvailable}>
+                        {isAr ? 'إزالة التثبيت' : 'Uninstall'}{' '}{row.uninstallAvailable ? '✓' : '✗'}
+                      </span>
+                      <span data-on={row.repairCapability === true}>
+                        {isAr ? 'إصلاح' : 'Repair'}{' '}{row.repairCapability === null ? '—' : row.repairCapability ? '✓' : '✗'}
+                      </span>
+                      <span data-on={row.updateCapability === true}>
+                        {isAr ? 'تحديث' : 'Update'}{' '}{row.updateCapability === null ? '—' : row.updateCapability ? '✓' : '✗'}
+                      </span>
+                      <span data-on={row.openCapability === true}>
+                        {isAr ? 'فتح' : 'Open'}{' '}{row.openCapability === null ? '—' : row.openCapability ? '✓' : '✗'}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Selected App Drawer / Details */}
-              {selectedApp && (
-                <aside className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-3 mt-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-cyan-300">{selectedApp.name}</h3>
-                    <button type="button" onClick={() => setSelectedApp(null)} className="btn btn-ghost p-1 text-slate-400">
-                      <X size={14} />
-                    </button>
+                    {row.repairCapability === null && (
+                      <p className="programs-inv-note">
+                        {isAr
+                          ? 'قدرات الإصلاح والتحديث لم تُثبَت بعد؛ تُعرض كغير معروفة لا كغير متاحة.'
+                          : 'Repair and update capability are not yet proven for this row, so they read as unknown rather than unavailable.'}
+                      </p>
+                    )}
+                    {!row.uninstallAvailable && (
+                      <p className="programs-inv-note" data-tone="warn">
+                        {isAr ? 'لا يوجد مسار إزالة تثبيت مدعوم لهذا التطبيق.' : 'No supported uninstall path; the uninstall action stays disabled.'}
+                      </p>
+                    )}
                   </div>
-                  <dl className="grid grid-cols-2 gap-2 text-xs">
-                    <div><dt className="text-slate-500">Version</dt><dd className="text-slate-200">{selectedApp.version || '—'}</dd></div>
-                    <div><dt className="text-slate-500">Publisher</dt><dd className="text-slate-200">{selectedApp.publisher || '—'}</dd></div>
-                    <div><dt className="text-slate-500">Source</dt><dd className="text-slate-200 font-mono">{selectedApp.source}</dd></div>
-                    <div><dt className="text-slate-500">Architecture</dt><dd className="text-slate-200">{selectedApp.architecture}</dd></div>
-                    <div><dt className="text-slate-500">Install Date</dt><dd className="text-slate-200">{selectedApp.installDate || '—'}</dd></div>
-                    <div><dt className="text-slate-500">Metadata Confidence</dt><dd className="text-slate-200">{selectedApp.metadataConfidence}</dd></div>
-                    <div className="col-span-2"><dt className="text-slate-500">Install Location</dt><dd className="text-slate-300 font-mono text-[11px] break-all">{selectedApp.installLocation || '—'}</dd></div>
-                    <div className="col-span-2"><dt className="text-slate-500">Uninstall Command</dt><dd className="text-slate-300 font-mono text-[11px] break-all">{selectedApp.uninstallString || '—'}</dd></div>
-                    <div className="col-span-2"><dt className="text-slate-500">Capabilities (truth)</dt>
-                      <dd className="flex flex-wrap gap-1.5 mt-1">
-                        <span className={`badge text-[10px] px-2 py-0.5 rounded ${selectedApp.uninstallAvailable ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-500'}`} title={selectedApp.uninstallAvailable ? 'Uninstall via UninstallString/QuietUninstallString or AppX' : 'No supported uninstall path observed'}>UNINSTALL {selectedApp.uninstallAvailable ? '✓' : '✗'}</span>
-                        <span className={`badge text-[10px] px-2 py-0.5 rounded ${(selectedApp as unknown as Record<string, unknown>).RepairCapability ? 'bg-sky-950 text-sky-300 border border-sky-500/30' : 'bg-slate-800 text-slate-500'}`}>REPAIR {((selectedApp as unknown as Record<string, unknown>).RepairCapability as boolean) ? '✓' : '✗'}</span>
-                        <span className={`badge text-[10px] px-2 py-0.5 rounded ${(selectedApp as unknown as Record<string, unknown>).UpdateCapability ? 'bg-amber-950 text-amber-300 border border-amber-500/30' : 'bg-slate-800 text-slate-500'}`}>UPDATE {((selectedApp as unknown as Record<string, unknown>).UpdateCapability as boolean) ? '✓' : '✗'}</span>
-                        <span className={`badge text-[10px] px-2 py-0.5 rounded ${(selectedApp as unknown as Record<string, unknown>).OpenCapability ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/30' : 'bg-slate-800 text-slate-500'}`}>OPEN {((selectedApp as unknown as Record<string, unknown>).OpenCapability as boolean) ? '✓' : '✗'}</span>
-                      </dd>
-                    </div>
-                    {!selectedApp.uninstallAvailable && <div className="col-span-2 text-[11px] text-amber-400">{isAr ? 'لا يوجد مسار إلغاء تثبيت مدعوم لهذا التطبيق.' : 'No supported uninstall path; action will remain disabled.'}</div>}
-                  </dl>
-                </aside>
+                )}
+              />
+
+              {inventoryRows === null && (
+                <button
+                  type="button"
+                  onClick={() => handleLaunchTool('PA01', 'run')}
+                  className="btn btn-primary text-xs"
+                >
+                  {t.diagnose}
+                </button>
               )}
             </div>
           )}
