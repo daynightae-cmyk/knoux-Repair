@@ -11,12 +11,19 @@ export interface ProvisioningSummary {
   pendingRestartSignals: string[];
   driverOffersCount: number;
   driverOffersAvailable: boolean;
+  /**
+   * Why Windows Update driver offers are unavailable, taken from the bridge.
+   * `null` means the offers were queried and the answer is a real count.
+   */
+  driverOffersError: string | null;
   catalogTotal: number;
   catalogDetected: number;
   catalogMissing: number;
+  catalogItems: PostInstallCatalogItem[];
   wingetAvailable: boolean;
   wingetVersion: string | null;
   wingetSourcesCount: number;
+  wingetError: string | null;
   updateServicesHealthy: boolean;
   readiness: ProvisioningReadiness;
 }
@@ -68,12 +75,15 @@ export function summarizeProvisioning(preview: PostInstallPreview | null): Provi
       pendingRestartSignals: [],
       driverOffersCount: 0,
       driverOffersAvailable: false,
+      driverOffersError: null,
       catalogTotal: 0,
       catalogDetected: 0,
       catalogMissing: 0,
+      catalogItems: [],
       wingetAvailable: false,
       wingetVersion: null,
       wingetSourcesCount: 0,
+      wingetError: null,
       updateServicesHealthy: false,
       readiness: 'inconclusive',
     };
@@ -98,14 +108,21 @@ export function summarizeProvisioning(preview: PostInstallPreview | null): Provi
     pendingRestartSignals: preview.System.PendingRestartSignals ?? [],
     driverOffersCount: preview.DriverOffers.Count ?? 0,
     driverOffersAvailable: Boolean(preview.DriverOffers.Available),
+    // The bridge already explains an unqueried scan; surface its own words rather
+    // than inventing a "0 offers" reading.
+    driverOffersError: preview.DriverOffers.Available === true
+      ? null
+      : preview.DriverOffers.Error ?? null,
     catalogTotal,
     catalogDetected,
-    catalogMissing,
-    wingetAvailable: Boolean(preview.Winget.Available),
-    wingetVersion: preview.Winget.Version ?? null,
-    wingetSourcesCount: preview.Winget.SourceCount ?? 0,
+    catalogItems: preview.Catalog,
+    wingetAvailable: Boolean(preview.Winget?.Available),
+    wingetVersion: preview.Winget?.Version ?? null,
+    wingetSourcesCount: preview.Winget?.SourceCount ?? 0,
+    wingetError: preview.Winget?.Error ?? null,
     updateServicesHealthy,
     readiness,
+    catalogMissing,
   };
 }
 
