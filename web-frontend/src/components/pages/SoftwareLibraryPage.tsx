@@ -318,13 +318,19 @@ export default function SoftwareLibraryPage({
             return (
               <li key={service.id} className="sl-node" data-focused={focused} data-service-id={service.id}>
                 <span className="sl-node__index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
-                <div className="sl-node__head">
+                <button
+                  type="button"
+                  className="sl-node__head"
+                  onClick={() => onSelectService(service.id)}
+                  aria-label={t(`Open ${workspaceName(service)}`, `افتح ${workspaceName(service)}`)}
+                >
                   <span className="sl-node__icon" aria-hidden="true"><Icon size={19} /></span>
-                  <div>
-                    <h3>{workspaceName(service)}</h3>
-                    <p>{ar ? service.purpose.ar : service.purpose.en}</p>
-                  </div>
-                </div>
+                  <span className="sl-node__heading">
+                    <strong>{workspaceName(service)}</strong>
+                    <small>{ar ? service.purpose.ar : service.purpose.en}</small>
+                  </span>
+                  <ArrowRight size={15} className="sl-node__head-go rtl:rotate-180" aria-hidden="true" />
+                </button>
 
                 <div className="sl-node__risk" role="img" aria-label={t(
                   `Registered actions by risk: ${RISK_LADDER.map(level => `${RISK_LABEL[level].en} ${riskBars[RISK_LADDER.indexOf(level)]}`).join(', ')}`,

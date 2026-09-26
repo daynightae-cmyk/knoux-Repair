@@ -120,16 +120,29 @@ export default function FamilyPage({
       setToolsExpanded(false);
     };
 
+    // The library overview keeps the same enter/exit treatment as a service
+    // route, so moving between the overview and a workspace never leaves the
+    // stage with no visible surface for a frame.
     if (family.id === 'software') {
       return (
-        <SoftwareLibraryPage
-          family={family}
-          tools={tools}
-          lang={lang}
-          bridgeOnline={bridgeOnline}
-          bridgeElevated={bridgeElevated}
-          onSelectService={selectOverviewService}
-        />
+        <motion.div
+          key="software-library-overview"
+          className="knoux-family-overview-route"
+          data-family-overview="software"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+        >
+          <SoftwareLibraryPage
+            family={family}
+            tools={tools}
+            lang={lang}
+            bridgeOnline={bridgeOnline}
+            bridgeElevated={bridgeElevated}
+            onSelectService={selectOverviewService}
+          />
+        </motion.div>
       );
     }
 

@@ -98,6 +98,11 @@ test('workspace focus is a real filter and opening stays a separate intent', () 
   assert.match(page, /setFocusService\(focused \? null : service\.id\)/);
   assert.match(page, /aria-pressed=\{focused\}/);
   assert.match(page, /onClick=\{\(\) => onSelectService\(service\.id\)\}/);
+  // The workspace name itself is a control: the repository's navigation gate
+  // reaches every service by clicking a visible button carrying its name.
+  assert.match(page, /className="sl-node__head"\s*\n\s*onClick=\{\(\) => onSelectService\(service\.id\)\}/);
+  assert.match(page, /<strong>\{workspaceName\(service\)\}<\/strong>/);
+  assert.match(page, /aria-label=\{t\(`Open \$\{workspaceName\(service\)\}`/);
   // Selection is never execution.
   assert.match(page, /Selection is not execution\./);
   assert.match(page, /الاختيار ليس تنفيذًا/);
