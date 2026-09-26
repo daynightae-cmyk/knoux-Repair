@@ -1421,4 +1421,3 @@ export function buildProgramInventory(
 
   return [...byKey.values()];
 }
-
