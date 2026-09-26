@@ -15,7 +15,7 @@ import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
 import { StationErrorBoundary, StationOfflineState } from '../_shared';
 import { startExecution, pollExecution } from '../_shared/StationExecutionController';
 import {
-  type RecoveryReadinessSummary, type RecoverySignal, type StationHistoryEntry,
+  type RecoveryReadinessSummary, type RecoverySignal, type RecoverySourceRead, type StationHistoryEntry,
   summarizeRecoveryVault, sortRestorePoints, formatBytes,
   detectRecoverySignals, stationTools, outcomeFromRun
 } from './recoveryModel';
@@ -52,6 +52,8 @@ const COPY = {
     readyDesc: 'Protected — System restore points and local user backups available',
     partialDesc: 'Partial Coverage — One recovery line active, secondary backup missing',
     unprotectedDesc: 'Unprotected — No system restore points or local backups found',
+    // Spells out *why* readiness is unknown, so a pending read is never read as a verdict.
+    unverifiedDesc: 'Unverified — the recovery mechanisms on this machine could not be queried, so protection status is unknown. This is not a finding that you are unprotected.',
     unknownDesc: 'Vault Telemetry Pending',
     restorePoints: 'System Restore Points',
     shadowCopies: 'Volume Shadow Copies',
@@ -74,6 +76,11 @@ const COPY = {
     noRestorePoints: 'No System Restore Points found on this Windows installation.',
     noShadowCopies: 'No Volume Shadow Copies discovered on monitored volumes.',
     noLocalBackups: 'No local user profile backups have been generated yet.',
+    // Unreadable is a different fact from empty: the query itself did not run.
+    restorePointsUnavailable: 'The System Restore Point query is not available on this installation, so the number of restore points is unknown. This is not the same as having none.',
+    shadowCopiesUnavailable: 'The Volume Shadow Copy query is not available on this installation, so shadow copy coverage is unknown. This is not the same as having none.',
+    localBackupsUnavailable: 'The backup folder does not exist yet, so no backup has ever been written. Nothing was lost here; backups have simply never run.',
+    localBackupsRootMissing: 'Backup folder not created yet',
     adminNote: 'Creating a system restore point requires administrator elevation.',
     adminRequired: 'Administrator elevation is required for this action.',
     runRequiresConfirmation: 'Run requires confirmation',
@@ -100,6 +107,7 @@ const COPY = {
     readyDesc: 'محمي — تتوفر نقاط استعادة للنظام ونسخ احتياطية للمستخدم',
     partialDesc: 'تغطية جزئية — يتوفر خط استعادة واحد مع غياب الآخر',
     unprotectedDesc: 'غير محمي — لم يتم العثور على نقاط استعادة أو نسخ محلية',
+    unverifiedDesc: 'غير مُتحقَّق — لم يكن بالإمكان الاستعلام عن آليات الاستعادة على هذا الجهاز، لذا حالة الحماية غير معروفة. وهذا ليس دليلاً على أنك غير محمي.',
     unknownDesc: 'بانتظار قراءة الخزنة',
     restorePoints: 'نقاط استعادة النظام',
     shadowCopies: 'نسخ الظل الفيزيائية',
@@ -122,6 +130,11 @@ const COPY = {
     noRestorePoints: 'لا توجد أي نقاط استعادة مسجلة لنظام ويندوز حالياً.',
     noShadowCopies: 'لا توجد أي نسخ ظل مكتشفة على الأقراص المراقبة.',
     noLocalBackups: 'لم يتم إنشاء أي نسخة احتياطية محلية لملفات المستخدم بعد.',
+    // القراءة غير متاحة تختلف جوهريًا عن الفراغ: الاستعلام نفسه لم يُنفَّذ.
+    restorePointsUnavailable: 'استعلام نقاط استعادة النظام غير متاح على هذا التثبيت، لذا عدد نقاط الاستعادة غير معروف. وهذا ليس نفس عدم وجودها.',
+    shadowCopiesUnavailable: 'استعلام نسخ الظل غير متاح على هذا التثبيت، لذا تغطية نسخ الظل غير معروفة. وهذا ليس نفس عدم وجودها.',
+    localBackupsUnavailable: 'مجلد النسخ الاحتياطية غير موجود بعد، لذا لم تُكتب أي نسخة احتياطية قط. لا شيء ضاع هنا؛ فالنسخ الاحتياطية لم تُنفَّذ بعد.',
+    localBackupsRootMissing: 'لم يُنشأ مجلد النسخ الاحتياطية بعد',
     adminNote: 'إنشاء نقطة استعادة للنظام يتطلب تشغيل البرنامج بصلاحيات المسؤول.',
     adminRequired: 'يتطلب هذا الإجراء صلاحيات المسؤول.',
     runRequiresConfirmation: 'يتطلب التشغيل تأكيدًا',
@@ -189,7 +202,23 @@ function RecoveryStationContent({
   const localBackups = useMemo(() => preview?.LocalBackups?.Items ?? [], [preview?.LocalBackups?.Items]);
   const backupSources = useMemo(() => preview?.BackupSources ?? [], [preview?.BackupSources]);
   const signals: RecoverySignal[] = useMemo(() => detectRecoverySignals(summary), [summary]);
-  const countText = (value: number) => summary.hasTelemetry ? value.toLocaleString(lang) : text.notCheckedYet;
+  // A count is only shown when that mechanism could actually be read. An unreadable
+  // source reports "not reported", never a zero.
+  const readableCount = (value: number, read: RecoverySourceRead) =>
+    !summary.hasTelemetry
+      ? text.notCheckedYet
+      : read === 'UNREADABLE'
+        ? text.countUnavailable
+        : value.toLocaleString(lang);
+
+  /**
+   * Per-mechanism state word. An unreadable mechanism reports UNKNOWN rather than a
+   * reassuring or alarming verdict, because "could not check" is neither.
+   */
+  const mechanismState = (count: number, read: RecoverySourceRead, present: string, absent: string) => {
+    if (!summary.hasTelemetry || read === 'UNREADABLE') return 'UNKNOWN';
+    return count > 0 ? present : absent;
+  };
 
   // Execution trigger
   const executeTool = useCallback(
@@ -302,12 +331,14 @@ function RecoveryStationContent({
               }`}
             />
             <span className="text-xs font-semibold text-slate-200">
-              {summary.state === 'READY'
+                {summary.state === 'READY'
                 ? text.readyDesc
                 : summary.state === 'PARTIAL_COVERAGE'
                 ? text.partialDesc
                 : summary.state === 'UNPROTECTED'
                 ? text.unprotectedDesc
+                : summary.hasTelemetry
+                ? text.unverifiedDesc
                 : text.unknownDesc}
             </span>
           </div>
@@ -412,10 +443,10 @@ function RecoveryStationContent({
                 <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
                   <div className="flex items-center justify-between text-slate-400 mb-2">
                     <span className="text-xs">{text.restorePoints}</span>
-                    <History size={16} className={summary.restorePointsCount > 0 ? 'text-emerald-400' : 'text-rose-400'} />
+                    <History size={16} className={summary.restorePointsCount > 0 ? 'text-emerald-400' : summary.restorePointsRead === 'UNREADABLE' ? 'text-slate-400' : 'text-rose-400'} />
                   </div>
                   <strong className="text-lg font-bold text-white block">
-                    {countText(summary.restorePointsCount)}
+                    {readableCount(summary.restorePointsCount, summary.restorePointsRead)}
                   </strong>
                   <span className="text-[11px] text-slate-400 block mt-0.5">
                     {summary.restorePointsCount > 0
@@ -430,7 +461,7 @@ function RecoveryStationContent({
                     <HardDrive size={16} className={summary.shadowCopiesCount > 0 ? 'text-sky-400' : 'text-slate-400'} />
                   </div>
                   <strong className="text-lg font-bold text-white block">
-                    {countText(summary.shadowCopiesCount)}
+                    {readableCount(summary.shadowCopiesCount, summary.shadowCopiesRead)}
                   </strong>
                   <span className="text-[11px] text-slate-400 block mt-0.5">
                     {lang === 'ar' ? 'لقطات VSS فيزيائية' : 'VSS snapshots'}
@@ -443,7 +474,7 @@ function RecoveryStationContent({
                     <FolderCheck size={16} className={summary.localBackupsCount > 0 ? 'text-emerald-400' : 'text-amber-400'} />
                   </div>
                   <strong className="text-lg font-bold text-white block">
-                    {countText(summary.localBackupsCount)}
+                    {readableCount(summary.localBackupsCount, summary.localBackupsRead)}
                   </strong>
                   <span className="text-[11px] text-slate-400 block mt-0.5">
                     {!summary.hasTelemetry
@@ -533,7 +564,9 @@ function RecoveryStationContent({
                 ) : summary.state === 'INCONCLUSIVE' ? (
                   <div className="flex items-center gap-2 p-3 rounded-lg bg-slate-900/60 border border-slate-700 text-slate-300 text-xs">
                     <AlertTriangle size={16} className="text-slate-400" />
-                    <span>{text.unknownDesc}</span>
+                    {/* Telemetry may have been read and still leave readiness unknown:
+                        those are different situations and must not share one message. */}
+                    <span>{summary.hasTelemetry ? text.unverifiedDesc : text.unknownDesc}</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-950/20 border border-emerald-800/40 text-emerald-300 text-xs">
@@ -590,7 +623,11 @@ function RecoveryStationContent({
               </div>
             ) : (
               <div className="p-8 text-center rounded-xl bg-slate-900/30 border border-slate-800/60 text-slate-400 text-xs">
-                {!summary.hasTelemetry ? text.notCheckedYet : text.noRestorePoints}
+                {!summary.hasTelemetry
+                  ? text.notCheckedYet
+                  : summary.restorePointsRead === 'UNREADABLE'
+                    ? text.restorePointsUnavailable
+                    : text.noRestorePoints}
               </div>
             )}
           </div>
@@ -645,7 +682,11 @@ function RecoveryStationContent({
               </div>
             ) : (
               <div className="p-8 text-center rounded-xl bg-slate-900/30 border border-slate-800/60 text-slate-400 text-xs">
-                {!summary.hasTelemetry ? text.notCheckedYet : text.noShadowCopies}
+                {!summary.hasTelemetry
+                  ? text.notCheckedYet
+                  : summary.shadowCopiesRead === 'UNREADABLE'
+                    ? text.shadowCopiesUnavailable
+                    : text.noShadowCopies}
               </div>
             )}
           </div>
@@ -730,7 +771,11 @@ function RecoveryStationContent({
               </div>
             ) : (
               <div className="p-8 text-center rounded-xl bg-slate-900/30 border border-slate-800/60 text-slate-400 text-xs">
-                {!summary.hasTelemetry ? text.notCheckedYet : text.noLocalBackups}
+                {!summary.hasTelemetry
+                  ? text.notCheckedYet
+                  : summary.localBackupsRead === 'UNREADABLE'
+                    ? text.localBackupsUnavailable
+                    : text.noLocalBackups}
               </div>
             )}
           </div>
@@ -838,19 +883,19 @@ function RecoveryStationContent({
                   <tr>
                     <td className="py-2.5 font-medium text-slate-200">Windows System Restore Points</td>
                     <td className="py-2.5 text-slate-300">
-                      {summary.hasTelemetry ? `${summary.restorePointsCount} active snapshots` : text.notCheckedYet}
+                      {summary.restorePointsRead === 'UNREADABLE' ? text.countUnavailable : `${summary.restorePointsCount} active snapshots`}
                     </td>
                     <td className="py-2.5 text-right font-bold text-emerald-400">
-                      {summary.hasTelemetry ? (summary.restorePointsCount > 0 ? 'READY' : 'EXPOSED') : 'UNKNOWN'}
+                      {mechanismState(summary.restorePointsCount, summary.restorePointsRead, 'READY', 'EXPOSED')}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 font-medium text-slate-200">Volume Shadow Copies (VSS)</td>
                     <td className="py-2.5 text-slate-300">
-                      {summary.hasTelemetry ? `${summary.shadowCopiesCount} VSS snapshots` : text.notCheckedYet}
+                      {summary.shadowCopiesRead === 'UNREADABLE' ? text.countUnavailable : `${summary.shadowCopiesCount} VSS snapshots`}
                     </td>
                     <td className="py-2.5 text-right font-bold text-sky-400">
-                      {summary.hasTelemetry ? (summary.shadowCopiesCount > 0 ? 'ACTIVE' : 'NONE') : 'UNKNOWN'}
+                      {mechanismState(summary.shadowCopiesCount, summary.shadowCopiesRead, 'ACTIVE', 'NONE')}
                     </td>
                   </tr>
                   <tr>
@@ -861,7 +906,7 @@ function RecoveryStationContent({
                         : text.notCheckedYet}
                     </td>
                     <td className="py-2.5 text-right font-bold text-cyan-400">
-                      {summary.hasTelemetry ? (summary.localBackupsCount > 0 ? 'READY' : 'UNARCHIVED') : 'UNKNOWN'}
+                      {mechanismState(summary.localBackupsCount, summary.localBackupsRead, 'READY', 'UNARCHIVED')}
                     </td>
                   </tr>
                 </tbody>
