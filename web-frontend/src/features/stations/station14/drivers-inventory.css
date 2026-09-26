@@ -1,0 +1,316 @@
+/* Station 14 — Driver Management inventory surface.
+   Field styling only; interaction grammar lives in the shared
+   station-inventory.css primitive. */
+
+.drivers-inv {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.drivers-inv__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.drivers-inv__head h3 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.drivers-inv__head p {
+  margin: 4px 0 0;
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.drivers-inv__source {
+  padding: 4px 9px;
+  border: 1px solid #1e293b;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.6);
+  color: #94a3b8;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.drivers-inv-device {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.drivers-inv-device strong {
+  color: #e2e8f0;
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drivers-inv-device em {
+  color: #64748b;
+  font-size: 11px;
+  font-style: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Marks a row whose identity came from the INF file because the registry
+   reported no device name. */
+.drivers-inv-fallback {
+  margin-inline-start: 6px;
+  padding: 1px 5px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0.02em;
+}
+
+.drivers-inv-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #94a3b8;
+  direction: ltr;
+  text-align: start;
+}
+
+.drivers-inv-age {
+  color: #94a3b8;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.drivers-inv-state {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.drivers-inv-state i {
+  padding: 2px 6px;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.6);
+  font-size: 9.5px;
+  font-style: normal;
+  letter-spacing: 0.02em;
+}
+
+.drivers-inv-state i[data-tone='good'] {
+  border-color: rgba(16, 185, 129, 0.32);
+  background: rgba(16, 185, 129, 0.1);
+  color: #6ee7b7;
+}
+
+.drivers-inv-state i[data-tone='warn'] {
+  border-color: rgba(245, 158, 11, 0.32);
+  background: rgba(245, 158, 11, 0.1);
+  color: #fcd34d;
+}
+
+.drivers-inv-state i[data-tone='bad'] {
+  border-color: rgba(244, 63, 94, 0.32);
+  background: rgba(244, 63, 94, 0.1);
+  color: #fda4af;
+}
+
+.drivers-inv-state i[data-tone='none'] {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(148, 163, 184, 0.08);
+  color: #94a3b8;
+}
+
+.drivers-inv-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.drivers-inv-inspector__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.drivers-inv-inspector__head h4 {
+  margin: 0;
+  color: #7dd3fc;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.drivers-inv-inspector__head button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 3px;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.drivers-inv-inspector__head button:hover {
+  color: #e2e8f0;
+}
+
+.drivers-inv-inspector dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+  margin: 0;
+}
+
+.drivers-inv-inspector dt {
+  color: #64748b;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.drivers-inv-inspector dd {
+  margin: 2px 0 0;
+  color: #cbd5e1;
+  font-size: 11.5px;
+  word-break: break-word;
+}
+
+.drivers-inv-signature {
+  padding: 6px 9px;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  font-size: 11px;
+  text-align: center;
+}
+
+.drivers-inv-signature[data-signed='true'] {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.08);
+  color: #6ee7b7;
+}
+
+.drivers-inv-signature[data-signed='false'] {
+  border-color: rgba(244, 63, 94, 0.3);
+  background: rgba(244, 63, 94, 0.08);
+  color: #fda4af;
+}
+
+/* Neither signed nor unsigned: the source returned nothing to judge. */
+.drivers-inv-signature[data-signed='unreported'] {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(148, 163, 184, 0.07);
+  color: #94a3b8;
+}
+
+.drivers-inv-signals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.drivers-inv-signals li {
+  padding: 5px 8px;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 5px;
+  background: rgba(245, 158, 11, 0.08);
+  color: #fcd34d;
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+.drivers-inv-note {
+  margin: 0;
+  padding: 7px 9px;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  background: rgba(2, 6, 23, 0.5);
+  color: #94a3b8;
+  font-size: 10.5px;
+  line-height: 1.7;
+}
+
+/* Cross-station driver offers: the readout and its hand-off to Station 17. */
+.drivers-inv-offers {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 9px;
+  background: rgba(56, 189, 248, 0.05);
+}
+
+.drivers-inv-offers[data-available='true'] {
+  border-color: rgba(16, 185, 129, 0.28);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.drivers-inv-offers__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 260px;
+}
+
+.drivers-inv-offers__text strong {
+  color: #e2e8f0;
+  font-size: 12.5px;
+}
+
+.drivers-inv-offers[data-known='false'] .drivers-inv-offers__text strong {
+  color: #fbbf24;
+}
+
+.drivers-inv-offers__text span {
+  color: #64748b;
+  font-size: 10.5px;
+  line-height: 1.7;
+}
+
+.drivers-inv-offers button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 6px 11px;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 7px;
+  background: rgba(56, 189, 248, 0.1);
+  color: #7dd3fc;
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.drivers-inv-offers button:hover {
+  background: rgba(56, 189, 248, 0.18);
+}
+
+@media (max-width: 640px) {
+  .drivers-inv-offers button {
+    width: 100%;
+    justify-content: center;
+  }
+}

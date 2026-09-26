@@ -1,0 +1,169 @@
+/* Station 04 — Programs & Applications inventory surface.
+   Field styling only; interaction grammar lives in the shared
+   station-inventory.css primitive. */
+
+.programs-inv-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.programs-inv-name strong {
+  color: #e2e8f0;
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.programs-inv-name em {
+  color: #64748b;
+  font-size: 11px;
+  font-style: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.programs-inv-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #94a3b8;
+  direction: ltr;
+  text-align: start;
+}
+
+.programs-inv-size {
+  color: #94a3b8;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.programs-inv-caps {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.programs-inv-caps i {
+  padding: 2px 6px;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.6);
+  color: #475569;
+  font-size: 9.5px;
+  font-style: normal;
+  letter-spacing: 0.03em;
+}
+
+.programs-inv-caps i[data-on='true'] {
+  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.1);
+  color: #7dd3fc;
+}
+
+.programs-inv-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.programs-inv-inspector__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.programs-inv-inspector__head h3 {
+  margin: 0;
+  color: #7dd3fc;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.programs-inv-inspector__head button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 3px;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.programs-inv-inspector__head button:hover {
+  color: #e2e8f0;
+}
+
+.programs-inv-inspector dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+  margin: 0;
+}
+
+.programs-inv-inspector__wide {
+  grid-column: 1 / -1;
+}
+
+.programs-inv-inspector dt {
+  color: #64748b;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.programs-inv-inspector dd {
+  margin: 2px 0 0;
+  color: #cbd5e1;
+  font-size: 11.5px;
+  word-break: break-word;
+}
+
+.programs-inv-evidence {
+  color: #7c8ea3;
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+.programs-inv-caps-detailed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.programs-inv-caps-detailed span {
+  padding: 3px 7px;
+  border: 1px solid #1e293b;
+  border-radius: 5px;
+  background: rgba(15, 23, 42, 0.6);
+  color: #475569;
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.programs-inv-caps-detailed span[data-on='true'] {
+  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.1);
+  color: #7dd3fc;
+}
+
+.programs-inv-note {
+  margin: 0;
+  padding: 7px 9px;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  background: rgba(2, 6, 23, 0.5);
+  color: #94a3b8;
+  font-size: 10.5px;
+  line-height: 1.7;
+}
+
+.programs-inv-note[data-tone='warn'] {
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fcd34d;
+}

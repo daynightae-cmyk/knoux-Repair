@@ -1,0 +1,350 @@
+/* Shared station inventory surface: search + filters + sortable list + contextual inspector.
+   One primitive, reused by every station, so stations share interaction grammar
+   while keeping their own fields, filters, and personality. */
+
+.knoux-inventory {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  /* Layout responds to the panel the station actually lives in, not the viewport:
+     a station inside a narrow dock must not be measured against a 1366px window. */
+  container-type: inline-size;
+  container-name: knoux-inventory;
+}
+
+.knoux-inventory__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.knoux-inventory__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.7);
+  color: #64748b;
+}
+
+.knoux-inventory__search:focus-within {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.14);
+}
+
+.knoux-inventory__search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 12.5px;
+  outline: none;
+}
+
+.knoux-inventory__search input::placeholder {
+  color: #64748b;
+}
+
+.knoux-inventory__search button {
+  display: inline-flex;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.knoux-inventory__search button:hover {
+  color: #e2e8f0;
+}
+
+.knoux-inventory__filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  color: #64748b;
+}
+
+.knoux-inventory__filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 1px solid #1e293b;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.6);
+  color: #94a3b8;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.knoux-inventory__filters button b {
+  color: #e2e8f0;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.knoux-inventory__filters button:hover:not(:disabled) {
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+.knoux-inventory__filters button[data-on='true'] {
+  border-color: rgba(56, 189, 248, 0.55);
+  background: rgba(56, 189, 248, 0.12);
+  color: #7dd3fc;
+}
+
+.knoux-inventory__filters button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.knoux-inventory__readout {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.knoux-inventory__readout b {
+  color: #e2e8f0;
+  font-variant-numeric: tabular-nums;
+}
+
+.knoux-inventory__readout button {
+  border: 0;
+  background: transparent;
+  color: #7dd3fc;
+  font-size: 11.5px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.knoux-inventory__state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 22px 14px;
+  border: 1px dashed #1e293b;
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.4);
+  color: #64748b;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.knoux-inventory__state[data-state='no-match'] {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.knoux-inventory__state strong {
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
+.knoux-inventory__state span {
+  color: #64748b;
+  font-size: 11.5px;
+}
+
+.knoux-inventory__state[data-state='checking'] {
+  color: #7dd3fc;
+}
+
+.knoux-inventory__state[data-state='not-checked'],
+.knoux-inventory__state[data-state='empty'] {
+  color: #94a3b8;
+}
+
+.knoux-inventory__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  align-items: start;
+}
+
+.knoux-inventory__body[data-inspector='open'] {
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  gap: 10px;
+  min-width: 0;
+  align-items: start;
+}
+
+/* Below this panel width the inspector would squeeze the table to a few columns,
+   so it drops under the list instead. Measured on the container, not the viewport. */
+@container knoux-inventory (max-width: 720px) {
+  .knoux-inventory__body[data-inspector='open'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .knoux-inventory__inspector {
+    position: static;
+    max-height: none;
+  }
+}
+
+.knoux-inventory__list {
+  min-width: 0;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.45);
+  overflow: hidden;
+}
+
+.knoux-inventory__head {
+  display: grid;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #1e293b;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.knoux-inventory__head[data-sticky='true'] {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.knoux-inventory__head button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: start;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.knoux-inventory__head button[data-align='end'] {
+  justify-content: flex-end;
+}
+
+.knoux-inventory__head button:disabled {
+  cursor: default;
+}
+
+.knoux-inventory__head button:not(:disabled):hover {
+  color: #cbd5e1;
+}
+
+.knoux-inventory__sorthint {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  flex: 0 0 11px;
+}
+
+.knoux-inventory__list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(52vh, 520px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.knoux-inventory__row {
+  display: grid;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.6);
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 12px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.knoux-inventory__row:hover {
+  background: rgba(56, 189, 248, 0.05);
+}
+
+.knoux-inventory__list li[data-selected='true'] .knoux-inventory__row {
+  background: rgba(56, 189, 248, 0.1);
+  box-shadow: inset 2px 0 0 #38bdf8;
+}
+
+[dir='rtl'] .knoux-inventory__list li[data-selected='true'] .knoux-inventory__row {
+  box-shadow: inset -2px 0 0 #38bdf8;
+}
+
+.knoux-inventory__row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knoux-inventory__row > span[data-align='end'] {
+  text-align: end;
+}
+
+.knoux-inventory__inspector {
+  position: sticky;
+  top: 0;
+  min-width: 0;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.6);
+  padding: 12px;
+  max-height: min(52vh, 520px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.knoux-inventory__more {
+  width: 100%;
+  padding: 9px;
+  border: 0;
+  border-top: 1px solid #1e293b;
+  background: rgba(15, 23, 42, 0.4);
+  color: #7dd3fc;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.knoux-inventory__more:hover {
+  background: rgba(56, 189, 248, 0.08);
+}
+
+/* Narrow viewports tighten the bar even for a full-width station. */
+@media (max-width: 900px) {
+  .knoux-inventory__body[data-inspector='open'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .knoux-inventory__inspector {
+    position: static;
+    max-height: none;
+  }
+}

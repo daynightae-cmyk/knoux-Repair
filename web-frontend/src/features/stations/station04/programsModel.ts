@@ -3,7 +3,7 @@
  * Machine-readable Service Capability Matrix, normalizations, diagnostic logic,
  * safety policies, and verification contracts for all 10 services.
  */
-import type { BridgeRun, BridgeTool, ExecutionMode } from '../../../lib/api';
+import type { BridgeRun, BridgeTool, ExecutionMode, SoftwarePreviewItem } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
 
 export const STATION04_CATEGORY = '04-Programs-Applications';
@@ -245,6 +245,16 @@ export interface InstalledApp {
   metadataConfidence: 'high' | 'medium' | 'low';
   estimatedSizeMB: number;
   uninstallString?: string;
+  /** Normalized capability truth. null = not proven by a real source, never assumed true. */
+  kind?: 'Desktop' | 'Appx' | null;
+  repairCapability?: boolean | null;
+  updateCapability?: boolean | null;
+  openCapability?: boolean | null;
+  uninstallCapability?: boolean | null;
+  packageProvider?: string | null;
+  packageId?: string | null;
+  evidence?: string | null;
+  capturedAt?: string | null;
 }
 
 export interface StartupItem {
@@ -1328,4 +1338,86 @@ export function appendHistory(entry: HistoryEntry): void {
 
 export function stationTools(tools: BridgeTool[]): BridgeTool[] {
   return STATION04_TOOL_IDS.map((id) => tools.find((t) => t.ToolId === id)).filter((t): t is BridgeTool => Boolean(t));
+}
+
+/** Read-only inventory row used by the Programs inventory surface. */
+export interface ProgramInventoryRow extends InstalledApp {
+  /** Which real source this row came from, shown in the inspector as provenance. */
+  origin: 'live-preview' | 'tool-output';
+  removable: boolean;
+  repairable: boolean;
+  updatable: boolean;
+  sizeable: boolean;
+}
+
+const truthy = (value: unknown): boolean | null => (typeof value === 'boolean' ? value : null);
+
+/**
+ * Merge the read-only live preview with rows parsed from an executed tool run.
+ *
+ * Preview rows win on capability truth because the preview is the read-only
+ * normalized source; parsed rows are only additive, never a second engine.
+ * A source that has not been read yet must arrive as null, never as [].
+ */
+export function buildProgramInventory(
+  previewItems: SoftwarePreviewItem[] | null,
+  parsedApps: InstalledApp[],
+): ProgramInventoryRow[] {
+  const byKey = new Map<string, ProgramInventoryRow>();
+  const keyOf = (row: InstalledApp) => row.id.trim().toLocaleLowerCase();
+
+  if (previewItems) {
+    for (const item of previewItems) {
+      const uninstall = truthy(item.UninstallCapability) ?? item.CanUninstall;
+      const row: ProgramInventoryRow = {
+        id: item.Id || `${item.Name}::${item.Version}`.toLocaleLowerCase(),
+        name: item.Name,
+        version: item.Version || '—',
+        publisher: item.Publisher || '—',
+        source: (item.Source as InstalledApp['source']) || 'unknown',
+        architecture: (item.Architecture as InstalledApp['architecture']) || 'unknown',
+        scope: (item.Scope as InstalledApp['scope']) || 'unknown',
+        installLocation: item.InstallLocation || '',
+        installDate: item.InstallDate || '',
+        uninstallAvailable: Boolean(uninstall),
+        metadataConfidence: 'high',
+        estimatedSizeMB: typeof item.EstimatedSizeMB === 'number' ? item.EstimatedSizeMB : 0,
+        uninstallString: item.UninstallString || undefined,
+        kind: item.Kind ?? null,
+        repairCapability: truthy(item.RepairCapability),
+        updateCapability: truthy(item.UpdateCapability),
+        openCapability: truthy(item.OpenCapability),
+        uninstallCapability: uninstall,
+        packageProvider: item.PackageProvider ?? null,
+        packageId: item.PackageId ?? null,
+        evidence: item.Evidence ?? null,
+        capturedAt: item.CapturedAt ?? null,
+        origin: 'live-preview',
+        removable: Boolean(uninstall),
+        repairable: truthy(item.RepairCapability) === true,
+        updatable: truthy(item.UpdateCapability) === true,
+        sizeable: typeof item.EstimatedSizeMB === 'number' && item.EstimatedSizeMB > 0,
+      };
+      byKey.set(keyOf(row), row);
+    }
+  }
+
+  for (const app of parsedApps) {
+    const key = keyOf(app);
+    if (byKey.has(key)) continue;
+    byKey.set(key, {
+      ...app,
+      repairCapability: truthy(app.repairCapability),
+      updateCapability: truthy(app.updateCapability),
+      openCapability: truthy(app.openCapability),
+      uninstallCapability: truthy(app.uninstallCapability),
+      origin: 'tool-output',
+      removable: app.uninstallAvailable,
+      repairable: truthy(app.repairCapability) === true,
+      updatable: truthy(app.updateCapability) === true,
+      sizeable: app.estimatedSizeMB > 0,
+    });
+  }
+
+  return [...byKey.values()];
 }
