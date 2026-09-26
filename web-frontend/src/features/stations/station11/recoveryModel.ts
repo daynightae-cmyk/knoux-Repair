@@ -15,12 +15,25 @@ import type {
 
 export type RecoveryReadinessState = 'READY' | 'PARTIAL_COVERAGE' | 'UNPROTECTED' | 'INCONCLUSIVE';
 
+/**
+ * Whether a recovery mechanism could actually be read on this machine.
+ *
+ * `UNREADABLE` is deliberately distinct from an empty read: a restore-point query
+ * that is unavailable tells us nothing about how many restore points exist, so it
+ * must never be folded into a count of zero.
+ */
+export type RecoverySourceRead = 'READABLE' | 'READABLE_EMPTY' | 'UNREADABLE';
+
 export interface RecoveryReadinessSummary {
   hasTelemetry: boolean;
   state: RecoveryReadinessState;
   restorePointsCount: number;
   shadowCopiesCount: number;
   localBackupsCount: number;
+  /** Per-mechanism read state, so the UI never shows a zero it could not verify. */
+  restorePointsRead: RecoverySourceRead;
+  shadowCopiesRead: RecoverySourceRead;
+  localBackupsRead: RecoverySourceRead;
   hasLatestLocalBackup: boolean;
   latestBackupName: string | null;
   latestBackupBytes: number;
@@ -59,20 +72,44 @@ export const STATION11_TOOL_IDS = [
 export function deriveRecoveryReadiness(
   restorePoints: number,
   shadowCopies: number,
-  localBackups: number
+  localBackups: number,
+  restorePointsRead: RecoverySourceRead = 'READABLE',
+  shadowCopiesRead: RecoverySourceRead = 'READABLE',
+  localBackupsRead: RecoverySourceRead = 'READABLE',
 ): RecoveryReadinessState {
-  if (restorePoints === 0 && shadowCopies === 0 && localBackups === 0) {
-    return 'UNPROTECTED';
+  const reads = [restorePointsRead, shadowCopiesRead, localBackupsRead];
+
+  // Nothing could be read. "We could not check" is not "you are unprotected",
+  // and must never be reported as a safety judgement about the user's machine.
+  if (reads.every(read => read === 'UNREADABLE')) {
+    return 'INCONCLUSIVE';
   }
+
+  const readableTotal = (count: number, read: RecoverySourceRead) =>
+    read === 'UNREADABLE' ? null : count;
+
+  const measured = [
+    readableTotal(restorePoints, restorePointsRead),
+    readableTotal(shadowCopies, shadowCopiesRead),
+    readableTotal(localBackups, localBackupsRead),
+  ].filter((value): value is number => value !== null);
+
+  const hasCoverage = restorePoints > 0 || shadowCopies > 0 || localBackups > 0;
 
   // High readiness: system restore point available AND local backup exists
   if (restorePoints > 0 && localBackups > 0) {
     return 'READY';
   }
 
-  // Partial coverage: has one mechanism but missing the other
-  if (restorePoints > 0 || shadowCopies > 0 || localBackups > 0) {
+  // Partial coverage: has one readable mechanism with something in it
+  if (hasCoverage) {
     return 'PARTIAL_COVERAGE';
+  }
+
+  // Every mechanism that could be read was read and held nothing. Only a genuinely
+  // verified empty set may be called unprotected.
+  if (measured.length > 0) {
+    return 'UNPROTECTED';
   }
 
   return 'INCONCLUSIVE';
@@ -91,6 +128,9 @@ export function summarizeRecoveryVault(
       restorePointsCount: 0,
       shadowCopiesCount: 0,
       localBackupsCount: 0,
+      restorePointsRead: 'UNREADABLE',
+      shadowCopiesRead: 'UNREADABLE',
+      localBackupsRead: 'UNREADABLE',
       hasLatestLocalBackup: false,
       latestBackupName: null,
       latestBackupBytes: 0,
@@ -101,9 +141,20 @@ export function summarizeRecoveryVault(
     };
   }
 
-  const restorePointsCount = preview.RestorePoints?.Count ?? 0;
-  const shadowCopiesCount = preview.ShadowCopies?.Count ?? 0;
-  const localBackupsCount = preview.LocalBackups?.Count ?? 0;
+  // A source that could not be queried yields no count and no "empty" claim.
+  const restorePointsRead: RecoverySourceRead = !preview.RestorePoints?.QueryAvailable
+    ? 'UNREADABLE'
+    : (preview.RestorePoints?.Count ?? 0) > 0 ? 'READABLE' : 'READABLE_EMPTY';
+  const shadowCopiesRead: RecoverySourceRead = !preview.ShadowCopies?.QueryAvailable
+    ? 'UNREADABLE'
+    : (preview.ShadowCopies?.Count ?? 0) > 0 ? 'READABLE' : 'READABLE_EMPTY';
+  const localBackupsRead: RecoverySourceRead = !preview.LocalBackups?.RootAvailable
+    ? 'UNREADABLE'
+    : (preview.LocalBackups?.Count ?? 0) > 0 ? 'READABLE' : 'READABLE_EMPTY';
+
+  const restorePointsCount = restorePointsRead === 'UNREADABLE' ? 0 : (preview.RestorePoints?.Count ?? 0);
+  const shadowCopiesCount = shadowCopiesRead === 'UNREADABLE' ? 0 : (preview.ShadowCopies?.Count ?? 0);
+  const localBackupsCount = localBackupsRead === 'UNREADABLE' ? 0 : (preview.LocalBackups?.Count ?? 0);
   const latest = preview.LocalBackups?.Latest ?? null;
   const sources = preview.BackupSources ?? [];
   const sourcesVerified = sources.filter((s) => s.Exists).length;
@@ -111,7 +162,10 @@ export function summarizeRecoveryVault(
   const state = deriveRecoveryReadiness(
     restorePointsCount,
     shadowCopiesCount,
-    localBackupsCount
+    localBackupsCount,
+    restorePointsRead,
+    shadowCopiesRead,
+    localBackupsRead,
   );
 
   return {
@@ -120,6 +174,9 @@ export function summarizeRecoveryVault(
     restorePointsCount,
     shadowCopiesCount,
     localBackupsCount,
+    restorePointsRead,
+    shadowCopiesRead,
+    localBackupsRead,
     hasLatestLocalBackup: Boolean(latest),
     latestBackupName: latest?.Name ?? null,
     latestBackupBytes: latest?.SizeBytes ?? 0,
@@ -161,7 +218,9 @@ export function detectRecoverySignals(summary: RecoveryReadinessSummary): Recove
   if (summary.state === 'INCONCLUSIVE') return [];
   const signals: RecoverySignal[] = [];
 
-  if (summary.restorePointsCount === 0) {
+  // A mechanism that could not be queried yields no signal at all: "no restore
+  // points found" would be a HIGH-severity claim the evidence does not support.
+  if (summary.restorePointsRead !== 'UNREADABLE' && summary.restorePointsCount === 0) {
     signals.push({
       code: 'NO_RESTORE_POINTS',
       level: 'HIGH',
@@ -172,7 +231,7 @@ export function detectRecoverySignals(summary: RecoveryReadinessSummary): Recove
     });
   }
 
-  if (summary.localBackupsCount === 0) {
+  if (summary.localBackupsRead !== 'UNREADABLE' && summary.localBackupsCount === 0) {
     signals.push({
       code: 'NO_LOCAL_PROFILE_BACKUP',
       level: 'MEDIUM',
