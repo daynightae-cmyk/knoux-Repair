@@ -57,7 +57,7 @@ const COPY = {
     quickClearRun: 'Clear Run History',
     quickFlushDns: 'Flush DNS Cache',
     signalsTitle: 'Privacy Findings & Exposure Vectors',
-    noSignals: 'All privacy vectors and permissions are operating within standard hardened baseline.',
+    noSignals: 'The three audited vectors (Run dialog traces, DNS cache, advertising ID) returned no finding. Other privacy surfaces were not part of this audit.',
     permissionsTitle: 'Hardware & Sensor App Permissions',
     permissionsSubtitle: 'Audited state of Windows CapabilityAccessManager consent store (Camera, Mic, Location).',
     activityTitle: 'User Activity & Execution Footprints',
@@ -78,6 +78,7 @@ const COPY = {
     runTool: 'Execute Tool',
     adminRequired: 'Admin Required',
     notCheckedYet: 'Not checked yet',
+    elevationRequired: 'Run KNOUX Repair as administrator to flush the DNS resolver cache.',
     countNotReported: 'Count not reported',
     noTerminalResult: 'No terminal result was returned.',
     noSuccessEvidence: 'The action ended without a verified successful result.',
@@ -105,7 +106,7 @@ const COPY = {
     quickClearRun: 'مسح سجل التشغيل',
     quickFlushDns: 'مسح ذاكرة DNS',
     signalsTitle: 'ملاحظات الخصوصية ومسارات التعرض',
-    noSignals: 'كافة إعدادات الخصوصية والأذونات تعمل ضمن المستوى القياسي المحكم.',
+    noSignals: 'المتجهات الثلاثة التي دُققت (آثار مربعات التشغيل، ذاكرة DNS، معرّف الإعلانات) لم تُرجع أي نتيجة. لم يشمل هذا التدقيق أسطح الخصوصية الأخرى.',
     permissionsTitle: 'أذونات المستشعرات والأجهزة',
     permissionsSubtitle: 'الحالة المدققة لمتجر أذونات ويندوز CapabilityAccessManager (الكاميرا، المايك، الموقع).',
     activityTitle: 'النشاط المحلي والأثر الرقمي',
@@ -126,6 +127,7 @@ const COPY = {
     runTool: 'تنفيذ الأداة',
     adminRequired: 'يتطلب صلاحية المسؤول',
     notCheckedYet: 'لم يتم الفحص بعد',
+    elevationRequired: 'شغّل KNOUX Repair كمسؤول لتفريغ ذاكرة محلل DNS.',
     countNotReported: 'لم يتم الإبلاغ عن العدد',
     noTerminalResult: 'لم تُرجع نتيجة نهائية.',
     noSuccessEvidence: 'انتهى الإجراء دون نتيجة ناجحة موثقة.',
@@ -146,6 +148,7 @@ function PrivacyStationContent({
   lang,
   tools,
   bridgeOnline,
+  bridgeElevated,
   onRetryBridge,
   onToolStatus,
 }: PrivacyStationProps) {
@@ -201,6 +204,11 @@ function PrivacyStationContent({
   const signals = useMemo<PrivacySignal[]>(() => {
     return detectPrivacySignals(preview);
   }, [preview]);
+
+  // A privacy figure may only be printed once the local audit actually read settings.
+  const auditMeasured = summary.stance !== 'INCONCLUSIVE';
+  // PR03 flushes the DNS resolver cache and is registered as an administrator tool.
+  const dnsFlushNeedsElevation = Boolean(tools.find((tool) => tool.ToolId === 'PR03')?.RequiresAdmin) && !bridgeElevated;
 
   const appPermissions = useMemo(() => {
     return filterSettingsByCategory(preview?.Settings || [], 'App permissions');
@@ -452,26 +460,38 @@ function PrivacyStationContent({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
         <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid #1e293b', borderRadius: 10, padding: 14 }}>
           <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{t.restrictedCount}</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#10b981', marginTop: 4 }}>
-            {summary.restrictedCount}
+          <div style={{ fontSize: auditMeasured ? 24 : 13, fontWeight: 800, color: auditMeasured ? '#10b981' : '#94a3b8', marginTop: 4 }}>
+            {auditMeasured ? summary.restrictedCount : t.notCheckedYet}
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>of {summary.totalSettings} monitored settings</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+            {auditMeasured
+              ? lang === 'ar' ? `من ${summary.totalSettings} من الإعدادات المراقَبة` : `of ${summary.totalSettings} monitored settings`
+              : t.countNotReported}
+          </div>
         </div>
 
         <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid #1e293b', borderRadius: 10, padding: 14 }}>
           <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{t.allowedCount}</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: summary.allowedCount > 4 ? '#f59e0b' : '#38bdf8', marginTop: 4 }}>
-            {summary.allowedCount}
+          <div style={{ fontSize: auditMeasured ? 24 : 13, fontWeight: 800, color: !auditMeasured ? '#94a3b8' : summary.allowedCount > 4 ? '#f59e0b' : '#38bdf8', marginTop: 4 }}>
+            {auditMeasured ? summary.allowedCount : t.notCheckedYet}
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Permitted access vectors</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+            {auditMeasured
+              ? (lang === 'ar' ? 'متجهات وصول مسموح بها' : 'Permitted access vectors')
+              : t.countNotReported}
+          </div>
         </div>
 
         <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid #1e293b', borderRadius: 10, padding: 14 }}>
           <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{t.runHistoryCount}</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: summary.runHistoryCount > 0 ? '#fbbf24' : '#10b981', marginTop: 4 }}>
-            {summary.runHistoryCount}
+          <div style={{ fontSize: auditMeasured ? 24 : 13, fontWeight: 800, color: !auditMeasured ? '#94a3b8' : summary.runHistoryCount > 0 ? '#fbbf24' : '#10b981', marginTop: 4 }}>
+            {auditMeasured ? summary.runHistoryCount : t.notCheckedYet}
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Explorer RunMRU traces</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+            {auditMeasured
+              ? (lang === 'ar' ? 'آثار مربعات تشغيل المستكشف' : 'Explorer RunMRU traces')
+              : t.countNotReported}
+          </div>
         </div>
 
         <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid #1e293b', borderRadius: 10, padding: 14 }}>
@@ -484,7 +504,7 @@ function PrivacyStationContent({
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #1e293b', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', borderBottom: '1px solid #1e293b', gap: 6, paddingBottom: 4 }}>
         {[
           { key: 'overview', label: t.tabOverview, icon: ShieldCheck },
           { key: 'permissions', label: t.tabPermissions, icon: UserCheck },
@@ -577,6 +597,8 @@ function PrivacyStationContent({
               <button
                 type="button"
                 onClick={() => handleLaunchTool(tools.find((t) => t.ToolId === 'PR03')!, 'run')}
+                disabled={dnsFlushNeedsElevation}
+                title={dnsFlushNeedsElevation ? t.elevationRequired : undefined}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -730,7 +752,9 @@ function PrivacyStationContent({
               </p>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600 }}>
-                  {summary.runHistoryCount} entries detected
+                  {auditMeasured
+              ? lang === 'ar' ? `${summary.runHistoryCount} مدخل مكتشف` : `${summary.runHistoryCount} entries detected`
+              : t.countNotReported}
                 </span>
                 {tools.find((t) => t.ToolId === 'PR02') && (
                   <button
@@ -773,12 +797,14 @@ function PrivacyStationContent({
                   <button
                     type="button"
                     onClick={() => handleLaunchTool(tools.find((t) => t.ToolId === 'PR03')!, 'run')}
+                    disabled={dnsFlushNeedsElevation}
+                    title={dnsFlushNeedsElevation ? t.elevationRequired : undefined}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: 6,
                       padding: '7px 14px',
-                      background: '#6b21a8',
+                      background: dnsFlushNeedsElevation ? 'rgba(107,33,168,.4)' : '#6b21a8',
                       border: '1px solid #a855f7',
                       borderRadius: 6,
                       color: '#fff',

@@ -41,8 +41,8 @@ export interface LargeFileItem {
 
 export interface DiskHealthItem {
   index: number;
-  model: string;
-  sizeGB: number;
+  model: string | null;
+  sizeGB: number | null;
   status: string;
   smartPredictFailure: boolean;
   evaluation: 'HEALTHY' | 'FAILURE_PREDICTED' | 'INCONCLUSIVE';
@@ -221,10 +221,16 @@ export function parseVolumeInventory(
 
   const detectedSystemDrive = (systemDriveOverride || 'C:').toUpperCase();
 
-  return drives.map((d) => {
-    const name = (d.Name || d.Drive || 'C:').toUpperCase().replace(/[\\/]$/, '');
+  const identified = drives.filter((d) => {
+    const rawName = d.Name || d.Drive;
+    return typeof rawName === 'string' && rawName.trim() !== '';
+  });
+  if (identified.length === 0) return [];
+
+  return identified.map((d) => {
+    const name = String(d.Name || d.Drive).toUpperCase().replace(/[\\/]$/, '');
     const driveLetter = name.includes(':') ? name.split(':')[0] + ':' : name;
-    const fileSystem = d.FileSystem || 'NTFS';
+    const fileSystem = typeof d.FileSystem === 'string' && d.FileSystem.trim() !== '' ? d.FileSystem : 'Unknown';
 
     let totalBytes = 0;
     let freeBytes = 0;
@@ -241,13 +247,16 @@ export function parseVolumeInventory(
     const usedPercent = totalBytes > 0 ? Math.min(100, Math.round((usedBytes / totalBytes) * 1000) / 10) : 0;
     const isSystem = driveLetter.startsWith(detectedSystemDrive);
 
-    let healthStatus: DriveVolume['healthStatus'] = 'HEALTHY';
-    if (totalBytes === 0) {
-      healthStatus = 'UNKNOWN';
-    } else if (usedPercent >= 95 || freeBytes < 2 * 1024 * 1024 * 1024) {
-      healthStatus = 'CRITICAL';
-    } else if (usedPercent >= 85 || freeBytes < 10 * 1024 * 1024 * 1024) {
-      healthStatus = 'WARNING';
+    // A capacity verdict only exists once Windows reported a real total size.
+    let healthStatus: DriveVolume['healthStatus'] = 'UNKNOWN';
+    if (totalBytes > 0) {
+      if (usedPercent >= 95 || freeBytes < 2 * 1024 * 1024 * 1024) {
+        healthStatus = 'CRITICAL';
+      } else if (usedPercent >= 85 || freeBytes < 10 * 1024 * 1024 * 1024) {
+        healthStatus = 'WARNING';
+      } else {
+        healthStatus = 'HEALTHY';
+      }
     }
 
     return {
@@ -279,8 +288,8 @@ export function evaluateDiskHealth(
 
   return disks.map((d, i) => {
     const index = typeof d.Index === 'number' ? d.Index : i;
-    const model = d.Model || 'Physical Drive';
-    const sizeGB = typeof d.SizeGB === 'number' ? d.SizeGB : 0;
+    const model = typeof d.Model === 'string' && d.Model.trim() !== '' ? d.Model : null;
+    const sizeGB = typeof d.SizeGB === 'number' ? d.SizeGB : null;
     const smartPredictFailure = Boolean(d.SmartPredictFailure);
 
     let evaluation: DiskHealthItem['evaluation'] = 'INCONCLUSIVE';

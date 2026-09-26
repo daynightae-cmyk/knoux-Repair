@@ -3,13 +3,13 @@ import { AnimatePresence, motion } from 'framer-motion';
 import * as LucideIcons from 'lucide-react';
 import { Activity, Braces, CircleStop, Gauge, Radio, ShieldCheck, Terminal, TerminalSquare } from 'lucide-react';
 import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../lib/api';
-import type { FamilyDefinition, ServiceDefinition } from '../../data/family-map';
+import type { FamilyDefinition, ServiceDefinition, ServiceId } from '../../data/family-map';
 import type { ToolStatus, ConsoleEntry } from '../../types';
 import ExecutionConfirmDialog from '../ExecutionConfirmDialog';
 import KnouxAiContextButton from '../KnouxAiContextButton';
 import ServiceApps from '../ServiceApps';
 import ToolWorkspace from './ToolWorkspace';
-import KnouxDockWorkspace from '../workspace/KnouxDockWorkspace';
+import KnouxDockWorkspace, { type WorkspaceKind } from '../workspace/KnouxDockWorkspace';
 
 interface FamilyLiveStageProps {
   family: FamilyDefinition;
@@ -42,6 +42,94 @@ const STATUS_TEXT: Record<ToolStatus, { en: string; ar: string }> = {
   error: { en: 'Failed', ar: 'فشل' },
   cancelled: { en: 'Cancelled', ar: 'ملغي' },
   inconclusive: { en: 'Inconclusive', ar: 'غير حاسم' },
+};
+
+/** Canonical service id -> Dockview workspace kind. One dock surface per service route. */
+const DOCK_WORKSPACE_BY_SERVICE: Partial<Record<ServiceId, WorkspaceKind>> = {
+  '01-System-Maintenance': 'maintenance',
+  '02-System-Cleanup': 'cleanup',
+  '03-Network-Internet': 'network',
+  '04-Programs-Applications': 'programs',
+  '05-Duplicate-Files': 'duplicates',
+  '06-Disk-Space': 'disk',
+  '07-Services-Processes': 'services',
+  '08-Performance': 'performance',
+  '09-Security': 'security',
+  '10-Diagnostics-Reports': 'diagnostics',
+  '11-Backup-Recovery': 'recovery',
+  '13-Privacy': 'privacy',
+  '14-Driver-Management': 'drivers',
+  '15-System-Monitoring': 'monitoring',
+  '16-Software-Environment': 'software',
+  '17-PostInstall-Setup': 'postinstall',
+};
+
+/** Dockview owns layout only; the canonical station keeps runtime and evidence ownership. */
+const RUNTIME_OWNER_NOTE: Partial<Record<ServiceId, { en: string; ar: string }>> = {
+  '01-System-Maintenance': {
+    en: 'File integrity, component health, disk checks, servicing, and repair evidence remain owned by the existing System Maintenance station.',
+    ar: 'سلامة الملفات وصحة المكونات وفحص الأقراص والصيانة وأدلة الإصلاح تبقى مملوكة لمحطة صيانة النظام الحالية.',
+  },
+  '02-System-Cleanup': {
+    en: 'Cleanup candidates, reclaimable sizes, quarantine, and execution evidence remain owned by the existing System Cleanup station.',
+    ar: 'مرشحات التنظيف وأحجام الاستعادة والعزل وأدلة التنفيذ تبقى مملوكة لمحطة تنظيف النظام الحالية.',
+  },
+  '03-Network-Internet': {
+    en: 'Adapter, gateway, DNS, and internet reachability evidence remains owned by the existing Network station.',
+    ar: 'أدلة المحول والبوابة وDNS والوصول للإنترنت تبقى مملوكة محطة الشبكة الحالية.',
+  },
+  '04-Programs-Applications': {
+    en: 'Execution and evidence remain owned by the existing Programs station.',
+    ar: 'التشغيل والأدلة تبقى مملوكة لمحطة البرامج الحالية.',
+  },
+  '05-Duplicate-Files': {
+    en: 'Duplicate scanning, keeper selection, quarantine, and restore evidence remain owned by the existing Duplicate Files station.',
+    ar: 'فحص التكرارات واختيار الأصل والعزل وأدلة الاسترجاع تبقى مملوكة محطة الملفات المكررة الحالية.',
+  },
+  '06-Disk-Space': {
+    en: 'Volume capacity, large file, reclaim, and disk health evidence remain owned by the existing Disk Space station.',
+    ar: 'سعة الوحدات والملفات الكبيرة والاستعادة وصحة الأقراص تبقى مملوكة محطة مساحة القرص الحالية.',
+  },
+  '07-Services-Processes': {
+    en: 'Service, process, topology, and execution evidence remain owned by the existing Services & Processes station.',
+    ar: 'بيانات الخدمات والعمليات والطوبولوجيا والتنفيذ تظل مملوكة لمحطة الخدمات والعمليات الحالية.',
+  },
+  '08-Performance': {
+    en: 'Performance telemetry, evidence, recommendations, and execution remain owned by the existing Performance Observatory station.',
+    ar: 'قياسات الأداء والأدلة والتوصيات والتنفيذ تظل مملوكة لمرصد الأداء الحالي.',
+  },
+  '09-Security': {
+    en: 'Protection evidence, signals, and actions remain owned by the existing Security Evidence Center station.',
+    ar: 'أدلة الحماية والإشارات والإجراءات تبقى مملوكة لمركز أدلة الأمان الحالي.',
+  },
+  '10-Diagnostics-Reports': {
+    en: 'Diagnostic telemetry, evidence, reports, and execution remain owned by the existing Diagnostics station.',
+    ar: 'القياسات التشخيصية والأدلة والتقارير والتنفيذ تظل مملوكة بمحطة التشخيص الحالية.',
+  },
+  '11-Backup-Recovery': {
+    en: 'Continuity evidence, restore points, backups, and execution remain owned by the existing Recovery Vault station.',
+    ar: 'أدلة الاستمرارية ونقاط الاستعادة والنسخ الاحتياطية والتنفيذ تظل مملوكة لخزنة الاستعادة الحالية.',
+  },
+  '13-Privacy': {
+    en: 'Permission settings, activity traces, and audit evidence remain owned by the existing Privacy station.',
+    ar: 'إعدادات الأذونات وآثار النشاط وأدلة التدقيق تبقى مملوكة لمحطة الخصوصية الحالية.',
+  },
+  '14-Driver-Management': {
+    en: 'Driver inventory, signature, PnP problem, and export evidence remain owned by the existing Driver Management station.',
+    ar: 'جرد التعريفات والتوقيع وأعطال إدارة الأجهزة وأدلة التصدير تبقى مملوكة محطة إدارة التعريفات الحالية.',
+  },
+  '15-System-Monitoring': {
+    en: 'Resource snapshots, top consumers, service inventory, and event warnings remain owned by the existing System Monitoring station.',
+    ar: 'لقطات الموارد وأعلى المستهلكين وجرد الخدمات وتحذيرات الأحداث تبقى مملوكة محطة مراقبة النظام الحالية.',
+  },
+  '16-Software-Environment': {
+    en: 'Environment data, execution, and evidence remain owned by the existing Software Environment station.',
+    ar: 'بيانات البيئة والتشغيل والنتائج تظل مملوكة بمحطة بيئة البرامج الحالية.',
+  },
+  '17-PostInstall-Setup': {
+    en: 'Provisioning data, selections, execution, and evidence remain owned by the existing Post-Install station.',
+    ar: 'بيانات التجهيز والاختيارات والتنفيذ والنتائج تظل مملوكة بمحطة ما بعد التثبيت الحالية.',
+  },
 };
 
 export default function FamilyLiveStage({
@@ -139,22 +227,18 @@ export default function FamilyLiveStage({
   const securityDockEnabled = service.id === '09-Security' && serviceAppMode;
   const recoveryDockEnabled = service.id === '11-Backup-Recovery' && serviceAppMode;
   const servicesDockEnabled = service.id === '07-Services-Processes' && serviceAppMode;
-  const serviceDockEnabled = programsDockEnabled || softwareDockEnabled || postInstallDockEnabled || diagnosticsDockEnabled || performanceDockEnabled || securityDockEnabled || recoveryDockEnabled || servicesDockEnabled;
+  const maintenanceDockEnabled = service.id === '01-System-Maintenance' && serviceAppMode;
+  const cleanupDockEnabled = service.id === '02-System-Cleanup' && serviceAppMode;
+  const networkDockEnabled = service.id === '03-Network-Internet' && serviceAppMode;
+  const duplicatesDockEnabled = service.id === '05-Duplicate-Files' && serviceAppMode;
+  const diskDockEnabled = service.id === '06-Disk-Space' && serviceAppMode;
+  const privacyDockEnabled = service.id === '13-Privacy' && serviceAppMode;
+  const driversDockEnabled = service.id === '14-Driver-Management' && serviceAppMode;
+  const monitoringDockEnabled = service.id === '15-System-Monitoring' && serviceAppMode;
+  const serviceDockEnabled = programsDockEnabled || softwareDockEnabled || postInstallDockEnabled || diagnosticsDockEnabled || performanceDockEnabled || securityDockEnabled || recoveryDockEnabled || servicesDockEnabled || maintenanceDockEnabled || cleanupDockEnabled || networkDockEnabled || duplicatesDockEnabled || diskDockEnabled || privacyDockEnabled || driversDockEnabled || monitoringDockEnabled;
   const serviceDockWorkspace = servicesDockEnabled
     ? 'services'
-    : recoveryDockEnabled
-      ? 'recovery'
-      : securityDockEnabled
-        ? 'security'
-        : performanceDockEnabled
-          ? 'performance'
-          : diagnosticsDockEnabled
-            ? 'diagnostics'
-            : postInstallDockEnabled
-              ? 'postinstall'
-              : softwareDockEnabled
-                ? 'software'
-                : 'programs';
+    : (DOCK_WORKSPACE_BY_SERVICE[service.id] ?? 'programs');
   const serviceAppSurface = (
     <ServiceApps
       activeSection={service.legacySection}
@@ -338,37 +422,11 @@ export default function FamilyLiveStage({
                     </div>
                   </dl>
                   <p className="knoux-service-dock-note">
-                    {servicesDockEnabled
-                      ? (isRtl
-                          ? 'بيانات الخدمات والعمليات والطوبولوجيا والتنفيذ تظل مملوكة لمحطة الخدمات والعمليات الحالية.'
-                          : 'Service, process, topology, and execution evidence remain owned by the existing Services & Processes station.')
-                      : recoveryDockEnabled
-                        ? (isRtl
-                            ? 'أدلة الاستمرارية ونقاط الاستعادة والنسخ الاحتياطية والتنفيذ تظل مملوكة لخزنة الاستعادة الحالية.'
-                            : 'Continuity evidence, restore points, backups, and execution remain owned by the existing Recovery Vault station.')
-                        : securityDockEnabled
-                          ? (isRtl
-                              ? 'أدلة الحماية والإشارات والإجراءات تبقى مملوكة لمركز أدلة الأمان الحالي.'
-                              : 'Protection evidence, signals, and actions remain owned by the existing Security Evidence Center station.')
-                          : performanceDockEnabled
-                            ? (isRtl
-                                ? 'قياسات الأداء والأدلة والتوصيات والتنفيذ تظل مملوكة لمرصد الأداء الحالي.'
-                                : 'Performance telemetry, evidence, recommendations, and execution remain owned by the existing Performance Observatory station.')
-                            : diagnosticsDockEnabled
-                              ? (isRtl
-                                  ? 'القياسات التشخيصية والأدلة والتقارير والتنفيذ تظل مملوكة لمحطة التشخيص الحالية.'
-                                  : 'Diagnostic telemetry, evidence, reports, and execution remain owned by the existing Diagnostics station.')
-                              : postInstallDockEnabled
-                                ? (isRtl
-                                    ? 'بيانات التجهيز والاختيارات والتنفيذ والنتائج تظل مملوكة بمحطة ما بعد التثبيت الحالية.'
-                                    : 'Provisioning data, selections, execution, and evidence remain owned by the existing Post-Install station.')
-                                : softwareDockEnabled
-                                  ? (isRtl
-                                      ? 'بيانات البيئة والتشغيل والنتائج تظل مملوكة بمحطة بيئة البرامج الحالية.'
-                                      : 'Environment data, execution, and evidence remain owned by the existing Software Environment station.')
-                                  : (isRtl
-                                      ? 'التشغيل والنتائج تظل مملوكة بمحطة البرامج الحالية.'
-                                      : 'Execution and evidence remain owned by the existing Programs station.')}
+                    {(() => {
+                      const note = RUNTIME_OWNER_NOTE[service.id];
+                      if (!note) return '';
+                      return isRtl ? note.ar : note.en;
+                    })()}
                   </p>
                 </aside>
               </KnouxDockWorkspace>

@@ -316,7 +316,7 @@ export default function NetworkStation({
         setEvidence((current) => ({ ...current, adapters }));
         setHistory((current) =>
           appendHistory(current, {
-            kind: 'diagnose', toolId: 'NI11', mode: 'run', status: 'SUCCESS',
+            kind: 'diagnose', toolId: 'NI11', mode: 'run', status: preview?.Adapters?.length ? 'INCONCLUSIVE' : 'ERROR',
             finding: `${adapters.length} adapters`, changedSystem: false, restartNeeded: false,
             verification: '', reportPath: '', finishedAt: new Date().toISOString(),
           }),

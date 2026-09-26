@@ -58,7 +58,7 @@ const COPY = {
     quickTopProcesses: 'Top Processes',
     quickProcessWatch: 'Process & Memory Watch',
     signalsTitle: 'Observatory Findings & Process Signals',
-    noSignals: 'All monitored processes are responding and memory consumption is nominal.',
+    noSignals: 'The observed sample returned no unresponsive process and no memory figure above the monitoring threshold. Signals are only drawn from a live sample.',
     processesTitle: 'Active Windows Processes',
     processesSubtitle: 'Real-time telemetry of process IDs, working set memory, and responsiveness status.',
     memoryTitle: 'Process Memory Consumption Hierarchy',
@@ -70,6 +70,16 @@ const COPY = {
     noUnresponsive: 'Zero processes currently flagged as unresponsive.',
     actionsTitle: 'Station 15 Tool Catalog',
     emptyHistory: 'No monitoring operations executed yet in this session.',
+    notCheckedYet: 'Not checked yet',
+    countNotReported: 'Count not reported',
+    activeTasks: 'Active tasks running',
+    notResponding: 'Not responding to OS',
+    allResponding: 'All sampled processes responding',
+    workingSetMb: (mb: number) => `${mb} MB working set`,
+    ofTotalServices: (total: number) => `of ${total} total services`,
+    noDescription: 'No description available.',
+    userExecution: 'User Execution',
+    adminRequired: 'Admin Required',
     searchPlaceholder: 'Search processes by name or PID...',
     runTool: 'Execute Tool',
     processName: 'Process Name',
@@ -103,7 +113,7 @@ const COPY = {
     quickTopProcesses: 'أعلى العمليات استهلاكاً',
     quickProcessWatch: 'مراقبة العمليات والذاكرة',
     signalsTitle: 'إشارات المرصد وتنبيهات الأداء',
-    noSignals: 'كافة العمليات مستجيبة واستهلاك الذاكرة يعمل ضمن الحدود الطبيعية.',
+    noSignals: 'العينة المرصودة لم تُرجع أي عملية غير مستجيبة ولا رقماً للذاكرة يتجاوز حد المراقبة. الإشارات تُستمد فقط من عينة حقيقية.',
     processesTitle: 'عمليات ويندوز النشطة',
     processesSubtitle: 'سجل حي لمعرفات العمليات، حجم الذاكرة المستهلكة، وحالة الاستجابة لرسائل النظام.',
     memoryTitle: 'تسلسل استهلاك الذاكرة حسب العمليات',
@@ -115,6 +125,16 @@ const COPY = {
     noUnresponsive: 'لا توجد عمليات معلقة أو متوقفة عن الاستجابة حالياً.',
     actionsTitle: 'فهرس أدوات المحطة 15',
     emptyHistory: 'لم يتم تنفيذ أي أدوات مراقبة خلال هذه الجلسة بعد.',
+    notCheckedYet: 'لم يتم الفحص بعد',
+    countNotReported: 'لم يتم الإبلاغ عن العدد',
+    activeTasks: 'المهام النشطة قيد التشغيل',
+    notResponding: 'لا تستجيب لنظام التشغيل',
+    allResponding: 'كل العمليات في العينة تستجيب',
+    workingSetMb: (mb: number) => `${mb} ميغابايت مجموعة عمل`,
+    ofTotalServices: (total: number) => `من ${total} خدمة إجمالاً`,
+    noDescription: 'لا يوجد وصف متاح.',
+    userExecution: 'تنفيذ المستخدم',
+    adminRequired: 'يتطلب صلاحية المسؤول',
     searchPlaceholder: 'بحث باسم العملية أو رقم PID...',
     runTool: 'تنفيذ الأداة',
     processName: 'اسم العملية',
@@ -197,6 +217,9 @@ function MonitoringStationContent({
   const signals = useMemo<ObservatorySignal[]>(() => {
     return detectObservatorySignals(preview);
   }, [preview]);
+
+  // A monitoring figure may only be printed once a live sample was actually read.
+  const sampleMeasured = summary.condition !== 'INCONCLUSIVE';
 
   const allProcesses = useMemo(() => {
     const list = preview?.Processes?.TopMemory || [];
@@ -443,19 +466,25 @@ function MonitoringStationContent({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
         <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid #1e293b', borderRadius: 10, padding: 14 }}>
           <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{t.totalProcesses}</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#38bdf8', marginTop: 4 }}>
-            {summary.totalProcesses}
+          <div style={{ fontSize: sampleMeasured ? 24 : 13, fontWeight: 800, color: sampleMeasured ? '#38bdf8' : '#94a3b8', marginTop: 4 }}>
+            {sampleMeasured ? summary.totalProcesses : t.notCheckedYet}
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Active tasks running</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+            {sampleMeasured ? t.activeTasks : t.countNotReported}
+          </div>
         </div>
 
         <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid #1e293b', borderRadius: 10, padding: 14 }}>
           <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{t.unresponsiveTasks}</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: summary.unresponsiveCount > 0 ? '#ef4444' : '#10b981', marginTop: 4 }}>
-            {summary.unresponsiveCount}
+          <div style={{ fontSize: sampleMeasured ? 24 : 13, fontWeight: 800, color: !sampleMeasured ? '#94a3b8' : summary.unresponsiveCount > 0 ? '#ef4444' : '#10b981', marginTop: 4 }}>
+            {sampleMeasured ? summary.unresponsiveCount : t.notCheckedYet}
           </div>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-            {summary.unresponsiveCount > 0 ? 'Not responding to OS' : 'All processes responding'}
+            {!sampleMeasured
+              ? t.countNotReported
+              : summary.unresponsiveCount > 0
+                ? t.notResponding
+                : t.allResponding}
           </div>
         </div>
 
@@ -464,20 +493,24 @@ function MonitoringStationContent({
           <div style={{ fontSize: 16, fontWeight: 800, color: '#a855f7', marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {summary.topMemoryProcessName || '—'}
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{summary.topMemoryMB} MB working set</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+            {sampleMeasured && summary.topMemoryMB > 0 ? t.workingSetMb(summary.topMemoryMB) : t.countNotReported}
+          </div>
         </div>
 
         <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid #1e293b', borderRadius: 10, padding: 14 }}>
           <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{t.runningServices}</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#10b981', marginTop: 4 }}>
-            {summary.runningServices}
+          <div style={{ fontSize: sampleMeasured ? 24 : 13, fontWeight: 800, color: sampleMeasured ? '#10b981' : '#94a3b8', marginTop: 4 }}>
+            {sampleMeasured ? summary.runningServices : t.notCheckedYet}
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>of {summary.totalServices} total services</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+            {sampleMeasured ? t.ofTotalServices(summary.totalServices) : t.countNotReported}
+          </div>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #1e293b', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', borderBottom: '1px solid #1e293b', gap: 6, paddingBottom: 4 }}>
         {[
           { key: 'overview', label: t.tabOverview, icon: Activity },
           { key: 'processes', label: t.tabProcesses, icon: Cpu },
@@ -886,11 +919,11 @@ function MonitoringStationContent({
                 </div>
 
                 <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>
-                  {tool.Purpose || 'No description available.'}
+                  {tool.Purpose || t.noDescription}
                 </p>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: 8 }}>
-                  <span style={{ fontSize: 10, color: '#64748b' }}>User Execution</span>
+                  <span style={{ fontSize: 10, color: '#64748b' }}>{tool.RequiresAdmin ? t.adminRequired : t.userExecution}</span>
                   <div style={{ display: 'flex', gap: 6 }}>
                     {tool.AnalyzeOnlySupported && (
                       <button

@@ -177,9 +177,13 @@ export default function DriversHeroVisual({
         <text x="450" y="85" textAnchor="end" fill="#10b981" fontSize="9" fontFamily="monospace">ACPI Host</text>
 
         <path d="M 460 145 L 370 145 L 320 125" fill="none" stroke="url(#dmBusTrace)" strokeWidth="1.5" />
-        <circle cx="460" cy="145" r="4" fill={deviceProblemsCount > 0 ? '#ef4444' : '#10b981'} />
-        <text x="450" y="140" textAnchor="end" fill={deviceProblemsCount > 0 ? '#ef4444' : '#94a3b8'} fontSize="9" fontFamily="monospace">
-          {deviceProblemsCount > 0 ? `Problem Device (${deviceProblemsCount})` : 'PnP Devices OK'}
+        <circle cx="460" cy="145" r="4" fill={deviceProblemsCount > 0 ? '#ef4444' : totalDrivers > 0 ? '#10b981' : '#64748b'} />
+        <text x="450" y="140" textAnchor="end" fill={deviceProblemsCount > 0 ? '#ef4444' : totalDrivers > 0 ? '#94a3b8' : '#64748b'} fontSize="9" fontFamily="monospace">
+          {deviceProblemsCount > 0
+            ? `Problem Device (${deviceProblemsCount})`
+            : totalDrivers > 0
+              ? 'PnP Devices OK'
+              : 'PNP STATUS NOT CHECKED'}
         </text>
 
         {/* Dynamic Metric Top */}

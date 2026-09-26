@@ -30,7 +30,10 @@
     radial-gradient(circle at 50% 0%, rgba(50, 202, 255, .09), transparent 28%);
 }
 
-.knoux-command-center[data-family='vitality'] .knoux-workspace-stage > * {
+/* The decorative stage layers stay out of the flow: forcing every direct child
+   into `position: relative` gave the scanline 120px of layout and pushed a dead
+   black band above the workspace header. */
+.knoux-command-center[data-family='vitality'] .knoux-workspace-stage > *:not(.knoux-stage-grid):not(.knoux-stage-scanline) {
   position: relative;
   z-index: 1;
 }

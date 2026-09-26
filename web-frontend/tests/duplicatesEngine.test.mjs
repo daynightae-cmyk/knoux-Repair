@@ -184,12 +184,17 @@ test('engine reports honest duration and min-size evidence', () => {
   }
 });
 
-test('duplicates owns a full-column studio without the generic hero', () => {
+test('duplicates mounts through the single canonical station path and owns its own actions', () => {
   const familyPage = fs.readFileSync(path.join(webRoot, 'src', 'components', 'premium', 'FamilyPage.tsx'), 'utf8');
-  assert.match(familyPage, /showDuplicateStudio/);
+  const serviceApps = fs.readFileSync(path.join(webRoot, 'src', 'components', 'ServiceApps.tsx'), 'utf8');
+  const stage = fs.readFileSync(path.join(webRoot, 'src', 'components', 'premium', 'FamilyLiveStage.tsx'), 'utf8');
   assert.match(familyPage, /05-Duplicate-Files/);
-  assert.match(familyPage, /DuplicateStation/);
-  assert.match(familyPage, /ExecutionConfirmDialog/);
+  assert.doesNotMatch(familyPage, /showDuplicateStudio/);
+  assert.doesNotMatch(familyPage, /<DuplicateStation/);
+  assert.equal((familyPage.match(/<FamilyLiveStage/g) ?? []).length, 1);
+  assert.equal((serviceApps.match(/<DuplicateStation/g) ?? []).length, 1);
+  assert.match(stage, /duplicatesDockEnabled = service\.id === '05-Duplicate-Files' && serviceAppMode/);
+  assert.match(stage, /'05-Duplicate-Files': 'duplicates'/);
 });
 
 test('station renders pipeline, evidence, sort and scan-log from live data', () => {
