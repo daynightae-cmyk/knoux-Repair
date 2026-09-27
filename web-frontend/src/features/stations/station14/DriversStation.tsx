@@ -19,6 +19,7 @@ import '../../../components/workspace/station-inventory.css';
 import './drivers-inventory.css';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
 import { StationErrorBoundary, StationOfflineState, StationActiveRunBanner } from '../_shared';
+import { readEnvelopeNumber, readEnvelopeText } from '../_shared/executionSemantics.ts';
 import { startExecution, pollUntilTerminal, requestConfirmedCancel, rememberRun, recallRun, forgetRun, historyMessageForRun } from '../_shared/StationExecutionController';
 import {
   type DriverSummary, type DriverSignal, type StationHistoryEntry,
@@ -30,7 +31,28 @@ import DriversHeroVisual from './DriversHeroVisual';
 /** Localized copy helper for the inventory surface labels. */
 const T = (copy: { en: string; ar: string }, lang: Lang) => (lang === 'ar' ? copy.ar : copy.en);
 
-export interface DriversStationProps {  lang: Lang;
+/**
+ * Stable identity for one driver row.
+ *
+ * A package with an INF has a real identity. A record the registry returned
+ * with no INF, no device name and no provider still exists and still needs its
+ * own key, or the inventory silently collapses every such record into one.
+ */
+function driverRowKey(driver: DriverPreviewItem): string {
+  const inf = (driver.InfName ?? '').trim();
+  if (inf !== '') return `inf:${inf}`;
+  const name = (driver.DeviceName ?? '').trim();
+  const provider = (driver.Provider ?? '').trim();
+  if (name === '' && provider === '') {
+    // No identity at all. Fall back to a positional key supplied by the caller
+    // path so the row is still individually addressable and selectable.
+    return `anon:${driver.Version ?? ''}|${driver.DeviceClass ?? ''}`;
+  }
+  return `name:${name}|${driver.Version}|${provider}`;
+}
+
+export interface DriversStationProps {
+  lang: Lang;
   tools: BridgeTool[];
   toolStatuses: Record<string, string>;
   bridgeElevated: boolean;
@@ -262,19 +284,33 @@ function DriversStationContent({
   }, [preview]);
 
   // Nothing in the driver matrix may report a number, a pass, or a clean state
-  // until the local inventory actually returned driver evidence.
-  const inventoryMeasured = Boolean(preview?.RecentInventory?.length || preview?.ReviewDrivers?.length);
+  // until the local inventory actually returned driver evidence. A bridge that
+  // returns only DeviceProblems or ClassSummary HAS measured something, so the
+  // gate is "no source returned anything", not "the inventory arrays are empty".
+  const inventoryMeasured = Boolean(
+    preview
+    && (
+      preview.RecentInventory?.length
+      || preview.ReviewDrivers?.length
+      || preview.DeviceProblems?.length
+      || preview.ClassSummary?.length
+    )
+  );
 
   const allDrivers = useMemo(() => {
     const list: DriverPreviewItem[] = [];
-    if (preview?.ReviewDrivers) list.push(...preview.ReviewDrivers);
-    if (preview?.RecentInventory) {
-      for (const d of preview.RecentInventory) {
-        if (!list.some((existing) => existing.InfName === d.InfName)) {
-          list.push(d);
-        }
-      }
-    }
+    const seen = new Set<string>();
+    const add = (driver: DriverPreviewItem) => {
+      // Deduping on InfName alone collapsed every identity-less record into
+      // one, silently dropping real registry entries. The row key already had a
+      // correct identity rule; the list now reuses it.
+      const key = driverRowKey(driver);
+      if (seen.has(key)) return;
+      seen.add(key);
+      list.push(driver);
+    };
+    preview?.ReviewDrivers?.forEach(add);
+    preview?.RecentInventory?.forEach(add);
     return list;
   }, [preview]);
 
@@ -313,10 +349,7 @@ function DriversStationContent({
   };
 
   /** Stable identity for a row; an entry with no INF or name still needs its own key. */
-  const driverKey = (driver: DriverPreviewItem) =>
-    driver.InfName.trim() !== ''
-      ? `inf:${driver.InfName}`
-      : `name:${driver.DeviceName}|${driver.Version}|${driver.Provider}`;
+  const driverKey = (driver: DriverPreviewItem) => driverRowKey(driver);
 
   const needsAttention = (driver: DriverPreviewItem) => {
     if (!hasIdentity(driver)) return false;
@@ -453,10 +486,13 @@ function DriversStationContent({
       id: `${toolId}-${Date.now()}`,
       toolId,
       toolName,
-      timestamp: new Date().toLocaleTimeString(),
+      // Full date + time: a time-of-day stamp makes entries from different days
+      // indistinguishable in the audit trail.
+      timestamp: new Date().toLocaleString(lang),
       status: outcome,
-      itemsProcessed: terminal.result?.itemsProcessed || 0,
-      summary: terminal.result?.output?.slice(0, 180) || historyMessageForRun(terminal),
+      // null, not 0: an unreported count must never read as a measured zero.
+      itemsProcessed: readEnvelopeNumber(terminal.result, 'itemsProcessed'),
+      summary: readEnvelopeText(terminal.result, 'output')?.slice(0, 180) || historyMessageForRun(terminal),
     };
     if (mountedRef.current) {
       setHistory((prev) => [newEntry, ...prev]);
@@ -810,7 +846,9 @@ function DriversStationContent({
             {tools.find((t) => t.ToolId === 'DV03') && (
               <button
                 type="button"
-                onClick={() => handleLaunchTool(tools.find((t) => t.ToolId === 'DV03')!, 'run')}
+                disabled={!bridgeElevated}
+            title={!bridgeElevated ? (lang === 'ar' ? 'يتطلب هذا الإصلاح صلاحيات المسؤول.' : 'This repair requires an elevated bridge.') : undefined}
+            onClick={() => handleLaunchTool(tools.find((t) => t.ToolId === 'DV03')!, 'run')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -853,7 +891,7 @@ function DriversStationContent({
                       padding: 12,
                       background: 'rgba(2, 6, 23, 0.6)',
                       borderRadius: 8,
-                      borderLeft: `4px solid ${sig.level === 'CRITICAL' ? '#ef4444' : sig.level === 'MEDIUM' ? '#f59e0b' : '#38bdf8'}`,
+                      borderInlineStart: `4px solid ${sig.level === 'CRITICAL' ? '#ef4444' : sig.level === 'MEDIUM' ? '#f59e0b' : '#38bdf8'}`,
                     }}
                   >
                     <AlertTriangle size={16} color={sig.level === 'CRITICAL' ? '#ef4444' : sig.level === 'MEDIUM' ? '#f59e0b' : '#38bdf8'} />
@@ -1097,7 +1135,7 @@ function DriversStationContent({
             {onNavigateService && (
               <button
                 type="button"
-                onClick={() => onNavigateService('software' as FamilyId, '17-PostInstall-Setup' as ServiceId)}
+                onClick={() => onNavigateService('software', '17-PostInstall-Setup')}
               >
                 {lang === 'ar' ? 'افتح عروض التعريفات' : 'Open driver offers'}
                 <Download size={13} />
@@ -1216,9 +1254,9 @@ function DriversStationContent({
               {tools.find((tool) => tool.ToolId === 'DV03') && (
                 <button
                   type="button"
-                  onClick={() => handleLaunchTool(tools.find((tool) => tool.ToolId === 'DV03')!, 'run')}
                   disabled={!bridgeElevated}
                   title={!bridgeElevated ? t.adminRequired : undefined}
+                  onClick={() => handleLaunchTool(tools.find((tool) => tool.ToolId === 'DV03')!, 'run')}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1393,7 +1431,7 @@ function DriversStationContent({
                     background: 'rgba(2, 6, 23, 0.5)',
                     padding: 10,
                     borderRadius: 6,
-                    borderLeft: `3px solid ${entry.status === 'SUCCESS' ? '#10b981' : '#ef4444'}`,
+                    borderInlineStart: `3px solid ${entry.status === 'SUCCESS' ? '#10b981' : '#ef4444'}`,
                   }}
                 >
                   <div>
@@ -1402,7 +1440,7 @@ function DriversStationContent({
                     </div>
                     <div style={{ fontSize: 11, color: '#94a3b8' }}>{entry.summary}</div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'start' }}>
                     <span style={{ fontSize: 10, color: entry.status === 'SUCCESS' ? '#10b981' : '#ef4444', fontWeight: 700 }}>
                       {entry.status}
                     </span>

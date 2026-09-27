@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   Activity, Cpu, HardDrive, RefreshCw, Play,
-  CheckCircle2, AlertTriangle, Search,
+  CheckCircle2, AlertTriangle, X,
   History, FileText, Server, AlertOctagon, Zap
 } from 'lucide-react';
 import type {
@@ -13,14 +13,17 @@ import { api } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
 import { pickName } from '../../../lib/i18n';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
+import { StationInventorySurface, type InventoryColumn } from '../../../components/workspace/StationInventorySurface';
 import { StationErrorBoundary, StationOfflineState, StationActiveRunBanner } from '../_shared';
 import { startExecution, pollUntilTerminal, requestConfirmedCancel, rememberRun, recallRun, forgetRun, historyMessageForRun } from '../_shared/StationExecutionController';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
 import {
   type ObservatorySummary, type ObservatorySignal, type StationHistoryEntry,
   summarizeObservatory, detectObservatorySignals, stationTools,
-  outcomeFromRun, filterProcessesByName
+  outcomeFromRun
 } from './monitoringModel';
 import MonitoringHeroVisual from './MonitoringHeroVisual';
+import type { OperationsPreviewProcess, OperationsPreviewService } from '../../../lib/api';
 
 export interface MonitoringStationProps {
   lang: Lang;
@@ -30,6 +33,12 @@ export interface MonitoringStationProps {
   bridgeOnline: boolean | null;
   onRetryBridge: () => void;
   onToolStatus: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
+  /**
+   * Process and service ownership belongs to Station 07. The observatory reads
+   * its own live sample for observation, and hands investigation over rather
+   * than duplicating a second process engine.
+   */
+  onNavigateService?: (family: FamilyId, serviceId: ServiceId) => void;
 }
 
 type TabKey = 'overview' | 'processes' | 'memory' | 'services' | 'unresponsive' | 'actions' | 'report' | 'history';
@@ -89,6 +98,40 @@ const COPY = {
     status: 'Status',
     responding: 'Responding',
     hanging: 'Not Responding',
+    serviceName: 'Service Name',
+    startMode: 'Start Mode',
+    processId: 'Process ID',
+    searchProcesses: 'Search processes by name, PID, or state...',
+    searchServices: 'Search services by name, display name, state, or start mode...',
+    filterResponding: 'Responding',
+    filterHanging: 'Not responding',
+    notCheckedHint: 'Run a resource snapshot or top-process query to measure this machine.',
+    noUnresponsiveMeasured: 'Measured: no sampled process is flagged as unresponsive.',
+    unmeasuredUnresponsive: 'Not checked yet — no live sample has been taken, so nothing can be claimed either way.',
+    sampleFailed: 'The observatory read failed. This is not the same as zero processes.',
+    showing: 'Showing',
+    ofTotal: 'of',
+    countLabel: 'processes',
+    serviceCountLabel: 'services',
+    notReported: 'Not reported',
+    whatIsThis: 'What is this?',
+    whereFrom: 'Where did it come from?',
+    whyMatters: 'Why does it matter?',
+    evidence: 'Evidence',
+    whatCanIDo: 'What can I do?',
+    processSource: 'Live process telemetry from the observatory snapshot.',
+    serviceSource: 'Live Windows service inventory from the observatory snapshot.',
+    processWhy: 'Working set is the memory currently held by this process. A process that is not responding has stopped servicing Windows message queues.',
+    serviceWhy: 'A stopped Automatic service will start on demand only if something asks it to, which frequently breaks a dependent application.',
+    processAction: 'Open full process and service evidence to review the dependency and ownership view.',
+    serviceAction: 'Open full service evidence to review the complete inventory and blast radius.',
+    openProcessEvidence: 'Open process and service evidence',
+    capturedAt: 'Sample captured at',
+    noStopAutoServices: 'No stopped Automatic service in the review set.',
+    stopAutoUnmeasured: 'Not checked yet — the service state has not been sampled.',
+    noProcessesMeasured: 'The live sample returned no top-memory process rows.',
+    noProcessMatch: 'No process matches your search and filters',
+    noServiceMatch: 'No service matches your search and filters',
   },
   ar: {
     eyebrow: 'مرصد العمليات والذاكرة الحي',
@@ -138,16 +181,95 @@ const COPY = {
     searchPlaceholder: 'بحث باسم العملية أو رقم PID...',
     runTool: 'تنفيذ الأداة',
     processName: 'اسم العملية',
-    pid: 'PID',
-    memoryMB: 'الذاكرة (ميجابايت)',
-    cpuTime: 'وقت المعالج (ثواني)',
+    pid: 'المعرّف',
+    memoryMB: 'الذاكرة (م.ب)',
+    cpuTime: 'ثواني المعالج',
     status: 'الحالة',
-    responding: 'مستجيب',
-    hanging: 'غير مستجيب',
+    responding: 'يستجيب',
+    hanging: 'لا يستجيب',
+    serviceName: 'اسم الخدمة',
+    startMode: 'نمط البدء',
+    processId: 'معرّف العملية',
+    searchProcesses: 'ابحث في العمليات بالاسم أو المعرّف أو الحالة...',
+    searchServices: 'ابحث في الخدمات بالاسم أو الحالة أو نمط البدء...',
+    filterResponding: 'يستجيب',
+    filterHanging: 'لا يستجيب',
+    notCheckedHint: 'نفّذ لقطة موارد أو استعلام أعلى العمليات لقياس هذا الجهاز.',
+    noUnresponsiveMeasured: 'تم القياس: لا توجد عملية معلَّمة كغير مستجيبة.',
+    unmeasuredUnresponsive: 'لم يتم الفحص بعد — لم تُؤخذ أي عينة حيّة، لذا لا يمكن الجزم بأي حالة.',
+    sampleFailed: 'فشلت قراءة المرصد. هذا ليس معناه صفر عمليات.',
+    showing: 'المعروض',
+    ofTotal: 'من',
+    countLabel: 'عمليات',
+    serviceCountLabel: 'خدمات',
+    notReported: 'غير مُبلَّغ عنه',
+    whatIsThis: 'ما هذا؟',
+    whereFrom: 'من أين جاء؟',
+    whyMatters: 'لماذا يهم؟',
+    evidence: 'الأدلة',
+    whatCanIDo: 'ماذا يمكنني أن أفعل؟',
+    processSource: 'قياسات حيّة للعمليات من لقطة المرصد.',
+    serviceSource: 'جرد حيّ لخدمات ويندوز من لقطة المرصد.',
+    processWhy: 'مجموعة العمل هي الذاكرة التي تحتجزها العملية حالياً. العملية غير المستجيبة توقفت عن خدمة قوائم رسائل ويندوز.',
+    serviceWhy: 'خدمة تلقائية متوقفة لن تعمل إلا عند الطلب، وهذا غالباً يعطّل تطبيقاً يعتمد عليها.',
+    processAction: 'افتح أدلة العمليات والخدمات الكاملة لمراجعة التبعيات.',
+    serviceAction: 'افتح أدلة الخدمات الكاملة لمراجعة الجرد ونطاق التأثير.',
+    openProcessEvidence: 'افتح أدلة العمليات والخدمات',
+    capturedAt: 'وقت أخذ العينة',
+    noStopAutoServices: 'لا توجد خدمة تلقائية متوقفة ضمن قائمة المراجعة.',
+    stopAutoUnmeasured: 'لم يتم الفحص بعد — لم تُقاس حالة الخدمات.',
+    noProcessesMeasured: 'أعادت العينة الحيّة بلا صفوف أعلى العمليات.',
+    noProcessMatch: 'لا توجد عملية مطابقة لبحثك ومرشّحاتك',
+    noServiceMatch: 'لا توجد خدمة مطابقة لبحثك ومرشّحاتك',
   },
 };
 
 const STATION_KEY = 'station15';
+
+const INSPECTOR_ACTION_STYLE: CSSProperties = {
+  background: 'rgba(56, 189, 248, 0.1)',
+  border: '1px solid rgba(56, 189, 248, 0.5)',
+  color: '#7dd3fc',
+  borderRadius: 8,
+  padding: '7px 10px',
+  fontSize: 11.5,
+  fontWeight: 600,
+  cursor: 'pointer',
+  textAlign: 'start',
+};
+
+/**
+ * One label/answer pair. The inspector exists for depth, so an unreported
+ * value prints "not reported" instead of an empty cell or a fabricated zero.
+ */
+function InspectorFact({
+  label,
+  value,
+  mono = false,
+  ltr = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  ltr?: boolean;
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+      <span style={{ fontSize: 10, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#64748b' }}>{label}</span>
+      <span
+        dir={ltr ? 'ltr' : 'auto'}
+        style={{
+          fontSize: 12,
+          color: '#e2e8f0',
+          fontFamily: mono ? 'ui-monospace, SFMono-Regular, Menlo, monospace' : undefined,
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
 
 export default function MonitoringStation(props: MonitoringStationProps) {
   return (
@@ -163,12 +285,13 @@ function MonitoringStationContent({
   bridgeOnline,
   onRetryBridge,
   onToolStatus,
+  onNavigateService,
 }: MonitoringStationProps) {
   const t = COPY[lang];
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<OperationsPreview | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [history, setHistory] = useState<StationHistoryEntry[]>([]);
   const [pendingTool, setPendingTool] = useState<{ tool: BridgeTool; mode: ExecutionMode } | null>(null);
   // Active run tracking: selection and execution are separate concepts.
@@ -192,17 +315,32 @@ function MonitoringStationContent({
 
   const loadPreview = useCallback(async () => {
     setLoading(true);
+    setPreviewError(null);
     try {
       const res = await api.operationsPreview();
       if (res?.preview) {
         setPreview(res.preview);
+      } else {
+        // The read completed but carried no snapshot. That is a failure to
+        // measure, not a measurement of zero.
+        setPreviewError(
+          lang === 'ar'
+            ? 'أعادت غرفة المراقبة رداً دون أي بيانات قياس.'
+            : 'The observatory returned a response with no measured snapshot.'
+        );
       }
-    } catch {
-      // Ignored
+    } catch (error) {
+      setPreviewError(
+        error instanceof Error && error.message
+          ? error.message
+          : (lang === 'ar'
+              ? 'تعذّر الوصول إلى بيانات المرصد.'
+              : 'The observatory data could not be read.')
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
     if (bridgeOnline) {
@@ -221,14 +359,210 @@ function MonitoringStationContent({
   // A monitoring figure may only be printed once a live sample was actually read.
   const sampleMeasured = summary.condition !== 'INCONCLUSIVE';
 
-  const allProcesses = useMemo(() => {
-    const list = preview?.Processes?.TopMemory || [];
-    return filterProcessesByName(list, searchQuery);
-  }, [preview, searchQuery]);
+  // rows === null means "never sampled". [] means "sampled and genuinely empty".
+  // Collapsing the two is how a monitoring station claims an all-clear it never earned.
+  const processRows = useMemo<OperationsPreviewProcess[] | null>(
+    () => (preview ? preview.Processes.TopMemory : null),
+    [preview]
+  );
+
+  const serviceRows = useMemo<OperationsPreviewService[] | null>(
+    () => (preview ? preview.Services.AutomaticStoppedForReview : null),
+    [preview]
+  );
+
+  // null means "never sampled", not "zero services". Collapsing the two here
+  // would make every consumer of this summary able to print a measured zero
+  // for a machine nothing has been read from.
+  const servicesSummary = useMemo(
+    (): { running: number | null; stopped: number | null; total: number | null } => {
+      if (!preview?.Services) return { running: null, stopped: null, total: null };
+      return {
+        running: preview.Services.Running ?? 0,
+        stopped: preview.Services.Stopped ?? 0,
+        total: preview.Services.Total ?? 0,
+      };
+    },
+    [preview]
+  );
+
+  const stoppedAutoCount = serviceRows?.length ?? 0;
+
+  const isSampling = loading;
 
   const unresponsiveProcesses = useMemo(() => {
     return preview?.Processes?.NotRespondingForReview || [];
   }, [preview]);
+
+  const processColumns = useMemo<InventoryColumn<OperationsPreviewProcess>[]>(
+    () => [
+      {
+        key: 'name',
+        label: { en: t.processName, ar: t.processName },
+        width: 'minmax(0, 2fr)',
+        sortValue: proc => proc.Name,
+        render: proc => (
+          <span style={{ fontWeight: 600, color: '#f8fafc', direction: 'ltr', display: 'inline-block' }} dir="ltr">
+            {proc.Name}
+          </span>
+        ),
+      },
+      {
+        key: 'pid',
+        label: { en: t.pid, ar: t.pid },
+        width: 'minmax(0, 0.7fr)',
+        sortValue: proc => proc.ProcessId,
+        render: proc => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{proc.ProcessId}</span>,
+      },
+      {
+        key: 'memory',
+        label: { en: t.memoryMB, ar: t.memoryMB },
+        width: 'minmax(0, 0.9fr)',
+        align: 'end',
+        sortValue: proc => (Number.isFinite(proc.MemoryMB) ? proc.MemoryMB : null),
+        render: proc => (
+          <span style={{ color: '#38bdf8', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+            {Number.isFinite(proc.MemoryMB) ? `${proc.MemoryMB}` : '—'}
+          </span>
+        ),
+      },
+      {
+        key: 'cpu',
+        label: { en: t.cpuTime, ar: t.cpuTime },
+        width: 'minmax(0, 0.8fr)',
+        align: 'end',
+        sortValue: proc => (Number.isFinite(proc.CpuSeconds) && proc.CpuSeconds > 0 ? proc.CpuSeconds : null),
+        render: proc => (
+          <span style={{ color: '#94a3b8' }}>{proc.CpuSeconds > 0 ? proc.CpuSeconds : '—'}</span>
+        ),
+      },
+      {
+        key: 'state',
+        label: { en: t.status, ar: t.status },
+        width: 'minmax(0, 1fr)',
+        render: proc => (
+          <span style={{ color: proc.Responding === false ? '#ef4444' : proc.Responding === true ? '#10b981' : '#64748b', fontWeight: 600 }}>
+            {proc.Responding === false ? t.hanging : proc.Responding === true ? t.responding : t.notReported}
+          </span>
+        ),
+      },
+    ],
+    [t]
+  );
+
+  const processFilters = useMemo(
+    () => [
+      { key: 'responding', label: { en: t.filterResponding, ar: t.filterResponding }, test: (proc: OperationsPreviewProcess) => proc.Responding === true },
+      { key: 'hanging', label: { en: t.filterHanging, ar: t.filterHanging }, test: (proc: OperationsPreviewProcess) => proc.Responding === false },
+    ],
+    [t]
+  );
+
+  const serviceColumns = useMemo<InventoryColumn<OperationsPreviewService>[]>(
+    () => [
+      {
+        key: 'name',
+        label: { en: t.serviceName, ar: t.serviceName },
+        width: 'minmax(0, 2fr)',
+        sortValue: svc => svc.DisplayName || svc.Name,
+        render: svc => (
+          <span style={{ fontWeight: 600, color: '#f8fafc' }} dir="auto">{svc.DisplayName || svc.Name}</span>
+        ),
+      },
+      {
+        key: 'status',
+        label: { en: t.status, ar: t.status },
+        width: 'minmax(0, 1fr)',
+        sortValue: svc => svc.Status,
+        render: svc => <span dir="auto">{svc.Status || t.notReported}</span>,
+      },
+      {
+        key: 'startMode',
+        label: { en: t.startMode, ar: t.startMode },
+        width: 'minmax(0, 1fr)',
+        sortValue: svc => svc.StartMode,
+        render: svc => (
+          <span style={{ color: '#f59e0b' }} dir="auto">{svc.StartMode || t.notReported}</span>
+        ),
+      },
+      {
+        key: 'pid',
+        label: { en: t.processId, ar: t.processId },
+        width: 'minmax(0, 0.7fr)',
+        align: 'end',
+        sortValue: svc => (Number.isFinite(svc.ProcessId) ? svc.ProcessId : null),
+        render: svc => (
+          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{Number.isFinite(svc.ProcessId) ? svc.ProcessId : '—'}</span>
+        ),
+      },
+    ],
+    [t]
+  );
+
+  const serviceFilters = useMemo(
+    () => [
+      { key: 'stopped', label: { en: 'Stopped', ar: 'متوقفة' }, test: (svc: OperationsPreviewService) => String(svc.Status).toLowerCase().includes('stop') },
+      { key: 'automatic', label: { en: 'Automatic', ar: 'تلقائية' }, test: (svc: OperationsPreviewService) => String(svc.StartMode).toLowerCase().includes('auto') },
+    ],
+    []
+  );
+
+  const renderProcessInspector = useCallback(
+    (proc: OperationsPreviewProcess, close: () => void) => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <strong style={{ fontSize: 13, color: '#f8fafc' }} dir="ltr">{proc.Name}</strong>
+          <button type="button" onClick={close} aria-label="close" style={{ background: 'transparent', border: 0, color: '#64748b', cursor: 'pointer' }}>
+            <X size={14} />
+          </button>
+        </div>
+        <InspectorFact label={t.whatIsThis} value={proc.Name} mono ltr />
+        <InspectorFact label={t.whereFrom} value={t.processSource} />
+        <InspectorFact label={t.pid} value={String(proc.ProcessId)} />
+        <InspectorFact label={t.memoryMB} value={Number.isFinite(proc.MemoryMB) ? t.workingSetMb(proc.MemoryMB) : t.notReported} />
+        <InspectorFact label={t.cpuTime} value={proc.CpuSeconds > 0 ? String(proc.CpuSeconds) : t.notReported} />
+        <InspectorFact
+          label={t.status}
+          value={proc.Responding === false ? t.hanging : proc.Responding === true ? t.responding : t.notReported}
+        />
+        <InspectorFact label={t.whyMatters} value={t.processWhy} />
+        {preview?.CapturedAt && <InspectorFact label={t.capturedAt} value={preview.CapturedAt} ltr />}
+        {onNavigateService && (
+          <button type="button" onClick={() => { close(); onNavigateService('investigation', '07-Services-Processes'); }} style={INSPECTOR_ACTION_STYLE}>
+            {t.openProcessEvidence}
+          </button>
+        )}
+      </div>
+    ),
+    [onNavigateService, preview?.CapturedAt, t]
+  );
+
+  const renderServiceInspector = useCallback(
+    (svc: OperationsPreviewService, close: () => void) => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <strong style={{ fontSize: 13, color: '#f8fafc' }} dir="auto">{svc.DisplayName || svc.Name}</strong>
+          <button type="button" onClick={close} aria-label="close" style={{ background: 'transparent', border: 0, color: '#64748b', cursor: 'pointer' }}>
+            <X size={14} />
+          </button>
+        </div>
+        <InspectorFact label={t.whatIsThis} value={svc.DisplayName || svc.Name} />
+        <InspectorFact label={t.whereFrom} value={t.serviceSource} />
+        <InspectorFact label={t.serviceName} value={svc.Name} mono ltr />
+        <InspectorFact label={t.status} value={svc.Status || t.notReported} />
+        <InspectorFact label={t.startMode} value={svc.StartMode || t.notReported} />
+        <InspectorFact label={t.processId} value={Number.isFinite(svc.ProcessId) ? String(svc.ProcessId) : t.notReported} />
+        <InspectorFact label={t.whyMatters} value={t.serviceWhy} />
+        {preview?.CapturedAt && <InspectorFact label={t.capturedAt} value={preview.CapturedAt} ltr />}
+        {onNavigateService && (
+          <button type="button" onClick={() => { close(); onNavigateService('investigation', '07-Services-Processes'); }} style={INSPECTOR_ACTION_STYLE}>
+            {t.openProcessEvidence}
+          </button>
+        )}
+      </div>
+    ),
+    [onNavigateService, preview?.CapturedAt, t]
+  );
 
   const handleLaunchTool = (tool: BridgeTool, mode: ExecutionMode = 'analyze') => {
     if (activeRun) {
@@ -424,6 +758,18 @@ function MonitoringStationContent({
           <span>{loading ? t.refreshing : t.refresh}</span>
         </button>
       </div>
+
+      {/* A failed read is a state of its own. Swallowing it made an unreadable
+          observatory permanently indistinguishable from an unmeasured one. */}
+      {previewError && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '10px 14px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: 10, color: '#fcd34d', fontSize: 12 }} role="alert">
+          <AlertTriangle size={15} />
+          <span>{previewError}</span>
+          <button type="button" onClick={() => void loadPreview()} style={{ marginInlineStart: 'auto', background: 'transparent', border: 0, color: '#fcd34d', textDecoration: 'underline', cursor: 'pointer', fontSize: 11.5 }}>
+            {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+          </button>
+        </div>
+      )}
 
       {runError && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '10px 14px', background: 'rgba(244, 63, 94, 0.1)', border: '1px solid rgba(244, 63, 94, 0.35)', borderRadius: 10, color: '#fda4af', fontSize: 12 }} role="alert">
@@ -646,7 +992,7 @@ function MonitoringStationContent({
                       padding: 12,
                       background: 'rgba(2, 6, 23, 0.6)',
                       borderRadius: 8,
-                      borderLeft: `4px solid ${sig.level === 'CRITICAL' ? '#ef4444' : sig.level === 'MEDIUM' ? '#f59e0b' : '#38bdf8'}`,
+                      borderInlineStart: `4px solid ${sig.level === 'CRITICAL' ? '#ef4444' : sig.level === 'MEDIUM' ? '#f59e0b' : '#38bdf8'}`,
                     }}
                   >
                     <AlertTriangle size={16} color={sig.level === 'CRITICAL' ? '#ef4444' : sig.level === 'MEDIUM' ? '#f59e0b' : '#38bdf8'} />
@@ -684,107 +1030,75 @@ function MonitoringStationContent({
         </div>
       )}
 
-      {/* Tab 2: Active Processes */}
+      {/* Tab 2: Active Processes — a real searchable, filterable, sortable
+          inventory with a contextual inspector, not a capped card grid. */}
       {activeTab === 'processes' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#f8fafc' }}>{t.processesTitle}</h3>
-              <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#94a3b8' }}>{t.processesSubtitle}</p>
-            </div>
-
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                placeholder={t.searchPlaceholder}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  background: '#0f172a',
-                  border: '1px solid #334155',
-                  borderRadius: 6,
-                  padding: '6px 12px 6px 30px',
-                  color: '#fff',
-                  fontSize: 12,
-                  minWidth: 240,
-                }}
-              />
-              <Search size={14} style={{ position: 'absolute', left: 10, top: 9, color: '#64748b' }} />
-            </div>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#f8fafc' }}>{t.processesTitle}</h3>
+            <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#94a3b8' }}>{t.processesSubtitle}</p>
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
-            {allProcesses.slice(0, 48).map((proc) => (
-              <div
-                key={proc.ProcessId}
-                style={{
-                  background: 'rgba(15, 23, 42, 0.7)',
-                  border: `1px solid ${proc.Responding === false ? '#ef4444' : '#1e293b'}`,
-                  borderRadius: 8,
-                  padding: 12,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 6,
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>{proc.Name}</span>
-                  <span style={{ fontSize: 10, background: '#1e293b', color: '#cbd5e1', padding: '2px 6px', borderRadius: 4 }}>
-                    PID {proc.ProcessId}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
-                  <span style={{ color: '#38bdf8', fontWeight: 600 }}>{proc.MemoryMB} MB</span>
-                  <span style={{ color: '#94a3b8' }}>{proc.CpuSeconds ? `${proc.CpuSeconds}s CPU` : '—'}</span>
-                  <span style={{ color: proc.Responding === false ? '#ef4444' : '#10b981', fontWeight: 700 }}>
-                    {proc.Responding === false ? t.hanging : t.responding}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+          <StationInventorySurface<OperationsPreviewProcess>
+            lang={lang}
+            rows={processRows}
+            loading={isSampling}
+            rowKey={proc => `pid-${proc.ProcessId}`}
+            columns={processColumns}
+            filters={processFilters}
+            searchFields={proc => [
+              proc.Name,
+              String(proc.ProcessId),
+              proc.Responding === false ? t.hanging : proc.Responding === true ? t.responding : '',
+            ]}
+            searchPlaceholder={{ en: t.searchProcesses, ar: t.searchProcesses }}
+            empty={{
+              notChecked: { en: t.notCheckedYet, ar: t.notCheckedYet },
+              checking: { en: t.refreshing, ar: t.refreshing },
+              noneFound: { en: t.noProcessesMeasured, ar: t.noProcessesMeasured },
+              noMatch: { en: t.noProcessMatch, ar: t.noProcessMatch },
+              noMatchHint: { en: t.notCheckedHint, ar: t.notCheckedHint },
+            }}
+            inspector={renderProcessInspector}
+            sortInitial={{ key: 'memory', direction: 'desc' }}
+            pageSize={150}
+          />
         </div>
       )}
 
-      {/* Tab 3: Memory Watch */}
+      {/* Tab 3: Memory Watch — the same measured list, ordered by working set.
+          The page copy claimed a descending order it never applied. */}
       {activeTab === 'memory' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#f8fafc' }}>{t.memoryTitle}</h3>
             <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#94a3b8' }}>{t.memorySubtitle}</p>
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {(preview?.Processes?.TopMemory || []).slice(0, 15).map((proc, index) => (
-              <div
-                key={proc.ProcessId}
-                style={{
-                  background: 'rgba(15, 23, 42, 0.7)',
-                  border: '1px solid #1e293b',
-                  borderRadius: 8,
-                  padding: 12,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 14,
-                }}
-              >
-                <span style={{ fontSize: 12, fontWeight: 800, color: '#64748b', width: 24 }}>#{index + 1}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>{proc.Name}</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>PID {proc.ProcessId}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: '#a855f7' }}>{proc.MemoryMB} MB</div>
-                  <div style={{ fontSize: 10, color: '#94a3b8' }}>Working Set</div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <StationInventorySurface<OperationsPreviewProcess>
+            lang={lang}
+            rows={processRows}
+            loading={isSampling}
+            rowKey={proc => `pid-${proc.ProcessId}`}
+            columns={processColumns}
+            filters={processFilters}
+            searchFields={proc => [proc.Name, String(proc.ProcessId), t.workingSetMb(proc.MemoryMB)]}
+            searchPlaceholder={{ en: t.searchProcesses, ar: t.searchProcesses }}
+            empty={{
+              notChecked: { en: t.notCheckedYet, ar: t.notCheckedYet },
+              checking: { en: t.refreshing, ar: t.refreshing },
+              noneFound: { en: t.noProcessesMeasured, ar: t.noProcessesMeasured },
+              noMatch: { en: t.noProcessMatch, ar: t.noProcessMatch },
+              noMatchHint: { en: t.notCheckedHint, ar: t.notCheckedHint },
+            }}
+            inspector={renderProcessInspector}
+            sortInitial={{ key: 'memory', direction: 'desc' }}
+            pageSize={150}
+          />
         </div>
       )}
 
-      {/* Tab 4: Services State */}
+      {/* Tab 4: Services State — counts are guarded by the sample. The old
+          `preview?.Services?.Running || 0` printed a measured 0 for a machine
+          that had never been sampled. */}
       {activeTab === 'services' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
@@ -792,49 +1106,60 @@ function MonitoringStationContent({
             <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#94a3b8' }}>{t.servicesSubtitle}</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
             <div style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid #1e293b', borderRadius: 8, padding: 16 }}>
-              <div style={{ fontSize: 12, color: '#94a3b8' }}>Running Windows Services</div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#10b981', marginTop: 4 }}>
-                {preview?.Services?.Running || 0}
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.runningServices}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: sampleMeasured ? '#10b981' : '#64748b', marginTop: 4 }}>
+                {sampleMeasured ? servicesSummary.running : '—'}
               </div>
+              {!sampleMeasured && <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{t.notCheckedYet}</div>}
             </div>
             <div style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid #1e293b', borderRadius: 8, padding: 16 }}>
-              <div style={{ fontSize: 12, color: '#94a3b8' }}>Stopped Automatic Services (Review)</div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: summary.stoppedAutomaticServices > 0 ? '#f59e0b' : '#10b981', marginTop: 4 }}>
-                {summary.stoppedAutomaticServices}
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.stoppedAutoServices}</div>
+              <div style={{
+                fontSize: 24,
+                fontWeight: 800,
+                marginTop: 4,
+                color: !sampleMeasured ? '#64748b' : stoppedAutoCount > 0 ? '#f59e0b' : '#10b981',
+              }}>
+                {sampleMeasured ? stoppedAutoCount : '—'}
               </div>
+              {!sampleMeasured && <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{t.notCheckedYet}</div>}
+            </div>
+            <div style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid #1e293b', borderRadius: 8, padding: 16 }}>
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.serviceCountLabel}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: sampleMeasured ? '#e2e8f0' : '#64748b', marginTop: 4 }}>
+                {sampleMeasured ? servicesSummary.total : '—'}
+              </div>
+              {!sampleMeasured && <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{t.notCheckedYet}</div>}
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
-            {preview?.Services?.AutomaticStoppedForReview?.map((svc) => (
-              <div
-                key={svc.Name}
-                style={{
-                  background: 'rgba(15, 23, 42, 0.7)',
-                  border: '1px solid #f59e0b',
-                  borderRadius: 8,
-                  padding: 12,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 4,
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>{svc.DisplayName || svc.Name}</span>
-                  <span style={{ fontSize: 9, background: '#78350f', color: '#fde68a', padding: '2px 6px', borderRadius: 4 }}>
-                    Stopped Auto
-                  </span>
-                </div>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>Service Name: {svc.Name}</div>
-              </div>
-            ))}
-          </div>
+          <StationInventorySurface<OperationsPreviewService>
+            lang={lang}
+            rows={serviceRows}
+            loading={isSampling}
+            rowKey={svc => svc.Name || String(svc.ProcessId)}
+            columns={serviceColumns}
+            filters={serviceFilters}
+            searchFields={svc => [svc.Name, svc.DisplayName, svc.Status, svc.StartMode, String(svc.ProcessId)]}
+            searchPlaceholder={{ en: t.searchServices, ar: t.searchServices }}
+            empty={{
+              notChecked: { en: t.notCheckedYet, ar: t.notCheckedYet },
+              checking: { en: t.refreshing, ar: t.refreshing },
+              noneFound: { en: t.noStopAutoServices, ar: t.noStopAutoServices },
+              noMatch: { en: t.noServiceMatch, ar: t.noServiceMatch },
+              noMatchHint: { en: t.stopAutoUnmeasured, ar: t.stopAutoUnmeasured },
+            }}
+            inspector={renderServiceInspector}
+            sortInitial={{ key: 'name', direction: 'asc' }}
+            pageSize={150}
+          />
         </div>
       )}
 
-      {/* Tab 5: Unresponsive Tasks */}
+      {/* Tab 5: Unresponsive Tasks — an all-clear is only allowed once a sample
+          was actually taken. Before that this claimed zero hangs. */}
       {activeTab === 'unresponsive' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
@@ -842,10 +1167,15 @@ function MonitoringStationContent({
             <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#94a3b8' }}>{t.unresponsiveSubtitle}</p>
           </div>
 
-          {unresponsiveProcesses.length === 0 ? (
+          {!sampleMeasured ? (
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid #334155', borderRadius: 8, padding: 24, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+              <AlertTriangle size={24} style={{ margin: '0 auto 8px auto' }} />
+              <div>{t.unmeasuredUnresponsive}</div>
+            </div>
+          ) : unresponsiveProcesses.length === 0 ? (
             <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: 8, padding: 24, textAlign: 'center', color: '#10b981', fontSize: 13 }}>
               <CheckCircle2 size={24} style={{ margin: '0 auto 8px auto' }} />
-              <div>{t.noUnresponsive}</div>
+              <div>{t.noUnresponsiveMeasured}</div>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 10 }}>
@@ -868,7 +1198,7 @@ function MonitoringStationContent({
                       PID {proc.ProcessId}
                     </span>
                   </div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>Memory: {proc.MemoryMB} MB</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8' }}>{t.workingSetMb(proc.MemoryMB)}</div>
                 </div>
               ))}
             </div>
@@ -1017,7 +1347,7 @@ function MonitoringStationContent({
                     background: 'rgba(2, 6, 23, 0.5)',
                     padding: 10,
                     borderRadius: 6,
-                    borderLeft: `3px solid ${entry.status === 'SUCCESS' ? '#10b981' : '#ef4444'}`,
+                    borderInlineStart: `3px solid ${entry.status === 'SUCCESS' ? '#10b981' : '#ef4444'}`,
                   }}
                 >
                   <div>
@@ -1026,7 +1356,7 @@ function MonitoringStationContent({
                     </div>
                     <div style={{ fontSize: 11, color: '#94a3b8' }}>{entry.summary}</div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'start' }}>
                     <span style={{ fontSize: 10, color: entry.status === 'SUCCESS' ? '#10b981' : '#ef4444', fontWeight: 700 }}>
                       {entry.status}
                     </span>

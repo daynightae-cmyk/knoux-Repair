@@ -159,19 +159,36 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
 
   // Load telemetry from api.optimizationPreview()
   const [loadingTelemetry, setLoadingTelemetry] = useState(false);
+  const [telemetryError, setTelemetryError] = useState<string | null>(null);
   const loadTelemetry = useCallback(async () => {
     setLoadingTelemetry(true);
+    setTelemetryError(null);
     try {
       const res = await api.optimizationPreview();
       if (res?.preview) {
         setData(res.preview);
+      } else {
+        // A response with no snapshot is a failure to measure. Reporting it as
+        // "not checked yet" forever left the user with no way to tell a quiet
+        // machine from a broken read.
+        setTelemetryError(
+          lang === 'ar'
+            ? 'استجاب المختبر دون أي لقطة مقاسة.'
+            : 'The performance lab returned a response with no measured snapshot.'
+        );
       }
-    } catch {
-      // handled by bridgeOnline
+    } catch (err) {
+      setTelemetryError(
+        err instanceof Error && err.message
+          ? err.message
+          : (lang === 'ar'
+              ? 'تعذّرت قراءة مقاييس الأداء.'
+              : 'The performance telemetry could not be read.')
+      );
     } finally {
       setLoadingTelemetry(false);
     }
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
     void loadTelemetry();
@@ -383,6 +400,19 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
           </div>
         </header>
 
+        {/* A failed measurement must be visible. Previously every failure path
+            was silent, so a run that never produced evidence looked identical
+            to a machine that had not been measured yet. */}
+        {telemetryError && (
+          <div className="station-banner error" role="alert">
+            <AlertTriangle size={16} />
+            <span>{telemetryError}</span>
+            <button type="button" onClick={() => void loadTelemetry()} className="ml-auto underline">
+              {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+            </button>
+          </div>
+        )}
+
         {/* Local Mini-Nav Rail */}
         <nav className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 pb-1 border-b border-white/5">
           {[
@@ -575,7 +605,7 @@ export const PerformanceStation: React.FC<PerformanceStationProps> = ({
               {onNavigateService && hasTelemetry && (
                 <button
                   type="button"
-                  onClick={() => onNavigateService('recovery' as FamilyId, '07-Services-Processes' as ServiceId)}
+                  onClick={() => onNavigateService('investigation', '07-Services-Processes')}
                   className="self-start mt-1 inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] text-white"
                 >
                   {t.openProcessEvidence}

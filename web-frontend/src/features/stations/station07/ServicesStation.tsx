@@ -2,18 +2,22 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity, Cpu, Sparkles, RefreshCw, Layers,
   FileText, Search, Play, Square,
-  Network, ShieldCheck
+  Network, ShieldCheck, AlertTriangle
 } from 'lucide-react';
 import type { BridgeTool, ExecutionMode, ToolRunConfirmation, ToolRunOptions, OperationsPreview } from '../../../lib/api';
 import { api } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
+import { StationDeepLink } from '../_shared';
+import '../../../components/workspace/station-deeplink.css';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
 import { StationErrorBoundary, StationOfflineState } from '../_shared';
 import { startExecution, pollExecution } from '../_shared/StationExecutionController';
+import { readEnvelopeField } from '../_shared/executionSemantics.ts';
 import {
-  type ServiceItem, type ProcessItem, type ServiceTopology, type StationHistoryEntry,
+  type ServiceItem, type ProcessItem, type ServiceTopology, type StationHistoryEntry, type DependencyEdge,
   parseServicesInventory, parseProcessesInventory, calculateServiceTopology,
-  filterServices, filterProcesses, stationTools, outcomeFromRun
+  filterServices, filterProcesses, stationTools, outcomeFromRun, extractDependencyEdges
 } from './servicesModel';
 import ServicesHeroVisual from './ServicesHeroVisual';
 
@@ -25,6 +29,8 @@ export interface ServicesStationProps {
   bridgeOnline: boolean | null;
   onRetryBridge: () => void;
   onToolStatus: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
+  /** Cross-station hand-off: point at the station that owns a fact this one merely meets. */
+  onNavigateService?: (family: FamilyId, serviceId: ServiceId) => void;
 }
 
 type TabKey = 'overview' | 'services' | 'processes' | 'dependencies' | 'report' | 'history';
@@ -110,6 +116,7 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
   bridgeOnline = null,
   onRetryBridge,
   onToolStatus,
+  onNavigateService,
 }) => {
   const t = COPY[lang];
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
@@ -125,6 +132,9 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
   const [hasServiceInventory, setHasServiceInventory] = useState(false);
   const [hasProcessInventory, setHasProcessInventory] = useState(false);
   const [pendingTool, setPendingTool] = useState<{ tool: BridgeTool; mode: ExecutionMode } | null>(null);
+  // rows === null means never traced. [] means traced and no edge was found.
+  const [dependencyEvidence, setDependencyEvidence] = useState<DependencyEdge[] | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
 
   const stationToolsList = useMemo(() => stationTools(tools), [tools]);
 
@@ -256,10 +266,26 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
       if (poll.result) {
         const entry = outcomeFromRun(tool, poll.result, lang);
         setHistory((prev) => [entry, ...prev]);
-        onToolStatus(tool.ToolId, entry.status === 'SUCCESS' ? 'success' : 'error');
+        onToolStatus(
+          tool.ToolId,
+          entry.status === 'SUCCESS' ? 'success'
+            : entry.status === 'CANCELLED' ? 'cancelled'
+              // WARNING and INCONCLUSIVE are not failures. Reporting them as
+              // 'error' made a partially-successful read look like a crash.
+              : entry.status === 'WARNING' || entry.status === 'INCONCLUSIVE' ? 'inconclusive'
+                : 'error'
+        );
+        // The dependency tab used to discard this result entirely: the user
+        // clicked "trace dependencies", waited, and nothing appeared.
+        if (tool.ToolId === 'SP07') {
+          setDependencyEvidence(extractDependencyEdges(readEnvelopeField(poll.result, 'evidence') ?? poll.result?.output ?? poll.result));
+          setActiveTab('dependencies');
+        }
       }
-    } catch {
+    } catch (error) {
       onToolStatus(tool.ToolId, 'error');
+      setRunError(error instanceof Error ? error.message : String(error));
+      setIsScanning(false);
     }
   };
 
@@ -284,6 +310,27 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
   return (
     <StationErrorBoundary>
       <div className="knoux-station-workspace services-topology-station flex flex-col flex-1 gap-6 p-6">
+        {runError && (
+          <div className="station-banner error" role="alert">
+            <AlertTriangle size={16} />
+            <span>{runError}</span>
+            <button type="button" onClick={() => setRunError(null)} className="ml-auto underline">
+              {lang === 'ar' ? 'إغلاق' : 'Dismiss'}
+            </button>
+          </div>
+        )}
+
+        {/* This station owns the service and process inventory. The live sample
+            that turns it into an observation is owned by Station 15. */}
+        <StationDeepLink
+          lang={lang}
+          onNavigateService={onNavigateService}
+          family="vitality"
+          serviceId="15-System-Monitoring"
+          destinationName={{ en: 'System Monitoring', ar: 'مراقبة النظام' }}
+          label={{ en: 'Open the live observatory', ar: 'فتح المرصد الحي' }}
+        />
+
         {/* Top Product Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
           <div>
@@ -458,7 +505,7 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
                   value={serviceQuery}
                   onChange={(e) => setServiceQuery(e.target.value)}
                   placeholder={t.searchServices}
-                  className="w-full pl-9 pr-3 py-1.5 bg-slate-900/60 border border-white/10 rounded-lg text-xs text-white placeholder-slate-500 focus:border-amber-500 outline-none"
+                  className="w-full ps-9 pe-3 py-1.5 bg-slate-900/60 border border-white/10 rounded-lg text-xs text-white placeholder-slate-500 focus:border-amber-500 outline-none"
                 />
               </div>
 
@@ -496,7 +543,7 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
 
             {/* Services Table */}
             <div className="overflow-x-auto max-h-96 overflow-y-auto font-mono text-xs">
-              <table className="w-full text-left text-slate-300">
+              <table className="w-full text-start text-slate-300">
                 <thead className="border-b border-white/10 text-slate-400 uppercase text-[10px] sticky top-0 bg-slate-950/90 backdrop-blur-sm">
                   <tr>
                     <th className="py-2 px-3">Service</th>
@@ -592,7 +639,7 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
                   value={processQuery}
                   onChange={(e) => setProcessQuery(e.target.value)}
                   placeholder={t.searchProcesses}
-                  className="w-full pl-9 pr-3 py-1.5 bg-slate-900/60 border border-white/10 rounded-lg text-xs text-white placeholder-slate-500 focus:border-amber-500 outline-none"
+                  className="w-full ps-9 pe-3 py-1.5 bg-slate-900/60 border border-white/10 rounded-lg text-xs text-white placeholder-slate-500 focus:border-amber-500 outline-none"
                 />
               </div>
 
@@ -628,7 +675,7 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
             </p>
 
             <div className="overflow-x-auto max-h-96 overflow-y-auto font-mono text-xs">
-              <table className="w-full text-left text-slate-300">
+              <table className="w-full text-start text-slate-300">
                 <thead className="border-b border-white/10 text-slate-400 uppercase text-[10px] sticky top-0 bg-slate-950/90 backdrop-blur-sm">
                   <tr>
                     <th className="py-2 px-3">PID</th>
@@ -708,12 +755,64 @@ export const ServicesStation: React.FC<ServicesStationProps> = ({
             <div className="p-4 rounded-xl bg-white/5 border border-white/5 font-mono text-xs text-slate-300 space-y-2">
               <div className="flex items-center gap-2 text-amber-400 font-bold mb-2">
                 <ShieldCheck size={16} />
-                <span>BLAST RADIUS & SYSTEM INTEGRITY POLICY</span>
+                <span>{lang === 'ar' ? 'نطاق التأثير وسلامة النظام' : 'Blast radius & system integrity policy'}</span>
               </div>
-              <p>Critical services (RPCSS, DcomLaunch, PlugPlay, EventLog, CryptSvc) carry CRITICAL blast radius.</p>
-              <p>Stopping or disabling critical services is strictly blocked to maintain system stability.</p>
-              <p>Use SP07 to trace nested dependencies before modifying non-critical background services.</p>
+              <p>{lang === 'ar' ? 'الخدمات الحرجة (RPCSS, DcomLaunch, PlugPlay, EventLog, CryptSvc) تحمل نطاق تأثير حرجاً.' : 'Critical services (RPCSS, DcomLaunch, PlugPlay, EventLog, CryptSvc) carry CRITICAL blast radius.'}</p>
+              <p>{lang === 'ar' ? 'إيقاف الخدمات الحرجة أو تعطيلها ممنوع منعاً باتاً للحفاظ على استقرار النظام.' : 'Stopping or disabling critical services is strictly blocked to maintain system stability.'}</p>
+              <p>{lang === 'ar' ? 'استخدم SP07 لتتبّع التبعيات المتداخلة قبل تعديل خدمات الخلفية غير الحرجة.' : 'Use SP07 to trace nested dependencies before modifying non-critical background services.'}</p>
             </div>
+
+            {/* SP07's measured output. Previously the result was thrown away,
+                so this tab could only ever display a static policy note. */}
+            {dependencyEvidence === null ? (
+              <div className="p-4 rounded-xl border border-dashed border-white/10 text-xs text-slate-400">
+                {lang === 'ar'
+                  ? 'لم يتم تتبّع التبعيات بعد. شغّل فحص التبعيات لقياس ما يعتمد عليه كل خدمة.'
+                  : 'Dependencies have not been traced yet. Run the dependency trace to measure what each service depends on.'}
+              </div>
+            ) : dependencyEvidence.length === 0 ? (
+              <div className="p-4 rounded-xl border border-dashed border-white/10 text-xs text-slate-300">
+                {lang === 'ar'
+                  ? 'تم الفحص: لم تُرجع الأداة أي علاقة تبعية.'
+                  : 'Measured: the tool reported no dependency relationship.'}
+              </div>
+            ) : (
+              <div className="data-table-container">
+                <table className="station-data-table">
+                  <thead>
+                    <tr>
+                      <th>{lang === 'ar' ? 'الخدمة' : 'Service'}</th>
+                      <th>{lang === 'ar' ? 'يعتمد على' : 'Depends on'}</th>
+                      <th>{lang === 'ar' ? 'النطاق' : 'Blast radius'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dependencyEvidence.slice(0, 200).map((edge, index) => (
+                      <tr key={`${edge.service}-${edge.dependsOn}-${index}`}>
+                        <td dir="auto">{edge.service}</td>
+                        <td dir="auto">{edge.dependsOn}</td>
+                        <td>
+                          <span className={`badge-status ${edge.critical ? 'removable' : 'locked'}`}>
+                            {edge.critical
+                              ? (lang === 'ar' ? 'حرج' : 'CRITICAL')
+                              : (lang === 'ar' ? 'عادي' : 'Normal')}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {dependencyEvidence.length > 200 && (
+                  <div className="table-truncation-footer">
+                    <span>
+                      {lang === 'ar'
+                        ? `عرض أول 200 من ${dependencyEvidence.length} علاقة.`
+                        : `Showing the first 200 of ${dependencyEvidence.length} measured relationships.`}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

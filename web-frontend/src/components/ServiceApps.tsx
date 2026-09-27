@@ -17,6 +17,8 @@ import { api } from '../lib/api';
 import type { Lang } from '../lib/i18n';
 import { pickName } from '../lib/i18n';
 import ExecutionConfirmDialog from './ExecutionConfirmDialog';
+import { canExposeAction, exposeTools } from '../features/stations/_shared/capabilityGate.ts';
+import { normalizeExecutionMode } from '../features/stations/_shared/executionSemantics';
 import MaintenanceStation from '../features/stations/station01/MaintenanceStation';
 import CleanupStation from '../features/stations/station02/CleanupStation';
 import NetworkStation from '../features/stations/station03/NetworkStation';
@@ -123,7 +125,9 @@ function ActionRail({ tools, lang, toolStatuses, bridgeElevated, onLaunch, onCan
   tools: BridgeTool[]; lang: Lang; toolStatuses: Record<string, ToolStatus>; bridgeElevated: boolean; onLaunch: (tool: BridgeTool) => void; onCancel: () => void;
 }) {
   const text = COPY[lang];
-  const actions = tools.slice(0, 4);
+  // A withheld capability is never offered here. Hiding it is the point: a rail
+  // button that only fails on click is a false promise.
+  const actions = exposeTools(tools).slice(0, 4);
   if (!actions.length) return null;
   return <section className="app-action-rail"><div className="app-section-title"><p>{text.choices}</p><h2>{text.recommend}</h2></div><div className="app-action-list">{actions.map((tool) => {
     const status = toolStatuses[tool.ToolId]; const isRunning = status === 'running'; const needsPermission = tool.RequiresAdmin && !bridgeElevated;
@@ -139,7 +143,11 @@ function OfflineScene({ section, lang, icon: Icon }: { section: ActiveSection; l
 export default function ServiceApps({ activeSection, tools, toolStatuses, lang, bridgeElevated, bridgeOnline = null, onRetryBridge, onToolStatus, onRunTool, onCancelTool, embedded = false, onNavigateService }: ServiceAppsProps) {
   const [pending, setPending] = useState<{ tool: BridgeTool; mode: ExecutionMode; options?: ToolRunOptions } | null>(null);
   const { data, loading, available, reload } = useServiceData(activeSection);
-  const launch = (tool: BridgeTool) => setPending({ tool, mode: preferredMode(tool) });
+  const launch = (tool: BridgeTool) => {
+    const mode = preferredMode(tool);
+    if (!canExposeAction(tool, normalizeExecutionMode(mode))) return;
+    setPending({ tool, mode });
+  };
   const prepareToolRun = useCallback((tool: BridgeTool, mode: ExecutionMode, options: ToolRunOptions = {}) => setPending({ tool, mode, options }), []);
   const reviewableToolIds = useMemo(() => new Set(tools.map((tool) => tool.ToolId)), [tools]);
   const launchToolById = useCallback((toolId: string) => {
@@ -179,6 +187,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           bridgeOnline={bridgeOnline}
           onRetryBridge={onRetryBridge || reload}
           onToolStatus={onToolStatus || (() => {})}
+          onNavigateService={onNavigateService}
         />
       );
     }
@@ -218,6 +227,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           bridgeOnline={bridgeOnline}
           onRetryBridge={onRetryBridge || reload}
           onToolStatus={onToolStatus || (() => {})}
+          onNavigateService={onNavigateService}
         />
       );
     }
@@ -231,6 +241,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           bridgeOnline={bridgeOnline}
           onRetryBridge={onRetryBridge || reload}
           onToolStatus={onToolStatus || (() => {})}
+          onNavigateService={onNavigateService}
         />
       );
     }
@@ -244,6 +255,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           bridgeOnline={bridgeOnline}
           onRetryBridge={onRetryBridge || reload}
           onToolStatus={onToolStatus || (() => {})}
+          onNavigateService={onNavigateService}
         />
       );
     }
@@ -271,6 +283,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           bridgeOnline={bridgeOnline}
           onRetryBridge={onRetryBridge || reload}
           onToolStatus={onToolStatus || (() => {})}
+          onNavigateService={onNavigateService}
         />
       );
     }
@@ -284,6 +297,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           bridgeOnline={bridgeOnline}
           onRetryBridge={onRetryBridge || reload}
           onToolStatus={onToolStatus || (() => {})}
+          onNavigateService={onNavigateService}
         />
       );
     }
@@ -310,6 +324,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           bridgeOnline={bridgeOnline}
           onRetryBridge={onRetryBridge || reload}
           onToolStatus={onToolStatus || (() => {})}
+          onNavigateService={onNavigateService}
         />
       );
     }
@@ -323,6 +338,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           bridgeOnline={bridgeOnline}
           onRetryBridge={onRetryBridge || reload}
           onToolStatus={onToolStatus || (() => {})}
+          onNavigateService={onNavigateService}
         />
       );
     }
@@ -350,6 +366,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           bridgeOnline={bridgeOnline}
           onRetryBridge={onRetryBridge || reload}
           onToolStatus={onToolStatus || (() => {})}
+          onNavigateService={onNavigateService}
         />
       );
     }
@@ -363,6 +380,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           bridgeOnline={bridgeOnline}
           onRetryBridge={onRetryBridge || reload}
           onToolStatus={onToolStatus || (() => {})}
+          onNavigateService={onNavigateService}
         />
       );
     }
@@ -376,6 +394,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           bridgeOnline={bridgeOnline}
           onRetryBridge={onRetryBridge || reload}
           onToolStatus={onToolStatus || (() => {})}
+          onNavigateService={onNavigateService}
         />
       );
     }
@@ -390,6 +409,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
           onRetryBridge={onRetryBridge || reload}
           onToolStatus={onToolStatus || (() => {})}
           onPrepareRun={prepareToolRun}
+          onNavigateService={onNavigateService}
         />
       );
     }
@@ -397,7 +417,7 @@ export default function ServiceApps({ activeSection, tools, toolStatuses, lang, 
     return <GenericApp section={activeSection} lang={lang} />;
   }, [activeSection, available, data, lang, launchToolById, prepareToolRun, reviewableToolIds, tools, toolStatuses, bridgeElevated, bridgeOnline, onRetryBridge, onToolStatus, reload]);
   const specialContent = activeSection === 'duplicates'
-    ? <DuplicateStation lang={lang} tools={tools} onPrepareRun={prepareToolRun} />
+    ? <DuplicateStation lang={lang} tools={tools} onPrepareRun={prepareToolRun} onNavigateService={onNavigateService} />
     : null;
   const appContent = specialContent || content || <OfflineScene section={activeSection} lang={lang} icon={spec.icon} />;
   const showSharedActionRail = !specialContent && !content;

@@ -3,7 +3,7 @@ import {
   Rocket, Layers, HardDrive, RefreshCw, Play,
   CheckCircle2, AlertTriangle, XCircle, History, Search,
   ArrowUpRight, Download, ShieldCheck, CheckSquare, Square,
-  RotateCcw, ShieldAlert
+  RotateCcw, ShieldAlert, Info
 } from 'lucide-react';
 import type {
   BridgeRun, BridgeTool, ExecutionMode,
@@ -13,8 +13,10 @@ import type {
 import { api } from '../../../lib/api';
 import type { Lang } from '../../../types';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
-import { StationErrorBoundary, StationOfflineState, StationActiveRunBanner } from '../_shared';
+import { StationErrorBoundary, StationOfflineState, StationActiveRunBanner, StationDeepLink } from '../_shared';
 import { startExecution, pollUntilTerminal, requestConfirmedCancel, rememberRun, recallRun, forgetRun, outcomeLabelForRun, historyMessageForRun } from '../_shared/StationExecutionController';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
+import '../../../components/workspace/station-deeplink.css';
 import {
   type ProvisioningSummary, type ProvisioningSignal,
   summarizeProvisioning, detectProvisioningSignals, filterCatalog,
@@ -31,6 +33,8 @@ export interface PostInstallStationProps {
   bridgeOnline: boolean | null;
   onRetryBridge: () => void;
   onToolStatus: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
+  /** Cross-station hand-off: point at the station that owns a fact this one merely meets. */
+  onNavigateService?: (family: FamilyId, serviceId: ServiceId) => void;
 }
 
 type TabKey = 'overview' | 'baseline' | 'catalog' | 'drivers' | 'winget' | 'actions' | 'history';
@@ -57,6 +61,7 @@ const COPY = {
     tabHistory: 'History',
     refresh: 'Query Readiness',
     refreshing: 'Inspecting workstation baseline...',
+    notCheckedYet: 'Not checked yet',
     installedApps: 'Installed Programs',
     pendingReboot: 'Pending Restart',
     missingApps: 'Missing Catalog Apps',
@@ -102,6 +107,7 @@ const COPY = {
     tabHistory: 'السجل',
     refresh: 'فحص الجاهزية',
     refreshing: 'جاري فحص مؤشرات جاهزية النظام...',
+    notCheckedYet: 'لم يتم الفحص بعد',
     installedApps: 'البرامج المثبتة',
     pendingReboot: 'إعادة تشغيل معلقة',
     missingApps: 'تطبيقات غير مثبتة',
@@ -139,7 +145,7 @@ const COPY = {
 const STATION_KEY = 'station17';
 
 export default function PostInstallStation(props: PostInstallStationProps) {
-  const { lang, tools, toolStatuses, bridgeElevated, bridgeOnline, onRetryBridge, onToolStatus } = props;
+  const { lang, tools, toolStatuses, bridgeElevated, bridgeOnline, onRetryBridge, onToolStatus, onNavigateService } = props;
   const t = COPY[lang];
 
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
@@ -191,6 +197,19 @@ export default function PostInstallStation(props: PostInstallStationProps) {
       const res = await api.postInstallPreview();
       if (res?.preview) {
         setPreviewData(res.preview);
+        // Selection is carried as catalog indices. A refreshed catalog can be
+        // renumbered, so a retained index could install the wrong package.
+        // Drop any index the refreshed catalog no longer contains.
+        const appCount = res.preview.Catalog?.length ?? 0;
+        setSelectedAppSelections(prev => {
+          const kept = prev.filter(index => index >= 0 && index < appCount);
+          return kept.length === prev.length ? prev : kept;
+        });
+        const driverCount = res.preview.DriverOffers?.Offers?.length ?? 0;
+        setSelectedDriverSelections(prev => {
+          const kept = prev.filter(index => index >= 0 && index < driverCount);
+          return kept.length === prev.length ? prev : kept;
+        });
       }
     } catch (err: unknown) {
       setLastError(err instanceof Error ? err.message : String(err));
@@ -272,6 +291,12 @@ export default function PostInstallStation(props: PostInstallStationProps) {
         ...prev
       ]);
       setActiveRun(null);
+    }
+    // An install consumes the selection. Leaving it in place meant a second
+    // click silently re-sent the identical batch against a changed catalog.
+    if (outcome === 'success') {
+      setSelectedAppSelections([]);
+      setSelectedDriverSelections([]);
     }
     loadData();
   }, [onToolStatus, lang, loadData]);
@@ -768,20 +793,41 @@ export default function PostInstallStation(props: PostInstallStationProps) {
 
                 <div className="baseline-card">
                   <h3>Pending Restart Signals</h3>
-                  {(previewData?.System.PendingRestartSignals ?? []).length === 0 ? (
+                  {/* A green "no pending restarts" is only allowed once the
+                      preview was actually read. Before that this rendered a
+                      clean bill of health for an unmeasured machine. */}
+                  {!previewData ? (
+                    <div className="empty-state-notice">
+                      <Info size={18} className="text-muted" />
+                      <span>{t.notCheckedYet}</span>
+                    </div>
+                  ) : (previewData.System.PendingRestartSignals ?? []).length === 0 ? (
                     <div className="empty-state-notice">
                       <CheckCircle2 size={18} className="text-success" />
                       <span>No pending restarts detected.</span>
                     </div>
                   ) : (
-                    <ul className="signals-ul">
-                      {previewData!.System.PendingRestartSignals.map((sig, i) => (
-                        <li key={i} className="restart-signal-item">
-                          <AlertTriangle size={14} className="text-warning" />
-                          <span>{sig}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <>
+                      <ul className="signals-ul">
+                        {previewData!.System.PendingRestartSignals.map((sig, i) => (
+                          <li key={i} className="restart-signal-item">
+                            <AlertTriangle size={14} className="text-warning" />
+                            <span>{sig}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {/* A pending restart is a system-repair outcome. Point at
+                          the station that owns repair rather than implying this
+                          provisioning checklist can clear it. */}
+                      <StationDeepLink
+                        lang={lang}
+                        onNavigateService={onNavigateService}
+                        family="vitality"
+                        serviceId="01-System-Maintenance"
+                        destinationName={{ en: 'System Maintenance', ar: 'صيانة النظام' }}
+                        label={{ en: 'Review the repair behind this', ar: 'راجع الإصلاح المسؤول عن هذا' }}
+                      />
+                    </>
                   )}
                 </div>
 
@@ -846,7 +892,9 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                       disabled={selectedAppSelections.length === 0}
                       onClick={() => {
                         if (selectedAppSelections.length === 0) return;
-                        const selectionStr = selectedAppSelections.sort((a, b) => a - b).join(',');
+                        // Sort a copy: sorting the live state array in place
+                        // mutates React state and reorders the user's selection.
+                        const selectionStr = [...selectedAppSelections].sort((a, b) => a - b).join(',');
                         handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI04')!, 'preview', {
                           customParameters: { Selection: selectionStr }
                         });
@@ -984,7 +1032,7 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                     disabled={selectedDriverSelections.length === 0}
                     onClick={() => {
                       if (selectedDriverSelections.length === 0) return;
-                      const selStr = selectedDriverSelections.sort((a, b) => a - b).join(',');
+                      const selStr = [...selectedDriverSelections].sort((a, b) => a - b).join(',');
                       handleLaunchTool(relevantTools.find(x => x.ToolId === 'PI02')!, 'preview', {
                         customParameters: { Selection: selStr }
                       });
@@ -1003,7 +1051,15 @@ export default function PostInstallStation(props: PostInstallStationProps) {
                 </div>
               )}
 
-              {previewData?.DriverOffers.Count === 0 || !previewData?.DriverOffers.Offers || previewData.DriverOffers.Offers.length === 0 ? (
+              {/* "Zero offers" and "not queried" are different facts. This tab
+                  previously collapsed both into a green all-clear whenever
+                  `previewData` was null, contradicting the honest overview tile. */}
+              {!previewData ? (
+                <div className="empty-state-notice">
+                  <Info size={24} className="text-muted" />
+                  <span>{t.notCheckedYet}</span>
+                </div>
+              ) : !previewData.DriverOffers.Offers || previewData.DriverOffers.Offers.length === 0 ? (
                 <div className="empty-state-notice">
                   <CheckCircle2 size={24} className="text-success" />
                   <span>{t.noDriversAvailable}</span>
@@ -1075,8 +1131,22 @@ export default function PostInstallStation(props: PostInstallStationProps) {
               <div className="winget-details-card">
                 <div className="baseline-kv">
                   <span>Client Detected:</span>
-                  <strong>{previewData?.Winget.Available ? 'Yes' : 'No'}</strong>
+                  <strong>
+                    {!previewData
+                      ? '—'
+                      : previewData.Winget.Available
+                        ? 'Yes'
+                        : previewData.Winget.Version
+                          ? 'No'
+                          : '—'}
+                  </strong>
                 </div>
+                {!previewData && (
+                  <div className="empty-state-notice">
+                    <Info size={16} className="text-muted" />
+                    <span>{t.notCheckedYet}</span>
+                  </div>
+                )}
                 <div className="baseline-kv">
                   <span>Client Version:</span>
                   <strong className="monospace-cell">{previewData?.Winget.Version || '—'}</strong>

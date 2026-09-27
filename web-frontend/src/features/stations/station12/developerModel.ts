@@ -246,3 +246,39 @@ export function outcomeFromRun(
   if (status === 'CANCELLED') return 'INCONCLUSIVE';
   return result.exitCode === 0 ? 'SUCCESS' : 'WARNING';
 }
+
+/**
+ * Normalize the candidate-path blob into a displayable list.
+ *
+ * DT04 has written candidates as a semicolon/newline separated string, a JSON
+ * array, and a JSON object. All three are handled, and an absent or empty
+ * value yields an empty list so the UI can say "the tool reported a count but
+ * not the paths" instead of showing an empty box.
+ */
+export function splitCandidates(raw: unknown): string[] {
+  if (raw === null || raw === undefined) return [];
+  if (Array.isArray(raw)) {
+    return raw.map(value => String(value).trim()).filter(Boolean);
+  }
+  const text = String(raw).trim();
+  if (text === '') return [];
+  if (text.startsWith('[') || text.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(text) as unknown;
+      if (Array.isArray(parsed)) {
+        return parsed.map(value => String(value).trim()).filter(Boolean);
+      }
+      if (parsed && typeof parsed === 'object') {
+        return Object.values(parsed as Record<string, unknown>)
+          .map(value => String(value).trim())
+          .filter(Boolean);
+      }
+    } catch {
+      // Not JSON after all: fall through to the delimiter split.
+    }
+  }
+  return text
+    .split(/[;\r\n]+/)
+    .map(value => value.trim())
+    .filter(Boolean);
+}

@@ -218,7 +218,10 @@ test('driver offers read Not checked yet until Station 17 has actually reported'
 
 test('the driver offer hand-off names the owning station and links to it', () => {
   assert.match(drivers, /'17-PostInstall-Setup'/);
-  assert.match(drivers, /'software' as FamilyId/);
+  // Uncast literals, so a wrong family or service id is a compile error
+  // instead of a navigation that silently goes nowhere.
+  assert.match(drivers, /onNavigateService\('software', '17-PostInstall-Setup'\)/);
+  assert.doesNotMatch(drivers, /\bas (?:FamilyId|ServiceId|never)\b/);
   assert.match(drivers, /Open driver offers/);
   assert.match(drivers, /belongs to the Post-Install station/);
 });

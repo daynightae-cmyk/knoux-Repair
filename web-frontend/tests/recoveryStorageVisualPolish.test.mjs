@@ -67,7 +67,10 @@ test('Backup and Recovery stays evidence-backed and preserves real vault states'
   assert.match(recovery, /recovery-vault-station/);
   assert.match(recovery, /hasTelemetry/);
   assert.match(recovery, /const canLaunchAction = useCallback/);
-  assert.match(recovery, /grid w-full grid-cols-2 sm:grid-cols-4/);
+  // Seven tabs: a fixed 4-column grid left one permanently empty cell at every
+  // width, in every language. auto-fit divides the row evenly instead.
+  assert.match(recovery, /gridTemplateColumns: 'repeat\(auto-fit, minmax\(130px, 1fr\)\)'/);
+  assert.doesNotMatch(recovery, /grid-cols-2 sm:grid-cols-4/);
   assert.doesNotMatch(recovery, /System recovery mechanisms and local archives are operating within nominal thresholds/);
   assert.match(css, /recovery-vault-station[\s\S]*radial-gradient/);
   assert.doesNotMatch(css, /(?:READY|PROTECTED)\s*:\s*100/, 'visual layer must not fabricate readiness values');

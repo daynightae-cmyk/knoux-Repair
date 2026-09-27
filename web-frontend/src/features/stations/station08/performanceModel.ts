@@ -7,6 +7,7 @@
 
 import type { BridgeTool, KnouxRunResult } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
+import { buildStationHistoryRow } from '../_shared/executionSemantics.ts';
 
 export type PerformanceCondition = 'OPTIMAL' | 'MODERATE' | 'HIGH_LOAD' | 'CRITICAL_LOAD';
 
@@ -53,7 +54,8 @@ export interface StationHistoryEntry {
   toolName: string;
   timestamp: string;
   status: 'SUCCESS' | 'WARNING' | 'FAILED' | 'CANCELLED' | 'INCONCLUSIVE';
-  itemsProcessed: number;
+  /** null when the envelope did not report a count. Never 0-as-default. */
+  itemsProcessed: number | null;
   summary: string;
 }
 
@@ -182,34 +184,24 @@ export function stationTools(allTools: BridgeTool[]): BridgeTool[] {
 }
 
 /**
- * Converts execution run result into a history entry
+ * Converts execution run result into a history entry.
+ *
+ * Delegates to the shared builder so this station cannot synthesise a success
+ * from a bare exit code or report a fabricated item count.
  */
 export function outcomeFromRun(
   tool: BridgeTool,
   res: KnouxRunResult,
   lang: Lang = 'en'
 ): StationHistoryEntry {
-  const status = (res.status?.toUpperCase() || (res.exitCode === 0 ? 'SUCCESS' : 'FAILED')) as
-    | 'SUCCESS'
-    | 'WARNING'
-    | 'FAILED'
-    | 'CANCELLED'
-    | 'INCONCLUSIVE';
-
-  const processed = res.itemsProcessed || 0;
-  const summary =
-    res.errorMessage ||
-    (status === 'SUCCESS'
-      ? (lang === 'ar' ? `اكتمل فحص ${tool.ArabicName || tool.EnglishName} بنجاح` : `Successfully evaluated ${tool.EnglishName}`)
-      : (lang === 'ar' ? `فشل تنفيذ ${tool.ArabicName || tool.EnglishName}` : `Execution failed for ${tool.EnglishName}`));
-
-  return {
-    id: `${tool.ToolId}-${Date.now()}`,
+  const name = lang === 'ar' ? tool.ArabicName || tool.EnglishName : tool.EnglishName;
+  return buildStationHistoryRow({
     toolId: tool.ToolId,
-    toolName: lang === 'ar' ? tool.ArabicName || tool.EnglishName : tool.EnglishName,
-    timestamp: new Date().toISOString(),
-    status,
-    itemsProcessed: processed,
-    summary,
-  };
+    toolName: name,
+    result: res,
+    successSummary:
+      lang === 'ar' ? `اكتمل فحص ${tool.ArabicName || tool.EnglishName} بنجاح` : `Successfully evaluated ${tool.EnglishName}`,
+    failureSummary:
+      lang === 'ar' ? `فشل تنفيذ ${tool.ArabicName || tool.EnglishName}` : `Execution failed for ${tool.EnglishName}`,
+  });
 }

@@ -12,6 +12,7 @@ import type {
   DriversPreview,
   KnouxRunResult,
 } from '../../../lib/api';
+import { outcomeFromEnvelope, type EnvelopeOutcome } from '../_shared/executionSemantics.ts';
 
 export type DriverCondition = 'HEALTHY' | 'NEEDS_ATTENTION' | 'CRITICAL' | 'INCONCLUSIVE';
 
@@ -41,7 +42,8 @@ export interface StationHistoryEntry {
   toolName: string;
   timestamp: string;
   status: 'SUCCESS' | 'WARNING' | 'FAILED' | 'CANCELLED' | 'INCONCLUSIVE';
-  itemsProcessed: number;
+  /** null when the envelope did not report a count. Never 0-as-default. */
+  itemsProcessed: number | null;
   summary: string;
 }
 
@@ -191,13 +193,6 @@ export function stationTools(allTools: BridgeTool[]): BridgeTool[] {
  */
 export function outcomeFromRun(
   result: KnouxRunResult | null | undefined
-): 'SUCCESS' | 'WARNING' | 'FAILED' | 'INCONCLUSIVE' {
-  if (!result) return 'INCONCLUSIVE';
-  const status = (result.status || result.Status || '').toUpperCase();
-  if (status === 'COMPLETED' || status === 'SUCCESS' || status === 'OK') {
-    return result.exitCode === 0 ? 'SUCCESS' : 'WARNING';
-  }
-  if (status === 'FAILED' || status === 'ERROR') return 'FAILED';
-  if (status === 'CANCELLED') return 'INCONCLUSIVE';
-  return result.exitCode === 0 ? 'SUCCESS' : 'WARNING';
+): EnvelopeOutcome {
+  return outcomeFromEnvelope(result);
 }

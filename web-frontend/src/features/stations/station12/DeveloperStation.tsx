@@ -10,6 +10,9 @@ import type {
   ToolRunConfirmation, ToolRunOptions
 } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
+import { StationDeepLink } from '../_shared';
+import '../../../components/workspace/station-deeplink.css';
 import { pickName } from '../../../lib/i18n';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
 import { StationErrorBoundary, StationOfflineState, StationActiveRunBanner } from '../_shared';
@@ -18,7 +21,7 @@ import {
   type DeveloperWorkbenchSummary, type DeveloperSignal,
   type StationHistoryEntry, type ToolchainItem, type DevPortItem,
   summarizeWorkbench, detectDeveloperSignals, stationTools,
-  outcomeFromRun, parseToolchainItems, parseDevPorts
+  outcomeFromRun, parseToolchainItems, parseDevPorts, splitCandidates
 } from './developerModel';
 import DeveloperHeroVisual from './DeveloperHeroVisual';
 
@@ -30,6 +33,8 @@ export interface DeveloperStationProps {
   bridgeOnline: boolean | null;
   onRetryBridge: () => void;
   onToolStatus: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
+  /** Cross-station hand-off: point at the station that owns a fact this one merely meets. */
+  onNavigateService?: (family: FamilyId, serviceId: ServiceId) => void;
 }
 
 type TabKey = 'overview' | 'runtimes' | 'ports' | 'workspace' | 'cleanups' | 'actions' | 'report' | 'history';
@@ -149,11 +154,15 @@ function DeveloperStationContent({
   bridgeOnline,
   onRetryBridge,
   onToolStatus,
+  onNavigateService,
 }: DeveloperStationProps) {
   const t = COPY[lang];
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [loading, setLoading] = useState(false);
   const [toolchain, setToolchain] = useState<ToolchainItem[]>([]);
+  const [toolchainMeasured, setToolchainMeasured] = useState(false);
+  const [portsMeasured, setPortsMeasured] = useState(false);
+  const [auditNotice, setAuditNotice] = useState<string | null>(null);
   const [ports, setPorts] = useState<DevPortItem[]>([]);
   // Raw doctor-audit output: the only source for branch evidence. Empty means
   // "not checked yet" — never a fabricated branch name.
@@ -200,15 +209,33 @@ function DeveloperStationContent({
       const output = run.result?.output || '';
       setAuditOutput(output);
 
-      // Only genuinely parsed items are shown. An empty parse is an honest
-      // empty state — never a fabricated "detected" baseline.
-      setToolchain(parseToolchainItems(output));
-    } catch {
-      // Keep previous evidence; failure is surfaced by the audit button state.
+      // A parse failure is not evidence that no toolchain exists. Replacing a
+      // previously good list with [] on any malformed payload destroyed real
+      // evidence the user could still act on.
+      const parsed = parseToolchainItems(output);
+      if (parsed.length > 0) {
+        setToolchain(parsed);
+        setToolchainMeasured(true);
+      } else if (output.trim() !== '') {
+        setAuditNotice(
+          lang === 'ar'
+            ? 'انتهى فحص بيئة العمل لكن ناتج الأداة لم يكن قابلاً للقراءة. لم تُحذف القياسات السابقة.'
+            : 'The workbench audit finished but its output could not be read. Previous measurements were kept.'
+        );
+      } else {
+        setToolchainMeasured(true);
+      }
+    } catch (err) {
+      // Keep previous evidence; a failed read is not a measurement.
+      setAuditNotice(
+        err instanceof Error && err.message
+          ? err.message
+          : (lang === 'ar' ? 'تعذّر فحص بيئة العمل.' : 'The workbench audit could not be run.')
+      );
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, [tools]);
+  }, [tools, lang]);
 
   // Port observatory query
   const queryPorts = useCallback(async () => {
@@ -223,11 +250,23 @@ function DeveloperStationContent({
       });
       const run = await pollUntilTerminal(runId);
       if (!mountedRef.current) return;
-      setPorts(parseDevPorts(run.result?.output || ''));
-    } catch {
-      // Ignored
+      // Same rule as the toolchain: an unparseable payload keeps the last good
+      // list rather than replacing it with a blank one.
+      const parsed = parseDevPorts(run.result?.output || '');
+      if (parsed.length > 0) {
+        setPorts(parsed);
+        setPortsMeasured(true);
+      } else if ((run.result?.output || '').trim() === '') {
+        setPortsMeasured(true);
+      }
+    } catch (err) {
+      setAuditNotice(
+        err instanceof Error && err.message
+          ? err.message
+          : (lang === 'ar' ? 'تعذّر استعلام منافذ المطورين.' : 'The developer port query could not be run.')
+      );
     }
-  }, [tools]);
+  }, [tools, lang]);
 
   useEffect(() => {
     if (bridgeOnline) {
@@ -701,7 +740,7 @@ function DeveloperStationContent({
                       padding: 12,
                       background: 'rgba(2, 6, 23, 0.6)',
                       borderRadius: 8,
-                      borderLeft: `4px solid ${sig.level === 'HIGH' ? '#ef4444' : sig.level === 'MEDIUM' ? '#f59e0b' : '#38bdf8'}`,
+                      borderInlineStart: `4px solid ${sig.level === 'HIGH' ? '#ef4444' : sig.level === 'MEDIUM' ? '#f59e0b' : '#38bdf8'}`,
                     }}
                   >
                     <AlertTriangle size={16} color={sig.level === 'HIGH' ? '#ef4444' : sig.level === 'MEDIUM' ? '#f59e0b' : '#38bdf8'} />
@@ -747,7 +786,38 @@ function DeveloperStationContent({
             <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#94a3b8' }}>{t.runtimesSubtitle}</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
+          {/* The same toolchain snapshot is browsable, installable and removable
+              in Station 16. Detection here must not be the only way to act. */}
+          <StationDeepLink
+            lang={lang}
+            onNavigateService={onNavigateService}
+            family="software"
+            serviceId="16-Software-Environment"
+            destinationName={{ en: 'Software Environment', ar: 'بيئة البرمجيات' }}
+            label={{ en: 'Install or remove these runtimes', ar: 'تثبيت أو إزالة بيئات التشغيل هذه' }}
+          />
+
+            {auditNotice && (
+              <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid #f59e0b', borderRadius: 8, padding: 12, fontSize: 12, color: '#fbbf24' }} role="alert">
+                {auditNotice}
+              </div>
+            )}
+
+            {/* An empty array meant three different things at once. Say which. */}
+            {!toolchainMeasured ? (
+              <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px dashed #1e293b', borderRadius: 8, padding: 24, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+                {lang === 'ar'
+                  ? 'لم يُفحص بعد. شغّل تدقيق بيئة العمل لقياس الأدوات المثبّتة.'
+                  : 'Not checked yet. Run the workbench audit to measure the installed toolchain.'}
+              </div>
+            ) : toolchain.length === 0 ? (
+              <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px dashed #1e293b', borderRadius: 8, padding: 24, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+                {lang === 'ar'
+                  ? 'تم الفحص: لم يُرجع التدقيق أي أدوات مطابقة.'
+                  : 'Measured: the audit returned no matching tools.'}
+              </div>
+            ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
             {toolchain.map((item) => (
               <div
                 key={item.tool}
@@ -789,14 +859,33 @@ function DeveloperStationContent({
                 </div>
 
                 {item.candidateCount > 1 && (
-                  <div style={{ fontSize: 10, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.1)', padding: 6, borderRadius: 4 }}>
-                    ⚠️ {item.candidateCount} binaries located in PATH.
+                  <details style={{ fontSize: 10, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.1)', padding: 6, borderRadius: 4 }}>
+                    <summary style={{ cursor: 'pointer' }}>
+                      {lang === 'ar'
+                        ? `${item.candidateCount} ملفاً ثنائياً في PATH. اضغط لعرضها.`
+                        : `${item.candidateCount} binaries located in PATH. Click to list them.`}
+                    </summary>
+                    {/* A collision count alone is not actionable. The actual
+                        colliding paths are what let a developer fix it. */}
+                    <ul style={{ margin: '6px 0 0', paddingInlineStart: 16, color: '#cbd5e1' }}>
+                      {splitCandidates(item.candidates).map(path => (
+                        <li key={path} dir="ltr" style={{ wordBreak: 'break-all' }}>{path}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+                {item.candidateCount > 1 && splitCandidates(item.candidates).length === 0 && (
+                  <div style={{ fontSize: 10, color: '#94a3b8' }}>
+                    {lang === 'ar'
+                      ? 'أبلغت الأداة عن عدد الملفات دون تفصيل مساراتها.'
+                      : 'The tool reported a count but did not report the paths.'}
                   </div>
                 )}
               </div>
             ))}
+            </div>
+            )}
           </div>
-        </div>
       )}
 
       {/* Tab 3: Port Observatory */}
@@ -833,7 +922,8 @@ function DeveloperStationContent({
 
           {ports.length === 0 ? (
             <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: 8, padding: 24, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
-              {t.noPorts}
+              {/* "No listeners" is only true once the port query actually ran. */}
+              {portsMeasured ? t.noPorts : (lang === 'ar' ? 'لم يُستعلم عن المنافذ بعد.' : 'The port query has not run yet.')}
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
@@ -1185,7 +1275,7 @@ function DeveloperStationContent({
                     background: 'rgba(2, 6, 23, 0.5)',
                     padding: 10,
                     borderRadius: 6,
-                    borderLeft: `3px solid ${entry.status === 'SUCCESS' ? '#10b981' : '#ef4444'}`,
+                    borderInlineStart: `3px solid ${entry.status === 'SUCCESS' ? '#10b981' : '#ef4444'}`,
                   }}
                 >
                   <div>
@@ -1194,7 +1284,7 @@ function DeveloperStationContent({
                     </div>
                     <div style={{ fontSize: 11, color: '#94a3b8' }}>{entry.summary}</div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'start' }}>
                     <span style={{ fontSize: 10, color: entry.status === 'SUCCESS' ? '#10b981' : '#ef4444', fontWeight: 700 }}>
                       {entry.status}
                     </span>

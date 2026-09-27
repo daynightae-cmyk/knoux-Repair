@@ -7,6 +7,9 @@ Wrench, Clock, FileWarning
 import type { BridgeRun, BridgeTool, DiagnosticsPreview, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../../lib/api';
 import { api } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
+import { StationDeepLink } from '../_shared';
+import '../../../components/workspace/station-deeplink.css';
 import { pickName } from '../../../lib/i18n';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
 import { StationErrorBoundary, StationOfflineState, StationActiveRunBanner } from '../_shared';
@@ -26,6 +29,8 @@ export interface DiagnosticsStationProps {
   bridgeOnline: boolean | null;
   onRetryBridge: () => void;
   onToolStatus: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
+  /** Cross-station hand-off: point at the station that owns a fact this one merely meets. */
+  onNavigateService?: (family: FamilyId, serviceId: ServiceId) => void;
 }
 
 type TabKey = 'overview' | 'events' | 'devices' | 'hardware' | 'storage' | 'actions' | 'report' | 'history';
@@ -143,6 +148,7 @@ function DiagnosticsStationContent({
   bridgeOnline,
   onRetryBridge,
   onToolStatus,
+  onNavigateService,
 }: DiagnosticsStationProps) {
   const text = COPY[lang];
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
@@ -194,6 +200,10 @@ function DiagnosticsStationContent({
 
   // Domain model computations
   const summary = useMemo(() => summarizeDiagnostics(preview), [preview]);
+  // rows === null means never measured. A PASS verdict may only be printed
+  // once a preview actually arrived.
+  const hasPreview = preview !== null;
+  const [eventLimit, setEventLimit] = useState(15);
   const problemDevices = useMemo(() => parseProblemDevices(preview?.Devices?.Problems), [preview?.Devices?.Problems]);
   const eventLogs = useMemo(() => parseEventLog(preview?.Events?.Recent), [preview?.Events?.Recent]);
   const disksSmart = useMemo(() => parseDiskSmart(preview?.Storage?.Disks), [preview?.Storage?.Disks]);
@@ -544,7 +554,7 @@ function DiagnosticsStationContent({
 
               {/* Quick Actions */}
               <div className="flex flex-wrap items-center gap-2 p-3.5 rounded-xl bg-slate-900/50 border border-slate-800">
-                <span className="text-xs font-semibold text-slate-300 mr-2">
+                <span className="text-xs font-semibold text-slate-300 me-2">
                   {lang === 'ar' ? 'إجراءات تشخيص سريعة:' : 'Quick Diagnostics:'}
                 </span>
                 <button
@@ -646,9 +656,12 @@ function DiagnosticsStationContent({
               </button>
             </div>
 
+            {/* Silent truncation made the visible list disagree with the count
+                reported in the KPI above it. The cutoff is now stated and the
+                remainder is reachable. */}
             {eventLogs.length > 0 ? (
               <div className="flex flex-col gap-2">
-                {eventLogs.slice(0, 15).map((ev, idx) => (
+                {eventLogs.slice(0, eventLimit).map((ev, idx) => (
                   <div
                     key={`${ev.source}-${ev.eventId}-${idx}`}
                     className="p-3 rounded-lg bg-slate-900/60 border border-slate-800 text-xs"
@@ -672,10 +685,22 @@ function DiagnosticsStationContent({
                     <p className="text-slate-300 text-[11px] line-clamp-2">{ev.message}</p>
                   </div>
                 ))}
+                {eventLogs.length > eventLimit && (
+                  <button
+                    type="button"
+                    onClick={() => setEventLimit(current => current + 50)}
+                    className="py-2.5 rounded-lg text-xs font-semibold text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30"
+                  >
+                    {lang === 'ar'
+                      ? `عرض ${Math.min(50, eventLogs.length - eventLimit)} حدثاً إضافياً (${eventLogs.length - eventLimit} متبقٍ)`
+                      : `Show 50 more (${eventLimit} of ${eventLogs.length} shown)`}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="p-8 text-center rounded-xl bg-slate-900/30 border border-slate-800/60 text-slate-400 text-xs">
-                {text.noEventsRecorded}
+                {/* Not-checked and measured-clean must not share a sentence. */}
+                {hasPreview ? text.noEventsRecorded : (lang === 'ar' ? 'لم يتم فحص سجل الأحداث بعد.' : 'The event log has not been checked yet.')}
               </div>
             )}
           </div>
@@ -719,6 +744,17 @@ function DiagnosticsStationContent({
                     <span className="font-mono text-[10px] text-slate-400 block truncate">
                       {dev.deviceId}
                     </span>
+                    {/* A Device Manager problem code is a driver fact. Diagnostics
+                        reports it; the driver station owns the package, the
+                        signature and the repair. */}
+                    <StationDeepLink
+                      lang={lang}
+                      onNavigateService={onNavigateService}
+                      family="assurance"
+                      serviceId="14-Driver-Management"
+                      destinationName={{ en: 'Driver Management', ar: 'إدارة التعريفات' }}
+                      label={{ en: 'Inspect this device', ar: 'فحص هذا الجهاز' }}
+                    />
                   </div>
                 ))}
               </div>
@@ -931,34 +967,58 @@ function DiagnosticsStationContent({
             </div>
 
             <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800/80">
-              <table className="w-full text-xs text-left">
+              <table className="w-full text-xs text-start">
                 <thead className="text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
                   <tr>
                     <th className="pb-2">{lang === 'ar' ? 'مؤشر الفحص' : 'Diagnostic Dimension'}</th>
                     <th className="pb-2">{lang === 'ar' ? 'القيمة المرصودة' : 'Observed Value'}</th>
-                    <th className="pb-2 text-right">{lang === 'ar' ? 'التقييم' : 'Status'}</th>
+                    <th className="pb-2 text-end">{lang === 'ar' ? 'التقييم' : 'Status'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
                   <tr>
                     <td className="py-2.5 font-medium text-slate-200">System Event Log</td>
-                    <td className="py-2.5 text-slate-300">{summary.errorOrCriticalEvents} Errors / Critical</td>
-                    <td className="py-2.5 text-right font-bold text-emerald-400">
-                      {summary.criticalEvents === 0 ? 'PASS' : 'REVIEW'}
+                    <td className="py-2.5 text-slate-300">
+                      {hasPreview ? `${summary.errorOrCriticalEvents} Errors / Critical` : '—'}
+                    </td>
+                    <td className="py-2.5 text-end font-bold">
+                      {!hasPreview ? (
+                        <span className="text-slate-400">NOT CHECKED</span>
+                      ) : (
+                        <span className={summary.criticalEvents === 0 ? 'text-emerald-400' : 'text-amber-400'}>
+                          {summary.criticalEvents === 0 ? 'PASS' : 'REVIEW'}
+                        </span>
+                      )}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 font-medium text-slate-200">Device Manager Hardware</td>
-                    <td className="py-2.5 text-slate-300">{summary.problemDevices} Problem Devices</td>
-                    <td className="py-2.5 text-right font-bold text-indigo-400">
-                      {summary.problemDevices === 0 ? 'PASS' : 'WARN'}
+                    <td className="py-2.5 text-slate-300">
+                      {hasPreview ? `${summary.problemDevices} Problem Devices` : '—'}
+                    </td>
+                    <td className="py-2.5 text-end font-bold">
+                      {!hasPreview ? (
+                        <span className="text-slate-400">NOT CHECKED</span>
+                      ) : (
+                        <span className={summary.problemDevices === 0 ? 'text-indigo-400' : 'text-amber-400'}>
+                          {summary.problemDevices === 0 ? 'PASS' : 'WARN'}
+                        </span>
+                      )}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 font-medium text-slate-200">Physical Storage SMART</td>
-                    <td className="py-2.5 text-slate-300">{summary.smartPredictedFailures} Failure Predictions</td>
-                    <td className="py-2.5 text-right font-bold text-cyan-400">
-                      {summary.smartPredictedFailures === 0 ? 'PASS' : 'FAIL'}
+                    <td className="py-2.5 text-slate-300">
+                      {hasPreview ? `${summary.smartPredictedFailures} Failure Predictions` : '—'}
+                    </td>
+                    <td className="py-2.5 text-end font-bold">
+                      {!hasPreview ? (
+                        <span className="text-slate-400">NOT CHECKED</span>
+                      ) : (
+                        <span className={summary.smartPredictedFailures === 0 ? 'text-cyan-400' : 'text-rose-400'}>
+                          {summary.smartPredictedFailures === 0 ? 'PASS' : 'FAIL'}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 </tbody>

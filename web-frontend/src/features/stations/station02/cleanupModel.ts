@@ -130,13 +130,35 @@ export function outcomeFromRun(run: BridgeRun): ToolOutcome {
 }
 
 /**
- * Actual recovery from an outcome: quarantined + permanently deleted +
- * legacy recovered aggregate, without double counting. Candidate estimates
- * are never treated as recovered.
+ * Bytes actually reclaimed from the volume.
+ *
+ * Quarantine is a MOVE, not a deletion: the bytes still exist on disk and are
+ * restorable, so counting them as reclaimed would claim free space that was
+ * never freed. Only permanent deletion and whatever the tool explicitly
+ * reported as actually recovered count here. Candidate estimates never do.
  */
 export function actualRecoveredBytes(outcome: ToolOutcome): number {
-  const legacy = Math.max(0, outcome.bytesActuallyRecovered - outcome.bytesQuarantined - outcome.bytesPermanentlyDeleted);
-  return outcome.bytesQuarantined + outcome.bytesPermanentlyDeleted + legacy;
+  const deleted = outcome.bytesPermanentlyDeleted ?? 0;
+  const quarantined = outcome.bytesQuarantined ?? 0;
+  const reported = outcome.bytesActuallyRecovered;
+  // "Not reported" is null OR absent. Testing only for null let a partially
+  // populated outcome fall through to arithmetic on undefined and render
+  // "NaN bytes reclaimed".
+  if (reported === null || reported === undefined || !Number.isFinite(reported)) {
+    return deleted;
+  }
+  // The tool's own aggregate may already include the deleted and quarantined
+  // parts. Add back only what it left out, and never the quarantined part.
+  const remainder = Math.max(0, reported - quarantined - deleted);
+  return deleted + remainder;
+}
+
+/**
+ * Bytes relocated but still on disk. Reported separately so the UI can say
+ * "moved, restorable" instead of silently folding it into "reclaimed".
+ */
+export function actualQuarantinedBytes(outcome: ToolOutcome): number {
+  return outcome.bytesQuarantined ?? 0;
 }
 
 const GROUP_MATCHERS: Array<{ groupId: string; match: (category: string) => boolean }> = [
