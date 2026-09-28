@@ -186,7 +186,7 @@ function errorMessage(error: unknown, lang: Lang): string {
   if (error instanceof BridgeError) {
     if (error.code === 'RUN_IN_PROGRESS') return text.errInProgress;
     if (error.code === 'ELEVATION_REQUIRED') return text.errElevation;
-    if (error.code === 'CONFIRMATION_REQUIRED' || error.code === 'CONFIRMATION_PHRASE_REQUIRED') return text.errConfirmation;
+    if (error.code === 'CONFIRMATION_REQUIRED' || error.code === 'CONFIRMATION_PHRASE_REQUIRED' || error.code === 'CONFIRMATION_PHRASE_MISMATCH') return text.errConfirmation;
     if (error.code === 'MODE_NOT_SUPPORTED') return text.errMode;
     if (error.code === 'UNKNOWN_TOOL') return text.errUnknown;
     if (error.code === 'BRIDGE_UNREACHABLE' || error.code === 'BRIDGE_UNAVAILABLE') return text.errOffline;
@@ -266,6 +266,10 @@ export default function MaintenanceStation({
     const backup = byId.get(item.toolId)?.BackupMethod?.trim() || '';
     return Boolean(backup && !/^none(?:\b|\s|\()/i.test(backup));
   }), [byId, selectedRecommendationList]);
+  const repairConfirmationPhrase = useMemo(() => {
+    const phrases = selectedRecommendationList.map((item) => byId.get(item.toolId)?.ConfirmationPhrase || 'CONFIRM');
+    return [...new Set(phrases)].join(' + ');
+  }, [byId, selectedRecommendationList]);
   const completedCount = queue.filter((item) => item.state === 'COMPLETED' || item.state === 'FAILED' || item.state === 'CANCELLED').length;
   const failedChecks = checks.filter((check) => ['FAILED', 'INCONCLUSIVE'].includes(deriveCheckState(check, evidence, runningIds)));
   const lastScan = useMemo(() => [
@@ -346,7 +350,7 @@ export default function MaintenanceStation({
   }, [executeStep, lang, selectedPlan]);
 
   const applyRepairs = useCallback(async () => {
-    if (confirmPhrase.trim().toUpperCase() !== 'CONFIRM' || (requiresRecoveryAcknowledgement && !recoveryAcknowledged)) {
+    if (confirmPhrase.trim() !== repairConfirmationPhrase || (requiresRecoveryAcknowledgement && !recoveryAcknowledged)) {
       setBanner(text.errConfirmation);
       return;
     }
@@ -354,16 +358,17 @@ export default function MaintenanceStation({
     setBanner('');
     setRepairResults([]);
     setWorkflow('APPLYING');
-    const confirmation: ToolRunConfirmation = {
-      confirmed: true,
-      phrase: confirmPhrase.trim(),
-      confirmedAt: new Date().toISOString(),
-      ...(requiresRecoveryAcknowledgement ? { acknowledgedRecovery: recoveryAcknowledged } : {}),
-    };
     const results: RepairResult[] = [];
     for (const recommendation of selectedRecommendationList) {
       const sourceId = recommendation.toolId === 'SM02' ? 'SM01' : recommendation.toolId === 'SM05' ? (evidence.SM04 ? 'SM04' : 'SM03') : 'SM06';
       try {
+        const tool = byId.get(recommendation.toolId);
+        const confirmation: ToolRunConfirmation = {
+          confirmed: true,
+          phrase: tool?.ConfirmationPhrase || 'CONFIRM',
+          confirmedAt: new Date().toISOString(),
+          ...(requiresRecoveryAcknowledgement ? { acknowledgedRecovery: recoveryAcknowledged } : {}),
+        };
         const after = await executeStep(recommendation.toolId, recommendation.mode, confirmation);
         results.push({ recommendation, before: evidence[sourceId] || null, after });
         setRepairResults([...results]);
@@ -371,7 +376,7 @@ export default function MaintenanceStation({
     }
     const hasIncompleteOutcome = results.length !== selectedRecommendationList.length || results.some(({ after }) => !isVerifiedRepairCompletion(after));
     setWorkflow(hasIncompleteOutcome ? 'PARTIAL' : 'COMPLETE');
-  }, [confirmPhrase, evidence, executeStep, lang, recoveryAcknowledged, requiresRecoveryAcknowledgement, selectedRecommendationList, text.errConfirmation]);
+  }, [byId, confirmPhrase, evidence, executeStep, lang, recoveryAcknowledged, repairConfirmationPhrase, requiresRecoveryAcknowledgement, selectedRecommendationList, text.errConfirmation]);
 
   const cancelActive = useCallback(async () => {
     cancelRequested.current = true;
@@ -585,7 +590,7 @@ export default function MaintenanceStation({
 
         {scanPlanOpen && <div className="care-dialog-backdrop" onMouseDown={() => setScanPlanOpen(false)}><section role="dialog" aria-modal="true" className="care-dialog" onMouseDown={(event) => event.stopPropagation()}><button type="button" className="care-dialog-close" onClick={() => setScanPlanOpen(false)}><X size={16}/></button><ScanSearch size={24}/><h2>{text.scanPlan}</h2><p>{text.scanPlanBody}</p><ol>{selectedPlan.map((step, index) => <li key={step.toolId}><span>{index + 1}</span><div><strong>{pickName(byId.get(step.toolId)!, lang)}</strong><small>{step.toolId} · READ ONLY{byId.get(step.toolId)?.RequiresAdmin ? ` · ${text.admin}` : ''}</small></div></li>)}</ol><footer><button type="button" onClick={() => setScanPlanOpen(false)}>{text.back}</button><button type="button" onClick={() => void runScan()} disabled={selectedPlan.length === 0 || selectedNeedsAdmin}><Play size={13}/>{text.begin}</button></footer></section></div>}
 
-        {repairPlanOpen && <div className="care-dialog-backdrop" onMouseDown={() => setRepairPlanOpen(false)}><section role="dialog" aria-modal="true" className="care-dialog is-repair" onMouseDown={(event) => event.stopPropagation()}><button type="button" className="care-dialog-close" onClick={() => setRepairPlanOpen(false)}><X size={16}/></button><AlertTriangle size={24}/><h2>{text.confirmRepair}</h2><p>{text.confirmBody}</p><ol>{selectedRecommendationList.map((item, index) => { const tool = byId.get(item.toolId)!; return <li key={item.id}><span>{index + 1}</span><div><strong>{pickName(tool, lang)}</strong><small>{tool.RiskLevel} · {tool.RequiresAdmin ? text.admin : '—'} · {tool.RequiresRestart ? text.restartRequired : 'NO RESTART'}</small></div></li>; })}</ol>{requiresRecoveryAcknowledgement && <label className="care-recovery-ack"><input type="checkbox" checked={recoveryAcknowledged} onChange={(event) => setRecoveryAcknowledged(event.target.checked)}/><span>{text.acknowledgeRecovery}</span></label>}<label><span>{text.typeConfirm}</span><input value={confirmPhrase} onChange={(event) => setConfirmPhrase(event.target.value)} placeholder="CONFIRM" autoFocus={!requiresRecoveryAcknowledgement}/></label><footer><button type="button" onClick={() => setRepairPlanOpen(false)}>{text.back}</button><button type="button" onClick={() => void applyRepairs()} disabled={confirmPhrase.trim().toUpperCase() !== 'CONFIRM' || (requiresRecoveryAcknowledgement && !recoveryAcknowledged)}><Wrench size={13}/>{text.confirm}</button></footer></section></div>}
+        {repairPlanOpen && <div className="care-dialog-backdrop" onMouseDown={() => setRepairPlanOpen(false)}><section role="dialog" aria-modal="true" className="care-dialog is-repair" onMouseDown={(event) => event.stopPropagation()}><button type="button" className="care-dialog-close" onClick={() => setRepairPlanOpen(false)}><X size={16}/></button><AlertTriangle size={24}/><h2>{text.confirmRepair}</h2><p>{text.confirmBody}</p><ol>{selectedRecommendationList.map((item, index) => { const tool = byId.get(item.toolId)!; return <li key={item.id}><span>{index + 1}</span><div><strong>{pickName(tool, lang)}</strong><small>{tool.RiskLevel} · {tool.RequiresAdmin ? text.admin : '—'} · {tool.RequiresRestart ? text.restartRequired : 'NO RESTART'}</small></div></li>; })}</ol>{requiresRecoveryAcknowledgement && <label className="care-recovery-ack"><input type="checkbox" checked={recoveryAcknowledged} onChange={(event) => setRecoveryAcknowledged(event.target.checked)}/><span>{text.acknowledgeRecovery}</span></label>}<label><span>{text.typeConfirm}: <strong>{repairConfirmationPhrase}</strong></span><input value={confirmPhrase} onChange={(event) => setConfirmPhrase(event.target.value)} placeholder={repairConfirmationPhrase} autoFocus={!requiresRecoveryAcknowledgement}/></label><footer><button type="button" onClick={() => setRepairPlanOpen(false)}>{text.back}</button><button type="button" onClick={() => void applyRepairs()} disabled={confirmPhrase.trim() !== repairConfirmationPhrase || (requiresRecoveryAcknowledgement && !recoveryAcknowledged)}><Wrench size={13}/>{text.confirm}</button></footer></section></div>}
       </div>
     </StationErrorBoundary>
   );
