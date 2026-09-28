@@ -274,6 +274,43 @@ function extractSupportedParameters(scriptText) {
   return new Set([...header[1].matchAll(/\$(\w+)/g)].map((match) => match[1]));
 }
 
+const HIGH_FRICTION_RISKS = new Set(['SYSTEM_REPAIR', 'DESTRUCTIVE', 'REBOOT_REQUIRED']);
+
+function extractTypedConfirmationPhrase(scriptText) {
+  const source = String(scriptText || '');
+  if (!/Confirm-KnouxDestructiveAction\b/i.test(source)) return '';
+  const phrases = [...source.matchAll(/Confirm-KnouxDestructiveAction\s+-Phrase\s+(['"])([^'"\r\n]+)\1/gi)]
+    .map((match) => match[2].trim())
+    .filter(Boolean);
+  const unique = [...new Set(phrases)];
+  if (unique.length !== 1) {
+    throw Object.assign(
+      new Error('A destructive tool must declare exactly one static Confirm-KnouxDestructiveAction phrase.'),
+      { status: 500, code: 'CONFIRMATION_CONTRACT_INVALID' }
+    );
+  }
+  return unique[0];
+}
+
+function requiredConfirmationPhrase(tool, scriptText = null) {
+  const risk = String(tool?.RiskLevel || '').toUpperCase();
+  if (!HIGH_FRICTION_RISKS.has(risk)) return '';
+
+  let source = scriptText;
+  if (source === null) {
+    source = '';
+    if (typeof tool?.ScriptPath === 'string' && tool.ScriptPath) {
+      const scriptPath = path.resolve(REPO_ROOT, tool.ScriptPath);
+      if (scriptPath.startsWith(REPO_ROOT + path.sep) && fs.existsSync(scriptPath)) {
+        source = fs.readFileSync(scriptPath, 'utf8');
+      }
+    }
+  }
+
+  const actionSpecific = extractTypedConfirmationPhrase(source);
+  return actionSpecific || 'CONFIRM';
+}
+
 function resolveToolCapabilities(tool) {
   const scriptPath = path.resolve(REPO_ROOT, tool.ScriptPath || '');
   const menuPath = menuIndex.get(tool.ToolId);
@@ -299,6 +336,7 @@ function resolveToolCapabilities(tool) {
       : (scriptAvailable && /\$WhatIf\b/i.test(scriptText)),
     Parameters: [...extractSupportedParameters(scriptText)],
     RequiresConfirmation: /Confirm-Knoux(?:Destructive)?Action\b/i.test(scriptText),
+    ConfirmationPhrase: requiredConfirmationPhrase(tool, scriptText) || null,
     ReportsEvidence: /Start-KnouxSession|Write-KnouxResult|RawDir|SessionDir/i.test(scriptText),
   };
 }
@@ -460,6 +498,13 @@ function validateExecutionRequest({ tool, mode, confirmation }) {
   }
   if (!confirmation.phrase) {
     throw Object.assign(new Error(`"${tool.EnglishName}" requires a typed confirmation phrase.`), { status: 403, code: 'CONFIRMATION_PHRASE_REQUIRED' });
+  }
+  const expectedPhrase = requiredConfirmationPhrase(tool);
+  if (expectedPhrase && confirmation.phrase !== expectedPhrase) {
+    throw Object.assign(
+      new Error(`"${tool.EnglishName}" requires the exact confirmation phrase "${expectedPhrase}".`),
+      { status: 403, code: 'CONFIRMATION_PHRASE_MISMATCH' }
+    );
   }
 }
 
@@ -1547,6 +1592,7 @@ const server = http.createServer(async (req, res) => {
           WhatIfSupported: t.WhatIfSupported,
           Parameters: t.Parameters,
           RequiresConfirmation: t.RequiresConfirmation,
+          ConfirmationPhrase: t.ConfirmationPhrase || null,
           ReportsEvidence: t.ReportsEvidence,
           TestResult: t.TestResult || '',
         }));
@@ -1585,6 +1631,7 @@ const server = http.createServer(async (req, res) => {
           WhatIfSupported: t.WhatIfSupported,
           Parameters: t.Parameters,
           RequiresConfirmation: t.RequiresConfirmation,
+          ConfirmationPhrase: t.ConfirmationPhrase || null,
           ReportsEvidence: t.ReportsEvidence,
           TestResult: t.TestResult || '',
         }));

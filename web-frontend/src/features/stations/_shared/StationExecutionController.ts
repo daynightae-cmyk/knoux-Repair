@@ -48,11 +48,7 @@ export interface ExecutionDecision {
   reason?: string;
 }
 
-/**
- * The one word a customer must type to authorize a destructive, system-repair
- * or reboot-requiring change. It is exported so a station's own inline
- * confirmation can validate against the same constant the gate enforces.
- */
+/** Default phrase for high-friction tools that do not declare a stronger action-specific phrase. */
 export const TYPED_PHRASE = 'CONFIRM';
 
 /** Pre-flight gate: confirmation, elevation, and WinRE policy before any run starts. */
@@ -65,11 +61,11 @@ export function decideExecution(input: ExecutionRequestInput, bridgeElevated: bo
     if (!confirmation || confirmation.confirmed !== true || !confirmation.phrase) {
       return { ok: false, nextState: 'WAITING_FOR_CONFIRMATION', reason: 'Explicit typed confirmation is required before execution.' };
     }
-    // The dialog labels the exact word it wants. Accepting any non-empty
-    // string would make a labelled "type CONFIRM" gate decorative, so the
-    // expected phrase is checked here rather than only in the dialog's UI.
-    if (confirmation.phrase.trim().toUpperCase() !== TYPED_PHRASE) {
-      return { ok: false, nextState: 'WAITING_FOR_CONFIRMATION', reason: `Type ${TYPED_PHRASE} exactly to authorize this change.` };
+    // The bridge exposes the exact phrase owned by the registered script.
+    // Accepting any other non-empty string would make the typed gate decorative.
+    const expectedPhrase = tool.ConfirmationPhrase || TYPED_PHRASE;
+    if (confirmation.phrase.trim() !== expectedPhrase) {
+      return { ok: false, nextState: 'WAITING_FOR_CONFIRMATION', reason: `Type ${expectedPhrase} exactly to authorize this change.` };
     }
   }
   if (tool.RequiresAdmin && !bridgeElevated) {

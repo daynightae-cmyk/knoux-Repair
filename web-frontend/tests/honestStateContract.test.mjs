@@ -117,20 +117,22 @@ test('quarantined bytes are never counted as reclaimed space', () => {
   assert.equal(actualRecoveredBytes({}), 0);
 });
 
-test('the cleanup plan dialog enforces the phrase it prints', () => {
+test('the cleanup plan dialog enforces every script-owned phrase it prints', () => {
   const source = station(2, 'CleanupStation.tsx');
-  // "Type CONFIRM to authorize permanent deletion" used to accept one character.
-  assert.match(source, /const planPhraseAuthorized = planPhrase\.trim\(\)\.toUpperCase\(\) === TYPED_PHRASE/);
-  assert.match(source, /disabled=\{\(!planDestructive \? false : !planPhraseAuthorized\)/);
-  assert.match(source, /if \(planDestructive && phrase\.trim\(\)\.toUpperCase\(\) !== TYPED_PHRASE\)/);
+  assert.match(source, /const planConfirmationPhrase = useMemo/);
+  assert.match(source, /ConfirmationPhrase \|\| TYPED_PHRASE/);
+  assert.match(source, /const planPhraseAuthorized = !planDestructive \|\| planPhrase\.trim\(\) === planConfirmationPhrase/);
+  assert.match(source, /if \(planDestructive && phrase\.trim\(\) !== planConfirmationPhrase\)/);
+  assert.match(source, /phrase: tool\?\.ConfirmationPhrase \|\| TYPED_PHRASE/);
   // A plan that stops early must account for the steps that never ran.
   assert.match(source, /Not executed:/);
 });
 
-test('the shared execution gate refuses a wrong destructive phrase', () => {
+test('the shared execution gate refuses a wrong tool-specific destructive phrase', () => {
   const controller = read('src/features/stations/_shared/StationExecutionController.ts');
   assert.match(controller, /export const TYPED_PHRASE = 'CONFIRM'/);
-  assert.match(controller, /confirmation\.phrase\.trim\(\)\.toUpperCase\(\) !== TYPED_PHRASE/);
+  assert.match(controller, /tool\.ConfirmationPhrase \|\| TYPED_PHRASE/);
+  assert.match(controller, /confirmation\.phrase\.trim\(\) !== expectedPhrase/);
 });
 
 /* ── 05 Duplicate Files ────────────────────────────────────────────────── */

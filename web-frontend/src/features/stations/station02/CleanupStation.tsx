@@ -72,7 +72,7 @@ const COPY = {
     rawLog: 'Raw log', hideRaw: 'Hide raw log', elapsed: 'Elapsed',
     emptyHistory: 'No cleanup runs yet. Evidence from real runs will appear here.',
     planTitle: 'Review the cleanup plan', planConfirm: 'Start cleanup', planCancel: 'Go back',
-    planPhrase: 'Type CONFIRM to authorize permanent deletion', quarantineNote: 'Quarantine: restorable',
+    planPhrase: 'Type every required action phrase exactly', quarantineNote: 'Quarantine: restorable',
     deleteNote: 'Permanent delete: cannot be restored',
     permissionTitle: 'Administrator permission required',
     elevateHelp: 'System locations need an elevated bridge. Restart the local bridge elevated (start-bridge-admin.cmd), then re-check.',
@@ -123,7 +123,7 @@ const COPY = {
     rawLog: 'السجل الخام', hideRaw: 'إخفاء السجل', elapsed: 'المدة',
     emptyHistory: 'لا توجد عمليات تنظيف بعد. ستظهر هنا أدلة التشغيل الحقيقي.',
     planTitle: 'مراجعة خطة التنظيف', planConfirm: 'بدء التنظيف', planCancel: 'رجوع',
-    planPhrase: 'اكتب تأكيد لتفويض الحذف النهائي', quarantineNote: 'العزل: قابل للاستعادة',
+    planPhrase: 'اكتب عبارات التأكيد المطلوبة حرفيًا', quarantineNote: 'العزل: قابل للاستعادة',
     deleteNote: 'الحذف النهائي: لا يمكن استعادته',
     permissionTitle: 'تتطلب صلاحية المدير',
     elevateHelp: 'مواقع النظام تحتاج جسرًا بصلاحية المدير. أعد تشغيل الجسر المحلي بصلاحية المدير ثم أعد التحقق.',
@@ -395,30 +395,38 @@ export default function CleanupStation({
     () => planSteps.some((step) => groupDefs[step.groupId]?.destructive),
     [planSteps, groupDefs],
   );
-  // A label that says "type CONFIRM" must actually mean it. Any other non-empty
-  // string used to arm the permanent-delete button.
-  const planPhraseAuthorized = planPhrase.trim().toUpperCase() === TYPED_PHRASE;
+  const planConfirmationPhrase = useMemo(() => {
+    const phrases = planSteps
+      .filter((step) => groupDefs[step.groupId]?.destructive)
+      .map((step) => byId.get(step.toolId)?.ConfirmationPhrase || TYPED_PHRASE);
+    return [...new Set(phrases)].join(' + ');
+  }, [byId, groupDefs, planSteps]);
+  // A multi-action destructive plan requires the user to type every exact
+  // action phrase. The per-tool evidence below is derived only after that
+  // combined authorization has been entered verbatim.
+  const planPhraseAuthorized = !planDestructive || planPhrase.trim() === planConfirmationPhrase;
 
   const runPlan = useCallback(async (phrase: string) => {
-    if (planDestructive && phrase.trim().toUpperCase() !== TYPED_PHRASE) {
+    if (planDestructive && phrase.trim() !== planConfirmationPhrase) {
       setBanner(
         lang === 'ar'
-          ? `يلزم كتابة ${TYPED_PHRASE} تماماً للمتابعة.`
-          : `Type ${TYPED_PHRASE} exactly to authorize permanent deletion.`
+          ? `يلزم كتابة ${planConfirmationPhrase} حرفيًا للمتابعة.`
+          : `Type ${planConfirmationPhrase} exactly to authorize the selected destructive actions.`
       );
       return;
     }
     setBanner('');
     setPlanOpen(false);
     setPlanPhrase('');
-    const confirmation: ToolRunConfirmation | undefined = planDestructive
-      ? { confirmed: true, phrase: TYPED_PHRASE, confirmedAt: new Date().toISOString() }
-      : { confirmed: true, confirmedAt: new Date().toISOString() };
     const executed: string[] = [];
     const skipped: string[] = [];
     for (const step of planSteps) {
       try {
-        await executeStep(step.toolId, step.mode, confirmation);
+        const tool = byId.get(step.toolId);
+        const stepConfirmation: ToolRunConfirmation = groupDefs[step.groupId]?.destructive
+          ? { confirmed: true, phrase: tool?.ConfirmationPhrase || TYPED_PHRASE, confirmedAt: new Date().toISOString() }
+          : { confirmed: true, confirmedAt: new Date().toISOString() };
+        await executeStep(step.toolId, step.mode, stepConfirmation);
         executed.push(step.toolId);
       } catch (error) {
         skipped.push(step.toolId);
@@ -440,7 +448,7 @@ export default function CleanupStation({
       setPreview(after);
       setDiskFreeAfter(diskFree(after));
     } catch { /* after-scan is best-effort */ }
-  }, [diskFree, executeStep, lang, planDestructive, planSteps]);
+  }, [byId, diskFree, executeStep, groupDefs, lang, planConfirmationPhrase, planDestructive, planSteps]);
 
   const cancelActive = useCallback(async () => {
     if (!activeRun) return;
@@ -884,8 +892,8 @@ export default function CleanupStation({
               </ol>
               {planDestructive && (
                 <label className="execution-dialog-field">
-                  <span><AlertTriangle size={14} />{text.planPhrase}</span>
-                  <input value={planPhrase} onChange={(event) => setPlanPhrase(event.target.value)} placeholder="CONFIRM" autoFocus />
+                  <span><AlertTriangle size={14} />{text.planPhrase}: <strong>{planConfirmationPhrase}</strong></span>
+                  <input value={planPhrase} onChange={(event) => setPlanPhrase(event.target.value)} placeholder={planConfirmationPhrase} autoFocus />
                 </label>
               )}
               <p className="execution-dialog-contract"><ShieldCheck size={14} />{text.protectedNote}</p>
@@ -903,8 +911,8 @@ export default function CleanupStation({
                 <p className="execution-dialog-contract" style={{ color: '#fca5a5' }}>
                   <AlertTriangle size={14} />
                   {lang === 'ar'
-                    ? `اكتب ${TYPED_PHRASE} تماماً للمتابعة.`
-                    : `Type ${TYPED_PHRASE} exactly to continue.`}
+                    ? `اكتب ${planConfirmationPhrase} حرفيًا للمتابعة.`
+                    : `Type ${planConfirmationPhrase} exactly to continue.`}
                 </p>
               )}
             </section>
