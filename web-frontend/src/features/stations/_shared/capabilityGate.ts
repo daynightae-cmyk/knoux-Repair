@@ -1,14 +1,19 @@
 /**
  * KNOUX REPAIR — runtime capability gate.
  *
- * The authoritative record of what actually ran on a real machine is
- * `Reports/100-Tool-Functional-Verification.csv`. 139 of the 158 canonical
- * ToolIds completed a verification run; 19 timed out in AnalyzeOnly and are
+ * The versioned product-gate snapshot is
+ * `Docs/verification/TOOL-RUNTIME-VERIFICATION.csv`. It records the outcome
+ * of the 2026-09-26 real-machine verification campaign: 139 of the 158
+ * canonical ToolIds completed a verification run; 19 did not complete and are
  * recorded `UNVERIFIED`.
  *
- * `Docs/TOOLS-MANIFEST.json` carries a static `TestResult` field that disagrees
- * with the CSV on 19 tools. The CSV wins: it holds real exit codes, durations
- * and observed stdout/stderr, while the manifest field is a declaration.
+ * The detailed generated campaign artifact remains
+ * `Reports/100-Tool-Functional-Verification.csv` (Reports/ is intentionally
+ * ignored). The versioned snapshot exists so clean GitHub/CI checkouts enforce
+ * the same product gate instead of depending on an owner-machine artifact.
+ *
+ * `Docs/TOOLS-MANIFEST.json` carries a static `TestResult` declaration and is
+ * not used as runtime-verification evidence.
  *
  * The contract this module encodes:
  *   - A tool the runtime has not proven may still be ANALYSED. Analysis changes
@@ -16,14 +21,16 @@
  *   - A tool the runtime has not proven may NOT be MUTATED. Hiding the action
  *     is the only safe answer; the ToolId stays registered and discoverable.
  *
- * `capabilityGate.test.mjs` reads the CSV and fails if this set drifts.
+ * `capabilityGate.test.mjs` reads the versioned snapshot and fails if this set
+ * or the canonical ToolId inventory drifts.
  */
 
 import type { BridgeTool } from '../../../lib/api';
 
 /**
- * ToolIds whose verification run did not complete. Kept in sync with the CSV
- * by a test — do not hand-edit without re-running the verification.
+ * ToolIds whose verification run did not complete. Kept in sync with the
+ * versioned runtime-verification snapshot by a test — do not hand-edit without
+ * re-running the verification campaign and refreshing that snapshot.
  */
 export const UNVERIFIED_TOOL_IDS: readonly string[] = [
   'SC03', 'SC11', 'PA03',
