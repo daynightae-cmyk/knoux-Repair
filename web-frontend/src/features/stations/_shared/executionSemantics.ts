@@ -219,10 +219,26 @@ export function outcomeFromRunEnvelope(
   if (!run) return 'INCONCLUSIVE';
   const runStatus = String(run.status ?? '').trim().toLowerCase();
   if (runStatus === '') return 'INCONCLUSIVE';
-  if (runStatus === 'running') return 'INCONCLUSIVE';
-  if (runStatus === 'success') return 'SUCCESS';
+  if (runStatus === 'running' || runStatus === 'inconclusive') return 'INCONCLUSIVE';
   if (runStatus === 'cancelled') return 'CANCELLED';
-  if (runStatus === 'error') return outcomeFromEnvelope(run.result);
+
+  const envelopeOutcome = outcomeFromEnvelope(run.result);
+
+  if (runStatus === 'success') {
+    // bridge-core intentionally represents a structured Warning as process-level
+    // success. Preserve the more precise envelope outcome when one exists.
+    if (run.result && envelopeOutcome !== 'SUCCESS') return envelopeOutcome;
+    return 'SUCCESS';
+  }
+
+  if (runStatus === 'error') {
+    // A failed process/run can never be promoted back to SUCCESS merely because
+    // a stale or contradictory result envelope says "Success".
+    if (envelopeOutcome === 'CANCELLED') return 'CANCELLED';
+    if (envelopeOutcome === 'INCONCLUSIVE') return 'INCONCLUSIVE';
+    return 'FAILED';
+  }
+
   return 'INCONCLUSIVE';
 }
 
