@@ -1,13 +1,15 @@
 /**
  * KNOUX REPAIR — runtime capability gate.
  *
- * `Reports/100-Tool-Functional-Verification.csv` is the authoritative record of
- * what actually ran. 19 of the 158 canonical ToolIds timed out in AnalyzeOnly
- * and are recorded UNVERIFIED. An unverified tool may still be analysed — that
- * changes nothing — but its change action must not be offered, because the
- * product cannot prove it works.
+ * `Docs/verification/TOOL-RUNTIME-VERIFICATION.csv` is the versioned product
+ * gate snapshot derived from the 2026-09-26 real-machine verification campaign.
+ * 19 of the 158 canonical ToolIds did not complete verification and are
+ * recorded UNVERIFIED. An unverified tool may still be analysed — that changes
+ * nothing — but its change action must not be offered, because the product
+ * cannot prove it works.
  *
- * These tests keep `UNVERIFIED_TOOL_IDS` from drifting away from the CSV, and
+ * These tests keep `UNVERIFIED_TOOL_IDS` from drifting away from the versioned
+ * snapshot and keep that snapshot aligned to the canonical manifest.
  * prove the gate has no loophole: the run itself is refused, not just the
  * button.
  */
@@ -56,21 +58,28 @@ function parseCsv(text) {
   return body.filter(r => r.length > 0).map(r => Object.fromEntries(header.map((h, i) => [h, r[i] ?? ''])));
 }
 
-const csvPath = 'Reports/100-Tool-Functional-Verification.csv';
+const csvPath = 'Docs/verification/TOOL-RUNTIME-VERIFICATION.csv';
 
-test('the gate constant matches the authoritative CSV exactly', () => {
+test('the gate constant matches the versioned runtime-verification snapshot exactly', () => {
   const rows = parseCsv(read(csvPath));
   assert.equal(rows.length, 158, 'the verification CSV must still cover all 158 canonical tools');
   const unverified = rows.filter(r => r.Status === 'UNVERIFIED').map(r => r.ToolId).sort();
   assert.deepEqual(
     [...UNVERIFIED_TOOL_IDS].sort(),
     unverified,
-    'UNVERIFIED_TOOL_IDS drifted from the authoritative verification CSV'
+    'UNVERIFIED_TOOL_IDS drifted from the versioned runtime-verification snapshot'
   );
+  assert.ok(rows.every(r => r.VerificationCampaign === '2026-09-26'), 'snapshot campaign provenance must be explicit');
+  assert.ok(rows.every(r => r.SourceArtifact === 'Reports/100-Tool-Functional-Verification.csv'), 'snapshot source artifact must be explicit');
 });
 
 test('every canonical ToolId is either verified or explicitly unverified', () => {
   const rows = parseCsv(read(csvPath));
+  const manifest = JSON.parse(read('Docs/TOOLS-MANIFEST.json').replace(/^\uFEFF/, ''));
+  const rowIds = rows.map(r => r.ToolId);
+  const manifestIds = manifest.map(tool => tool.ToolId);
+  assert.equal(new Set(rowIds).size, 158, 'verification snapshot must not contain duplicate ToolIds');
+  assert.deepEqual([...rowIds].sort(), [...manifestIds].sort(), 'verification snapshot must cover the exact canonical ToolId inventory');
   const statuses = new Set(rows.map(r => r.Status));
   for (const row of rows) {
     assert.ok(
