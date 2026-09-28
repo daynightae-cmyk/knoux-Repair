@@ -92,10 +92,14 @@ test('a run that never reached a terminal state is inconclusive regardless of it
   assert.equal(outcomeFromRunEnvelope({ status: '' }), 'INCONCLUSIVE');
   assert.equal(outcomeFromRunEnvelope(null), 'INCONCLUSIVE');
   assert.equal(outcomeFromRunEnvelope({ status: 'success' }), 'SUCCESS');
+  assert.equal(outcomeFromRunEnvelope({ status: 'success', result: { status: 'Warning', exitCode: 0 } }), 'WARNING');
+  assert.equal(outcomeFromRunEnvelope({ status: 'success', result: { status: 'Inconclusive', exitCode: 0 } }), 'INCONCLUSIVE');
   assert.equal(outcomeFromRunEnvelope({ status: 'cancelled' }), 'CANCELLED');
   // A bridge-reported error with no usable result must not read as success.
   assert.equal(outcomeFromRunEnvelope({ status: 'error' }), 'INCONCLUSIVE');
   assert.equal(outcomeFromRunEnvelope({ status: 'error', result: { status: 'Failed', exitCode: 1 } }), 'FAILED');
+  // Contradictory/stale payloads cannot promote a failed run back to success.
+  assert.equal(outcomeFromRunEnvelope({ status: 'error', result: { status: 'Success', exitCode: 0 } }), 'FAILED');
 });
 
 test('the shared history row reports an unreported count as null and a real error verbatim', () => {
