@@ -9,8 +9,8 @@
  * cannot prove it works.
  *
  * These tests keep `UNVERIFIED_TOOL_IDS` from drifting away from the versioned
- * snapshot and keep that snapshot aligned to the canonical manifest.
- * prove the gate has no loophole: the run itself is refused, not just the
+ * snapshot, keep that snapshot aligned to the canonical manifest, and prove
+ * the gate has no loophole: the run itself is refused, not just the
  * button.
  */
 import { test } from 'node:test';
