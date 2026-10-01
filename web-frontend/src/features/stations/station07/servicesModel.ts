@@ -7,6 +7,7 @@
 
 import type { BridgeTool, KnouxRunResult } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
+import { buildStationHistoryRow } from '../_shared/executionSemantics.ts';
 
 export interface ServiceItem {
   name: string;
@@ -53,7 +54,8 @@ export interface StationHistoryEntry {
   toolName: string;
   timestamp: string;
   status: 'SUCCESS' | 'WARNING' | 'FAILED' | 'CANCELLED' | 'INCONCLUSIVE';
-  itemsProcessed: number;
+  /** null when the envelope did not report a count. Never 0-as-default. */
+  itemsProcessed: number | null;
   summary: string;
 }
 
@@ -294,34 +296,118 @@ export function stationTools(allTools: BridgeTool[]): BridgeTool[] {
 }
 
 /**
- * Converts execution run result into a history entry
+ * Converts execution run result into a history entry.
+ *
+ * Delegates to the shared builder: the local version turned a result with no
+ * status and no exit code into SUCCESS, and wrote a fabricated `0` count.
  */
 export function outcomeFromRun(
   tool: BridgeTool,
   res: KnouxRunResult,
   lang: Lang = 'en'
 ): StationHistoryEntry {
-  const status = (res.status?.toUpperCase() || (res.exitCode === 0 ? 'SUCCESS' : 'FAILED')) as
-    | 'SUCCESS'
-    | 'WARNING'
-    | 'FAILED'
-    | 'CANCELLED'
-    | 'INCONCLUSIVE';
-
-  const processed = res.itemsProcessed || 0;
-  const summary =
-    res.errorMessage ||
-    (status === 'SUCCESS'
-      ? (lang === 'ar' ? `اكتمل تنفيذ ${tool.ArabicName || tool.EnglishName} بنجاح` : `Successfully completed ${tool.EnglishName}`)
-      : (lang === 'ar' ? `فشل تنفيذ ${tool.ArabicName || tool.EnglishName}` : `Execution failed for ${tool.EnglishName}`));
-
-  return {
-    id: `${tool.ToolId}-${Date.now()}`,
+  return buildStationHistoryRow({
     toolId: tool.ToolId,
     toolName: lang === 'ar' ? tool.ArabicName || tool.EnglishName : tool.EnglishName,
-    timestamp: new Date().toISOString(),
-    status,
-    itemsProcessed: processed,
-    summary,
+    result: res,
+    successSummary:
+      lang === 'ar' ? `اكتمل تنفيذ ${tool.ArabicName || tool.EnglishName} بنجاح` : `Successfully completed ${tool.EnglishName}`,
+    failureSummary:
+      lang === 'ar' ? `فشل تنفيذ ${tool.ArabicName || tool.EnglishName}` : `Execution failed for ${tool.EnglishName}`,
+  });
+}
+
+/**
+ * One measured "service depends on service" relationship.
+ *
+ * The dependency tab previously discarded SP07's result and rendered only a
+ * static policy note, so a user who asked to trace dependencies never saw a
+ * single edge. The parser is tolerant: it accepts the object-array form, the
+ * `{ services: [...] }` wrapper, and a text table, because SP07 has been
+ * written more than one way.
+ */
+export interface DependencyEdge {
+  service: string;
+  dependsOn: string;
+  critical: boolean;
+}
+
+const CRITICAL_SERVICE_NAMES = new Set([
+  'RpcSs', 'DcomLaunch', 'PlugPlay', 'EventLog', 'CryptSvc',
+  'RpcEptMapper', 'NlaSvc', 'Winmgmt', 'Schedule', 'ProfSvc',
+]);
+
+/** Parse SP07's output into edges. Returns null only for an unparseable shape. */
+export function extractDependencyEdges(
+  output: unknown,
+  criticalNames: ReadonlySet<string> = CRITICAL_SERVICE_NAMES
+): DependencyEdge[] | null {
+  const push = (edges: DependencyEdge[], service: unknown, dependsOn: unknown, criticalFlag?: unknown) => {
+    const from = String(service ?? '').trim();
+    const to = String(dependsOn ?? '').trim();
+    if (!from || !to) return;
+    const critical =
+      typeof criticalFlag === 'boolean'
+        ? criticalFlag
+        : criticalNames.has(from) || criticalNames.has(to);
+    edges.push({ service: from, dependsOn: to, critical });
   };
+
+  const walk = (node: unknown, edges: DependencyEdge[], depth = 0): boolean => {
+    if (depth > 4 || node === null || typeof node !== 'object') return false;
+    if (Array.isArray(node)) {
+      let consumed = false;
+      for (const item of node) {
+        if (item && typeof item === 'object') {
+          const record = item as Record<string, unknown>;
+          const from = record.Service ?? record.Name ?? record.service ?? record.name;
+          const tos = record.Dependencies ?? record.DependsOn ?? record.dependsOn ?? record.dependencies;
+          if (from !== undefined && tos !== undefined) {
+            const list = Array.isArray(tos) ? tos : [tos];
+            for (const to of list) {
+              push(edges, from, typeof to === 'string' ? to : (to as Record<string, unknown>)?.Name ?? (to as Record<string, unknown>)?.name, record.Critical);
+            }
+            consumed = true;
+            continue;
+          }
+        }
+        if (walk(item, edges, depth + 1)) consumed = true;
+      }
+      return consumed;
+    }
+    const record = node as Record<string, unknown>;
+    for (const value of Object.values(record)) {
+      if (walk(value, edges, depth + 1)) return true;
+    }
+    return false;
+  };
+
+  // Preferred: structured payload on the envelope or inside `output`.
+  for (const candidate of [output, (output as Record<string, unknown>)?.output, (output as Record<string, unknown>)?.evidence]) {
+    if (!candidate) continue;
+    if (typeof candidate === 'string') {
+      const edges = parseDependencyTable(candidate);
+      if (edges) return edges;
+      continue;
+    }
+    const edges: DependencyEdge[] = [];
+    if (walk(candidate, edges) && edges.length > 0) return edges;
+  }
+  return null;
+}
+
+/** Last-resort: a whitespace/pipe/comma separated "service,depends on" table. */
+function parseDependencyTable(text: string): DependencyEdge[] | null {
+  const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const edges: DependencyEdge[] = [];
+  for (const line of lines) {
+    const parts = line.split(/\s*(?:\||,|->|=>|depends on:)\s*/i).map(part => part.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      const from = parts[0];
+      const to = parts[1];
+      if (!from || !to) continue;
+      edges.push({ service: from, dependsOn: to, critical: CRITICAL_SERVICE_NAMES.has(from) || CRITICAL_SERVICE_NAMES.has(to) });
+    }
+  }
+  return edges.length > 0 ? edges : null;
 }

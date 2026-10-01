@@ -8,10 +8,12 @@ import CleanupHeroVisual from './CleanupHeroVisual';
 import type { BridgeRun, BridgeTool, CleanupPreview, ExecutionMode, ToolRunConfirmation, ToolRunOptions } from '../../../lib/api';
 import { api, BridgeError } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
 import { pickName } from '../../../lib/i18n';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
-import { StationErrorBoundary, StationOfflineState } from '../_shared';
-import { decideExecution, startExecution, pollExecution, cancelExecution, runStatusToState } from '../_shared/StationExecutionController';
+import { StationErrorBoundary, StationOfflineState, StationDeepLink } from '../_shared';
+import '../../../components/workspace/station-deeplink.css';
+import { decideExecution, startExecution, pollExecution, cancelExecution, runStatusToState, TYPED_PHRASE } from '../_shared/StationExecutionController';
 import {
   appendHistory, actualRecoveredBytes, buildCleanupPlan, buildCleanupReport, CLEANUP_GROUPS, classifyPreview,
   deriveCleanupState, formatBytes, loadHistory, outcomeFromRun, selectedBytes, selectedFiles, stationTools,
@@ -27,6 +29,8 @@ interface CleanupStationProps {
   bridgeOnline: boolean | null;
   onRetryBridge: () => void;
   onToolStatus: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
+  /** Cross-station hand-off: point at the station that owns a fact this one merely meets. */
+  onNavigateService?: (family: FamilyId, serviceId: ServiceId) => void;
 }
 
 interface ActiveRun {
@@ -68,7 +72,7 @@ const COPY = {
     rawLog: 'Raw log', hideRaw: 'Hide raw log', elapsed: 'Elapsed',
     emptyHistory: 'No cleanup runs yet. Evidence from real runs will appear here.',
     planTitle: 'Review the cleanup plan', planConfirm: 'Start cleanup', planCancel: 'Go back',
-    planPhrase: 'Type CONFIRM to authorize permanent deletion', quarantineNote: 'Quarantine: restorable',
+    planPhrase: 'Type every required action phrase exactly', quarantineNote: 'Quarantine: restorable',
     deleteNote: 'Permanent delete: cannot be restored',
     permissionTitle: 'Administrator permission required',
     elevateHelp: 'System locations need an elevated bridge. Restart the local bridge elevated (start-bridge-admin.cmd), then re-check.',
@@ -119,7 +123,7 @@ const COPY = {
     rawLog: 'السجل الخام', hideRaw: 'إخفاء السجل', elapsed: 'المدة',
     emptyHistory: 'لا توجد عمليات تنظيف بعد. ستظهر هنا أدلة التشغيل الحقيقي.',
     planTitle: 'مراجعة خطة التنظيف', planConfirm: 'بدء التنظيف', planCancel: 'رجوع',
-    planPhrase: 'اكتب تأكيد لتفويض الحذف النهائي', quarantineNote: 'العزل: قابل للاستعادة',
+    planPhrase: 'اكتب عبارات التأكيد المطلوبة حرفيًا', quarantineNote: 'العزل: قابل للاستعادة',
     deleteNote: 'الحذف النهائي: لا يمكن استعادته',
     permissionTitle: 'تتطلب صلاحية المدير',
     elevateHelp: 'مواقع النظام تحتاج جسرًا بصلاحية المدير. أعد تشغيل الجسر المحلي بصلاحية المدير ثم أعد التحقق.',
@@ -204,6 +208,7 @@ function formatElapsed(ms: number): string {
 
 export default function CleanupStation({
   lang, tools, toolStatuses, bridgeElevated, bridgeOnline, onRetryBridge, onToolStatus,
+  onNavigateService,
 }: CleanupStationProps) {
   const text = COPY[lang];
   const station = useMemo(() => stationTools(tools), [tools]);
@@ -289,18 +294,31 @@ export default function CleanupStation({
       setOutcomes([]);
       setHistory((current) =>
         appendHistory(current, {
-          kind: 'scan', toolId: 'SC11', mode: 'run', status: preview ? 'INCONCLUSIVE' : 'ERROR',
+          // A scan that returned a snapshot is a SUCCESSFUL measurement, not an
+          // inconclusive one. The old expression read the pre-scan state
+          // variable, so every successful scan was logged INCONCLUSIVE.
+          kind: 'scan', toolId: 'SC11', mode: 'run', status: 'SUCCESS',
           candidateBytes: Number(snapshot.Summary?.EstimatedReclaimableBytes || 0),
-          selectedBytes: 0, recoveredBytes: 0, quarantined: 0, deleted: 0, skipped: 0, failed: 0,
-          verification: '', reportPath: '', finishedAt: new Date().toISOString(),
+          selectedBytes: selectedByteCount ?? 0,
+          recoveredBytes: 0, quarantined: 0, deleted: 0, skipped: 0, failed: 0,
+          verification: lang === 'ar' ? 'تم قياس المرشحين بنجاح.' : 'Candidate measurement completed.',
+          reportPath: '', finishedAt: new Date().toISOString(),
         }),
       );
     } catch (error) {
+      setHistory((current) =>
+        appendHistory(current, {
+          kind: 'scan', toolId: 'SC11', mode: 'run', status: 'ERROR',
+          candidateBytes: 0,
+          selectedBytes: 0, recoveredBytes: 0, quarantined: 0, deleted: 0, skipped: 0, failed: 1,
+          verification: errorMessage(error, lang), reportPath: '', finishedAt: new Date().toISOString(),
+        }),
+      );
       setBanner(errorMessage(error, lang));
     } finally {
       setScanning(false);
     }
-  }, [diskFree, lang]);
+  }, [diskFree, lang, selectedByteCount]);
 
   const recordOutcome = useCallback((run: BridgeRun) => {
     const outcome = outcomeFromRun(run);
@@ -308,7 +326,9 @@ export default function CleanupStation({
     setHistory((current) =>
       appendHistory(current, {
         kind: 'cleanup', toolId: outcome.toolId, mode: outcome.mode, status: outcome.status,
-        candidateBytes: outcome.bytesPotentiallyRecoverable, selectedBytes: 0,
+        candidateBytes: outcome.bytesPotentiallyRecoverable,
+        // The selected figure is what the plan covered, not a fabricated zero.
+        selectedBytes: selectedByteCount ?? 0,
         recoveredBytes: actualRecoveredBytes(outcome), quarantined: outcome.quarantinedCount,
         deleted: outcome.bytesPermanentlyDeleted, skipped: outcome.skippedCount,
         failed: outcome.status === 'FAILED' ? 1 : 0,
@@ -375,27 +395,60 @@ export default function CleanupStation({
     () => planSteps.some((step) => groupDefs[step.groupId]?.destructive),
     [planSteps, groupDefs],
   );
+  const planConfirmationPhrase = useMemo(() => {
+    const phrases = planSteps
+      .filter((step) => groupDefs[step.groupId]?.destructive)
+      .map((step) => byId.get(step.toolId)?.ConfirmationPhrase || TYPED_PHRASE);
+    return [...new Set(phrases)].join(' + ');
+  }, [byId, groupDefs, planSteps]);
+  // A multi-action destructive plan requires the user to type every exact
+  // action phrase. The per-tool evidence below is derived only after that
+  // combined authorization has been entered verbatim.
+  const planPhraseAuthorized = !planDestructive || planPhrase.trim() === planConfirmationPhrase;
 
   const runPlan = useCallback(async (phrase: string) => {
+    if (planDestructive && phrase.trim() !== planConfirmationPhrase) {
+      setBanner(
+        lang === 'ar'
+          ? `يلزم كتابة ${planConfirmationPhrase} حرفيًا للمتابعة.`
+          : `Type ${planConfirmationPhrase} exactly to authorize the selected destructive actions.`
+      );
+      return;
+    }
     setBanner('');
     setPlanOpen(false);
-    const confirmation: ToolRunConfirmation | undefined = planDestructive
-      ? { confirmed: true, phrase, confirmedAt: new Date().toISOString() }
-      : { confirmed: true, confirmedAt: new Date().toISOString() };
+    setPlanPhrase('');
+    const executed: string[] = [];
+    const skipped: string[] = [];
     for (const step of planSteps) {
       try {
-        await executeStep(step.toolId, step.mode, confirmation);
+        const tool = byId.get(step.toolId);
+        const stepConfirmation: ToolRunConfirmation = groupDefs[step.groupId]?.destructive
+          ? { confirmed: true, phrase: tool?.ConfirmationPhrase || TYPED_PHRASE, confirmedAt: new Date().toISOString() }
+          : { confirmed: true, confirmedAt: new Date().toISOString() };
+        await executeStep(step.toolId, step.mode, stepConfirmation);
+        executed.push(step.toolId);
       } catch (error) {
+        skipped.push(step.toolId);
         setBanner(`[${step.toolId}] ${errorMessage(error, lang)}`);
         break;
       }
+    }
+    // Every selected step that never ran must be accounted for. Silently
+    // dropping the remainder of a cleanup plan is a silent partial execution.
+    if (skipped.length > 0 && executed.length + skipped.length < planSteps.length) {
+      const neverRan = planSteps
+        .slice(executed.length + skipped.length)
+        .map((step) => step.toolId)
+        .join(', ');
+      setBanner(prev => `${prev} ${lang === 'ar' ? `لم تُنفَّذ: ${neverRan}` : `Not executed: ${neverRan}`}`.trim());
     }
     try {
       const { preview: after } = await api.cleanupPreview();
       setPreview(after);
       setDiskFreeAfter(diskFree(after));
     } catch { /* after-scan is best-effort */ }
-  }, [diskFree, executeStep, lang, planDestructive, planSteps]);
+  }, [byId, diskFree, executeStep, groupDefs, lang, planConfirmationPhrase, planDestructive, planSteps]);
 
   const cancelActive = useCallback(async () => {
     if (!activeRun) return;
@@ -646,6 +699,19 @@ export default function CleanupStation({
                       <span className={`cleanup-tier is-${def.tier}`}>{TIER_COPY[def.tier][lang]}</span>
                     </header>
                     <p dir="auto">{lang === 'ar' ? copy.hintAr : copy.hintEn}</p>
+                    {/* Developer caches are measured here but cleaned by the
+                        station that owns runtime cache quarantine. Saying
+                        "cleaned elsewhere" with no way there was a dead end. */}
+                    {def.id === 'dev-caches' && (
+                      <StationDeepLink
+                        lang={lang}
+                        onNavigateService={onNavigateService}
+                        family="software"
+                        serviceId="16-Software-Environment"
+                        destinationName={{ en: 'Software Environment', ar: 'بيئة البرمجيات' }}
+                        label={{ en: 'Open developer cache tools', ar: 'فتح أدوات ذاكرة المطورين' }}
+                      />
+                    )}
                     <dl className="cleanup-group-meta">
                       <div><dt>{lang === 'ar' ? 'الملفات' : 'Files'}</dt><dd dir="auto">{item.exists ? item.files.toLocaleString(lang) : text.unavailable}</dd></div>
                       <div><dt>{lang === 'ar' ? 'الحجم' : 'Size'}</dt><dd dir="auto">{item.exists ? formatBytes(item.bytes, lang) : text.unavailable}</dd></div>
@@ -826,8 +892,8 @@ export default function CleanupStation({
               </ol>
               {planDestructive && (
                 <label className="execution-dialog-field">
-                  <span><AlertTriangle size={14} />{text.planPhrase}</span>
-                  <input value={planPhrase} onChange={(event) => setPlanPhrase(event.target.value)} placeholder="CONFIRM" autoFocus />
+                  <span><AlertTriangle size={14} />{text.planPhrase}: <strong>{planConfirmationPhrase}</strong></span>
+                  <input value={planPhrase} onChange={(event) => setPlanPhrase(event.target.value)} placeholder={planConfirmationPhrase} autoFocus />
                 </label>
               )}
               <p className="execution-dialog-contract"><ShieldCheck size={14} />{text.protectedNote}</p>
@@ -835,12 +901,20 @@ export default function CleanupStation({
                 <button type="button" className="execution-dialog-cancel" onClick={() => setPlanOpen(false)}>{text.planCancel}</button>
                 <button
                   type="button" className="execution-dialog-confirm"
-                  disabled={(!planDestructive ? false : planPhrase.trim().length === 0) || activeRun !== null}
+                  disabled={(!planDestructive ? false : !planPhraseAuthorized) || activeRun !== null}
                   onClick={() => void runPlan(planPhrase.trim())}
                 >
                   {text.planConfirm}
                 </button>
               </div>
+              {planDestructive && !planPhraseAuthorized && planPhrase.trim() !== '' && (
+                <p className="execution-dialog-contract" style={{ color: '#fca5a5' }}>
+                  <AlertTriangle size={14} />
+                  {lang === 'ar'
+                    ? `اكتب ${planConfirmationPhrase} حرفيًا للمتابعة.`
+                    : `Type ${planConfirmationPhrase} exactly to continue.`}
+                </p>
+              )}
             </section>
           </div>
         )}

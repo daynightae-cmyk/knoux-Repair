@@ -7,6 +7,9 @@ import {
 import type { BridgeRun, BridgeTool, ExecutionMode, KnouxRunResult, ToolRunConfirmation, ToolRunOptions } from '../../../lib/api';
 import { api } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
+import { StationDeepLink } from '../_shared';
+import '../../../components/workspace/station-deeplink.css';
 import { pickName } from '../../../lib/i18n';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
 import { StationErrorBoundary, StationOfflineState, StationActiveRunBanner } from '../_shared';
@@ -26,6 +29,8 @@ export interface DiskSpaceStationProps {
   bridgeOnline: boolean | null;
   onRetryBridge: () => void;
   onToolStatus: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
+  /** Cross-station hand-off: point at the station that owns a fact this one merely meets. */
+  onNavigateService?: (family: FamilyId, serviceId: ServiceId) => void;
 }
 
 type TabKey = 'overview' | 'volumes' | 'largeFiles' | 'recovery' | 'health' | 'report' | 'history';
@@ -143,10 +148,12 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
   bridgeOnline = null,
   onRetryBridge,
   onToolStatus,
+  onNavigateService,
 }) => {
   const t = COPY[lang];
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [volumes, setVolumes] = useState<DriveVolume[]>([]);
+  const [baselineError, setBaselineError] = useState<string | null>(null);
   const [largeFiles, setLargeFiles] = useState<LargeFileItem[]>([]);
   const [healthItems, setHealthItems] = useState<DiskHealthItem[]>([]);
   const [history, setHistory] = useState<StationHistoryEntry[]>([]);
@@ -176,16 +183,30 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
 
   // Load baseline volume state from api.system()
   const loadBaseline = useCallback(async () => {
+    setBaselineError(null);
     try {
       const snap = await api.system();
       if (snap?.system?.Drives) {
-        const parsed = parseVolumeInventory(snap.system.Drives);
-        setVolumes(parsed);
+        setVolumes(parseVolumeInventory(snap.system.Drives));
+      } else {
+        // The read succeeded but carried no drive list. Distinct from a
+        // transport failure: we do not know whether this machine has volumes.
+        setBaselineError(
+          lang === 'ar'
+            ? 'استجاب النظام بدون قائمة أقراص. لم يتم قياس أي وحدة.'
+            : 'The system snapshot returned no drive list. No volume was measured.'
+        );
       }
-    } catch {
-      // offline state handled by bridgeOnline check
+    } catch (err) {
+      // Swallowing this rendered "No local fixed volumes detected." for a
+      // machine whose volumes were simply never read.
+      setBaselineError(
+        err instanceof Error && err.message
+          ? err.message
+          : (lang === 'ar' ? 'تعذّرت قراءة قائمة الأقراص.' : 'The volume list could not be read.')
+      );
     }
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
     void loadBaseline();
@@ -413,6 +434,22 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
     setPendingTool({ tool, mode });
   };
 
+  /**
+   * The button copy must match the mode that will actually run. Labelling an
+   * analyze-only action "Execute Action" opened a "Check only — your device
+   * will not be changed" confirmation behind an Execute button.
+   */
+  const actionLabel = (tool: BridgeTool | undefined) => {
+    if (!tool) return t.startAction;
+    if (tool.AnalyzeOnlySupported && !tool.WhatIfSupported) {
+      return lang === 'ar' ? 'فحص فقط' : 'Check only';
+    }
+    if (tool.AnalyzeOnlySupported) {
+      return lang === 'ar' ? 'معاينة' : 'Preview';
+    }
+    return t.startAction;
+  };
+
   // Execute confirmed action
   const handleConfirmRun = async (options: ToolRunOptions = {}, confirmation?: ToolRunConfirmation) => {
     if (!pendingTool) return;
@@ -630,8 +667,20 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
                     onClick={() => handleLaunchTool('DS08')}
                     className="px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 transition-all cursor-pointer"
                   >
-                    {t.startAction}
+                    {actionLabel(stationToolsList.find(t2 => t2.ToolId === 'DS08'))}
                   </button>
+                  {/* DS08 is Windows Disk Cleanup. It is offered here only as a
+                      convenience; the cleanup plan, the review and the reclaim
+                      accounting are owned by Station 02. Without this link the
+                      same capability exists twice with different safety. */}
+                  <StationDeepLink
+                    lang={lang}
+                    onNavigateService={onNavigateService}
+                    family="recovery"
+                    serviceId="02-System-Cleanup"
+                    destinationName={{ en: 'System Cleanup', ar: 'تنظيف النظام' }}
+                    label={{ en: 'Open the cleanup studio', ar: 'فتح استوديو التنظيف' }}
+                  />
                 </div>
               </div>
             </div>
@@ -642,11 +691,19 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
         {activeTab === 'volumes' && (
           <div className="glass-panel p-5 rounded-2xl border border-white/10 flex flex-col gap-4">
             <h3 className="text-sm font-semibold text-white tracking-wide">{t.tabVolumes}</h3>
-            {volumes.length === 0 ? (
+            {baselineError ? (
+              <div className="station-banner error" role="alert">
+                <AlertTriangle size={16} />
+                <span>{baselineError}</span>
+                <button type="button" onClick={() => void loadBaseline()} className="ml-auto underline">
+                  {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+                </button>
+              </div>
+            ) : volumes.length === 0 ? (
               <p className="text-xs text-slate-400 py-6 text-center">{t.noVolumes}</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-300">
+                <table className="w-full text-start text-xs text-slate-300">
                   <thead className="border-b border-white/10 text-slate-400 font-mono uppercase text-[11px]">
                     <tr>
                       <th className="py-2.5 px-3">Volume</th>
@@ -736,7 +793,7 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t.searchFiles}
-                  className="w-full pl-9 pr-3 py-1.5 bg-slate-900/60 border border-white/10 rounded-lg text-xs text-white placeholder-slate-500 focus:border-cyan-500 outline-none"
+                  className="w-full ps-9 pe-3 py-1.5 bg-slate-900/60 border border-white/10 rounded-lg text-xs text-white placeholder-slate-500 focus:border-cyan-500 outline-none"
                 />
               </div>
 
@@ -863,7 +920,7 @@ export const DiskSpaceStation: React.FC<DiskSpaceStationProps> = ({
                             className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 transition-all flex items-center gap-1.5 cursor-pointer"
                           >
                             <RefreshCw size={13} className={isRunning ? 'animate-spin' : ''} />
-                            <span>{isRunning ? (lang === 'ar' ? 'جارٍ التنفيذ...' : 'Running...') : t.startAction}</span>
+                            <span>{isRunning ? (lang === 'ar' ? 'جارٍ التنفيذ...' : 'Running...') : actionLabel(tool)}</span>
                           </button>
                         </div>
                       </div>

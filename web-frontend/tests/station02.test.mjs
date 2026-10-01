@@ -155,11 +155,35 @@ test('Station 02: preview targets classify into honest groups', () => {
   assert.equal(model.selectedBytes(['user-temp', 'browser-cache'], groups), 1200);
 });
 
-test('Station 02: recovered bytes never confuse estimates with results', () => {
+test('Station 02: quarantined bytes are never counted as reclaimed space', () => {
+  // The tool reports 400 bytes quarantined and the same 400 as "actually
+  // recovered". Quarantine is a move: the bytes still exist and are restorable,
+  // so the reclaimed figure must be 0, not 400.
   const outcome = model.outcomeFromRun(fakeRun('SC03', { status: 'SUCCESS', quarantined: 4, recovered: 400 }));
-  assert.equal(model.actualRecoveredBytes(outcome), 400);
+  assert.equal(model.actualRecoveredBytes(outcome), 0);
+  assert.equal(model.actualQuarantinedBytes(outcome), 400);
+  // Candidate estimates are never results.
   assert.equal(outcome.bytesPotentiallyRecoverable, 100);
   assert.notEqual(model.actualRecoveredBytes(outcome), outcome.bytesPotentiallyRecoverable);
+});
+
+test('Station 02: genuine permanent deletion is still reported as reclaimed', () => {
+  // The fix must not throw away real recovery. Built directly so the byte roles
+  // are unambiguous — fakeRun maps one number onto several byte fields.
+  const base = {
+    bytesActuallyRecovered: null,
+    bytesQuarantined: null,
+    bytesPermanentlyDeleted: null,
+  };
+  // A tool that only permanently deleted 900 bytes genuinely freed 900.
+  assert.equal(model.actualRecoveredBytes({ ...base, bytesPermanentlyDeleted: 900 }), 900);
+  // A tool whose aggregate covers 500 quarantined + 100 deleted freed only 100.
+  assert.equal(
+    model.actualRecoveredBytes({ ...base, bytesActuallyRecovered: 600, bytesQuarantined: 500, bytesPermanentlyDeleted: 100 }),
+    100
+  );
+  // Nothing measured at all is zero reclaimed, not an estimate.
+  assert.equal(model.actualRecoveredBytes(base), 0);
 });
 
 test('Station 02: state machine separates scan, clean, partial, and offline truth', () => {

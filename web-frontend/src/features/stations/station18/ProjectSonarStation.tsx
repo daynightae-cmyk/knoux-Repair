@@ -16,6 +16,7 @@ import WorkspaceFolderPicker from '../../../components/WorkspaceFolderPicker';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
 import { StationErrorBoundary, StationOfflineState, StationActiveRunBanner } from '../_shared';
 import { startExecution, pollUntilTerminal, requestConfirmedCancel, rememberRun, recallRun, forgetRun, outcomeLabelForRun, historyMessageForRun } from '../_shared/StationExecutionController';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
 import {
   type SonarSummary,
   SEVERITIES, severityLabel,
@@ -32,6 +33,8 @@ export interface ProjectSonarStationProps {
   onRetryBridge?: () => void;
   onToolStatus?: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
   onPrepareRun?: (tool: BridgeTool, mode: 'run' | 'analyze' | 'preview', options: ToolRunOptions) => void;
+  /** Cross-station hand-off: point at the station that owns a fact this one merely meets. */
+  onNavigateService?: (family: FamilyId, serviceId: ServiceId) => void;
 }
 
 type TabKey = 'workspace' | 'findings' | 'plan' | 'export' | 'tools' | 'history';

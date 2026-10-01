@@ -92,6 +92,8 @@ export interface BridgeTool {
   WhatIfSupported: boolean;
   Parameters: string[];
   RequiresConfirmation: boolean;
+  /** Exact high-friction phrase required for this registered tool, when applicable. */
+  ConfirmationPhrase?: string | null;
   ReportsEvidence: boolean;
   TestResult: string;
 }

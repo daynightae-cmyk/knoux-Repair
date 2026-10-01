@@ -89,10 +89,15 @@ test('Station 01: SYSTEM_REPAIR and above require confirmation evidence', () => 
   for (const id of ['SM02', 'SM05', 'SM07', 'SM09']) {
     assert.throws(() => bridge.createRun(id, 'run', {}), (err) => err.code === 'CONFIRMATION_REQUIRED', `${id} run must require confirmation`);
   }
-  const phrase = bridge.normalizeConfirmation({ confirmed: true, phrase: 'CONFIRM', confirmedAt: new Date().toISOString() });
-  // Evidence-carrying runs validate past the gate (spawn happens after; not exercised here).
-  bridge.validateExecutionRequest({ tool: bridge.manifest.get('SM02'), mode: 'run', confirmation: phrase });
-  bridge.validateExecutionRequest({ tool: bridge.manifest.get('SM09'), mode: 'run', confirmation: phrase });
+  const defaultPhrase = bridge.normalizeConfirmation({ confirmed: true, phrase: 'CONFIRM', confirmedAt: new Date().toISOString() });
+  const resetWindowsUpdatePhrase = bridge.normalizeConfirmation({ confirmed: true, phrase: 'RESET WINDOWS UPDATE', confirmedAt: new Date().toISOString() });
+  // Evidence-carrying runs validate past the gate only with the registered tool's exact phrase.
+  bridge.validateExecutionRequest({ tool: bridge.manifest.get('SM02'), mode: 'run', confirmation: defaultPhrase });
+  assert.throws(
+    () => bridge.validateExecutionRequest({ tool: bridge.manifest.get('SM09'), mode: 'run', confirmation: defaultPhrase }),
+    (err) => err.code === 'CONFIRMATION_PHRASE_MISMATCH',
+  );
+  bridge.validateExecutionRequest({ tool: bridge.manifest.get('SM09'), mode: 'run', confirmation: resetWindowsUpdatePhrase });
 });
 
 // ---------- deterministic domain rules (runtime) ----------
@@ -243,7 +248,9 @@ test('Station 01: UI is a selectable care workflow without fabricated scores or 
   for (const state of ['CONFIGURE', 'SCANNING', 'REVIEW', 'APPLYING', 'COMPLETE', 'PARTIAL']) assert.ok(station.includes(state), `station must model ${state}`);
   assert.match(station, /buildScanPlan\(selectedChecks/);
   assert.match(station, /selectedRepairs/);
-  assert.match(station, /confirmPhrase\.trim\(\)\.toUpperCase\(\) !== 'CONFIRM'/, 'repair execution must reject every phrase except normalized CONFIRM');
+  assert.match(station, /const repairConfirmationPhrase = useMemo/, 'repair plan must derive the exact registered phrases');
+  assert.match(station, /tool\?\.ConfirmationPhrase \|\| 'CONFIRM'/, 'each repair execution must receive its own phrase');
+  assert.match(station, /confirmPhrase\.trim\(\) !== repairConfirmationPhrase/, 'repair plan must reject a phrase that does not match the displayed plan');
   assert.equal(/maint-op-actions|Specialized operations/.test(station), false, 'raw tool-card launcher must not bypass the care workflow');
 });
 

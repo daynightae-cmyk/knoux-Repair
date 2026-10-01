@@ -47,10 +47,15 @@ import {
   type ToolRunOptions,
 } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
+import { StationDeepLink } from '../_shared';
+import '../../../components/workspace/station-deeplink.css';
 import WorkspaceFolderPicker from '../../../components/WorkspaceFolderPicker';
 import { DuplicateHeroVisual } from './DuplicateHeroVisual';
 import {
   computeGroupChronology,
+  detectHardLinks,
+  enforceKeeperInvariant,
   filterGroupsByQuery,
   formatBytes,
   formatLastModified,
@@ -62,6 +67,8 @@ interface DuplicateStationProps {
   lang: Lang;
   tools: BridgeTool[];
   onPrepareRun: (tool: BridgeTool, mode: 'run' | 'analyze' | 'preview', options: ToolRunOptions) => void;
+  /** Cross-station hand-off: point at the station that owns a fact this one merely meets. */
+  onNavigateService?: (family: FamilyId, serviceId: ServiceId) => void;
 }
 
 const TYPE_OPTIONS: Array<{ id: DuplicateFileType; ar: string; en: string }> = [
@@ -282,6 +289,7 @@ export default function DuplicateStation({
   lang,
   tools,
   onPrepareRun,
+  onNavigateService,
 }: DuplicateStationProps) {
   // Navigation tabs
   const [currentTab, setCurrentTab] = useState<DuplicateWorkflowTab>('scan');
@@ -303,6 +311,10 @@ export default function DuplicateStation({
   const [opHistory, setOpHistory] = useState<Array<Record<string, string | number | null>>>([]);
   const [vaultNotice, setVaultNotice] = useState('');
   const [vaultBusy, setVaultBusy] = useState(false);
+  // Review -> Confirm gates. A filesystem move is never one click.
+  const [engineConfirmOpen, setEngineConfirmOpen] = useState(false);
+  const [engineBusy, setEngineBusy] = useState(false);
+  const [restoreConfirmIds, setRestoreConfirmIds] = useState<string[] | null>(null);
 
   // Core scan parameters
   const [folderPath, setFolderPath] = useState('');
@@ -378,7 +390,14 @@ export default function DuplicateStation({
       });
       if (remainingFiles.length < 2) return null;
       const duplicateCopies = remainingFiles.length - 1;
-      const recoverableBytes = duplicateCopies * (remainingFiles[0]?.SizeBytes || 0);
+      // Hard-linked copies share storage. Reclaiming one frees nothing, so the
+      // reclaimable figure must apply the same multiplier the hard-link warning
+      // in the card already states — otherwise one card contradicts the other.
+      const hardLinked = detectHardLinks({ Files: remainingFiles });
+      const sizePerCopy = remainingFiles[0]?.SizeBytes || 0;
+      const recoverableBytes = Math.round(
+        duplicateCopies * sizePerCopy * (hardLinked.reclaimMultiplier === 0 ? 0 : 1)
+      );
       return {
         ...grp,
         Files: remainingFiles,
@@ -389,11 +408,19 @@ export default function DuplicateStation({
       };
     }).filter((g): g is NonNullable<typeof g> => g !== null);
 
+    // The totals on screen must be the engine's own measured totals. The client
+    // only removes groups the user excluded, so the headline figures are scaled
+    // by the same ratio rather than re-derived from a filtered array.
+    const keptRatio = next.Groups.length > 0 ? sanitizedGroups.length / next.Groups.length : 1;
     const sanitizedPreview: DuplicatePreview = {
       ...next,
-      GroupCount: sanitizedGroups.length,
-      DuplicateCopies: sanitizedGroups.reduce((acc, g) => acc + g.DuplicateCopies, 0),
-      RecoverableBytes: sanitizedGroups.reduce((acc, g) => acc + g.RecoverableBytes, 0),
+      GroupCount: next.Groups.length > 0 ? sanitizedGroups.length : next.GroupCount,
+      DuplicateCopies: next.Groups.length > 0
+        ? Math.round(next.DuplicateCopies * keptRatio)
+        : next.DuplicateCopies,
+      RecoverableBytes: next.Groups.length > 0
+        ? Math.round(next.RecoverableBytes * keptRatio)
+        : next.RecoverableBytes,
       Groups: sanitizedGroups,
     };
 
@@ -668,8 +695,12 @@ export default function DuplicateStation({
 
   const prepareQuarantine = () => {
     if (!preview || !selectedGroups.length) return;
+    // Both mutation paths go through Review -> Confirm -> Execute.
+    // The engine path used to fire api.duplicatesEngineQuarantine on the very
+    // first click of a button labelled "REVIEW CLEANUP", which is a filesystem
+    // move with no confirmation at all.
     if (engineSource) {
-      void quarantineViaEngine();
+      setEngineConfirmOpen(true);
       return;
     }
     if (!cleanupTool) return;
@@ -682,9 +713,12 @@ export default function DuplicateStation({
     });
   };
 
-  const quarantineViaEngine = async () => {
-    if (!preview || !selectedGroups.length) return;
-    setEngineNotice('');
+  /**
+   * Exact set of files an approved plan would move: every non-keeper copy in
+   * every selected group. The review dialog shows this list so the confirmation
+   * names the real scope rather than a group count.
+   */
+  const plannedEngineMove = useMemo(() => {
     const paths: string[] = [];
     const hashes: Record<string, string> = {};
     for (const group of selectedGroups) {
@@ -696,7 +730,40 @@ export default function DuplicateStation({
         }
       }
     }
+    return { paths, hashes };
+  }, [selectedGroups, keepPaths]);
+
+  const quarantineViaEngine = async () => {
+    if (!preview || !selectedGroups.length) return;
+    const paths: string[] = [];
+    const hashes: Record<string, string> = {};
+    // The UI promises "one original copy is always preserved per group".
+    // Enforce it here rather than trusting a bridge-side promise we cannot see.
+    for (const group of selectedGroups) {
+      const requested = group.Files.map((file) => file.Path);
+      const { safeQuarantinePaths, preservedKeeper } = enforceKeeperInvariant(
+        group.Files,
+        requested.filter((path) => path !== (keepPaths[group.Id] || group.KeepPath)),
+        keepPaths[group.Id] || group.KeepPath,
+      );
+      if (!preservedKeeper) {
+        setEngineNotice(
+          lang === 'ar'
+            ? `أُوقفت العملية: المجموعة ${group.Id} بلا نسخة أصلية يمكن حفظها.`
+            : `Stopped: group ${group.Id} has no original copy that can be preserved.`
+        );
+        setEngineConfirmOpen(false);
+        return;
+      }
+      for (const path of safeQuarantinePaths) {
+        paths.push(path);
+        hashes[path] = group.Hash;
+      }
+    }
     if (!paths.length) return;
+    setEngineConfirmOpen(false);
+    setEngineBusy(true);
+    setEngineNotice('');
     try {
       const result = await api.duplicatesEngineQuarantine(paths, hashes);
       setEngineNotice(
@@ -704,17 +771,33 @@ export default function DuplicateStation({
           ? `تم عزل ${result.movedCount} ملف بنجاح${result.failedCount ? ` وتعذر ${result.failedCount}` : ''}.`
           : `${result.movedCount} file(s) quarantined${result.failedCount ? `, ${result.failedCount} failed` : ''}.`
       );
+      setSelectedGroupIds(new Set());
       await loadQuarantine();
       await triggerScan();
     } catch {
       setEngineNotice(
         lang === 'ar' ? 'تعذر إتمام العزل عبر المحرك.' : 'Engine quarantine could not be completed.'
       );
+    } finally {
+      setEngineBusy(false);
     }
   };
 
   const restoreVaultEntries = async (ids: string[]) => {
     if (!ids.length || vaultBusy) return;
+    // Restoring writes files back to their original locations. "Restore all"
+    // used to post every quarantine id unconfirmed while the single-entry
+    // button was properly gated, so one path had safety and the other did not.
+    if (ids.length > 1) {
+      setRestoreConfirmIds(ids);
+      return;
+    }
+    await performRestore(ids);
+  };
+
+  const performRestore = async (ids: string[]) => {
+    if (!ids.length || vaultBusy) return;
+    setRestoreConfirmIds(null);
     setVaultBusy(true);
     setVaultNotice('');
     try {
@@ -840,6 +923,16 @@ export default function DuplicateStation({
                   ? 'يقوم نظام Windows بإدارة مكونات وملفات نظام مكررة بشكل مقصود (مثل ملفات WinSxS وملفات تعريف الحزم). لا يُسمح بإجراء تنظيف أو عزل مباشر لملفات النظام لحماية استقرار الجهاز.'
                   : 'Windows intentionally manages duplicate system components and binaries (e.g. WinSxS and side-by-side package manifests). To maintain OS stability, direct deletion of system duplicates is strictly restricted to read-only review.'}
               </p>
+              {/* A user who came here to clean system files needs the station
+                  that owns cleanup, not a notice that this one refuses. */}
+              <StationDeepLink
+                lang={lang}
+                onNavigateService={onNavigateService}
+                family="recovery"
+                serviceId="02-System-Cleanup"
+                destinationName={{ en: 'System Cleanup', ar: 'تنظيف النظام' }}
+                label={{ en: 'Open System Cleanup', ar: 'فتح تنظيف النظام' }}
+              />
             </div>
           </div>
         )}
@@ -1662,6 +1755,104 @@ export default function DuplicateStation({
           </div>
         )}
       </div>
+
+      {/* ── Review → Confirm: engine quarantine ──
+          The engine moves real files. The customer must see the exact scope and
+          confirm it before anything touches the filesystem. */}
+      {engineConfirmOpen && (
+        <div className="execution-dialog-backdrop" role="presentation" onMouseDown={() => !engineBusy && setEngineConfirmOpen(false)}>
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dup-engine-confirm-title"
+            className="execution-dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <h2 id="dup-engine-confirm-title">
+              {lang === 'ar' ? 'مراجعة العزل قبل التنفيذ' : 'Review quarantine before it runs'}
+            </h2>
+            <p>
+              {lang === 'ar'
+                ? `سيتم نقل ${plannedEngineMove.paths.length} ملفاً إلى منطقة العزل القابلة للاستعادة. لا يُحذف أي ملف، ويظل أصل واحد على الأقل محفوظاً في كل مجموعة.`
+                : `${plannedEngineMove.paths.length} file(s) will be MOVED into the restorable quarantine. Nothing is deleted, and one original copy is preserved in every group.`}
+            </p>
+            <ul style={{ maxHeight: 220, overflowY: 'auto', margin: '0.6rem 0', paddingInlineStart: '1.1rem' }}>
+              {plannedEngineMove.paths.slice(0, 40).map((path) => (
+                <li key={path} dir="ltr" style={{ fontSize: 11, color: '#94a3b8' }}>{path}</li>
+              ))}
+            </ul>
+            {plannedEngineMove.paths.length > 40 && (
+              <p style={{ fontSize: 11, color: '#64748b' }}>
+                {lang === 'ar'
+                  ? `و${plannedEngineMove.paths.length - 40} ملفاً آخر.`
+                  : `and ${plannedEngineMove.paths.length - 40} more.`}
+              </p>
+            )}
+            <div className="execution-dialog-actions">
+              <button
+                type="button"
+                className="execution-dialog-cancel"
+                onClick={() => setEngineConfirmOpen(false)}
+                disabled={engineBusy}
+              >
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                className="execution-dialog-confirm"
+                onClick={() => void quarantineViaEngine()}
+                disabled={engineBusy || plannedEngineMove.paths.length === 0}
+              >
+                {engineBusy
+                  ? (lang === 'ar' ? 'جارٍ التنفيذ…' : 'Executing…')
+                  : (lang === 'ar' ? 'تنفيذ العزل' : 'Quarantine these files')}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* ── Review → Confirm: restore all ── */}
+      {restoreConfirmIds && (
+        <div className="execution-dialog-backdrop" role="presentation" onMouseDown={() => !vaultBusy && setRestoreConfirmIds(null)}>
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dup-restore-confirm-title"
+            className="execution-dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <h2 id="dup-restore-confirm-title">
+              {lang === 'ar' ? 'مراجعة الاستعادة قبل التنفيذ' : 'Review restore before it runs'}
+            </h2>
+            <p>
+              {lang === 'ar'
+                ? `سيتم إعادة كتابة ${restoreConfirmIds.length} مدخلاً معزولاً إلى مواقعه الأصلية. إذا كان الملف موجوداً في الوجهة فسيُعاد تسميته، ولن يستبدل أي ملف موجود.`
+                : `${restoreConfirmIds.length} quarantined ${restoreConfirmIds.length === 1 ? 'entry' : 'entries'} will be written back to their original locations. A colliding file is renamed, never overwritten.`}
+            </p>
+            <div className="execution-dialog-actions">
+              <button
+                type="button"
+                className="execution-dialog-cancel"
+                onClick={() => setRestoreConfirmIds(null)}
+                disabled={vaultBusy}
+              >
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                className="execution-dialog-confirm"
+                onClick={() => void performRestore(restoreConfirmIds)}
+                disabled={vaultBusy}
+              >
+                {vaultBusy
+                  ? (lang === 'ar' ? 'جارٍ التنفيذ…' : 'Executing…')
+                  : (lang === 'ar' ? 'تنفيذ الاستعادة' : 'Restore these files')}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* Workspace Folder Picker Modal */}
       {pickerOpen && (

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Layers, Terminal, Puzzle, Database, RefreshCw, Play,
   CheckCircle2, AlertTriangle, XCircle, History, Search,
-  ArrowUpRight, Trash2, Archive, Package, ShieldCheck
+  ArrowUpRight, Trash2, Archive, Package, ShieldCheck, Info
 } from 'lucide-react';
 import type {
   BridgeRun, BridgeTool, ExecutionMode,
@@ -14,6 +14,7 @@ import type { Lang } from '../../../types';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
 import { StationErrorBoundary, StationOfflineState, StationActiveRunBanner } from '../_shared';
 import { startExecution, pollUntilTerminal, requestConfirmedCancel, rememberRun, recallRun, forgetRun, outcomeLabelForRun, historyMessageForRun } from '../_shared/StationExecutionController';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
 import {
   type SoftwareHubSummary, type SoftwareSignal,
   summarizeSoftwareHub, detectSoftwareSignals, filterSoftwareItems,
@@ -30,6 +31,8 @@ export interface SoftwareStationProps {
   bridgeOnline: boolean | null;
   onRetryBridge: () => void;
   onToolStatus: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
+  /** Cross-station hand-off: point at the station that owns a fact this one merely meets. */
+  onNavigateService?: (family: FamilyId, serviceId: ServiceId) => void;
 }
 
 type TabKey = 'overview' | 'runtimes' | 'catalog' | 'extensions' | 'caches' | 'winget' | 'actions' | 'history';
@@ -95,6 +98,8 @@ const COPY = {
     confirmText: 'Type UNINSTALL to confirm destructive removal:',
     noHistory: 'No tools executed in this session yet.',
     offlineNotice: 'Bridge server is currently offline. Start the KNOUX Bridge to query software telemetry.',
+    notCheckedYet: 'Not checked yet',
+    retry: 'Retry',
   },
   ar: {
     eyebrow: 'مركز بيئات البرامج وتطبيقات النظام',
@@ -147,6 +152,8 @@ const COPY = {
     packageIdPrompt: 'أدخل معرف الحزمة الدقيق (مثال: Git.Git):',
     confirmText: 'اكتب UNINSTALL لتأكيد الإزالة:',
     noHistory: 'لم يتم تشغيل أدوات في هذه الجلسة بعد.',
+    notCheckedYet: 'لم يتم الفحص بعد',
+    retry: 'إعادة المحاولة',
     offlineNotice: 'خادم الجسر غير متصل حالياً. شغل جسر KNOUX لاسترجاع بيانات البرامج.',
   }
 };
@@ -162,6 +169,11 @@ export default function SoftwareStation(props: SoftwareStationProps) {
   const [softwareData, setSoftwareData] = useState<SoftwarePreview | null>(null);
   const [advancedData, setAdvancedData] = useState<AdvancedSoftwarePreview | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [readFailures, setReadFailures] = useState<string[]>([]);
+  // Review -> Confirm for the one DESTRUCTIVE tool in this station.
+  const [pendingUninstallOpen, setPendingUninstallOpen] = useState(false);
+  const [uninstallPhrase, setUninstallPhrase] = useState('');
+  const [uninstallPackageId, setUninstallPackageId] = useState('');
 
   // Search and filter states
   const [catalogQuery, setCatalogQuery] = useState<string>('');
@@ -202,6 +214,7 @@ export default function SoftwareStation(props: SoftwareStationProps) {
     if (bridgeOnline === false) return;
     setLoading(true);
     setLastError(null);
+    setReadFailures([]);
     try {
       const [swRes, advRes] = await Promise.allSettled([
         api.softwarePreview(),
@@ -215,15 +228,28 @@ export default function SoftwareStation(props: SoftwareStationProps) {
         setAdvancedData(advRes.value.preview);
       }
 
-      if (swRes.status === 'rejected' && advRes.status === 'rejected') {
-        setLastError('Failed to fetch software environment telemetry from bridge.');
+      // A partial failure must be reported per source. Treating one rejection as
+      // success made summarizeSoftwareHub(null, advanced) print a confident
+      // "Total Installed 0" for a machine whose catalogue was never read.
+      const failures: string[] = [];
+      if (swRes.status === 'rejected') {
+        failures.push(lang === 'ar' ? 'تعذّرت قراءة جرد التطبيقات.' : 'The installed-software inventory could not be read.');
+      } else if (!swRes.value?.preview) {
+        failures.push(lang === 'ar' ? 'لم يُرجع الجرد أي بيانات.' : 'The installed-software inventory returned no data.');
       }
+      if (advRes.status === 'rejected') {
+        failures.push(lang === 'ar' ? 'تعذّرت قراءة تفاصيل البيئة.' : 'The environment detail read failed.');
+      } else if (!advRes.value?.preview) {
+        failures.push(lang === 'ar' ? 'لم تُرجع تفاصيل البيئة أي بيانات.' : 'The environment detail read returned no data.');
+      }
+      setReadFailures(failures);
+      if (failures.length > 0) setLastError(failures.join(' '));
     } catch (err: unknown) {
       setLastError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }, [bridgeOnline]);
+  }, [bridgeOnline, lang]);
 
   useEffect(() => {
     loadData();
@@ -461,7 +487,24 @@ export default function SoftwareStation(props: SoftwareStationProps) {
           <div className="station-banner warning">
             <AlertTriangle size={18} />
             <span>{lastError}</span>
+            <button type="button" onClick={() => void loadData()} className="ml-auto underline">
+              {t.retry}
+            </button>
           </div>
+        )}
+
+        {/* Per-source read failures. One of two parallel reads can fail while
+            the other succeeds; a single combined message hid which surface is
+            missing, and the KPI then printed a confident total of zero. */}
+        {readFailures.length > 0 && (
+          <ul className="station-banner warning" aria-label={lang === 'ar' ? 'مصادر لم تُقرأ' : 'Unread sources'}>
+            {readFailures.map(message => (
+              <li key={message} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Info size={14} />
+                <span>{message}</span>
+              </li>
+            ))}
+          </ul>
         )}
 
         {runError && (
@@ -801,6 +844,26 @@ export default function SoftwareStation(props: SoftwareStationProps) {
                     ))}
                   </tbody>
                 </table>
+                {/* A bare table body cannot tell "never read" from "read and
+                    found nothing" from "your filter matched nothing". */}
+                {!softwareData ? (
+                  <div className="empty-state-notice">
+                    <Info size={18} className="text-muted" />
+                    <span>{t.notCheckedYet}</span>
+                    <button type="button" onClick={() => void loadData()} className="ml-auto underline">
+                      {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+                    </button>
+                  </div>
+                ) : filteredCatalog.length === 0 ? (
+                  <div className="empty-state-notice">
+                    <Search size={18} className="text-muted" />
+                    <span>
+                      {softwareData.Items.length === 0
+                        ? (lang === 'ar' ? 'الجرد لم يُرجع أي تطبيق.' : 'The inventory returned no applications.')
+                        : (lang === 'ar' ? 'لا تطبيق يطابق بحثك ومرشّحاتك.' : 'No application matches your search and filters.')}
+                    </span>
+                  </div>
+                ) : null}
                 {filteredCatalog.length > 100 && (
                   <div className="table-truncation-footer">
                     <span>Showing top 100 of {filteredCatalog.length} matched applications.</span>
@@ -922,12 +985,10 @@ export default function SoftwareStation(props: SoftwareStationProps) {
                       type="button"
                       className="action-button-danger"
                       onClick={() => {
-                        const packageId = window.prompt(t.packageIdPrompt);
-                        if (packageId && packageId.trim()) {
-                          handleLaunchTool(relevantTools.find(x => x.ToolId === 'SW06')!, 'run', {
-                            customParameters: { PackageId: packageId.trim() }
-                          });
-                        }
+                        // A destructive uninstall must not start from an unstyled
+                        // native prompt. Open the station's own review surface,
+                        // which is where the typed UNINSTALL phrase is enforced.
+                        setPendingUninstallOpen(true);
                       }}
                     >
                       <Trash2 size={15} />
@@ -1038,6 +1099,74 @@ export default function SoftwareStation(props: SoftwareStationProps) {
             </div>
           )}
         </div>
+
+        {/* Review -> Confirm for the destructive uninstall. The copy already
+            declared a typed UNINSTALL phrase; this is where it is enforced. */}
+        {pendingUninstallOpen && (
+          <div className="execution-dialog-backdrop" role="presentation" onMouseDown={() => setPendingUninstallOpen(false)}>
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="sw06-title"
+              className="execution-dialog"
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <h2 id="sw06-title">{t.uninstallAction}</h2>
+              <p>
+                {lang === 'ar'
+                  ? 'إزالة حزمة عبر مدير حزم ويندوز. لا يمكن التراجع دون إعادة التثبيت.'
+                  : 'This removes a package through the Windows Package Manager. It cannot be undone without reinstalling.'}
+              </p>
+              <label className="execution-dialog-field">
+                <span>{t.packageIdPrompt}</span>
+                <input
+                  value={uninstallPackageId}
+                  dir="ltr"
+                  onChange={(event) => setUninstallPackageId(event.target.value)}
+                  placeholder="Git.Git"
+                  autoFocus
+                />
+              </label>
+              <label className="execution-dialog-field">
+                <span>{t.confirmText}</span>
+                <input
+                  value={uninstallPhrase}
+                  dir="ltr"
+                  onChange={(event) => setUninstallPhrase(event.target.value)}
+                  placeholder="UNINSTALL"
+                />
+              </label>
+              <div className="execution-dialog-actions">
+                <button
+                  type="button"
+                  className="execution-dialog-cancel"
+                  onClick={() => { setPendingUninstallOpen(false); setUninstallPhrase(''); setUninstallPackageId(''); }}
+                >
+                  {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  className="execution-dialog-confirm"
+                  disabled={
+                    uninstallPhrase.trim().toUpperCase() !== 'UNINSTALL'
+                    || uninstallPackageId.trim() === ''
+                  }
+                  onClick={() => {
+                    const tool = relevantTools.find(x => x.ToolId === 'SW06');
+                    if (!tool) return;
+                    const packageId = uninstallPackageId.trim();
+                    setPendingUninstallOpen(false);
+                    setUninstallPhrase('');
+                    setUninstallPackageId('');
+                    handleLaunchTool(tool, 'run', { customParameters: { PackageId: packageId } });
+                  }}
+                >
+                  {t.uninstallAction}
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
 
         {/* Execution Confirmation Modal */}
         {pendingRun && (

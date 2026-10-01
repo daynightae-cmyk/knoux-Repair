@@ -12,6 +12,12 @@ import type {
   BridgeTool,
   KnouxRunResult,
 } from '../../../lib/api';
+import {
+  outcomeFromEnvelope,
+  readEnvelopeNumber,
+  readEnvelopeText,
+  type EnvelopeOutcome,
+} from '../_shared/executionSemantics.ts';
 
 export type RecoveryReadinessState = 'READY' | 'PARTIAL_COVERAGE' | 'UNPROTECTED' | 'INCONCLUSIVE';
 
@@ -265,15 +271,29 @@ export function stationTools(tools: BridgeTool[]): BridgeTool[] {
 }
 
 /**
- * Maps execution result to standardized history status
+ * Maps execution result to standardized history status.
+ *
+ * Tolerant of both the canonical lowercase envelope and the legacy
+ * PascalCase aliases: a canonical result used to read `Status === undefined`
+ * and `ExitCode === undefined`, so `ExitCode !== 0` logged a SUCCESSFUL run as
+ * FAILED. A status the envelope did not report is INCONCLUSIVE, never a guess.
  */
 export function outcomeFromRun(
   result: KnouxRunResult | null | undefined
-): 'SUCCESS' | 'WARNING' | 'FAILED' | 'CANCELLED' | 'INCONCLUSIVE' {
-  if (!result) return 'INCONCLUSIVE';
-  if (result.Status === 'Cancelled') return 'CANCELLED';
-  if (result.Status === 'Success') return 'SUCCESS';
-  if (result.Status === 'Warning') return 'WARNING';
-  if (result.Status === 'Failed' || result.ExitCode !== 0) return 'FAILED';
-  return 'INCONCLUSIVE';
+): EnvelopeOutcome {
+  return outcomeFromEnvelope(result);
+}
+
+/** Count reported by a completed run, or null when the envelope omitted it. */
+export function itemsProcessedFromResult(
+  result: KnouxRunResult | null | undefined
+): number | null {
+  return readEnvelopeNumber(result, 'itemsProcessed');
+}
+
+/** Verification text the tool actually reported, or null when it reported none. */
+export function verificationFromResult(
+  result: KnouxRunResult | null | undefined
+): string | null {
+  return readEnvelopeText(result, 'verificationResult');
 }

@@ -1,0 +1,49 @@
+/* Cross-station hand-off.
+   A station that meets a fact owned by another station points at it instead of
+   duplicating the engine. The link reads as an action, and when no navigation
+   is wired it degrades to text rather than a dead button. */
+
+.knoux-deep-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 8px;
+  background: rgba(56, 189, 248, 0.08);
+  color: #7dd3fc;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.knoux-deep-link:hover {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(56, 189, 248, 0.7);
+}
+
+.knoux-deep-link svg {
+  flex: 0 0 auto;
+}
+
+[dir='rtl'] .knoux-deep-link svg {
+  transform: rotate(180deg);
+}
+
+.knoux-deep-link--static {
+  border-color: rgba(100, 116, 139, 0.35);
+  background: rgba(15, 23, 42, 0.4);
+  color: #94a3b8;
+  cursor: default;
+}
+
+.knoux-deep-link--static:hover {
+  background: rgba(15, 23, 42, 0.4);
+  border-color: rgba(100, 116, 139, 0.35);
+}
+
+.knoux-deep-link__dest {
+  color: #64748b;
+  font-weight: 500;
+}

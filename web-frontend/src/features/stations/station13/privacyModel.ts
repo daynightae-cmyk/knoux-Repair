@@ -12,6 +12,7 @@ import type {
   PrivacyPreview,
   PrivacyPreviewSetting,
 } from '../../../lib/api';
+import { outcomeFromEnvelope, type EnvelopeOutcome } from '../_shared/executionSemantics.ts';
 
 export type PrivacyStance = 'HARDENED' | 'BALANCED' | 'PERMISSIVE' | 'INCONCLUSIVE';
 
@@ -195,14 +196,55 @@ export function detectPrivacySignals(
 }
 
 /**
- * Filters settings by category
+ * Every distinct category present in the measured settings, in a stable order.
+ *
+ * The station used four hard-coded category literals. A setting whose backend
+ * `Category` string differed - a new category, a plural, extra whitespace -
+ * matched nothing and disappeared from every tab with no trace. Deriving the
+ * list from the data means nothing read can be hidden by a string mismatch.
+ *
+ * Normalisation is the same one `filterSettingsByCategory` already uses.
+ * Without it the tab list and the filter disagreed: two settings whose
+ * categories differed only by case or trailing space appeared as two
+ * near-identical tabs that each showed BOTH settings, so the same control was
+ * listed twice and the user had to guess which tab was real.
+ */
+export function privacyCategories(settings: PrivacyPreviewSetting[]): string[] {
+  // Key is the normalised comparison form, value is a cleaned display label.
+  const byKey = new Map<string, string>();
+  for (const setting of settings) {
+    const raw = String(setting.Category ?? '').trim();
+    if (raw === '') continue;
+    const key = raw.toLowerCase();
+    if (byKey.has(key)) continue;
+    byKey.set(key, titleCaseCategory(raw));
+  }
+  return [...byKey.values()].sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * Turn a backend category string into something a person would accept as a tab
+ * label: collapsed whitespace, and no trailing space left over from the source.
+ */
+function titleCaseCategory(raw: string): string {
+  const collapsed = raw.replace(/\s+/g, ' ').trim();
+  // Preserve an all-caps registry token rather than turning "UAC" into "Uac".
+  if (collapsed === collapsed.toUpperCase() && /[A-Z]/.test(collapsed)) return collapsed;
+  return collapsed.charAt(0).toUpperCase() + collapsed.slice(1);
+}
+
+/**
+ * Filter settings by one of the categories actually present in the data.
+ * Matching is whitespace-tolerant; an unknown category yields an empty list
+ * rather than silently matching nothing while appearing to have matched some.
  */
 export function filterSettingsByCategory(
   settings: PrivacyPreviewSetting[],
   category: string
 ): PrivacyPreviewSetting[] {
   if (!category || category === 'ALL') return settings;
-  return settings.filter((s) => s.Category.toLowerCase() === category.toLowerCase());
+  const wanted = category.trim().toLowerCase();
+  return settings.filter((s) => String(s.Category ?? '').trim().toLowerCase() === wanted);
 }
 
 /**
@@ -219,13 +261,6 @@ export function stationTools(allTools: BridgeTool[]): BridgeTool[] {
  */
 export function outcomeFromRun(
   result: KnouxRunResult | null | undefined
-): 'SUCCESS' | 'WARNING' | 'FAILED' | 'INCONCLUSIVE' {
-  if (!result) return 'INCONCLUSIVE';
-  const status = (result.status || result.Status || '').toUpperCase();
-  if (status === 'COMPLETED' || status === 'SUCCESS' || status === 'OK') {
-    return result.exitCode === 0 ? 'SUCCESS' : 'WARNING';
-  }
-  if (status === 'FAILED' || status === 'ERROR') return 'FAILED';
-  if (status === 'CANCELLED') return 'INCONCLUSIVE';
-  return result.exitCode === 0 ? 'SUCCESS' : 'WARNING';
+): EnvelopeOutcome {
+  return outcomeFromEnvelope(result);
 }

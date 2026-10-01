@@ -97,7 +97,12 @@ test('Phase 00: bridge validates confirmation evidence against the risk matrix',
     () => validateExecutionRequest({ tool: destructive, mode: 'run', confirmation: normalizeConfirmation({ confirmed: true }) }),
     (err) => err.code === 'CONFIRMATION_PHRASE_REQUIRED',
   );
-  // Phrase evidence passes.
+  // A non-empty but wrong phrase is still rejected.
+  assert.throws(
+    () => validateExecutionRequest({ tool: destructive, mode: 'run', confirmation: normalizeConfirmation({ confirmed: true, phrase: 'WRONG' }) }),
+    (err) => err.code === 'CONFIRMATION_PHRASE_MISMATCH',
+  );
+  // The default phrase passes when the tool has no stronger script-owned phrase.
   validateExecutionRequest({
     tool: destructive, mode: 'run', confirmation: normalizeConfirmation({ confirmed: true, phrase: 'CONFIRM' }),
   });
@@ -127,6 +132,41 @@ test('Phase 00: bridge registry exposes 158 runtime tools across 18 categories',
   assert.equal(bridge.menuIndex.size, 158, 'menu index must hold 158 entries');
   const categories = new Set([...bridge.manifest.values()].map((tool) => tool.Category));
   assert.equal(categories.size, 18, 'runtime registry must span 18 categories');
+});
+
+test('Phase 00: action-specific destructive phrases are discoverable and enforced end to end', () => {
+  const phrasePattern = /Confirm-KnouxDestructiveAction\s+-Phrase\s+'([^']+)'/g;
+  let gatedTools = 0;
+  for (const tool of bridge.manifest.values()) {
+    const source = readRepo(tool.ScriptPath);
+    if (!source.includes('Confirm-KnouxDestructiveAction')) continue;
+    const phrases = [...source.matchAll(phrasePattern)].map((match) => match[1]);
+    assert.equal(phrases.length, 1, `${tool.ToolId} must declare exactly one static destructive phrase`);
+    const expected = phrases[0];
+    gatedTools += 1;
+    assert.throws(
+      () => bridge.validateExecutionRequest({
+        tool,
+        mode: 'run',
+        confirmation: bridge.normalizeConfirmation({ confirmed: true, phrase: 'CONFIRM' }),
+      }),
+      (err) => expected === 'CONFIRM' || err.code === 'CONFIRMATION_PHRASE_MISMATCH',
+      `${tool.ToolId} must reject a mismatched generic phrase`,
+    );
+    bridge.validateExecutionRequest({
+      tool,
+      mode: 'run',
+      confirmation: bridge.normalizeConfirmation({ confirmed: true, phrase: expected }),
+    });
+  }
+  assert.equal(gatedTools, 14, 'all current script-owned destructive phrases must be covered');
+
+  const bridgeSource = readWeb('server/bridge-core.mjs');
+  assert.match(bridgeSource, /ConfirmationPhrase:\s*t\.ConfirmationPhrase \|\| null/, 'tool API must publish the exact phrase metadata');
+  const dialog = readWeb('src/components/ExecutionConfirmDialog.tsx');
+  assert.match(dialog, /tool\.ConfirmationPhrase \|\| 'CONFIRM'/, 'dialog must render the bridge-owned phrase');
+  const controller = readWeb('src/features/stations/_shared/StationExecutionController.ts');
+  assert.match(controller, /tool\.ConfirmationPhrase \|\| TYPED_PHRASE/, 'execution gate must validate the same phrase');
 });
 
 test('Phase 00: bridge rejects unknown ToolId, arbitrary paths, and unsupported modes', () => {

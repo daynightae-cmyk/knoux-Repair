@@ -1682,3 +1682,27 @@
     padding: 0.45rem 0.65rem;
   }
 }
+
+/* Maintenance health verdict. The station already derived a categorical answer
+   with a documented minimum-evidence rule; it just never reached the screen.
+   Colour encodes the verdict, and the sentence says which checks backed it. */
+.care-runtime-strip .is-checking svg,.care-runtime-strip .is-checking b{color:var(--care-amber)}
+
+.care-health-verdict{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;margin:10px 0 0;padding:10px 12px;border:1px solid rgba(130,151,205,.12);border-inline-start:3px solid var(--care-cyan);border-radius:11px;background:rgba(255,255,255,.02)}
+.care-health-verdict>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.care-health-verdict p{margin:0;color:#6f819c;font-size:6px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
+.care-health-verdict strong{color:#e6eefb;font-size:11px;line-height:1.25}
+.care-health-verdict small{color:#8b9ab2;font-size:7.5px;line-height:1.5}
+.care-health-verdict .care-health-coverage{grid-column:1/-1;color:#8b9ab2;font-size:7.5px;font-weight:500;letter-spacing:0;text-transform:none}
+.care-health-verdict.is-healthy{border-inline-start-color:var(--care-green)}
+.care-health-verdict.is-healthy strong{color:var(--care-green)}
+.care-health-verdict.is-attention,.care-health-verdict.is-repair-recommended{border-inline-start-color:var(--care-amber)}
+.care-health-verdict.is-attention strong,.care-health-verdict.is-repair-recommended strong{color:var(--care-amber)}
+.care-health-verdict.is-repair-in-progress,.care-health-verdict.is-restart-required,.care-health-verdict.is-permission-required{border-inline-start-color:#c4a6ff}
+.care-health-verdict.is-repair-in-progress strong,.care-health-verdict.is-restart-required strong,.care-health-verdict.is-permission-required strong{color:#c4a6ff}
+.care-health-verdict.is-engine-offline{border-inline-start-color:var(--care-red)}
+.care-health-verdict.is-engine-offline strong{color:var(--care-red)}
+.care-health-verdict.is-not-scanned,.care-health-verdict.is-checking,.care-health-verdict.is-inconclusive,.care-health-verdict.is-partially-checked{border-inline-start-color:#74839d}
+.care-health-verdict.is-not-scanned strong,.care-health-verdict.is-checking strong,.care-health-verdict.is-inconclusive strong,.care-health-verdict.is-partially-checked strong{color:#b3c0d4}
+.care-health-verdict .care-permission-callout{grid-column:1/-1;justify-self:start}
+@media(max-width:820px){.care-health-verdict{grid-template-columns:1fr}}

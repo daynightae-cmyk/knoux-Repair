@@ -168,7 +168,14 @@ test('Station 11: recovery actions preserve eligibility and unknown evidence', (
   assert.match(stationSrc, /launchAction\('BR02', 'run'\)/);
   assert.match(stationSrc, /launchAction\('BR03', 'analyze'\)/);
   assert.match(stationSrc, /Unverified recovery vectors remain unverified/);
-  assert.match(stationSrc, /itemsProcessed: terminalResult\?\.ItemsProcessed \?\? null/);
-  assert.match(stationSrc, /grid w-full grid-cols-2 sm:grid-cols-4/);
+  // The count must come from a reader tolerant of both the canonical lowercase
+  // envelope and the legacy PascalCase aliases. Reading only `Status` and
+  // `ExitCode` made `ExitCode !== 0` true for a canonical result, so a
+  // SUCCESSFUL recovery was logged as FAILED.
+  assert.match(stationSrc, /itemsProcessed: readEnvelopeNumber\(terminalResult, 'itemsProcessed'\)/);
+  assert.match(stationSrc, /summary: readEnvelopeText\(terminalResult, 'errorMessage'\)/);
+  // Seven tabs in a fixed 4-column grid left one permanently empty cell at
+  // every width, in every language.
+  assert.match(stationSrc, /gridTemplateColumns: 'repeat\(auto-fit, minmax\(130px, 1fr\)\)'/);
   assert.doesNotMatch(stationSrc, /itemsProcessed: completedRun\.result\?\.ItemsProcessed \?\? 1/);
 });

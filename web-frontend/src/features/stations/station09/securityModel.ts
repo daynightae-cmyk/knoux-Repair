@@ -6,6 +6,11 @@
  */
 
 import type { BridgeTool, KnouxRunResult } from '../../../lib/api';
+import {
+  outcomeFromEnvelope,
+  readEnvelopeNumber,
+  type EnvelopeOutcome,
+} from '../_shared/executionSemantics.ts';
 
 export type SecurityPostureStatus = 'SECURE' | 'PROTECTED_WITH_WARNINGS' | 'EXPOSED' | 'UNKNOWN';
 
@@ -79,7 +84,30 @@ export function isAllowedSecurityAction(toolId: string): boolean {
 }
 
 /**
- * Derives categorical security posture transparently without fake scoring
+ * Which protection controls were actually measured.
+ *
+ * `deriveSecurityPosture` used to require `uacEnabled === true` for SECURE, and
+ * SystemSnapshot does not expose EnableLUA — so the best state was structurally
+ * unreachable. Worse, it also returned PROTECTED_WITH_WARNINGS whenever any
+ * observation was merely absent, making "we did not look" and "we looked and
+ * found something wrong" render identically.
+ */
+export interface SecurityCoverage {
+  defenderRealtime: boolean;
+  defenderRunning: boolean;
+  firewall: boolean;
+  uac: boolean;
+  measuredCount: number;
+  totalCount: number;
+  unmeasured: string[];
+}
+
+/**
+ * Derives categorical security posture transparently without fake scoring.
+ *
+ * Only controls that were actually measured can lower the posture. An
+ * unmeasured control is reported through `securityCoverage` instead, so the UI
+ * can say "UAC state not verified" rather than claiming either health or fault.
  */
 export function deriveSecurityPosture(
   defenderRealtime: boolean | null | undefined,
@@ -92,17 +120,44 @@ export function deriveSecurityPosture(
     return 'UNKNOWN';
   }
 
-  // Any critical defense turned off constitutes an EXPOSED posture
+  // Any critical defense measured as turned off constitutes an EXPOSED posture.
   if (defenderRealtime === false || defenderRunning === false || firewallAllEnabled === false || uacEnabled === false) {
     return 'EXPOSED';
   }
 
-  // All confirmed active
-  if (defenderRealtime === true && defenderRunning === true && firewallAllEnabled === true && uacEnabled === true) {
+  // Every control that COULD be measured is measured and active.
+  const measured = [defenderRealtime, defenderRunning, firewallAllEnabled, uacEnabled]
+    .filter(value => value !== null && value !== undefined);
+  if (measured.length > 0 && measured.every(value => value === true)) {
     return 'SECURE';
   }
 
   return 'PROTECTED_WITH_WARNINGS';
+}
+
+/** Coverage report that explains exactly which controls backed a posture verdict. */
+export function securityCoverage(
+  defenderRealtime: boolean | null | undefined,
+  defenderRunning: boolean | null | undefined,
+  firewallAllEnabled: boolean | null | undefined,
+  uacEnabled: boolean | null | undefined
+): SecurityCoverage {
+  const pairs: Array<{ id: string; value: boolean | null | undefined }> = [
+    { id: 'Defender real-time protection', value: defenderRealtime },
+    { id: 'Defender service', value: defenderRunning },
+    { id: 'Firewall', value: firewallAllEnabled },
+    { id: 'User Account Control', value: uacEnabled },
+  ];
+  const unmeasured = pairs.filter(p => p.value === null || p.value === undefined).map(p => p.id);
+  return {
+    defenderRealtime: defenderRealtime === true,
+    defenderRunning: defenderRunning === true,
+    firewall: firewallAllEnabled === true,
+    uac: uacEnabled === true,
+    measuredCount: pairs.length - unmeasured.length,
+    totalCount: pairs.length,
+    unmeasured,
+  };
 }
 
 /**
@@ -263,11 +318,13 @@ export function stationTools(tools: BridgeTool[]): BridgeTool[] {
  */
 export function outcomeFromRun(
   result: KnouxRunResult | null | undefined
-): 'SUCCESS' | 'WARNING' | 'FAILED' | 'CANCELLED' | 'INCONCLUSIVE' {
-  if (!result) return 'INCONCLUSIVE';
-  if (result.Status === 'Cancelled') return 'CANCELLED';
-  if (result.Status === 'Success') return 'SUCCESS';
-  if (result.Status === 'Warning') return 'WARNING';
-  if (result.Status === 'Failed' || result.ExitCode !== 0) return 'FAILED';
-  return 'INCONCLUSIVE';
+): EnvelopeOutcome {
+  return outcomeFromEnvelope(result);
+}
+
+/** Count reported by a completed run, or null when the envelope omitted it. */
+export function itemsProcessedFromResult(
+  result: KnouxRunResult | null | undefined
+): number | null {
+  return readEnvelopeNumber(result, 'itemsProcessed');
 }

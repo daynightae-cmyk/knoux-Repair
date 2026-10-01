@@ -107,6 +107,191 @@ export async function pollUntilTerminalRun(
   }
 }
 
+/* ------------------------------------------------------------------------- *
+ * Result envelope reader
+ *
+ * The bridge emits a canonical lowercase envelope (lib/api.ts KnouxRunResult)
+ * but reports written by older tools carry PascalCase aliases for the same
+ * fields. Stations each grew their own reader and four of them read only one
+ * casing, which turned a successful run into FAILED or WARNING. This is the
+ * single tolerant reader every station must use.
+ *
+ * Hard rules:
+ * - An unmeasured count is null, never 0.
+ * - A status is only read when the envelope actually carries one.
+ * - exitCode alone decides an outcome only when a status is absent.
+ * - CANCELLED is never collapsed into INCONCLUSIVE, and never into FAILED.
+ * ------------------------------------------------------------------------- */
+
+export type EnvelopeOutcome = 'SUCCESS' | 'WARNING' | 'FAILED' | 'CANCELLED' | 'INCONCLUSIVE';
+
+/** Anything a result envelope can look like, canonical or legacy. */
+export type ResultEnvelopeLike = object | null | undefined;
+
+function asRecord(value: ResultEnvelopeLike): Record<string, unknown> | null {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+}
+
+/**
+ * Read one logical field, preferring the canonical lowercase key and falling
+ * back to its legacy PascalCase alias. Returns undefined when neither exists,
+ * so callers can distinguish "absent" from "present but zero/empty".
+ */
+export function readEnvelopeField(result: ResultEnvelopeLike, canonical: string): unknown {
+  const record = asRecord(result);
+  if (!record) return undefined;
+  const canonicalValue = record[canonical];
+  if (canonicalValue !== undefined && canonicalValue !== null) return canonicalValue;
+  const legacy = record[canonical.charAt(0).toUpperCase() + canonical.slice(1)];
+  return legacy === undefined ? undefined : legacy;
+}
+
+/** Numeric field, or null when the envelope did not report it. Never 0-as-default. */
+export function readEnvelopeNumber(result: ResultEnvelopeLike, canonical: string): number | null {
+  const value = readEnvelopeField(result, canonical);
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+/** Boolean field, or null when the envelope did not report it. */
+export function readEnvelopeBoolean(result: ResultEnvelopeLike, canonical: string): boolean | null {
+  const value = readEnvelopeField(result, canonical);
+  if (typeof value === 'boolean') return value;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return null;
+}
+
+/** Text field, or null when absent or blank. */
+export function readEnvelopeText(result: ResultEnvelopeLike, canonical: string): string | null {
+  const value = readEnvelopeField(result, canonical);
+  if (typeof value === 'string' && value.trim() !== '') return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  return null;
+}
+
+const SUCCESS_WORDS = new Set(['SUCCESS', 'SUCCEEDED', 'COMPLETED', 'OK', 'DONE', 'FINISHED']);
+const FAILURE_WORDS = new Set(['FAILED', 'FAIL', 'ERROR', 'ERRORED']);
+const WARNING_WORDS = new Set(['WARNING', 'WARN', 'PARTIAL', 'PARTIALLY_COMPLETED', 'COMPLETED_WITH_WARNINGS']);
+const CANCEL_WORDS = new Set(['CANCELLED', 'CANCELED', 'ABORTED', 'TERMINATED', 'STOPPED']);
+const INCONCLUSIVE_WORDS = new Set(['INCONCLUSIVE', 'UNKNOWN', 'PENDING', 'RUNNING', 'STARTED', 'SKIPPED']);
+
+/** Map one raw status word onto the station outcome vocabulary. null = unusable. */
+export function normalizeEnvelopeStatus(raw: unknown): EnvelopeOutcome | null {
+  const word = String(raw ?? '').trim().toUpperCase();
+  if (word === '') return null;
+  if (CANCEL_WORDS.has(word)) return 'CANCELLED';
+  if (FAILURE_WORDS.has(word)) return 'FAILED';
+  if (WARNING_WORDS.has(word)) return 'WARNING';
+  if (SUCCESS_WORDS.has(word)) return 'SUCCESS';
+  if (INCONCLUSIVE_WORDS.has(word)) return 'INCONCLUSIVE';
+  return null;
+}
+
+/**
+ * Terminal outcome for a result envelope, tolerant of both casings.
+ *
+ * Precedence: an explicit status always wins. Only when the envelope carries
+ * no usable status does a reported exit code decide. When neither is present
+ * the outcome is INCONCLUSIVE — a missing field never becomes a success.
+ */
+export function outcomeFromEnvelope(result: ResultEnvelopeLike): EnvelopeOutcome {
+  const explicit = normalizeEnvelopeStatus(readEnvelopeField(result, 'status'));
+  if (explicit) return explicit;
+  const exitCode = readEnvelopeNumber(result, 'exitCode');
+  if (exitCode === null) return 'INCONCLUSIVE';
+  if (exitCode === 0) return 'SUCCESS';
+  return 'FAILED';
+}
+
+/**
+ * Outcome for a bridge run, preferring the run-level status the bridge
+ * already normalized. A run that never reached a terminal state is
+ * INCONCLUSIVE regardless of what its result payload claims.
+ */
+export function outcomeFromRunEnvelope(
+  run: { status?: string | null; result?: ResultEnvelopeLike } | null | undefined
+): EnvelopeOutcome {
+  if (!run) return 'INCONCLUSIVE';
+  const runStatus = String(run.status ?? '').trim().toLowerCase();
+  if (runStatus === '') return 'INCONCLUSIVE';
+  if (runStatus === 'running' || runStatus === 'inconclusive') return 'INCONCLUSIVE';
+  if (runStatus === 'cancelled') return 'CANCELLED';
+
+  const envelopeOutcome = outcomeFromEnvelope(run.result);
+
+  if (runStatus === 'success') {
+    // bridge-core intentionally represents a structured Warning as process-level
+    // success. Preserve the more precise envelope outcome when one exists.
+    if (run.result && envelopeOutcome !== 'SUCCESS') return envelopeOutcome;
+    return 'SUCCESS';
+  }
+
+  if (runStatus === 'error') {
+    // A failed process/run can never be promoted back to SUCCESS merely because
+    // a stale or contradictory result envelope says "Success".
+    if (envelopeOutcome === 'CANCELLED') return 'CANCELLED';
+    if (envelopeOutcome === 'INCONCLUSIVE') return 'INCONCLUSIVE';
+    return 'FAILED';
+  }
+
+  return 'INCONCLUSIVE';
+}
+
+/* ------------------------------------------------------------------------- *
+ * Shared history row
+ *
+ * Stations 06, 07 and 08 each kept a private copy of the same builder. All
+ * three synthesised SUCCESS from a bare `exitCode === 0` and wrote a fabricated
+ * `0` into itemsProcessed. One builder, one honest contract.
+ * ------------------------------------------------------------------------- */
+
+export interface StationHistoryRow {
+  id: string;
+  toolId: string;
+  toolName: string;
+  /** Full ISO timestamp. Time-of-day only makes entries ambiguous across days. */
+  timestamp: string;
+  status: EnvelopeOutcome;
+  /** null when the envelope did not report a count. Never 0-as-default. */
+  itemsProcessed: number | null;
+  summary: string;
+}
+
+export interface BuildHistoryRowInput {
+  toolId: string;
+  toolName: string;
+  result?: ResultEnvelopeLike;
+  /** Lets each station say what "succeeded" meant without duplicating the rest. */
+  successSummary: string;
+  failureSummary: string;
+  /** Injected so history ids are unique and reproducible in tests. */
+  now?: number;
+}
+
+/**
+ * Build one honest history row. The summary is the tool's own error message
+ * when it reported one, so a warning never reads as a clean success.
+ */
+export function buildStationHistoryRow(input: BuildHistoryRowInput): StationHistoryRow {
+  const status = outcomeFromEnvelope(input.result);
+  const errorMessage = readEnvelopeText(input.result, 'errorMessage');
+  return {
+    id: `${input.toolId}-${input.now ?? Date.now()}`,
+    toolId: input.toolId,
+    toolName: input.toolName,
+    timestamp: new Date(input.now ?? Date.now()).toISOString(),
+    status,
+    itemsProcessed: readEnvelopeNumber(input.result, 'itemsProcessed'),
+    summary:
+      errorMessage ?? (status === 'SUCCESS' ? input.successSummary : input.failureSummary),
+  };
+}
+
 export interface ConfirmedCancelOptions {
   intervalMs?: number;
   /** Time to wait for backend confirmation. Defaults to 30s. */

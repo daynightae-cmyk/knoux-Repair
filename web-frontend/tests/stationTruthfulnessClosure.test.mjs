@@ -26,9 +26,15 @@ test('Station 01 never reports a clean scan before a check reported back', () =>
   assert.match(s01, /لم يُشخَّص شيء بعد/);
 });
 
-test('Station 02 and 03 previews are never logged as successful tool runs', () => {
-  assert.doesNotMatch(s02, /kind: 'scan', toolId: 'SC11', mode: 'run', status: 'SUCCESS'/);
-  assert.match(s02, /kind: 'scan', toolId: 'SC11', mode: 'run', status: preview \? 'INCONCLUSIVE' : 'ERROR'/);
+test('Station 02 and 03 record a completed preview scan as a successful measurement', () => {
+  // A scan that returned a real snapshot is a SUCCESSFUL measurement. It used to
+  // read the pre-scan state variable, so every successful scan was logged
+  // INCONCLUSIVE and the audit trail never distinguished "we looked and found
+  // nothing" from "we never finished looking".
+  assert.doesNotMatch(s02, /kind: 'scan', toolId: 'SC11', mode: 'run', status: preview \? 'INCONCLUSIVE' : 'ERROR'/);
+  assert.match(s02, /kind: 'scan', toolId: 'SC11', mode: 'run', status: 'SUCCESS'/);
+  // A scan that failed still has to be a failure.
+  assert.match(s02, /status: 'ERROR'/);
   assert.doesNotMatch(s03, /kind: 'diagnose', toolId: 'NI11', mode: 'run', status: 'SUCCESS'/);
   assert.match(s03, /status: preview\?\.Adapters\?\.length \? 'INCONCLUSIVE' : 'ERROR'/);
 });
@@ -60,23 +66,43 @@ test('Station 06 model fabricates no drive identity, file system, or zero size',
 });
 
 test('Station 13 gates every metric and the DNS flush behind a real audit', () => {
-  assert.match(s13, /const auditMeasured = summary\.stance !== 'INCONCLUSIVE'/);
+  // "Were settings read" is the question, not "what stance did they produce".
+  // Deriving the gate from the verdict made three of four cards print
+  // "Not checked yet" on a fully-read preview whose stance was INCONCLUSIVE.
+  assert.match(s13, /const auditMeasured = Boolean\(preview && \(preview\.Settings\?\.length \?\? 0\) > 0\)/);
+  assert.doesNotMatch(s13, /const auditMeasured = summary\.stance !== 'INCONCLUSIVE'/);
   assert.match(s13, /\{auditMeasured \? summary\.restrictedCount : t\.notCheckedYet\}/);
   assert.match(s13, /\{auditMeasured \? summary\.allowedCount : t\.notCheckedYet\}/);
   assert.match(s13, /\{auditMeasured \? summary\.runHistoryCount : t\.notCheckedYet\}/);
+  // An unavailable DNS read must not render as a confident 0.
+  assert.match(s13, /const dnsMeasured = Boolean\(preview\?\.ActivityEvidence\?\.DnsCacheAvailable !== false/);
+  assert.match(s13, /dnsMeasured && summary\.dnsCacheCount !== null \? summary\.dnsCacheCount : '—'/);
   assert.match(s13, /const dnsFlushNeedsElevation = Boolean\(tools\.find\(\(tool\) => tool\.ToolId === 'PR03'\)\?\.RequiresAdmin\) && !bridgeElevated/);
   assert.equal((s13.match(/disabled=\{dnsFlushNeedsElevation\}/g) ?? []).length, 2);
   assert.doesNotMatch(s13, /All privacy vectors and permissions are operating within standard hardened baseline/);
 });
 
 test('Station 14 gates every metric, both empty states, and the hero bus label', () => {
-  assert.match(s14, /const inventoryMeasured = Boolean\(preview\?\.RecentInventory\?\.length \|\| preview\?\.ReviewDrivers\?\.length\)/);
+  // A bridge that returns only DeviceProblems or ClassSummary HAS measured
+  // something. Gating on the inventory arrays alone made a partial measurement
+  // report "not checked yet" while the Problems tab rendered the real devices.
+  assert.match(s14, /preview\.DeviceProblems\?\.length/);
+  assert.match(s14, /preview\.ClassSummary\?\.length/);
   for (const key of ['summary.totalDrivers', 'summary.signedDrivers', 'summary.thirdPartyDrivers', 'summary.deviceProblemsCount']) {
     assert.match(s14, new RegExp(`inventoryMeasured \\? ${key.replace('.', '\\.')} : t\\.notCheckedYet`), `${key} must be gated`);
   }
   assert.equal((s14.match(/inventoryMeasured \? t\.noReviewNeeded : t\.notCheckedYet/g) ?? []).length, 1);
   assert.equal((s14.match(/inventoryMeasured \? t\.noProblems : t\.notCheckedYet/g) ?? []).length, 1);
-  assert.match(s14, /disabled=\{!bridgeElevated\}/);
+  // Identity-less driver records must keep their own row key, or the inventory
+  // silently collapses every one of them into a single entry.
+  assert.match(s14, /function driverRowKey\(/);
+  assert.match(s14, /const key = driverRowKey\(driver\)/);
+  assert.doesNotMatch(s14, /existing\.InfName === d\.InfName/);
+  // Both DV03 launch paths must gate on elevation, and the history count must
+  // stay null when the envelope reports none.
+  assert.equal((s14.match(/disabled=\{!bridgeElevated\}/g) ?? []).length, 2);
+  assert.match(s14, /itemsProcessed: readEnvelopeNumber\(terminal\.result, 'itemsProcessed'\)/);
+  assert.doesNotMatch(s14, /itemsProcessed \|\| 0/);
   assert.match(s14Hero, /'PNP STATUS NOT CHECKED'/);
   assert.match(s14Hero, /totalDrivers > 0\s*\n\s*\? 'PnP Devices OK'/);
 });

@@ -20,6 +20,7 @@ import {
   emptyEvidence, loadHistory, outcomeFromRun, parseInstalledApps,
   parseStartupItems, stationTools,
   STATION04_SERVICES, verifyRepairOperation,
+  buildCacheCandidates, buildResidualCandidates, calculateCacheSummary, parseMeasuredPaths,
   type AssociationDiagnostic, type HistoryEntry,
   type InstalledWindowsUpdate, type ProgramInventoryRow, type ProgramsEvidence,
   type Recommendation, type StartupItem, type WindowsFeatureItem,
@@ -205,6 +206,8 @@ export default function ProgramsStation({
 
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [evidence, setEvidence] = useState<ProgramsEvidence>(() => emptyEvidence());
+  // Cache & residual figures are only meaningful once PA03 actually ran.
+  const [cacheMeasured, setCacheMeasured] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory());
   const [activeRun, setActiveRun] = useState<ActiveRun | null>(null);
   const [activeRunLines, setActiveRunLines] = useState<string[]>([]);
@@ -399,6 +402,9 @@ export default function ProgramsStation({
                 let newStartup = prev.startup;
                 let newRuntimes = prev.runtimeComponents;
                 let newBrokenShortcuts = prev.brokenShortcutsCount;
+                let newCacheSummary = prev.cacheSummary;
+                let newCacheCandidates = prev.cacheCandidates;
+                let newOrphans = prev.orphans;
 
                 if (toolId === 'PA01' && lineStrings.length > 0) {
                   const parsed = parseInstalledApps(lineStrings);
@@ -418,6 +424,17 @@ export default function ProgramsStation({
                 } else if (toolId === 'PA04') {
                   const match = lineStrings.join('\n').match(/(\d+)\s+broken shortcut/i);
                   if (match) newBrokenShortcuts = Number(match[1]);
+                } else if (toolId === 'PA03') {
+                  // PA03's result used to be discarded entirely, so the tab
+                  // kept printing the zeros emptyEvidence() seeds it with.
+                  const measured = parseMeasuredPaths(lineStrings);
+                  if (measured) {
+                    const candidates = buildCacheCandidates(measured);
+                    newCacheSummary = calculateCacheSummary(candidates);
+                    newCacheCandidates = candidates;
+                    const residuals = buildResidualCandidates(measured, prev.inventory);
+                    if (residuals.length > 0) newOrphans = residuals;
+                  }
                 }
 
                 return {
@@ -426,9 +443,14 @@ export default function ProgramsStation({
                   startup: newStartup,
                   runtimeComponents: newRuntimes,
                   brokenShortcutsCount: newBrokenShortcuts,
+                  cacheSummary: newCacheSummary,
+                  cacheCandidates: newCacheCandidates,
+                  orphans: newOrphans,
                   outcomes: updatedOutcomes,
                 };
               });
+              // The cache tab's figures are only meaningful once PA03 has run.
+              if (toolId === 'PA03') setCacheMeasured(true);
             }
           } catch (err) {
             setActiveRun(null);
@@ -689,7 +711,7 @@ export default function ProgramsStation({
                   {t.capabilityMatrixTitle}
                 </h2>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left">
+                  <table className="w-full text-xs text-start">
                     <thead className="text-slate-400 border-b border-slate-800 bg-slate-950/40">
                       <tr>
                         <th className="p-2.5">#</th>
@@ -868,7 +890,7 @@ export default function ProgramsStation({
                 </div>
               ) : (
                 <div className="overflow-x-auto bg-slate-900/60 border border-slate-800 rounded-lg">
-                  <table className="w-full text-xs text-left">
+                  <table className="w-full text-xs text-start">
                     <thead className="text-slate-400 border-b border-slate-800 bg-slate-950/40">
                       <tr>
                         <th className="p-2.5">{isAr ? 'الاسم' : 'Name'}</th>
@@ -943,19 +965,34 @@ export default function ProgramsStation({
             <div className="space-y-6">
               <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-lg">
-                  <span className="text-[11px] text-slate-400 block">{isAr ? 'الذاكرة المؤقتة المرشحة' : 'Removable Cache'}</span>
-                  <span className="text-lg font-bold text-cyan-400">{evidence.cacheSummary.candidateCount} files</span>
-                  <span className="text-xs text-slate-500 block">{Math.round(evidence.cacheSummary.candidateBytes / 1024 / 1024)} MB</span>
+                  <span className="text-[11px] text-slate-400 block">{isAr ? 'ذاكرة مؤقتة قابلة للإزالة' : 'Removable Cache'}</span>
+                  {/* These three cards used to print the zeros seeded by
+                      emptyEvidence(), which reads as "measured, nothing found"
+                      on a machine that was never scanned. */}
+                  <span className={`text-lg font-bold ${cacheMeasured ? 'text-cyan-400' : 'text-slate-500'}`}>
+                    {cacheMeasured ? `${evidence.cacheSummary.candidateCount} files` : '—'}
+                  </span>
+                  <span className="text-xs text-slate-500 block">
+                    {cacheMeasured
+                      ? `${Math.round(evidence.cacheSummary.candidateBytes / 1024 / 1024)} MB`
+                      : (isAr ? 'لم يتم القياس بعد' : 'Not measured yet')}
+                  </span>
                 </div>
                 <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-lg">
-                  <span className="text-[11px] text-slate-400 block">{isAr ? 'عناصر محمية (بيانات/قواعد/إعدادات)' : 'Protected Data & Config'}</span>
-                  <span className="text-lg font-bold text-amber-400">{evidence.cacheSummary.protectedCount} files</span>
+                  <span className="text-[11px] text-slate-400 block">{isAr ? 'بيانات محمية وإعدادات (لا تُحذف)' : 'Protected Data & Config'}</span>
+                  <span className={`text-lg font-bold ${cacheMeasured ? 'text-amber-400' : 'text-slate-500'}`}>
+                    {cacheMeasured ? `${evidence.cacheSummary.protectedCount} files` : '—'}
+                  </span>
                   <span className="text-xs text-slate-500 block">Never purged</span>
                 </div>
                 <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-lg">
-                  <span className="text-[11px] text-slate-400 block">{isAr ? 'بقايا برامج محققة (أيتام)' : 'Verified Orphan Folders'}</span>
-                  <span className="text-lg font-bold text-emerald-400">{evidence.orphans.filter((o) => o.classification === 'VERIFIED_ORPHAN').length}</span>
-                  <span className="text-xs text-slate-500 block">Eligible for quarantine</span>
+                  <span className="text-[11px] text-slate-400 block">{isAr ? 'مجلدات يتيمة مُتحقَّق منها' : 'Verified Orphan Folders'}</span>
+                  <span className={`text-lg font-bold ${cacheMeasured ? 'text-emerald-400' : 'text-slate-500'}`}>
+                    {cacheMeasured ? evidence.orphans.filter((o) => o.classification === 'VERIFIED_ORPHAN').length : '—'}
+                  </span>
+                  <span className="text-xs text-slate-500 block">
+                    {cacheMeasured ? 'Eligible for quarantine' : (isAr ? 'لم يتم القياس بعد' : 'Not measured yet')}
+                  </span>
                 </div>
               </section>
 
@@ -1049,7 +1086,7 @@ export default function ProgramsStation({
               </div>
 
               <div className="overflow-x-auto bg-slate-900/60 border border-slate-800 rounded-lg">
-                <table className="w-full text-xs text-left">
+                <table className="w-full text-xs text-start">
                   <thead className="text-slate-400 border-b border-slate-800 bg-slate-950/40">
                     <tr>
                       <th className="p-2.5">{isAr ? 'الامتداد / البروتوكول' : 'Extension / Protocol'}</th>
@@ -1096,7 +1133,7 @@ export default function ProgramsStation({
               </div>
 
               <div className="overflow-x-auto bg-slate-900/60 border border-slate-800 rounded-lg">
-                <table className="w-full text-xs text-left">
+                <table className="w-full text-xs text-start">
                   <thead className="text-slate-400 border-b border-slate-800 bg-slate-950/40">
                     <tr>
                       <th className="p-2.5">{isAr ? 'اسم الميزة' : 'Feature Name'}</th>
@@ -1139,7 +1176,7 @@ export default function ProgramsStation({
               </div>
 
               <div className="overflow-x-auto bg-slate-900/60 border border-slate-800 rounded-lg">
-                <table className="w-full text-xs text-left">
+                <table className="w-full text-xs text-start">
                   <thead className="text-slate-400 border-b border-slate-800 bg-slate-950/40">
                     <tr>
                       <th className="p-2.5">KB</th>
@@ -1261,7 +1298,7 @@ export default function ProgramsStation({
                 </div>
               ) : (
                 <div className="overflow-x-auto bg-slate-900/60 border border-slate-800 rounded-lg">
-                  <table className="w-full text-xs text-left">
+                  <table className="w-full text-xs text-start">
                     <thead className="text-slate-400 border-b border-slate-800 bg-slate-950/40">
                       <tr>
                         <th className="p-2.5">When</th>

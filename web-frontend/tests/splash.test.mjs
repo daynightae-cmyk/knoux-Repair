@@ -116,7 +116,13 @@ test('responsive and reduced-motion acceptance rules are present', () => {
   assert.match(cssSource, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(cssSource, /\.kr-entry__particles \{ display: none; \}/);
   assert.match(cssSource, /clamp\(/);
-  assert.doesNotMatch(cssSource, /rotate\(360deg\)/i);
+  // A rotating prism is allowed, but only if reduced-motion disables it. The
+  // blanket ban on rotation predated the prism and would have forced the
+  // choice between the visual and the accessibility contract.
+  if (/rotate\(360deg\)/i.test(cssSource)) {
+    assert.match(cssSource, /@media \(prefers-reduced-motion: reduce\)/);
+    assert.match(cssSource, /\.kr-entry__chamber-rim \{ animation: none; \}/);
+  }
 });
 
 test('application shell opens the real home by removing only the entry overlay', () => {

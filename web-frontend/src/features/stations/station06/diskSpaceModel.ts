@@ -7,6 +7,7 @@
 
 import type { BridgeTool, KnouxRunResult } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
+import { buildStationHistoryRow } from '../_shared/executionSemantics.ts';
 
 export interface DriveVolume {
   name: string;
@@ -85,7 +86,8 @@ export interface StationHistoryEntry {
   toolName: string;
   timestamp: string;
   status: 'SUCCESS' | 'WARNING' | 'FAILED' | 'CANCELLED' | 'INCONCLUSIVE';
-  itemsProcessed: number;
+  /** null when the envelope did not report a count. Never 0-as-default. */
+  itemsProcessed: number | null;
   summary: string;
 }
 
@@ -423,43 +425,25 @@ export function stationTools(allTools: BridgeTool[]): BridgeTool[] {
 }
 
 /**
- * Converts execution run result into a history entry
+ * Converts execution run result into a history entry.
+ *
+ * Delegates to the shared builder: the local version treated a missing status
+ * plus a missing exitCode as SUCCESS, and wrote a fabricated `0` count.
  */
 export function outcomeFromRun(
   tool: BridgeTool,
   res: KnouxRunResult,
   lang: Lang = 'en'
 ): StationHistoryEntry {
-  const rawStatus = res.status?.toLowerCase();
-  const status: StationHistoryEntry['status'] =
-    rawStatus === 'success'
-      ? 'SUCCESS'
-      : rawStatus === 'error' || rawStatus === 'failed'
-        ? 'FAILED'
-        : rawStatus === 'cancelled'
-          ? 'CANCELLED'
-          : rawStatus === 'inconclusive'
-            ? 'INCONCLUSIVE'
-            : res.exitCode === 0
-              ? 'SUCCESS'
-              : 'FAILED';
-
-  const processed = res.itemsProcessed || 0;
-  const summary =
-    res.errorMessage ||
-    (status === 'SUCCESS'
-      ? (lang === 'ar' ? `اكتمل تنفيذ ${tool.ArabicName || tool.EnglishName} بنجاح` : `Successfully completed ${tool.EnglishName}`)
-      : (lang === 'ar' ? `فشل تنفيذ ${tool.ArabicName || tool.EnglishName}` : `Execution failed for ${tool.EnglishName}`));
-
-  return {
-    id: `${tool.ToolId}-${Date.now()}`,
+  return buildStationHistoryRow({
     toolId: tool.ToolId,
     toolName: lang === 'ar' ? tool.ArabicName || tool.EnglishName : tool.EnglishName,
-    timestamp: new Date().toISOString(),
-    status,
-    itemsProcessed: processed,
-    summary,
-  };
+    result: res,
+    successSummary:
+      lang === 'ar' ? `اكتمل تنفيذ ${tool.ArabicName || tool.EnglishName} بنجاح` : `Successfully completed ${tool.EnglishName}`,
+    failureSummary:
+      lang === 'ar' ? `فشل تنفيذ ${tool.ArabicName || tool.EnglishName}` : `Execution failed for ${tool.EnglishName}`,
+  });
 }
 
 export function emptyEvidence(): DiskEvidence {

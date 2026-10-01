@@ -2,19 +2,24 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ShieldCheck, Shield, Lock,
   RefreshCw, Play, CheckCircle2, AlertTriangle, XCircle,
-  FileText, LockKeyhole
+  FileText, LockKeyhole, Info
 } from 'lucide-react';
 import type { BridgeTool, ExecutionMode, SystemSnapshot, ToolRunConfirmation, ToolRunOptions } from '../../../lib/api';
 import { api } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
+import { StationDeepLink } from '../_shared';
+import '../../../components/workspace/station-deeplink.css';
 import { pickName } from '../../../lib/i18n';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
 import { StationErrorBoundary, StationOfflineState } from '../_shared';
 import { startExecution, pollExecution } from '../_shared/StationExecutionController';
+import { readEnvelopeText } from '../_shared/executionSemantics.ts';
 import {
-  type SecurityPostureStatus, type SecuritySignal, type StationHistoryEntry,
-  deriveSecurityPosture, evaluateDefender, evaluateFirewall, evaluateUac,
-  detectSecuritySignals, stationTools, outcomeFromRun, isAllowedSecurityAction
+  type SecurityPostureStatus, type SecuritySignal, type StationHistoryEntry, type SecurityCoverage,
+  deriveSecurityPosture, securityCoverage, evaluateDefender, evaluateFirewall, evaluateUac,
+  detectSecuritySignals, stationTools, outcomeFromRun, isAllowedSecurityAction,
+  itemsProcessedFromResult
 } from './securityModel';
 import SecurityHeroVisual from './SecurityHeroVisual';
 
@@ -26,6 +31,8 @@ export interface SecurityStationProps {
   bridgeOnline: boolean | null;
   onRetryBridge: () => void;
   onToolStatus: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
+  /** Cross-station hand-off: point at the station that owns a fact this one merely meets. */
+  onNavigateService?: (family: FamilyId, serviceId: ServiceId) => void;
 }
 
 type TabKey = 'overview' | 'defender' | 'firewall' | 'uac' | 'actions' | 'report' | 'history';
@@ -143,6 +150,7 @@ function SecurityStationContent({
   bridgeOnline,
   onRetryBridge,
   onToolStatus,
+  onNavigateService,
 }: SecurityStationProps) {
   const text = COPY[lang];
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
@@ -195,6 +203,18 @@ function SecurityStationContent({
       ),
     [defenderRealtimeObserved, defenderRunningObserved, firewallObserved, uac]
   );
+  // Exactly which controls backed that verdict. A control the bridge does not
+  // expose is named here so the posture is never read as covering it.
+  const coverage: SecurityCoverage = useMemo(
+    () =>
+      securityCoverage(
+        defenderRealtimeObserved,
+        defenderRunningObserved,
+        firewallObserved,
+        uac.enabled
+      ),
+    [defenderRealtimeObserved, defenderRunningObserved, firewallObserved, uac]
+  );
   const signals: SecuritySignal[] = useMemo(
     () => detectSecuritySignals(defender, firewall, uac),
     [defender, firewall, uac]
@@ -238,8 +258,8 @@ function SecurityStationContent({
           toolName: pickName(tool, lang),
           timestamp: new Date().toLocaleTimeString(lang),
           status,
-          itemsProcessed: terminalResult?.ItemsProcessed ?? null,
-          summary: terminalResult?.ErrorMessage
+          itemsProcessed: itemsProcessedFromResult(terminalResult),
+          summary: readEnvelopeText(terminalResult, 'errorMessage')
             || (status === 'SUCCESS'
               ? (lang === 'ar' ? 'اكتمل الإجراء الأمني بنجاح' : 'Security action completed successfully')
               : terminalResult
@@ -420,6 +440,28 @@ function SecurityStationContent({
               </div>
             </div>
 
+            {/* A posture verdict describes the machine, not this station. The
+                repair path for a weak posture is Station 01, and the firewall
+                rules themselves belong to Station 03. */}
+            <div className="lg:col-span-12 flex flex-wrap gap-3">
+              <StationDeepLink
+                lang={lang}
+                onNavigateService={onNavigateService}
+                family="vitality"
+                serviceId="01-System-Maintenance"
+                destinationName={{ en: 'System Maintenance', ar: 'صيانة النظام' }}
+                label={{ en: 'Repair this posture', ar: 'إصلاح هذه الحالة' }}
+              />
+              <StationDeepLink
+                lang={lang}
+                onNavigateService={onNavigateService}
+                family="assurance"
+                serviceId="03-Network-Internet"
+                destinationName={{ en: 'Network & Internet', ar: 'الشبكة والإنترنت' }}
+                label={{ en: 'Firewall and DNS tools', ar: 'أدوات الجدار الناري و DNS' }}
+              />
+            </div>
+
             {/* Right: Key Controls & Signals */}
             <div className="lg:col-span-7 flex flex-col gap-4">
               {/* Metric Row */}
@@ -468,7 +510,7 @@ function SecurityStationContent({
 
               {/* Quick Actions Bar */}
               <div className="flex flex-wrap items-center gap-2 p-3.5 rounded-xl bg-slate-900/50 border border-slate-800">
-                <span className="text-xs font-semibold text-slate-300 mr-2">
+                <span className="text-xs font-semibold text-slate-300 me-2">
                   {lang === 'ar' ? 'إجراءات سريعة:' : 'Quick Actions:'}
                 </span>
                 <button
@@ -722,6 +764,47 @@ function SecurityStationContent({
                 >
                   {text.repairUacAction}
                 </button>
+                {!canLaunchAction('SE07') && (
+                  <p className="text-[11px] text-slate-400 mt-2">
+                    {lang === 'ar'
+                      ? 'يتطلب هذا الإصلاح جهازاً غير مرفوع الصلاحيات أو أداة مسجّلة. شغّل KNOUX Repair كمسؤول أو انتظر توفّر الأداة.'
+                      : 'This repair needs an elevated bridge or a registered tool. Launch KNOUX Repair as administrator, or wait for the tool to be registered.'}
+                  </p>
+                )}
+              </div>
+
+              {/* Coverage: which protection controls actually backed the posture
+                  verdict above. A control the bridge cannot read is named, never
+                  quietly counted as healthy. */}
+              <div className="p-4 rounded-lg bg-slate-950/60 border border-slate-800">
+                <h4 className="text-xs font-bold text-white mb-2">
+                  {lang === 'ar' ? 'تغطية هذا الحكم' : 'What this verdict covers'}
+                </h4>
+                <p className="text-[11px] text-slate-400 mb-3">
+                  {lang === 'ar'
+                    ? `${coverage.measuredCount} من ${coverage.totalCount} ضوابط تم قياسها فعلياً.`
+                    : `${coverage.measuredCount} of ${coverage.totalCount} controls were actually measured.`}
+                </p>
+                <ul className="flex flex-col gap-1.5">
+                  {[
+                    { label: lang === 'ar' ? 'الحماية في الوقت الحقيقي لـ Defender' : 'Defender real-time protection', measured: coverage.defenderRealtime },
+                    { label: lang === 'ar' ? 'خدمة Defender' : 'Defender service', measured: coverage.defenderRunning },
+                    { label: lang === 'ar' ? 'جدار الحماية' : 'Firewall', measured: coverage.firewall },
+                    { label: lang === 'ar' ? 'تحكّم حسابات المستخدم (UAC)' : 'User Account Control', measured: coverage.uac },
+                  ].map(row => (
+                    <li key={row.label} className="flex items-center gap-2 text-[11px]">
+                      {row.measured
+                        ? <CheckCircle2 size={12} className="text-emerald-400" />
+                        : <Info size={12} className="text-slate-500" />}
+                      <span className={row.measured ? 'text-slate-300' : 'text-slate-500'}>{row.label}</span>
+                      {!row.measured && (
+                        <span className="text-slate-600">
+                          ({lang === 'ar' ? 'غير مقاس' : 'not measured'})
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>
@@ -819,33 +902,33 @@ function SecurityStationContent({
             </div>
 
             <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800/80">
-              <table className="w-full text-xs text-left">
+              <table className="w-full text-xs text-start">
                 <thead className="text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
                   <tr>
                     <th className="pb-2">{lang === 'ar' ? 'عنصر الفحص' : 'Security Check'}</th>
                     <th className="pb-2">{lang === 'ar' ? 'الحالة الحالية' : 'Current Status'}</th>
-                    <th className="pb-2 text-right">{lang === 'ar' ? 'التقييم' : 'Assessment'}</th>
+                    <th className="pb-2 text-end">{lang === 'ar' ? 'التقييم' : 'Assessment'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
                   <tr>
                     <td className="py-2.5 font-medium text-slate-200">Defender Real-time Protection</td>
                     <td className="py-2.5 text-slate-300">{defenderRealtimeObserved === true ? 'Enabled' : defenderRealtimeObserved === false ? 'Disabled' : 'Not checked'}</td>
-                    <td className="py-2.5 text-right font-bold text-emerald-400">
+                    <td className="py-2.5 text-end font-bold text-emerald-400">
                       {defenderRealtimeObserved === true ? 'PASS' : defenderRealtimeObserved === false ? 'FAIL' : 'UNKNOWN'}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 font-medium text-slate-200">Firewall Profiles</td>
                     <td className="py-2.5 text-slate-300">{firewall.totalProfiles > 0 ? `${firewall.enabledCount}/${firewall.totalProfiles} Active` : 'Not checked'}</td>
-                    <td className="py-2.5 text-right font-bold text-teal-400">
+                    <td className="py-2.5 text-end font-bold text-teal-400">
                       {firewallObserved === true ? 'PASS' : firewallObserved === false ? 'WARN' : 'UNKNOWN'}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 font-medium text-slate-200">UAC Privilege Guard</td>
                     <td className="py-2.5 text-slate-300">{uac.enabled === true ? 'EnableLUA Active' : uac.enabled === false ? 'Disabled' : 'Not checked'}</td>
-                    <td className="py-2.5 text-right font-bold text-cyan-400">
+                    <td className="py-2.5 text-end font-bold text-cyan-400">
                       {uac.enabled === true ? 'PASS' : uac.enabled === false ? 'FAIL' : 'UNKNOWN'}
                     </td>
                   </tr>

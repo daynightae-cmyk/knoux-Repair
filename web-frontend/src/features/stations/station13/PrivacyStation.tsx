@@ -2,22 +2,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ShieldCheck, Lock, EyeOff, Camera, Mic,
   MapPin, RefreshCw, Play, CheckCircle2, AlertTriangle,
-  Trash2, History, FileText, UserCheck, Activity
+  Trash2, History, FileText, UserCheck, Activity, Search, X
 } from 'lucide-react';
 import type {
   BridgeRun, BridgeTool, ExecutionMode, PrivacyPreview,
+  PrivacyPreviewSetting,
   ToolRunConfirmation, ToolRunOptions
 } from '../../../lib/api';
 import { api } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
+import { StationDeepLink } from '../_shared';
+import '../../../components/workspace/station-deeplink.css';
 import { pickName } from '../../../lib/i18n';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
+import { StationInventorySurface, type InventoryColumn } from '../../../components/workspace/StationInventorySurface';
 import { StationErrorBoundary, StationOfflineState, StationActiveRunBanner } from '../_shared';
 import { startExecution, pollUntilTerminal, requestConfirmedCancel, rememberRun, recallRun, forgetRun, historyMessageForRun } from '../_shared/StationExecutionController';
 import {
   type PrivacySummary, type PrivacySignal, type StationHistoryEntry,
   summarizePrivacy, detectPrivacySignals, stationTools,
-  outcomeFromRun, filterSettingsByCategory
+  outcomeFromRun, filterSettingsByCategory, privacyCategories
 } from './privacyModel';
 import PrivacyHeroVisual from './PrivacyHeroVisual';
 
@@ -29,9 +34,11 @@ export interface PrivacyStationProps {
   bridgeOnline: boolean | null;
   onRetryBridge: () => void;
   onToolStatus: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
+  /** Cross-station hand-off: point at the station that owns a fact this one merely meets. */
+  onNavigateService?: (family: FamilyId, serviceId: ServiceId) => void;
 }
 
-type TabKey = 'overview' | 'permissions' | 'activity' | 'personalization' | 'actions' | 'report' | 'history';
+type TabKey = 'overview' | 'allSettings' | 'permissions' | 'activity' | 'personalization' | 'actions' | 'report' | 'history';
 
 const COPY = {
   en: {
@@ -43,6 +50,23 @@ const COPY = {
     tabActivity: 'Activity & Footprint',
     tabPersonalization: 'Personalization & Ads',
     tabActions: 'Privacy Tools',
+    tabAllSettings: 'All Controls',
+    allSettingsTitle: 'Every Audited Privacy Control',
+    allSettingsSubtitle: 'The complete set of controls the privacy audit actually read, with the measured value behind each one.',
+    searchSettings: 'Search controls by name, id, category, detail, or value...',
+    noSettingsMeasured: 'The privacy audit read the registry and reported no controls.',
+    noSettingMatch: 'No control matches your search and filters',
+    notCheckedHint: 'Run the privacy audit to read the local control registry.',
+    availableLabel: 'Available',
+    valueLabel: 'Measured value',
+    controlName: 'Control',
+    whatIsThis: 'What is this?',
+    whereFrom: 'Where did it come from?',
+    whyMatters: 'Why does it matter?',
+    whatCanIDo: 'What can I do?',
+    controlSource: 'Windows privacy control registry, read by the local privacy audit.',
+    controlWhy: 'This is a state Windows keeps about the machine or its apps. Hardening it removes a class of local data collection; it does not affect anything outside this device.',
+    controlAction: 'Run the privacy audit to refresh every control, or use the privacy tools to clear the activity footprint.',
     tabReport: 'Privacy Audit',
     tabHistory: 'History',
     refresh: 'Query Privacy',
@@ -131,10 +155,37 @@ const COPY = {
     countNotReported: 'لم يتم الإبلاغ عن العدد',
     noTerminalResult: 'لم تُرجع نتيجة نهائية.',
     noSuccessEvidence: 'انتهى الإجراء دون نتيجة ناجحة موثقة.',
+    notCheckedHint: 'نفّذ تدقيق الخصوصية لقراءة سجل عناصر التحكم المحلي.',
+    tabAllSettings: 'كل عناصر التحكم',
+    allSettingsTitle: 'كل عناصر التحكم التي دُقّقت',
+    allSettingsSubtitle: 'المجموعة الكاملة لعناصر التحكم التي قرأها التدقيق فعلياً، مع القيمة المقاسة خلف كل عنصر.',
+    searchSettings: 'ابحث في عناصر التحكم بالاسم أو المعرّف أو الفئة أو التفصيل أو القيمة...',
+    noSettingsMeasured: 'قرأ تدقيق الخصوصية السجل ولم يُبلّغ عن أي عناصر تحكم.',
+    noSettingMatch: 'لا يوجد عنصر تحكم مطابق لبحثك ومرشّحاتك',
+    availableLabel: 'متاح',
+    valueLabel: 'القيمة المقاسة',
+    controlName: 'عنصر التحكم',
+    whatIsThis: 'ما هذا؟',
+    whereFrom: 'من أين جاء؟',
+    whyMatters: 'لماذا يهم؟',
+    whatCanIDo: 'ماذا يمكنني أن أفعل؟',
+    controlSource: 'سجل عناصر تحكم الخصوصية في ويندوز، مقروء بواسطة التدقيق المحلي.',
+    controlWhy: 'هذه حالة يحتفظ بها ويندوز عن الجهاز أو تطبيقاته. تشديدها يزيل فئة من جمع البيانات محلياً، ولا يؤثر على أي شيء خارج هذا الجهاز.',
+    controlAction: 'نفّذ تدقيق الخصوصية لتحديث كل عناصر التحكم، أو استخدم أدوات الخصوصية لمسح أثر النشاط.',
   },
 };
 
 const STATION_KEY = 'station13';
+
+/** One label/answer pair. An unreported value says so instead of reading blank. */
+function PrivacyFact({ label, value }: { label: string; value: string | number | boolean }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+      <span style={{ fontSize: 10, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#64748b' }}>{label}</span>
+      <span dir="auto" style={{ fontSize: 12, color: '#e2e8f0', overflowWrap: 'anywhere' }}>{String(value)}</span>
+    </div>
+  );
+}
 
 export default function PrivacyStation(props: PrivacyStationProps) {
   return (
@@ -151,6 +202,7 @@ function PrivacyStationContent({
   bridgeElevated,
   onRetryBridge,
   onToolStatus,
+  onNavigateService,
 }: PrivacyStationProps) {
   const t = COPY[lang];
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
@@ -205,10 +257,25 @@ function PrivacyStationContent({
     return detectPrivacySignals(preview);
   }, [preview]);
 
-  // A privacy figure may only be printed once the local audit actually read settings.
-  const auditMeasured = summary.stance !== 'INCONCLUSIVE';
+  // A privacy figure may only be printed once the local audit actually read
+  // settings. Deriving this from the stance verdict meant three of four metric
+  // cards said "Not checked yet" on a fully-read preview whose stance happened
+  // to be INCONCLUSIVE.
+  const auditMeasured = Boolean(preview && (preview.Settings?.length ?? 0) > 0);
   // PR03 flushes the DNS resolver cache and is registered as an administrator tool.
   const dnsFlushNeedsElevation = Boolean(tools.find((tool) => tool.ToolId === 'PR03')?.RequiresAdmin) && !bridgeElevated;
+  // The DNS card must not print a confident 0 when the bridge reported the
+  // resolver cache as unavailable.
+  const dnsMeasured = Boolean(preview?.ActivityEvidence?.DnsCacheAvailable !== false && preview?.ActivityEvidence?.DnsCacheAvailable !== undefined);
+
+  const allSettings = useMemo<PrivacyPreviewSetting[] | null>(
+    () => (preview ? (preview.Settings ?? []) : null),
+    [preview]
+  );
+
+  // Categories come from the data, never from a hard-coded list, so a setting
+  // the bridge reported can never fall through every tab.
+  const categories = useMemo(() => privacyCategories(preview?.Settings ?? []), [preview]);
 
   const appPermissions = useMemo(() => {
     return filterSettingsByCategory(preview?.Settings || [], 'App permissions');
@@ -223,6 +290,100 @@ function PrivacyStationContent({
       filterSettingsByCategory(preview?.Settings || [], 'Policy')
     );
   }, [preview]);
+
+  const privacyColumns = useMemo<InventoryColumn<PrivacyPreviewSetting>[]>(
+    () => [
+      {
+        key: 'name',
+        label: { en: t.controlName, ar: t.controlName },
+        width: 'minmax(0, 2fr)',
+        sortValue: setting => setting.Name,
+        render: setting => (
+          <span style={{ fontWeight: 600, color: '#f8fafc' }} dir="auto">{setting.Name || setting.Id}</span>
+        ),
+      },
+      {
+        key: 'category',
+        label: { en: t.categoryLabel, ar: t.categoryLabel },
+        width: 'minmax(0, 1.1fr)',
+        sortValue: setting => setting.Category,
+        render: setting => <span style={{ color: '#94a3b8' }} dir="auto">{setting.Category || '—'}</span>,
+      },
+      {
+        key: 'state',
+        label: { en: t.stateLabel, ar: t.stateLabel },
+        width: 'minmax(0, 1.1fr)',
+        sortValue: setting => setting.State,
+        render: setting => {
+          // A control the bridge could not read must not look measured.
+          if (setting.Available === false) {
+            return <span style={{ color: '#64748b' }}>{lang === 'ar' ? 'غير متاح' : 'Unavailable'}</span>;
+          }
+          const state = String(setting.State ?? '');
+          const color = /restrict|deny|block|disallow/i.test(state)
+            ? '#10b981'
+            : /allow|grant|enable/i.test(state)
+              ? '#f59e0b'
+              : '#94a3b8';
+          return <span style={{ color, fontWeight: 600 }} dir="auto">{state || '—'}</span>;
+        },
+      },
+      {
+        key: 'value',
+        label: { en: t.valueLabel, ar: t.valueLabel },
+        width: 'minmax(0, 1.4fr)',
+        render: setting => (
+          <span style={{ color: '#cbd5e1' }} dir="auto">{setting.Value || '—'}</span>
+        ),
+      },
+    ],
+    [lang, t]
+  );
+
+  const privacyFilters = useMemo(() => {
+    const base = [
+      { key: 'restricted', label: { en: 'Restricted', ar: 'مقيَّد' }, test: (s: PrivacyPreviewSetting) => /restrict|deny|block|disallow/i.test(String(s.State ?? '')) },
+      { key: 'permitted', label: { en: 'Permitted', ar: 'مسموح' }, test: (s: PrivacyPreviewSetting) => /allow|grant|enable/i.test(String(s.State ?? '')) },
+    ];
+    // Category filters come from the measured data, so no control can be hidden
+    // by a category string the station failed to anticipate.
+    for (const category of categories) {
+      base.push({
+        key: `cat:${category}`,
+        label: { en: category, ar: category },
+        test: (s: PrivacyPreviewSetting) => String(s.Category ?? '').trim() === category,
+      });
+    }
+    return base;
+  }, [categories]);
+
+  const renderSettingInspector = useCallback(
+    (setting: PrivacyPreviewSetting, close: () => void) => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <strong style={{ fontSize: 13, color: '#f8fafc' }} dir="auto">{setting.Name || setting.Id}</strong>
+          <button type="button" onClick={close} aria-label="close" style={{ background: 'transparent', border: 0, color: '#64748b', cursor: 'pointer' }}>
+            <X size={14} />
+          </button>
+        </div>
+        <PrivacyFact label={t.whatIsThis} value={setting.Name || setting.Id} />
+        <PrivacyFact label={t.whereFrom} value={t.controlSource} />
+        <PrivacyFact label={t.categoryLabel} value={setting.Category || '—'} />
+        <PrivacyFact
+          label={t.stateLabel}
+          value={setting.Available === false
+            ? (lang === 'ar' ? 'غير متاح على هذا الجهاز' : 'Unavailable on this device')
+            : (setting.State || (lang === 'ar' ? 'لم يُبلَّغ عنه' : 'Not reported'))}
+        />
+        <PrivacyFact label={t.valueLabel} value={setting.Value || (lang === 'ar' ? 'لم يُبلَّغ عنها' : 'Not reported')} />
+        <PrivacyFact label={t.detailLabel} value={setting.Detail || (lang === 'ar' ? 'لا تفاصيل' : 'No detail')} />
+        <PrivacyFact label={t.availableLabel} value={setting.Available === false ? (lang === 'ar' ? 'لا' : 'No') : (lang === 'ar' ? 'نعم' : 'Yes')} />
+        <PrivacyFact label={t.whyMatters} value={t.controlWhy} />
+        <PrivacyFact label={t.whatCanIDo} value={t.controlAction} />
+      </div>
+    ),
+    [lang, t]
+  );
 
   const handleLaunchTool = (tool: BridgeTool, mode: ExecutionMode = 'analyze') => {
     if (activeRun) {
@@ -497,9 +658,13 @@ function PrivacyStationContent({
         <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid #1e293b', borderRadius: 10, padding: 14 }}>
           <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{t.dnsCacheCount}</div>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#a855f7', marginTop: 4 }}>
-            {summary.dnsCacheCount !== null ? summary.dnsCacheCount : '—'}
+            {/* The bridge reports whether the resolver cache could be read at
+                all. An unavailable read must not render as a confident 0. */}
+            {dnsMeasured && summary.dnsCacheCount !== null ? summary.dnsCacheCount : '—'}
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Resolved domain traces</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+            {lang === 'ar' ? 'مواقع مُحلَّلة مخزَّنة' : 'Resolved domain traces'}
+          </div>
         </div>
       </div>
 
@@ -511,6 +676,7 @@ function PrivacyStationContent({
           { key: 'activity', label: t.tabActivity, icon: Activity },
           { key: 'personalization', label: t.tabPersonalization, icon: EyeOff },
           { key: 'actions', label: t.tabActions, icon: Play },
+          { key: 'allSettings', label: t.tabAllSettings, icon: Search },
           { key: 'report', label: t.tabReport, icon: FileText },
           { key: 'history', label: t.tabHistory, icon: History },
         ].map((tab) => {
@@ -641,7 +807,7 @@ function PrivacyStationContent({
                       padding: 12,
                       background: 'rgba(2, 6, 23, 0.6)',
                       borderRadius: 8,
-                      borderLeft: `4px solid ${sig.level === 'HIGH' ? '#ef4444' : sig.level === 'MEDIUM' ? '#f59e0b' : '#06b6d4'}`,
+                      borderInlineStart: `4px solid ${sig.level === 'HIGH' ? '#ef4444' : sig.level === 'MEDIUM' ? '#f59e0b' : '#06b6d4'}`,
                     }}
                   >
                     <AlertTriangle size={16} color={sig.level === 'HIGH' ? '#ef4444' : sig.level === 'MEDIUM' ? '#f59e0b' : '#06b6d4'} />
@@ -679,6 +845,38 @@ function PrivacyStationContent({
         </div>
       )}
 
+      {/* Tab 1b: All Controls — one searchable, filterable, sortable inventory
+          over every control the bridge actually reported. The three category
+          tabs below could only ever show what four hard-coded strings matched;
+          this surface cannot lose a setting. */}
+      {activeTab === 'allSettings' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#f8fafc' }}>{t.allSettingsTitle}</h3>
+            <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#94a3b8' }}>{t.allSettingsSubtitle}</p>
+          </div>
+          <StationInventorySurface<PrivacyPreviewSetting>
+            lang={lang}
+            rows={allSettings}
+            loading={loading}
+            rowKey={setting => `${setting.Id}|${setting.Category}`}
+            columns={privacyColumns}
+            filters={privacyFilters}
+            searchFields={setting => [setting.Name, setting.Id, setting.Detail, setting.Category, setting.Value ?? ''].map(field => String(field ?? ''))}
+            searchPlaceholder={{ en: t.searchSettings, ar: t.searchSettings }}
+            empty={{
+              notChecked: { en: t.notCheckedYet, ar: t.notCheckedYet },
+              checking: { en: t.refreshing, ar: t.refreshing },
+              noneFound: { en: t.noSettingsMeasured, ar: t.noSettingsMeasured },
+              noMatch: { en: t.noSettingMatch, ar: t.noSettingMatch },
+              noMatchHint: { en: t.notCheckedHint, ar: t.notCheckedHint },
+            }}
+            inspector={renderSettingInspector}
+            sortInitial={{ key: 'name', direction: 'asc' }}
+            pageSize={120}
+          />
+        </div>
+      )}
       {/* Tab 2: App Permissions */}
       {activeTab === 'permissions' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -817,6 +1015,17 @@ function PrivacyStationContent({
                     <span>{t.flushDnsBtn}</span>
                   </button>
                 )}
+                {/* The same resolver cache is flushed by the network station's
+                    DNS tool. Privacy owns the privacy consequence; network owns
+                    the connection. Two entry points, one capability. */}
+                <StationDeepLink
+                  lang={lang}
+                  onNavigateService={onNavigateService}
+                  family="assurance"
+                  serviceId="03-Network-Internet"
+                  destinationName={{ en: 'Network & Internet', ar: 'الشبكة والإنترنت' }}
+                  label={{ en: 'Network DNS tools', ar: 'أدوات DNS بالشبكة' }}
+                />
               </div>
             </div>
           </div>
@@ -1035,7 +1244,7 @@ function PrivacyStationContent({
                     background: 'rgba(2, 6, 23, 0.5)',
                     padding: 10,
                     borderRadius: 6,
-                    borderLeft: `3px solid ${entry.status === 'SUCCESS' ? '#10b981' : '#ef4444'}`,
+                    borderInlineStart: `3px solid ${entry.status === 'SUCCESS' ? '#10b981' : '#ef4444'}`,
                   }}
                 >
                   <div>
@@ -1044,7 +1253,7 @@ function PrivacyStationContent({
                     </div>
                     <div style={{ fontSize: 11, color: '#94a3b8' }}>{entry.summary}</div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'start' }}>
                     <span style={{ fontSize: 10, color: entry.status === 'SUCCESS' ? '#10b981' : '#ef4444', fontWeight: 700 }}>
                       {entry.status}
                     </span>

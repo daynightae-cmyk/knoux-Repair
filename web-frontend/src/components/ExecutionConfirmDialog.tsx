@@ -22,7 +22,7 @@ const COPY = {
     source: 'Recovery source', sourceHint: 'Choose the recovery file or folder you want this step to use.', workspace: 'Project folder', workspaceHint: 'Choose the project folder you want to check.',
     targetFolder: 'Folder to review', targetFolderHint: 'Choose the folder you want KNOUX to review.', lockedPlanFolder: 'This folder belongs to the review you already approved. Start a new review to choose another folder.',
     browse: 'Choose folder', sourceIndex: 'Recovery option number', app: 'Application identifier', appHint: 'Enter the application identifier shown in your application inventory.',
-    quick: 'Use the faster supported option', acknowledge: 'I understand the recovery option shown above.', confirm: 'Type CONFIRM to continue', cancel: 'Go back', execute: 'Start now', continue: 'Continue',
+    quick: 'Use the faster supported option', acknowledge: 'I understand the recovery option shown above.', confirm: 'Type the phrase shown below exactly to continue', cancel: 'Go back', execute: 'Start now', continue: 'Continue',
     wait: 'Please wait {seconds}s before continuing.', protected: 'KNOUX will check permissions and recovery safeguards before starting.', duplicatePlan: 'Reviewed duplicate groups', restorePlan: 'Selected recovery items',
   },
   ar: {
@@ -33,7 +33,7 @@ const COPY = {
     source: 'مصدر الاستعادة', sourceHint: 'اختر ملف أو مجلد الاستعادة الذي تريد استخدامه.', workspace: 'مجلد المشروع', workspaceHint: 'اختر مجلد المشروع الذي تريد فحصه.',
     targetFolder: 'المجلد المطلوب مراجعته', targetFolderHint: 'اختر المجلد الذي تريد من KNOUX مراجعته.', lockedPlanFolder: 'هذا المجلد مرتبط بالمراجعة التي وافقت عليها. ابدأ مراجعة جديدة لاختيار مجلد آخر.',
     browse: 'اختيار مجلد', sourceIndex: 'رقم خيار الاستعادة', app: 'رمز التطبيق', appHint: 'أدخل رمز التطبيق الظاهر في جرد التطبيقات.',
-    quick: 'استخدم الخيار الأسرع المدعوم', acknowledge: 'أفهم خيار الاستعادة الموضح أعلاه.', confirm: 'اكتب تأكيد للمتابعة', cancel: 'رجوع', execute: 'ابدأ الآن', continue: 'متابعة',
+    quick: 'استخدم الخيار الأسرع المدعوم', acknowledge: 'أفهم خيار الاستعادة الموضح أعلاه.', confirm: 'اكتب العبارة الموضحة أدناه حرفيًا للمتابعة', cancel: 'رجوع', execute: 'ابدأ الآن', continue: 'متابعة',
     wait: 'انتظر {seconds} ث قبل المتابعة.', protected: 'سيتحقق KNOUX من الأذونات وخيارات الاستعادة قبل البدء.', duplicatePlan: 'مجموعات التكرارات المراجعة', restorePlan: 'عناصر الاستعادة المختارة',
   },
 };
@@ -78,8 +78,8 @@ export default function ExecutionConfirmDialog({ tool, mode, lang, onConfirm, on
   const validSelection = mode !== 'run' || !needsSelection || /^\d+(\s*,\s*\d+)*$/.test(selection.trim());
   const validSourceIndex = !localSourceIndex.trim() || /^\d+$/.test(localSourceIndex.trim());
   const validPackageId = mode !== 'run' || !needsPackageId || /^[A-Za-z0-9._-]+$/.test(packageId.trim());
-  const expectedPhrase = lang === 'ar' ? 'تأكيد' : 'CONFIRM';
-  const hasCorrectPhrase = confirmation.trim().toLocaleUpperCase() === expectedPhrase.toLocaleUpperCase();
+  const expectedPhrase = tool.ConfirmationPhrase || 'CONFIRM';
+  const hasCorrectPhrase = confirmation.trim() === expectedPhrase;
   const canConfirm = validSelection && validPackageId && validSourceIndex && secondsRemaining === 0 && (!requiresRecoveryAcknowledgement || recoveryAcknowledged) && (!requiresPhrase || hasCorrectPhrase);
 
   useEffect(() => {
@@ -139,7 +139,7 @@ export default function ExecutionConfirmDialog({ tool, mode, lang, onConfirm, on
         {needsPackageId && <label className="execution-dialog-field"><span><FileKey2 size={14} /> {text.app}</span><input value={packageId} onChange={(event) => setPackageId(event.target.value)} placeholder={lang === 'ar' ? 'رمز التطبيق' : 'Application identifier'} autoFocus={!needsSelection && !needsSource} /><small>{text.appHint}</small></label>}
         {supportsQuick && <label className="execution-dialog-check"><input type="checkbox" checked={quick} onChange={(event) => setQuick(event.target.checked)} /><span>{text.quick}</span></label>}
         {requiresRecoveryAcknowledgement && <label className="execution-dialog-check"><input type="checkbox" checked={recoveryAcknowledged} onChange={(event) => setRecoveryAcknowledged(event.target.checked)} /><span>{text.acknowledge}</span></label>}
-        {requiresPhrase && <label className="execution-dialog-field"><span><AlertTriangle size={14} /> {text.confirm}</span><input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder={expectedPhrase} autoFocus={!needsSelection} /></label>}
+        {requiresPhrase && <label className="execution-dialog-field"><span><AlertTriangle size={14} /> {text.confirm}: <strong>{expectedPhrase}</strong></span><input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder={expectedPhrase} autoFocus={!needsSelection} /></label>}
         {secondsRemaining > 0 && <p className="execution-dialog-delay"><AlertTriangle size={14} /> {text.wait.replace('{seconds}', String(secondsRemaining))}</p>}
         <p className="execution-dialog-contract"><ShieldCheck size={14} /> {text.protected}</p>
         {folderPickerOpen && isFolderTarget && <WorkspaceFolderPicker lang={lang} initialPath={localSourcePath} onClose={() => setFolderPickerOpen(false)} onSelect={(folderPath) => { setLocalSourcePath(folderPath); setFolderPickerOpen(false); }} />}

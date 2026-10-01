@@ -1421,3 +1421,87 @@ export function buildProgramInventory(
 
   return [...byKey.values()];
 }
+
+/* =========================================================================
+ * 9. PA03 CACHE / RESIDUAL EVIDENCE
+ *
+ * The model already knew how to classify a cache path, summarize a candidate
+ * set, and correlate a folder against the installed-app inventory — but nothing
+ * ever called them, so the station's Cache & Residuals tab rendered the three
+ * zeros that `emptyEvidence()` seeds. These adapters read PA03's real output.
+ * ========================================================================= */
+
+/** A path plus size PA03 reported, in whatever units it printed them. */
+export interface MeasuredPath {
+  path: string;
+  sizeBytes: number;
+}
+
+/**
+ * Read measured path/size pairs out of PA03's stdout.
+ *
+ * Accepts `path<TAB>bytes`, `path|bytes`, `path: bytes`, `path (12.3 MB)`, and
+ * a bare `path` line (size then 0, and the caller can tell that apart from an
+ * absent line because the line existed at all). Returns null when the output
+ * carried no path-shaped line, so the caller can say "not measured" instead of
+ * "measured zero".
+ */
+export function parseMeasuredPaths(lines: string[]): MeasuredPath[] | null {
+  const out: MeasuredPath[] = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (line === '' || line.startsWith('#') || line.startsWith('---')) continue;
+    let match = line.match(/^(.*?)\s*(?:\t|\s{2,}|\s*\|\s*)\s*([\d,]+)\s*$/);
+    if (match) {
+      const path = match[1].trim();
+      if (!/^[A-Za-z]:[\\/]|^\\\\/.test(path)) continue;
+      out.push({ path, sizeBytes: Number(match[2].replace(/,/g, '')) || 0 });
+      continue;
+    }
+    match = line.match(/^(.*?)\s*[\(\[]\s*([\d.]+)\s*(B|KB|MB|GB|TB)\s*[\)\]]\s*$/i);
+    if (match) {
+      const path = match[1].trim();
+      if (!/^[A-Za-z]:[\\/]|^\\\\/.test(path)) continue;
+      const scale = { B: 1, KB: 1024, MB: 1024 ** 2, GB: 1024 ** 3, TB: 1024 ** 4 }[
+        match[3].toUpperCase() as 'B' | 'KB' | 'MB' | 'GB' | 'TB'
+      ];
+      out.push({ path, sizeBytes: Math.round(Number(match[2]) * scale) });
+      continue;
+    }
+    if (/^[A-Za-z]:[\\/]/.test(line) || line.startsWith('\\\\')) {
+      out.push({ path: line, sizeBytes: 0 });
+    }
+  }
+  return out.length > 0 ? out : null;
+}
+
+/** Turn PA03's measured paths into classified cache candidates. */
+export function buildCacheCandidates(measured: MeasuredPath[]): CacheCandidate[] {
+  return measured.map(entry => {
+    const leaf = entry.path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || entry.path;
+    const classification = classifyCachePath(entry.path);
+    const removable = isCacheCandidateRemovable(classification);
+    return {
+      path: entry.path,
+      name: leaf,
+      classification,
+      sizeBytes: entry.sizeBytes,
+      isRemovable: removable,
+      ...(removable ? {} : { protectedReason: classification }),
+    };
+  });
+}
+
+/** Turn PA03's measured paths into orphan candidates against the live inventory. */
+export function buildResidualCandidates(
+  measured: MeasuredPath[],
+  inventory: InstalledApp[]
+): ResidualCandidate[] {
+  return measured.map(entry => {
+    const leaf = entry.path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || entry.path;
+    return correlateOrphanData(
+      { path: entry.path, name: leaf, sizeMB: entry.sizeBytes / (1024 * 1024) },
+      inventory
+    );
+  });
+}

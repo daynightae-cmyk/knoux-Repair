@@ -14,6 +14,10 @@ import { pickName } from '../../../lib/i18n';
 import ExecutionConfirmDialog from '../../../components/ExecutionConfirmDialog';
 import { StationErrorBoundary, StationOfflineState } from '../_shared';
 import { startExecution, pollExecution } from '../_shared/StationExecutionController';
+import { readEnvelopeNumber, readEnvelopeText } from '../_shared/executionSemantics.ts';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
+import '../../../components/workspace/station-deeplink.css';
+import { StationDeepLink } from '../_shared';
 import {
   type RecoveryReadinessSummary, type RecoverySignal, type RecoverySourceRead, type StationHistoryEntry,
   summarizeRecoveryVault, sortRestorePoints, formatBytes,
@@ -29,6 +33,8 @@ export interface RecoveryStationProps {
   bridgeOnline: boolean | null;
   onRetryBridge: () => void;
   onToolStatus: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
+  /** Cross-station deep link: freeing space belongs to Station 02, disk investigation to Station 06. */
+  onNavigateService?: (family: FamilyId, serviceId: ServiceId) => void;
 }
 
 type TabKey = 'overview' | 'restorePoints' | 'shadowCopies' | 'localBackups' | 'actions' | 'report' | 'history';
@@ -161,6 +167,7 @@ function RecoveryStationContent({
   bridgeOnline,
   onRetryBridge,
   onToolStatus,
+  onNavigateService,
 }: RecoveryStationProps) {
   const text = COPY[lang];
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
@@ -250,10 +257,12 @@ function RecoveryStationContent({
           id: runId || `run-${Date.now()}`,
           toolId: tool.ToolId,
           toolName: pickName(tool, lang),
-          timestamp: new Date().toLocaleTimeString(lang),
+          // Full date + time: a time-of-day stamp makes entries from different
+          // days indistinguishable in the audit trail.
+          timestamp: new Date().toLocaleString(lang),
           status,
-          itemsProcessed: terminalResult?.ItemsProcessed ?? null,
-          summary: terminalResult?.ErrorMessage
+          itemsProcessed: readEnvelopeNumber(terminalResult, 'itemsProcessed'),
+          summary: readEnvelopeText(terminalResult, 'errorMessage')
             || (status === 'SUCCESS'
               ? (lang === 'ar' ? 'اكتملت عملية الاستعادة بنجاح' : 'Recovery operation completed successfully')
               : terminalResult
@@ -355,8 +364,10 @@ function RecoveryStationContent({
         </div>
       </header>
 
-      {/* Mini-Nav Tabs */}
-      <nav className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pb-2 border-b border-slate-800/60">
+      {/* Mini-Nav Tabs. Seven items: a fixed 4-column grid always leaves one
+          empty cell at every width, in every language. auto-fit lets the row
+          divide evenly instead. */}
+      <nav className="grid w-full gap-2 mt-4 pb-2 border-b border-slate-800/60" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
         {[
           { key: 'overview', label: text.tabOverview, icon: ArchiveRestore },
           { key: 'restorePoints', label: text.tabRestorePoints, icon: History },
@@ -449,9 +460,13 @@ function RecoveryStationContent({
                     {readableCount(summary.restorePointsCount, summary.restorePointsRead)}
                   </strong>
                   <span className="text-[11px] text-slate-400 block mt-0.5">
-                    {summary.restorePointsCount > 0
-                      ? (lang === 'ar' ? 'نقطة استعادة نشطة' : 'Active system point(s)')
-                      : (lang === 'ar' ? 'لا توجد نقطة استعادة' : 'No restore point')}
+                    {summary.restorePointsRead === 'UNREADABLE'
+                      ? (lang === 'ar' ? 'تعذّر قراءة نقاط الاستعادة' : 'Restore points could not be read')
+                      : !summary.hasTelemetry
+                        ? text.notCheckedYet
+                        : summary.restorePointsCount > 0
+                          ? (lang === 'ar' ? 'نقطة استعادة نظام نشطة' : 'Active system point(s)')
+                          : (lang === 'ar' ? 'لا توجد نقاط استعادة' : 'No restore point')}
                   </span>
                 </div>
 
@@ -488,7 +503,7 @@ function RecoveryStationContent({
 
               {/* Quick Actions */}
               <div className="flex flex-wrap items-center gap-2 p-3.5 rounded-xl bg-slate-900/50 border border-slate-800">
-                <span className="text-xs font-semibold text-slate-300 mr-2">
+                <span className="text-xs font-semibold text-slate-300 me-2">
                   {lang === 'ar' ? 'إجراءات الحماية السريعة:' : 'Quick Actions:'}
                 </span>
                 <button
@@ -557,6 +572,19 @@ function RecoveryStationContent({
                           >
                             {lang === 'ar' ? 'مراجعة الإجراء' : 'Review action'}
                           </button>
+                        )}
+                        {/* A low-space backup target is a storage problem, and
+                            storage is owned elsewhere. Point at the station that
+                            can actually act on it instead of leaving a dead end. */}
+                        {sig.code === 'LOW_BACKUP_STORAGE' && (
+                          <StationDeepLink
+                            lang={lang}
+                            onNavigateService={onNavigateService}
+                            family="recovery"
+                            serviceId="02-System-Cleanup"
+                            destinationName={{ en: 'System Cleanup', ar: 'تنظيف النظام' }}
+                            label={{ en: 'Free up space', ar: 'تحرير مساحة' }}
+                          />
                         )}
                       </div>
                     ))}
@@ -871,12 +899,12 @@ function RecoveryStationContent({
             </div>
 
             <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800/80">
-              <table className="w-full text-xs text-left">
+              <table className="w-full text-xs text-start">
                 <thead className="text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
                   <tr>
                     <th className="pb-2">{lang === 'ar' ? 'خط الاستعادة' : 'Recovery Vector'}</th>
                     <th className="pb-2">{lang === 'ar' ? 'الحالة الحالية' : 'Observed State'}</th>
-                    <th className="pb-2 text-right">{lang === 'ar' ? 'التقييم' : 'Readiness'}</th>
+                    <th className="pb-2 text-end">{lang === 'ar' ? 'التقييم' : 'Readiness'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
@@ -885,7 +913,7 @@ function RecoveryStationContent({
                     <td className="py-2.5 text-slate-300">
                       {summary.restorePointsRead === 'UNREADABLE' ? text.countUnavailable : `${summary.restorePointsCount} active snapshots`}
                     </td>
-                    <td className="py-2.5 text-right font-bold text-emerald-400">
+                    <td className="py-2.5 text-end font-bold text-emerald-400">
                       {mechanismState(summary.restorePointsCount, summary.restorePointsRead, 'READY', 'EXPOSED')}
                     </td>
                   </tr>
@@ -894,7 +922,7 @@ function RecoveryStationContent({
                     <td className="py-2.5 text-slate-300">
                       {summary.shadowCopiesRead === 'UNREADABLE' ? text.countUnavailable : `${summary.shadowCopiesCount} VSS snapshots`}
                     </td>
-                    <td className="py-2.5 text-right font-bold text-sky-400">
+                    <td className="py-2.5 text-end font-bold text-sky-400">
                       {mechanismState(summary.shadowCopiesCount, summary.shadowCopiesRead, 'ACTIVE', 'NONE')}
                     </td>
                   </tr>
@@ -905,7 +933,7 @@ function RecoveryStationContent({
                         ? `${summary.localBackupsCount} archive(s) (${formatBytes(summary.latestBackupBytes, lang)})`
                         : text.notCheckedYet}
                     </td>
-                    <td className="py-2.5 text-right font-bold text-cyan-400">
+                    <td className="py-2.5 text-end font-bold text-cyan-400">
                       {mechanismState(summary.localBackupsCount, summary.localBackupsRead, 'READY', 'UNARCHIVED')}
                     </td>
                   </tr>

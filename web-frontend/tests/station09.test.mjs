@@ -77,7 +77,18 @@ test('Station 09: deriveSecurityPosture evaluates categorical posture truthfully
 
   // Missing data -> UNKNOWN
   assert.equal(model.deriveSecurityPosture(null, null, null, null), 'UNKNOWN');
-  assert.equal(model.deriveSecurityPosture(true, true, true, null), 'PROTECTED_WITH_WARNINGS');
+  // Every control that COULD be measured is measured and active. SystemSnapshot
+  // has no EnableLUA, so requiring uacEnabled === true made SECURE unreachable.
+  assert.equal(model.deriveSecurityPosture(true, true, true, null), 'SECURE');
+  assert.equal(model.deriveSecurityPosture(null, null, null, null), 'UNKNOWN');
+  // A measured control is what lowers the posture — never an absent one.
+  assert.equal(model.deriveSecurityPosture(true, true, null, null), 'SECURE');
+  assert.equal(model.deriveSecurityPosture(true, true, true, false), 'EXPOSED');
+  // Coverage names exactly what the verdict did not rest on.
+  const coverage = model.securityCoverage(true, true, true, null);
+  assert.equal(coverage.measuredCount, 3);
+  assert.equal(coverage.totalCount, 4);
+  assert.deepEqual(coverage.unmeasured, ['User Account Control']);
 });
 
 test('Station 09: evaluateDefender parses Defender status without hallucination', () => {
@@ -196,7 +207,12 @@ test('Station 09: execution eligibility and unknown evidence remain explicit', (
   assert.match(stationSrc, /launchAction\('SE01', 'analyze'\)/);
   assert.match(stationSrc, /text\.runRequiresConfirmation/);
   assert.match(stationSrc, /Unverified controls remain unverified/);
-  assert.match(stationSrc, /itemsProcessed: terminalResult\?\.ItemsProcessed \?\? null/);
-  assert.match(stationSrc, /grid w-full grid-cols-2 sm:grid-cols-4/);
+  // The count must come from the shared tolerant envelope reader, which returns
+  // null when the field is absent. An inline `?? 1` or `?? 0` would print a
+  // fabricated number for a run that reported nothing.
+  assert.match(stationSrc, /itemsProcessed: itemsProcessedFromResult\(terminalResult\)/);
+  assert.match(stationSrc, /h\.itemsProcessed === null/);
   assert.doesNotMatch(stationSrc, /itemsProcessed: completedRun\.result\?\.ItemsProcessed \?\? 1/);
+  assert.doesNotMatch(stationSrc, /itemsProcessed: [^;\n]*\?\? [0-9]/);
+  assert.match(stationSrc, /grid w-full grid-cols-2 sm:grid-cols-4/);
 });

@@ -20,6 +20,7 @@ import {
   requestConfirmedCancel as requestBackendConfirmedCancel,
   type RememberedRun,
 } from './executionSemantics';
+import { exposureBlockReason } from './capabilityGate';
 
 export type { RememberedRun };
 export { forgetRememberedRun as forgetRun, recallRememberedRun as recallRun, rememberRememberedRun as rememberRun };
@@ -47,6 +48,9 @@ export interface ExecutionDecision {
   reason?: string;
 }
 
+/** Default phrase for high-friction tools that do not declare a stronger action-specific phrase. */
+export const TYPED_PHRASE = 'CONFIRM';
+
 /** Pre-flight gate: confirmation, elevation, and WinRE policy before any run starts. */
 export function decideExecution(input: ExecutionRequestInput, bridgeElevated: boolean): ExecutionDecision {
   const { tool, mode, confirmation } = input;
@@ -56,6 +60,12 @@ export function decideExecution(input: ExecutionRequestInput, bridgeElevated: bo
   if (mode === 'run' && requiresTypedPhrase(tool.RiskLevel, mode)) {
     if (!confirmation || confirmation.confirmed !== true || !confirmation.phrase) {
       return { ok: false, nextState: 'WAITING_FOR_CONFIRMATION', reason: 'Explicit typed confirmation is required before execution.' };
+    }
+    // The bridge exposes the exact phrase owned by the registered script.
+    // Accepting any other non-empty string would make the typed gate decorative.
+    const expectedPhrase = tool.ConfirmationPhrase || TYPED_PHRASE;
+    if (confirmation.phrase.trim() !== expectedPhrase) {
+      return { ok: false, nextState: 'WAITING_FOR_CONFIRMATION', reason: `Type ${expectedPhrase} exactly to authorize this change.` };
     }
   }
   if (tool.RequiresAdmin && !bridgeElevated) {
@@ -144,6 +154,7 @@ export async function startExecution(
 ): Promise<string> {
   if ('ToolId' in inputOrTool) {
     const canonicalMode = normalizeExecutionMode(mode || 'run');
+    assertExposurePermits(inputOrTool, canonicalMode);
     if (shouldSerializeBackgroundAnalyze(canonicalMode, options, confirmation)) {
       return startSerializedBackgroundAnalyze(inputOrTool.ToolId, options);
     }
@@ -152,11 +163,32 @@ export async function startExecution(
   }
 
   const canonicalMode = normalizeExecutionMode(inputOrTool.mode);
+  assertExposurePermits(inputOrTool.tool, canonicalMode);
   if (shouldSerializeBackgroundAnalyze(canonicalMode, inputOrTool.options, inputOrTool.confirmation)) {
     return startSerializedBackgroundAnalyze(inputOrTool.tool.ToolId, inputOrTool.options);
   }
   const { runId } = await api.startRun(inputOrTool.tool.ToolId, canonicalMode, inputOrTool.options || {}, inputOrTool.confirmation);
   return runId;
+}
+
+/**
+ * Last-line backstop for the capability gate.
+ *
+ * Stations hide withheld actions in the UI, but a UI affordance is not a
+ * guarantee. This refuses the run itself, so no code path — a station, the
+ * global catalog, the action rail, a keyboard shortcut — can start a change
+ * for a tool the runtime has never proven. Analysis and preview are untouched:
+ * they change nothing, so an unproven read-only capability stays usable.
+ */
+function assertExposurePermits(
+  tool: Pick<BridgeTool, 'ToolId' | 'RiskLevel' | 'EnglishName' | 'ArabicName'>,
+  mode: 'run' | 'analyze' | 'preview'
+): void {
+  const reason = exposureBlockReason(tool, mode);
+  if (!reason) return;
+  const error = new Error(reason) as Error & { code?: string };
+  error.code = 'CAPABILITY_WITHHELD';
+  throw error;
 }
 
 /**

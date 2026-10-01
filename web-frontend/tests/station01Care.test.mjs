@@ -121,7 +121,10 @@ test('care UI exposes selection, review, typed repair confirmation, AI off, and 
   for (const state of ['CONFIGURE', 'SCANNING', 'REVIEW', 'APPLYING', 'COMPLETE', 'PARTIAL']) assert.match(source, new RegExp(state));
   assert.match(source, /buildScanPlan\(selectedChecks/);
   assert.match(source, /selectedRepairs/);
-  assert.match(source, /confirmPhrase\.trim\(\)\.toUpperCase\(\) !== 'CONFIRM'/);
+  assert.match(source, /const repairConfirmationPhrase = useMemo/);
+  assert.match(source, /ConfirmationPhrase \|\| 'CONFIRM'/);
+  assert.match(source, /confirmPhrase\.trim\(\) !== repairConfirmationPhrase/);
+  assert.match(source, /phrase: tool\?\.ConfirmationPhrase \|\| 'CONFIRM'/);
   assert.match(source, /isVerifiedRepairCompletion\(after\)/);
   assert.match(source, /requiresRecoveryAcknowledgement \? \{ acknowledgedRecovery: recoveryAcknowledged \} : \{\}/);
   assert.doesNotMatch(source, /acknowledgedRecovery:\s*true/);

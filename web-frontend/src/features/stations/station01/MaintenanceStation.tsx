@@ -7,13 +7,16 @@ import {
 import type { BridgeRun, BridgeTool, ExecutionMode, SystemSnapshot, ToolRunConfirmation } from '../../../lib/api';
 import { api, BridgeError } from '../../../lib/api';
 import type { Lang } from '../../../lib/i18n';
+import type { FamilyId, ServiceId } from '../../../data/family-map';
+import { StationDeepLink } from '../_shared';
+import '../../../components/workspace/station-deeplink.css';
 import { pickName } from '../../../lib/i18n';
 import { StationErrorBoundary, StationOfflineState } from '../_shared';
 import { cancelExecution, decideExecution, pollExecution, runStatusToState, startExecution } from '../_shared/StationExecutionController';
 import {
   appendHistory, availableScanChecks, buildMaintenanceReport, buildRecommendations, buildScanPlan,
   deriveCheckState, deriveHealthState, evidenceFromRun, isVerifiedRepairCompletion, loadHistory, stationTools,
-  type EvidenceMap, type HistoryEntry, type MaintenanceCheckState, type MaintenanceScanGroupId,
+  type EvidenceMap, type HealthState, type HistoryEntry, type MaintenanceCheckState, type MaintenanceScanGroupId,
   type Recommendation, type ToolEvidence,
 } from './maintenanceModel';
 
@@ -25,6 +28,8 @@ interface MaintenanceStationProps {
   bridgeOnline: boolean | null;
   onRetryBridge: () => void;
   onToolStatus: (toolId: string, status: 'success' | 'error' | 'cancelled' | 'inconclusive' | 'running') => void;
+  /** Cross-station hand-off: point at the station that owns a fact this one merely meets. */
+  onNavigateService?: (family: FamilyId, serviceId: ServiceId) => void;
 }
 
 interface ActiveRun { runId: string; toolId: string; mode: ExecutionMode; startedAt: number }
@@ -34,6 +39,30 @@ type Workflow = 'CONFIGURE' | 'SCANNING' | 'REVIEW' | 'APPLYING' | 'COMPLETE' | 
 
 const COPY = {
   en: {
+    healthHeading: 'Windows maintenance health',
+    healthNotScanned: 'Not checked yet',
+    healthChecking: 'Checking',
+    healthHealthy: 'No problem found in the checks that ran',
+    healthPartial: 'Partially checked',
+    healthAttention: 'Needs attention',
+    healthRepairRecommended: 'Repair recommended',
+    healthRepairing: 'Repair in progress',
+    healthRestart: 'Restart required',
+    healthInconclusive: 'Inconclusive',
+    healthPermission: 'Administrator permission required',
+    healthOffline: 'Maintenance engine unavailable',
+    healthDetailNotScanned: 'Run a scan to measure system files, the component store, disk integrity, and servicing health.',
+    healthDetailChecking: 'One or more checks are still running.',
+    healthDetailHealthy: 'Every required check completed and found no corruption. This is not a numeric score.',
+    healthDetailPartial: 'Some required checks completed. The remaining domains have not been measured, so no final verdict is claimed.',
+    healthDetailAttention: 'At least one completed check reported a problem. Review the findings below.',
+    healthDetailRepairRecommended: 'A completed check found a problem with a registered repair available.',
+    healthDetailRepairing: 'Approved repairs are being applied. Results appear only after each one finishes.',
+    healthDetailRestart: 'A completed check reported that Windows must restart before its repair can complete.',
+    healthDetailInconclusive: 'A check ended without conclusive evidence. Nothing is claimed either way.',
+    healthDetailPermission: 'Some selected checks need an elevated bridge. Re-check permission to continue.',
+    healthDetailOffline: 'The maintenance engine is not reachable, so nothing could be measured.',
+    checking: 'Checking',
     eyebrow: 'HEALTH STUDIO', title: 'KNOUX Care', subtitle: 'Windows diagnostic and repair center',
     configure: 'Configure scan', scanning: 'Scanning', review: 'Review findings', applying: 'Applying selected', complete: 'Maintenance complete', partial: 'Completed with attention',
     machine: 'Machine', bridge: 'Bridge', admin: 'Administrator', ai: 'KNOUX AI', lastScan: 'Last real scan', online: 'ONLINE', offline: 'OFFLINE', elevated: 'ELEVATED', standard: 'STANDARD',
@@ -58,6 +87,30 @@ const COPY = {
     aiUnavailableBody: 'KNOUX AI is unavailable in this runtime. Diagnostics continue normally.',
   },
   ar: {
+    healthHeading: 'صحة صيانة ويندوز',
+    healthNotScanned: 'لم يتم الفحص بعد',
+    healthChecking: 'جارٍ الفحص',
+    healthHealthy: 'لا توجد مشكلة في الفحوصات التي اكتملت',
+    healthPartial: 'فحص جزئي',
+    healthAttention: 'يحتاج إلى انتباه',
+    healthRepairRecommended: 'إصلاح موصى به',
+    healthRepairing: 'إصلاح قيد التنفيذ',
+    healthRestart: 'مطلوب إعادة تشغيل',
+    healthInconclusive: 'غير حاسم',
+    healthPermission: 'مطلوب صلاحيات المسؤول',
+    healthOffline: 'محرك الصيانة غير متاح',
+    healthDetailNotScanned: 'نفّذ فحصاً لقياس ملفات النظام ومخزن المكونات وسلامة القرص وحالة الصيانة.',
+    healthDetailChecking: 'لا يزال فحص واحد أو أكثر قيد التنفيذ.',
+    healthDetailHealthy: 'اكتملت كل الفحوصات المطلوبة ولم تجد أي تلف. هذا ليس درجة رقمية.',
+    healthDetailPartial: 'اكتمل بعض الفحوصات المطلوبة. لم تُقَس بقية المجالات، لذا لا يُدَّعى أي حكم نهائي.',
+    healthDetailAttention: 'أبلغ فحص مكتمل واحد على الأقل عن مشكلة. راجع النتائج أدناه.',
+    healthDetailRepairRecommended: 'وجد فحص مكتمل مشكلة يتوفر لها إصلاح مسجَّل.',
+    healthDetailRepairing: 'يجري تطبيق الإصلاحات المعتمدة. تظهر النتائج بعد انتهاء كل إصلاح.',
+    healthDetailRestart: 'أبلغ فحص مكتمل أن ويندوز يجب أن يُعيد التشغيل قبل اكتمال الإصلاح.',
+    healthDetailInconclusive: 'انتهى فحص دون أدلة حاسمة. لا يُدَّعى شيء في أي اتجاه.',
+    healthDetailPermission: 'تتطلب بعض الفحوصات المحددة جسراً مرفوع الصلاحيات. أعد فحص الصلاحيات للمتابعة.',
+    healthDetailOffline: 'محرك الصيانة غير متاح، لذا لم يتم قياس أي شيء.',
+    checking: 'جارٍ الفحص',
     eyebrow: 'استوديو الصحة', title: 'عناية KNOUX', subtitle: 'مركز تشخيص Windows وإصلاحه',
     configure: 'إعداد الفحص', scanning: 'جارٍ الفحص', review: 'مراجعة النتائج', applying: 'تطبيق المحدد', complete: 'اكتملت الصيانة', partial: 'اكتمل مع ملاحظات',
     machine: 'الجهاز', bridge: 'الجسر', admin: 'صلاحية المدير', ai: 'KNOUX AI', lastScan: 'آخر فحص حقيقي', online: 'متصل', offline: 'غير متصل', elevated: 'مدير', standard: 'عادي',
@@ -83,6 +136,35 @@ const COPY = {
   },
 } as const;
 
+/** Health verdict in plain language. Never a score, never a percentage. */
+const HEALTH_COPY: Record<HealthState, keyof typeof COPY['en']> = {
+  NOT_SCANNED: 'healthNotScanned',
+  CHECKING: 'healthChecking',
+  HEALTHY: 'healthHealthy',
+  PARTIALLY_CHECKED: 'healthPartial',
+  ATTENTION: 'healthAttention',
+  REPAIR_RECOMMENDED: 'healthRepairRecommended',
+  REPAIR_IN_PROGRESS: 'healthRepairing',
+  RESTART_REQUIRED: 'healthRestart',
+  INCONCLUSIVE: 'healthInconclusive',
+  PERMISSION_REQUIRED: 'healthPermission',
+  ENGINE_OFFLINE: 'healthOffline',
+};
+
+/** Why that verdict, in one sentence, so it is never a bare label. */
+const HEALTH_DETAIL_COPY: Record<HealthState, keyof typeof COPY['en']> = {
+  NOT_SCANNED: 'healthDetailNotScanned',
+  CHECKING: 'healthDetailChecking',
+  HEALTHY: 'healthDetailHealthy',
+  PARTIALLY_CHECKED: 'healthDetailPartial',
+  ATTENTION: 'healthDetailAttention',
+  REPAIR_RECOMMENDED: 'healthDetailRepairRecommended',
+  REPAIR_IN_PROGRESS: 'healthDetailRepairing',
+  RESTART_REQUIRED: 'healthDetailRestart',
+  INCONCLUSIVE: 'healthDetailInconclusive',
+  PERMISSION_REQUIRED: 'healthDetailPermission',
+  ENGINE_OFFLINE: 'healthDetailOffline',
+};
 const GROUPS: Array<{ id: MaintenanceScanGroupId; icon: typeof ShieldCheck; label: { en: string; ar: string }; hint: { en: string; ar: string } }> = [
   { id: 'system-files', icon: FileSearch, label: { en: 'System files', ar: 'ملفات النظام' }, hint: { en: 'SFC and CBS integrity evidence', ar: 'أدلة سلامة SFC وCBS' } },
   { id: 'windows-image', icon: Layers3, label: { en: 'Windows health', ar: 'صحة Windows' }, hint: { en: 'DISM component-store checks', ar: 'فحوص مخزن مكونات DISM' } },
@@ -104,7 +186,7 @@ function errorMessage(error: unknown, lang: Lang): string {
   if (error instanceof BridgeError) {
     if (error.code === 'RUN_IN_PROGRESS') return text.errInProgress;
     if (error.code === 'ELEVATION_REQUIRED') return text.errElevation;
-    if (error.code === 'CONFIRMATION_REQUIRED' || error.code === 'CONFIRMATION_PHRASE_REQUIRED') return text.errConfirmation;
+    if (error.code === 'CONFIRMATION_REQUIRED' || error.code === 'CONFIRMATION_PHRASE_REQUIRED' || error.code === 'CONFIRMATION_PHRASE_MISMATCH') return text.errConfirmation;
     if (error.code === 'MODE_NOT_SUPPORTED') return text.errMode;
     if (error.code === 'UNKNOWN_TOOL') return text.errUnknown;
     if (error.code === 'BRIDGE_UNREACHABLE' || error.code === 'BRIDGE_UNAVAILABLE') return text.errOffline;
@@ -123,6 +205,7 @@ function resultTone(status: string): string {
 
 export default function MaintenanceStation({
   lang, tools, bridgeElevated, bridgeOnline, onRetryBridge, onToolStatus,
+  onNavigateService,
 }: MaintenanceStationProps) {
   const text = COPY[lang];
   const station = useMemo(() => stationTools(tools), [tools]);
@@ -183,6 +266,10 @@ export default function MaintenanceStation({
     const backup = byId.get(item.toolId)?.BackupMethod?.trim() || '';
     return Boolean(backup && !/^none(?:\b|\s|\()/i.test(backup));
   }), [byId, selectedRecommendationList]);
+  const repairConfirmationPhrase = useMemo(() => {
+    const phrases = selectedRecommendationList.map((item) => byId.get(item.toolId)?.ConfirmationPhrase || 'CONFIRM');
+    return [...new Set(phrases)].join(' + ');
+  }, [byId, selectedRecommendationList]);
   const completedCount = queue.filter((item) => item.state === 'COMPLETED' || item.state === 'FAILED' || item.state === 'CANCELLED').length;
   const failedChecks = checks.filter((check) => ['FAILED', 'INCONCLUSIVE'].includes(deriveCheckState(check, evidence, runningIds)));
   const lastScan = useMemo(() => [
@@ -263,7 +350,7 @@ export default function MaintenanceStation({
   }, [executeStep, lang, selectedPlan]);
 
   const applyRepairs = useCallback(async () => {
-    if (confirmPhrase.trim().toUpperCase() !== 'CONFIRM' || (requiresRecoveryAcknowledgement && !recoveryAcknowledged)) {
+    if (confirmPhrase.trim() !== repairConfirmationPhrase || (requiresRecoveryAcknowledgement && !recoveryAcknowledged)) {
       setBanner(text.errConfirmation);
       return;
     }
@@ -271,16 +358,17 @@ export default function MaintenanceStation({
     setBanner('');
     setRepairResults([]);
     setWorkflow('APPLYING');
-    const confirmation: ToolRunConfirmation = {
-      confirmed: true,
-      phrase: confirmPhrase.trim(),
-      confirmedAt: new Date().toISOString(),
-      ...(requiresRecoveryAcknowledgement ? { acknowledgedRecovery: recoveryAcknowledged } : {}),
-    };
     const results: RepairResult[] = [];
     for (const recommendation of selectedRecommendationList) {
       const sourceId = recommendation.toolId === 'SM02' ? 'SM01' : recommendation.toolId === 'SM05' ? (evidence.SM04 ? 'SM04' : 'SM03') : 'SM06';
       try {
+        const tool = byId.get(recommendation.toolId);
+        const confirmation: ToolRunConfirmation = {
+          confirmed: true,
+          phrase: tool?.ConfirmationPhrase || 'CONFIRM',
+          confirmedAt: new Date().toISOString(),
+          ...(requiresRecoveryAcknowledgement ? { acknowledgedRecovery: recoveryAcknowledged } : {}),
+        };
         const after = await executeStep(recommendation.toolId, recommendation.mode, confirmation);
         results.push({ recommendation, before: evidence[sourceId] || null, after });
         setRepairResults([...results]);
@@ -288,7 +376,7 @@ export default function MaintenanceStation({
     }
     const hasIncompleteOutcome = results.length !== selectedRecommendationList.length || results.some(({ after }) => !isVerifiedRepairCompletion(after));
     setWorkflow(hasIncompleteOutcome ? 'PARTIAL' : 'COMPLETE');
-  }, [confirmPhrase, evidence, executeStep, lang, recoveryAcknowledged, requiresRecoveryAcknowledgement, selectedRecommendationList, text.errConfirmation]);
+  }, [byId, confirmPhrase, evidence, executeStep, lang, recoveryAcknowledged, repairConfirmationPhrase, requiresRecoveryAcknowledgement, selectedRecommendationList, text.errConfirmation]);
 
   const cancelActive = useCallback(async () => {
     cancelRequested.current = true;
@@ -362,7 +450,7 @@ export default function MaintenanceStation({
           <div className="care-brand"><span><Wrench size={19}/></span><div><p>{text.eyebrow}</p><h1>{text.title}</h1><small>{text.subtitle}</small></div></div>
           <div className="care-runtime-strip">
             <span><Cpu size={12}/><small>{text.machine}</small><b dir="auto">{system?.Machine || system?.Os || '—'}</b></span>
-            <span className={bridgeOnline ? 'is-good' : 'is-bad'}><ShieldCheck size={12}/><small>{text.bridge}</small><b>{bridgeOnline ? text.online : text.offline}</b></span>
+            <span className={bridgeOnline === true ? 'is-good' : bridgeOnline === false ? 'is-bad' : 'is-checking'}><ShieldCheck size={12}/><small>{text.bridge}</small><b>{bridgeOnline === true ? text.online : bridgeOnline === false ? text.offline : text.checking}</b></span>
             <button type="button" onClick={() => void recheckElevation()} className={elevated ? 'is-good' : 'is-warn'}><LockKeyhole size={12}/><small>{text.admin}</small><b>{elevated ? text.elevated : text.standard}</b></button>
             <button type="button" onClick={() => void toggleAi()} className={aiEnabled ? 'is-ai-on' : aiState === 'UNAVAILABLE' ? 'is-bad' : ''} aria-pressed={aiEnabled}><Bot size={12}/><small>{text.ai}</small><b>{aiState === 'OFF' ? text.aiOff : aiState === 'CHECKING' ? text.aiChecking : aiState === 'AVAILABLE' ? text.aiAvailable : text.aiUnavailable}</b></button>
             <span><History size={12}/><small>{text.lastScan}</small><b>{lastScan ? new Date(lastScan).toLocaleString(lang) : '—'}</b></span>
@@ -426,13 +514,83 @@ export default function MaintenanceStation({
           </div>
         </section>
 
+        {/* The health verdict is the station's headline answer to "is my Windows
+            healthy?". The model already derived it with a documented minimum
+            evidence requirement; it was only ever written into the exported
+            report, so a user could finish a full scan and still not be told. */}
+        {health !== 'NOT_SCANNED' && (
+          <section className={`care-health-verdict is-${health.toLowerCase().replace(/_/g, '-')}`} role="status">
+            <div>
+              <p>{text.healthHeading}</p>
+              <strong>{text[HEALTH_COPY[health]]}</strong>
+              <small>{text[HEALTH_DETAIL_COPY[health]]}</small>
+            </div>
+            {health === 'PARTIALLY_CHECKED' && (
+              <p className="care-health-coverage">
+                {lang === 'ar'
+                  ? 'يحتاج هذا الحكم إلى فحص SM01 وSM03 أو SM04 وSM06 وSM10 ليصبح نهائياً.'
+                  : 'This verdict needs SM01, SM03 or SM04, SM06 and SM10 to become final.'}
+              </p>
+            )}
+            {health === 'RESTART_REQUIRED' && (
+              <p className="care-health-coverage">
+                {lang === 'ar'
+                  ? 'أبلغت إحدى الأدوات عن حاجة النظام إلى إعادة تشغيل لاستكمال الإصلاح.'
+                  : 'A tool reported that Windows must restart before its repair can complete.'}
+              </p>
+            )}
+            {health === 'PERMISSION_REQUIRED' && (
+              <button type="button" className="care-permission-callout" onClick={() => void recheckElevation()}>
+                <LockKeyhole size={14}/><span>{text.permission}</span><b>{text.recheck}</b>
+              </button>
+            )}
+          </section>
+        )}
+
         {(workflow === 'REVIEW' || workflow === 'COMPLETE' || workflow === 'PARTIAL') && <section className="care-result-groups">{GROUPS.map((group) => { const groupChecks = checks.filter((check) => check.groupId === group.id && evidence[check.toolId]); if (!groupChecks.length) return null; const Icon = group.icon; return <article key={group.id}><header><Icon size={16}/><strong>{group.label[lang]}</strong><span>{groupChecks.length}</span></header><div>{groupChecks.map((check) => { const state = deriveCheckState(check, evidence, runningIds); return <p key={check.id} data-state={state.toLowerCase()}><span>{state === 'CLEAR' ? <Check size={13}/> : state === 'FINDING' ? <AlertTriangle size={13}/> : <CircleAlert size={13}/>}</span><b>{check.label[lang]}</b><small>{text[CHECK_STATE_COPY[state]]}</small></p>; })}</div></article>; })}</section>}
+
+        {/* A finding here is a fact about the machine. The station that owns the
+            underlying surface is a different one, and a dead end is the only
+            thing this used to offer. */}
+        {(workflow === 'REVIEW' || workflow === 'COMPLETE' || workflow === 'PARTIAL') && (
+          <section className="care-result-groups" aria-label={lang === 'ar' ? 'محطات ذات صلة' : 'Related stations'}>
+            <article>
+              <header><Layers3 size={16}/><strong>{lang === 'ar' ? 'محطات ذات صلة' : 'Related stations'}</strong></header>
+              <div className="flex flex-wrap gap-3 p-3">
+                <StationDeepLink
+                  lang={lang}
+                  onNavigateService={onNavigateService}
+                  family="recovery"
+                  serviceId="06-Disk-Space"
+                  destinationName={{ en: 'Disk & Storage', ar: 'الأقراص والتخزين' }}
+                  label={{ en: 'Disk and volume detail', ar: 'تفاصيل الأقراص والمجلدات' }}
+                />
+                <StationDeepLink
+                  lang={lang}
+                  onNavigateService={onNavigateService}
+                  family="assurance"
+                  serviceId="10-Diagnostics-Reports"
+                  destinationName={{ en: 'Diagnostics', ar: 'التشخيص' }}
+                  label={{ en: 'Event log and crash detail', ar: 'سجل الأحداث والأعطال' }}
+                />
+                <StationDeepLink
+                  lang={lang}
+                  onNavigateService={onNavigateService}
+                  family="assurance"
+                  serviceId="14-Driver-Management"
+                  destinationName={{ en: 'Driver Management', ar: 'إدارة التعريفات' }}
+                  label={{ en: 'Driver packages and signatures', ar: 'حزم التعريفات والتوقيعات' }}
+                />
+              </div>
+            </article>
+          </section>
+        )}
 
         {history.length > 0 && <details className="care-history"><summary><History size={14}/><strong>{text.history}</strong><span>{history.length}</span><ChevronDown size={13}/></summary><div><button type="button" onClick={downloadReport}><Download size={13}/>{text.download}</button><table><thead><tr><th>{text.lastScan}</th><th>Tool</th><th>Status</th><th>{text.evidence}</th></tr></thead><tbody>{history.slice(0, 30).map((entry, index) => <tr key={`${entry.toolId}-${entry.finishedAt}-${index}`}><td>{entry.finishedAt || '—'}</td><td>{entry.toolId}</td><td>{entry.status}</td><td>{entry.verificationResult || '—'}</td></tr>)}</tbody></table></div></details>}
 
         {scanPlanOpen && <div className="care-dialog-backdrop" onMouseDown={() => setScanPlanOpen(false)}><section role="dialog" aria-modal="true" className="care-dialog" onMouseDown={(event) => event.stopPropagation()}><button type="button" className="care-dialog-close" onClick={() => setScanPlanOpen(false)}><X size={16}/></button><ScanSearch size={24}/><h2>{text.scanPlan}</h2><p>{text.scanPlanBody}</p><ol>{selectedPlan.map((step, index) => <li key={step.toolId}><span>{index + 1}</span><div><strong>{pickName(byId.get(step.toolId)!, lang)}</strong><small>{step.toolId} · READ ONLY{byId.get(step.toolId)?.RequiresAdmin ? ` · ${text.admin}` : ''}</small></div></li>)}</ol><footer><button type="button" onClick={() => setScanPlanOpen(false)}>{text.back}</button><button type="button" onClick={() => void runScan()} disabled={selectedPlan.length === 0 || selectedNeedsAdmin}><Play size={13}/>{text.begin}</button></footer></section></div>}
 
-        {repairPlanOpen && <div className="care-dialog-backdrop" onMouseDown={() => setRepairPlanOpen(false)}><section role="dialog" aria-modal="true" className="care-dialog is-repair" onMouseDown={(event) => event.stopPropagation()}><button type="button" className="care-dialog-close" onClick={() => setRepairPlanOpen(false)}><X size={16}/></button><AlertTriangle size={24}/><h2>{text.confirmRepair}</h2><p>{text.confirmBody}</p><ol>{selectedRecommendationList.map((item, index) => { const tool = byId.get(item.toolId)!; return <li key={item.id}><span>{index + 1}</span><div><strong>{pickName(tool, lang)}</strong><small>{tool.RiskLevel} · {tool.RequiresAdmin ? text.admin : '—'} · {tool.RequiresRestart ? text.restartRequired : 'NO RESTART'}</small></div></li>; })}</ol>{requiresRecoveryAcknowledgement && <label className="care-recovery-ack"><input type="checkbox" checked={recoveryAcknowledged} onChange={(event) => setRecoveryAcknowledged(event.target.checked)}/><span>{text.acknowledgeRecovery}</span></label>}<label><span>{text.typeConfirm}</span><input value={confirmPhrase} onChange={(event) => setConfirmPhrase(event.target.value)} placeholder="CONFIRM" autoFocus={!requiresRecoveryAcknowledgement}/></label><footer><button type="button" onClick={() => setRepairPlanOpen(false)}>{text.back}</button><button type="button" onClick={() => void applyRepairs()} disabled={confirmPhrase.trim().toUpperCase() !== 'CONFIRM' || (requiresRecoveryAcknowledgement && !recoveryAcknowledged)}><Wrench size={13}/>{text.confirm}</button></footer></section></div>}
+        {repairPlanOpen && <div className="care-dialog-backdrop" onMouseDown={() => setRepairPlanOpen(false)}><section role="dialog" aria-modal="true" className="care-dialog is-repair" onMouseDown={(event) => event.stopPropagation()}><button type="button" className="care-dialog-close" onClick={() => setRepairPlanOpen(false)}><X size={16}/></button><AlertTriangle size={24}/><h2>{text.confirmRepair}</h2><p>{text.confirmBody}</p><ol>{selectedRecommendationList.map((item, index) => { const tool = byId.get(item.toolId)!; return <li key={item.id}><span>{index + 1}</span><div><strong>{pickName(tool, lang)}</strong><small>{tool.RiskLevel} · {tool.RequiresAdmin ? text.admin : '—'} · {tool.RequiresRestart ? text.restartRequired : 'NO RESTART'}</small></div></li>; })}</ol>{requiresRecoveryAcknowledgement && <label className="care-recovery-ack"><input type="checkbox" checked={recoveryAcknowledged} onChange={(event) => setRecoveryAcknowledged(event.target.checked)}/><span>{text.acknowledgeRecovery}</span></label>}<label><span>{text.typeConfirm}: <strong>{repairConfirmationPhrase}</strong></span><input value={confirmPhrase} onChange={(event) => setConfirmPhrase(event.target.value)} placeholder={repairConfirmationPhrase} autoFocus={!requiresRecoveryAcknowledgement}/></label><footer><button type="button" onClick={() => setRepairPlanOpen(false)}>{text.back}</button><button type="button" onClick={() => void applyRepairs()} disabled={confirmPhrase.trim() !== repairConfirmationPhrase || (requiresRecoveryAcknowledgement && !recoveryAcknowledged)}><Wrench size={13}/>{text.confirm}</button></footer></section></div>}
       </div>
     </StationErrorBoundary>
   );

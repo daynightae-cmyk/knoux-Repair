@@ -7,6 +7,7 @@
  */
 
 import type { BridgeTool, DiagnosticsPreview, DiagnosticsPreviewDisk, DiagnosticsPreviewEvent, KnouxRunResult } from '../../../lib/api';
+import { outcomeFromEnvelope, type EnvelopeOutcome } from '../_shared/executionSemantics.ts';
 
 export type DiagnosticCondition = 'HEALTHY' | 'ATTENTION_RECOMMENDED' | 'CRITICAL_FINDINGS' | 'INCONCLUSIVE';
 
@@ -287,11 +288,6 @@ export function stationTools(tools: BridgeTool[]): BridgeTool[] {
  */
 export function outcomeFromRun(
   result: KnouxRunResult | null | undefined
-): 'SUCCESS' | 'WARNING' | 'FAILED' | 'CANCELLED' | 'INCONCLUSIVE' {
-  if (!result) return 'INCONCLUSIVE';
-  if (result.Status === 'Cancelled') return 'CANCELLED';
-  if (result.Status === 'Success') return 'SUCCESS';
-  if (result.Status === 'Warning') return 'WARNING';
-  if (result.Status === 'Failed' || result.ExitCode !== 0) return 'FAILED';
-  return 'INCONCLUSIVE';
+): EnvelopeOutcome {
+  return outcomeFromEnvelope(result);
 }
