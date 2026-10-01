@@ -39,7 +39,7 @@ function Get-KnouxWingetPackageInfo {
         # Build winget show command
         $args = @('show', '--id', $PackageId, '--exact', '--disable-interactivity', '--accept-source-agreements')
         if ($Source) { $args += '--source', $Source }
-        
+
         $output = & winget.exe @args 2>&1
         $exitCode = $LASTEXITCODE
 
