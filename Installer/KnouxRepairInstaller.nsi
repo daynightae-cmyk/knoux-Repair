@@ -1,4 +1,4 @@
-; KNOUX Repair v2.0.2 — x64 NSIS installer
+; KNOUX Repair v2.0.3 — x64 NSIS installer
 ; Keep registry keys stable between releases to support in-place upgrades.
 Unicode true
 SetCompressor /SOLID lzma
@@ -10,16 +10,16 @@ SetCompressorDictSize 32
 !include "FileFunc.nsh"
 
 !define PRODUCT_NAME "KNOUX Repair"
-!define PRODUCT_VERSION "2.0.2"
+!define PRODUCT_VERSION "2.0.3"
 !define PRODUCT_PUBLISHER "Knoux"
 !define PRODUCT_EXE "KnouxRepair.exe"
 !define INSTALL_REG_KEY "Software\Knoux\KnouxRepair"
 !define UNINSTALL_REG_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\KnouxRepair"
-!define DIST_DIR "..\Release\KnouxRepair-v2.0.2-win-x64-distribution"
+!define DIST_DIR "..\Release\KnouxRepair-v2.0.3-win-x64-distribution"
 !define OUT_DIR ".\Release"
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "${OUT_DIR}\KnouxRepair-v2.0.2-Setup-x64.exe"
+OutFile "${OUT_DIR}\KnouxRepair-v2.0.3-Setup-x64.exe"
 InstallDir "$PROGRAMFILES64\KnouxRepair"
 InstallDirRegKey HKLM "${INSTALL_REG_KEY}" "InstallLocation"
 RequestExecutionLevel admin
@@ -27,14 +27,14 @@ BrandingText "Knoux — Glass Nexus"
 ShowInstDetails show
 ShowUninstDetails show
 
-VIProductVersion "2.0.2.0"
+VIProductVersion "2.0.3.0"
 VIAddVersionKey /LANG=1033 "ProductName" "${PRODUCT_NAME}"
 VIAddVersionKey /LANG=1033 "ProductVersion" "${PRODUCT_VERSION}"
 VIAddVersionKey /LANG=1033 "FileVersion" "${PRODUCT_VERSION}.0"
 VIAddVersionKey /LANG=1033 "LegalCopyright" "Copyright 2026 Knoux. Crafted by Eng. Sadek Elgazar"
 VIAddVersionKey /LANG=1033 "CompanyName" "${PRODUCT_PUBLISHER}"
 VIAddVersionKey /LANG=1033 "FileDescription" "${PRODUCT_NAME} Setup"
-VIAddVersionKey /LANG=1033 "OriginalFilename" "KnouxRepair-v2.0.2-Setup-x64.exe"
+VIAddVersionKey /LANG=1033 "OriginalFilename" "KnouxRepair-v2.0.3-Setup-x64.exe"
 
 !define MUI_ABORTWARNING
 !define MUI_ICON "assets\KnouxOfficialLogo.ico"

@@ -1,11 +1,11 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # ============================================================
-#  knoux Repair v2.0.2 | Menu.ps1
+#  knoux Repair v2.0.3 | Menu.ps1
 #  Interactive menu for all registered tools with full navigation contract.
 # ============================================================
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$Host.UI.RawUI.WindowTitle = 'knoux Repair v2.0.2'
+$Host.UI.RawUI.WindowTitle = 'knoux Repair v2.0.3'
 
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigDir = Join-Path $ProjectRoot 'Config'
@@ -43,7 +43,7 @@ $script:OperationLock = $false
 function Show-Header {
     Write-Host ''
     Write-Host '  ==================================================' -ForegroundColor Cyan
-    Write-Host '   knoux Repair v2.0.2  |  Windows Maintenance Suite' -ForegroundColor Cyan
+    Write-Host '   knoux Repair v2.0.3  |  Windows Maintenance Suite' -ForegroundColor Cyan
     Write-Host '  ==================================================' -ForegroundColor Cyan
     Write-Host ('   Console: {0}  |  Tools: {1}' -f $(if ($isAdmin) { 'ADMIN' } else { 'standard' }), ($menu | ForEach-Object { $_.Tools.Count } | Measure-Object -Sum).Sum)
     Write-Host '   Tip: right-click -> Run as administrator for full functionality' -ForegroundColor DarkGray

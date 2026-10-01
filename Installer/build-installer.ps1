@@ -4,10 +4,10 @@ param()
 $ErrorActionPreference = 'Stop'
 $InstallerRoot = Split-Path -Parent $PSCommandPath
 $ReleaseRoot = Split-Path -Parent $InstallerRoot
-$DistributionRoot = Join-Path $ReleaseRoot 'Release\KnouxRepair-v2.0.2-win-x64-distribution'
+$DistributionRoot = Join-Path $ReleaseRoot 'Release\KnouxRepair-v2.0.3-win-x64-distribution'
 $NsiScript = Join-Path $InstallerRoot 'KnouxRepairInstaller.nsi'
 $OutputDirectory = Join-Path $InstallerRoot 'Release'
-$OutputFile = Join-Path $OutputDirectory 'KnouxRepair-v2.0.2-Setup-x64.exe'
+$OutputFile = Join-Path $OutputDirectory 'KnouxRepair-v2.0.3-Setup-x64.exe'
 $ApplicationFile = Join-Path $DistributionRoot 'KnouxRepair.exe'
 
 function Get-PeMachine {
@@ -56,7 +56,7 @@ $makensis = [string]$makensis[0]
 
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 Get-ChildItem $OutputDirectory -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -like 'KnouxRepair-v2.0.2-Setup-x64.exe*' -or $_.Name -eq 'RELEASE-MANIFEST.json' } |
+    Where-Object { $_.Name -like 'KnouxRepair-v2.0.3-Setup-x64.exe*' -or $_.Name -eq 'RELEASE-MANIFEST.json' } |
     Remove-Item -Force
 
 & $makensis /V3 $NsiScript
@@ -73,7 +73,7 @@ $hashFile = "$OutputFile.sha256"
 $versionInfo = (Get-Item $OutputFile).VersionInfo
 $manifest = [ordered]@{
     Product             = 'KNOUX Repair'
-    Version             = '2.0.2'
+    Version             = '2.0.3'
     Architecture        = 'x64'
     InstallerTechnology = 'NSIS 3.12'
     Installer           = (Split-Path $OutputFile -Leaf)

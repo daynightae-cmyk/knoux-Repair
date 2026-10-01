@@ -1,7 +1,7 @@
 {
   "name": "knoux-repair-nexus",
   "private": true,
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "KNOUX Repair — local Windows repair workstation",
   "author": "KNOUX",
   "repository": "https://github.com/daynightae-cmyk/knoux-Repair.git",

@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 
-title KNOUX Repair v2.0.2 - Diagnostic Launcher
+title KNOUX Repair v2.0.3 - Diagnostic Launcher
 
 set "KNOUX_ROOT=%~dp0"
 set "KNOUX_SELF=%~f0"
@@ -10,7 +10,7 @@ set "KNOUX_LOG=%~dp0Launcher-Diagnostic.log"
 
 echo.
 echo ============================================================
-echo  KNOUX REPAIR v2.0.2 - DIAGNOSTIC LAUNCHER
+echo  KNOUX REPAIR v2.0.3 - DIAGNOSTIC LAUNCHER
 echo ============================================================
 echo.
 

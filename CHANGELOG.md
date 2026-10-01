@@ -1,3 +1,26 @@
+## 2.0.3 (2026-10-01) - Truthfulness, Electron 41, and unified visual proof
+
+- **Truthful station results** (#68): all 18 stations now report what was actually measured
+  instead of a confident-sounding default. Adds a versioned capability gate, typed tool
+  confirmations, and Maintenance plan-specific confirmation UI.
+- **Splash readability**: the identity art renders above the glass chamber, which was
+  blurring the KNOUX mark into an unreadable smudge. Frost reduced from 12px to 4px, and
+  the flat chamber ring becomes a masked prism edge.
+- **Electron 39 -> 41** (#70): upgrades off the end-of-life Electron line to a supported
+  release (Node 24.18.0). Verified node:sqlite compatibility, bridge start, the renderer
+  token path, and NSIS packaging before merge.
+- **Unified 18-service visual proof** (#50): a single pass asserting horizontal overflow and
+  clipped controls across all 18 routes at the strict 1366x768 contract, with a
+  never-executes guard. Previously these checks existed only per-family, so a route in a
+  family whose capture was not re-run could regress silently.
+- **WinGet catalog module**: `Core/KnouxRepair.PostInstall.Catalog.psm1` resolves package
+  identity against live WinGet repositories and verifies local installation from the
+  registry. Package versions resolve at execution time rather than being frozen.
+- **Dependency advisories closed**: `@grpc/grpc-js` overridden to 1.14.5 (4 high-severity
+  findings via firebase), plus `brace-expansion` across all three major lines and a
+  `fast-uri` patch. `npm audit` reports 0 vulnerabilities.
+- **Quarantine metadata schema stays at 2.0.2**: that literal is a data format version, not
+  the product version, and quarantined items already on disk depend on it.
 # Changelog — knoux Repair
 
 ## 2.0.2 (2026-08-04) — Release round-2 (verification + hardening)

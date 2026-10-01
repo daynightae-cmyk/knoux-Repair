@@ -26,8 +26,8 @@ Assert-True $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Adminis
 
 $InstallerRoot = Split-Path -Parent $PSCommandPath
 $ReleaseRoot = Split-Path -Parent $InstallerRoot
-$Installer = Join-Path $InstallerRoot 'Release\KnouxRepair-v2.0.2-Setup-x64.exe'
-$SourceDistribution = Join-Path $ReleaseRoot 'Release\KnouxRepair-v2.0.2-win-x64-distribution'
+$Installer = Join-Path $InstallerRoot 'Release\KnouxRepair-v2.0.3-Setup-x64.exe'
+$SourceDistribution = Join-Path $ReleaseRoot 'Release\KnouxRepair-v2.0.3-win-x64-distribution'
 $TestInstall = Join-Path $env:ProgramFiles 'KnouxRepair-InstallerValidation'
 $UninstallKey = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\KnouxRepair'
 $DesktopShortcut = Join-Path $env:Public 'Desktop\KNOUX Repair.lnk'
@@ -79,7 +79,7 @@ $Results.Shortcuts = 'PASS'
 
 $registry = Get-ItemProperty -Path $UninstallKey
 Assert-True ($registry.DisplayName -eq 'KNOUX Repair') 'Uninstall registration has an invalid DisplayName.'
-Assert-True ($registry.DisplayVersion -eq '2.0.2') 'Uninstall registration has an invalid DisplayVersion.'
+Assert-True ($registry.DisplayVersion -eq '2.0.3') 'Uninstall registration has an invalid DisplayVersion.'
 Assert-True ($registry.Publisher -eq 'Knoux') 'Uninstall registration has an invalid Publisher.'
 $Results.WindowsRegistration = 'PASS'
 

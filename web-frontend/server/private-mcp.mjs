@@ -8,7 +8,7 @@ export const DEFAULT_MCP_INVOKER_SERVICE_ACCOUNT = 'knoux-mcp-invoker@knoux-repa
 export const MCP_TOOL = 'gateway_status';
 export const MODERN_MCP_VERSION = '2026-07-28';
 export const LEGACY_MCP_VERSION = '2025-11-25';
-const CLIENT = { name: 'KNOUX Repair', version: '2.0.2' };
+const CLIENT = { name: 'KNOUX Repair', version: '2.0.3' };
 const SENSITIVE = /(secret|token|password|credential|authorization|api.?key|private.?key|cookie)/i;
 const JWT = /\beyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{8,}\b/g;
 const signal = ms => typeof AbortSignal?.timeout === 'function' ? AbortSignal.timeout(ms) : undefined;

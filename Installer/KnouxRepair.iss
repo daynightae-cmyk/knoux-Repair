@@ -1,5 +1,5 @@
 #define MyAppName "KNOUX Repair"
-#define MyAppVersion "2.0.2"
+#define MyAppVersion "2.0.3"
 #define MyAppPublisher "Knoux"
 #define MyAppExeName "KnouxRepair.exe"
 
@@ -14,7 +14,7 @@ DefaultGroupName=KNOUX Repair
 DisableProgramGroupPage=no
 AllowNoIcons=yes
 OutputDir=Output
-OutputBaseFilename=KNOUX-Repair-v2.0.2-Setup
+OutputBaseFilename=KNOUX-Repair-v2.0.3-Setup
 SetupIconFile=..\Glass-GUI-Builder\src\KnouxRepair\Assets\KnouxOfficialLogo.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 WizardStyle=modern
@@ -29,12 +29,12 @@ ChangesAssociations=no
 DisableWelcomePage=no
 DisableReadyMemo=no
 CreateUninstallRegKey=yes
-UninstallDisplayName=KNOUX Repair 2.0.2
-VersionInfoVersion=2.0.2.0
+UninstallDisplayName=KNOUX Repair 2.0.3
+VersionInfoVersion=2.0.3.0
 VersionInfoCompany=Knoux
 VersionInfoDescription=KNOUX Repair premium Windows installer
 VersionInfoProductName=KNOUX Repair
-VersionInfoProductVersion=2.0.2
+VersionInfoProductVersion=2.0.3
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
