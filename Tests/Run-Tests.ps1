@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # ============================================================
 #  knoux Repair v2.0.2 | Tests\Run-Tests.ps1
 #  Self-contained validation suite (51 tests). No external
@@ -125,7 +125,7 @@ function Invoke-KnouxBoundedChild {
     return [pscustomobject]@{ TimedOut = (-not $finished); ExitCode = if ($finished) { $process.ExitCode } else { $null }; Stdout = $stdout; Stderr = $stderr; ProcessId = $process.Id }
 }
 
-Write-Host 'knoux Repair v2.0.2 | Test suite' -ForegroundColor Cyan
+Write-Host 'knoux Repair v2.0.3 | Test suite' -ForegroundColor Cyan
 Write-Host '================================' -ForegroundColor Cyan
 
 $toolFiles = Get-ToolFiles
@@ -821,15 +821,15 @@ function New-KnouxTempRoot {
 }
 
 # --- 52. Version consistency across the package ---
-Test-Knoux -Name '52 Version is consistently 2.0.2' -Body {
+Test-Knoux -Name '52 Version is consistently 2.0.3' -Body {
     $v = (Get-Content -LiteralPath (Join-Path $ProjectRoot 'VERSION') -Raw).Trim()
     $settings = Get-Content -LiteralPath (Join-Path $ProjectRoot 'Config\settings.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $menuTxt = Get-Content -LiteralPath (Join-Path $ProjectRoot 'Menu.ps1') -Raw -Encoding UTF8
     $startTxt = Get-Content -LiteralPath (Join-Path $ProjectRoot 'START-KNOUX-REPAIR.cmd') -Raw -Encoding UTF8
     $changeTxt = Get-Content -LiteralPath (Join-Path $ProjectRoot 'CHANGELOG.md') -Raw -Encoding UTF8
-    return ($v -eq '2.0.2' -and $settings.version -eq '2.0.2' -and
-        $menuTxt -match '2\.0\.2' -and $startTxt -match '2\.0\.2' -and
-        $changeTxt -match '2\.0\.2')
+    return ($v -eq '2.0.3' -and $settings.version -eq '2.0.3' -and
+        $menuTxt -match '2\.0\.3' -and $startTxt -match '2\.0\.3' -and
+        $changeTxt -match '2\.0\.3')
 }
 
 # --- 53. Tool source has one consistent UTF-8 line-ending style ---

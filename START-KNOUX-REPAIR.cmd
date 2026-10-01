@@ -1,9 +1,9 @@
 @echo off
-title knoux Repair v2.0.2
+title knoux Repair v2.0.3
 setlocal
 set "ROOT=%~dp0"
 echo ==================================================
-echo   knoux Repair v2.0.2  |  Windows Maintenance Suite
+echo   knoux Repair v2.0.3  |  Windows Maintenance Suite
 echo ==================================================
 echo.
 echo   Checking for administrator privileges...

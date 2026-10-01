@@ -104,7 +104,7 @@ function Export-KnouxReport {
     if ($Session.VerificationPerformed) { $verification = $Session.VerificationResult }
 
     $summaryEn = @(
-        'Knoux Repair v2.0.2 - Result',
+        'Knoux Repair v2.0.3 - Result',
         "Tool: $($Session.ToolId) - $($Session.ToolName)",
         "Category: $($Session.Category)  Risk: $($Session.RiskLevel)",
         "Status: $($Session.Status)",
@@ -123,7 +123,7 @@ function Export-KnouxReport {
     $summaryEn | Out-File -LiteralPath (Join-Path $Session.SessionDir 'summary-en.txt') -Encoding UTF8
 
     $summaryAr = @(
-        'Knoux Repair v2.0.2 - النتيجة',
+        'Knoux Repair v2.0.3 - النتيجة',
         "الأداة: $($Session.ToolId) - $($Session.ToolName)",
         "الفئة: $($Session.Category)",
         "الحالة: $arStatus",

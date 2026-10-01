@@ -197,7 +197,7 @@ function Write-KnouxHeader {
     $offline = if ($Session.OfflineCapable) { 'Yes' } else { 'No' }
     $mode = if ($AnalyzeOnly) { 'ANALYZE ONLY (no changes)' } elseif ($WhatIf) { 'WHAT-IF (no changes)' } else { 'NORMAL' }
     Write-Host ''
-    Write-Host ('  knoux Repair v2.0.2  |  ' + $Session.Category) -ForegroundColor Cyan
+    Write-Host ('  knoux Repair v2.0.3  |  ' + $Session.Category) -ForegroundColor Cyan
     Write-Host ('  ' + $Session.ToolId + ' - ' + $Session.ToolName) -ForegroundColor Yellow
     Write-Host ('  Risk: ' + $Session.RiskLevel + '  |  Offline: ' + $offline) -ForegroundColor DarkGray
     if ($Session.RequiresAdmin) {

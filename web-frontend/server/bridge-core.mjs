@@ -444,7 +444,7 @@ function isElevated() {
   return _elevated;
 }
 
-log('Bridge v2.0.2 | repo:', REPO_ROOT);
+log('Bridge v2.0.3 | repo:', REPO_ROOT);
 log('PowerShell:', PS, '| elevated:', isElevated());
 
 const manifest = readManifest();
@@ -1572,7 +1572,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && pathParts[0] === 'api' && pathParts[1] === 'health') {
       const categoryIds = new Set([...manifest.values()].map((t) => t.Category));
       return sendJson(res, 200, {
-        ok: true, bridge: 'knoux-bridge', version: '2.0.2', elevated: isElevated(),
+        ok: true, bridge: 'knoux-bridge', version: '2.0.3', elevated: isElevated(),
         powershell: PS, repoRoot: REPO_ROOT, resourceMode: RESOURCE_MODE,
         tools: manifest.size, categories: categoryIds.size,
       }, corsHeaders);
