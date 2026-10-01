@@ -93,6 +93,10 @@ jobs:
         working-directory: web-frontend
         run: node scripts/capture-investigation-polish-evidence.mjs
 
+      - name: Capture final unified 18-service visual proof
+        working-directory: web-frontend
+        run: node scripts/capture-final-unified-18-service-proof.mjs
+
       - name: Capture Mission 02 private MCP evidence
         working-directory: web-frontend
         run: node scripts/capture-mission02-evidence.mjs
