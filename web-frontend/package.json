@@ -240,5 +240,8 @@
   },
   "allowScripts": {
     "electron@39.8.10": true
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.5"
   }
 }
