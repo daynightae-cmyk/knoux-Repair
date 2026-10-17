@@ -40,11 +40,17 @@ async function metadataToken(fetchImpl, audience) {
 }
 
 function gcloudToken(spawn, audience, platform, account) {
-  const exe = platform === 'win32' ? 'gcloud.cmd' : 'gcloud';
-  const args = ['auth', 'print-identity-token', `--audiences=${audience}`, '--include-email', '--quiet', `--impersonate-service-account=${account}`];
-  const r = spawn(exe, args, { encoding: 'utf8', windowsHide: true, timeout: 12000, maxBuffer: 1024 * 1024 });
+  const gcloudArgs = ['auth', 'print-identity-token', `--audiences=${audience}`, '--include-email', '--quiet', `--impersonate-service-account=${account}`];
+  const exe = platform === 'win32' ? (process.env.ComSpec || 'cmd.exe') : 'gcloud';
+  const args = platform === 'win32'
+    ? ['/d', '/s', '/c', 'gcloud.cmd', ...gcloudArgs]
+    : gcloudArgs;
+  const r = spawn(exe, args, { encoding: 'utf8', windowsHide: true, timeout: 45000, maxBuffer: 1024 * 1024 });
   const token = String(r?.stdout || '').trim();
-  if (r?.status !== 0 || !isToken(token)) throw new Error('gcloud could not mint the invoker ID token');
+  if (r?.status !== 0 || !isToken(token)) {
+    const detail = String(r?.stderr || r?.error?.message || '').trim();
+    throw new Error(`gcloud could not mint the invoker ID token${detail ? `: ${detail.slice(0, 500)}` : ''}`);
+  }
   return token;
 }
 

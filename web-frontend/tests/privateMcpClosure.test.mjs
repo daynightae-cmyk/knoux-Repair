@@ -12,6 +12,7 @@ import {
   LEGACY_MCP_VERSION,
   getMcpContract,
   runPrivateMcpProbe,
+  acquireMcpIdToken,
 } from '../server/private-mcp.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -152,4 +153,66 @@ test('Mission 02 source contracts expose the protected proof route and unique ev
   assert.doesNotMatch(center, /Authorization:\s*`Bearer/);
   assert.match(evidence, /MISSION-02_PRIVATE-MCP-CENTER\.png/);
   assert.match(evidence, /requireMcp/);
+});
+
+test('Mission 02 gcloud identity on Windows is invoked through a cmd.exe wrapper, never a bare .cmd spawn', async () => {
+  const calls = [];
+  const minted = await acquireMcpIdToken({
+    source: 'gcloud',
+    audience: CANONICAL_MCP_AUDIENCE,
+    platform: 'win32',
+    fetchImpl: async () => { throw new Error('metadata source must not be used'); },
+    spawnSyncImpl: (exe, args, opts) => {
+      calls.push({ exe, args, opts });
+      return { status: 0, stdout: `${fakeToken}\n`, stderr: '' };
+    },
+  });
+
+  assert.equal(minted.token, fakeToken);
+  assert.equal(minted.source, 'gcloud');
+  assert.equal(calls.length, 1, 'gcloud must be attempted exactly once when pinned to the gcloud source');
+  const { exe, args } = calls[0];
+  assert.match(exe, /cmd(\.exe)?$/i, `Windows must not exec gcloud.cmd directly, got ${exe}`);
+  assert.ok(!/gcloud\.cmd$/i.test(exe), 'a .cmd batch file is not directly executable by spawn on Windows');
+  assert.deepEqual(args.slice(0, 4), ['/d', '/s', '/c', 'gcloud.cmd']);
+  assert.ok(args.includes('print-identity-token'), 'identity token command must be preserved through the wrapper');
+  assert.ok(args.includes(`--audiences=${CANONICAL_MCP_AUDIENCE}`), 'audience must be preserved through the wrapper');
+  assert.ok(args.includes(`--impersonate-service-account=${DEFAULT_MCP_INVOKER_SERVICE_ACCOUNT}`), 'impersonated invoker must be preserved through the wrapper');
+  assert.equal(calls[0].opts.windowsHide, true);
+  assert.ok(calls[0].opts.timeout >= 30000, 'a wrapped gcloud impersonation needs more than the bare 12s window');
+});
+
+test('Mission 02 non-Windows gcloud identity stays a direct spawn with no cmd wrapper', async () => {
+  const calls = [];
+  const minted = await acquireMcpIdToken({
+    source: 'gcloud',
+    audience: CANONICAL_MCP_AUDIENCE,
+    platform: 'linux',
+    fetchImpl: async () => { throw new Error('metadata source must not be used'); },
+    spawnSyncImpl: (exe, args) => {
+      calls.push({ exe, args });
+      return { status: 0, stdout: fakeToken, stderr: '' };
+    },
+  });
+
+  assert.equal(minted.token, fakeToken);
+  assert.equal(calls[0].exe, 'gcloud');
+  assert.equal(calls[0].args.includes('/c'), false, 'POSIX gcloud must not be wrapped in a shell');
+});
+
+test('Mission 02 gcloud identity fails closed and surfaces diagnostics without leaking a token', async () => {
+  await assert.rejects(
+    () => acquireMcpIdToken({
+      source: 'gcloud',
+      audience: CANONICAL_MCP_AUDIENCE,
+      platform: 'win32',
+      fetchImpl: async () => { throw new Error('metadata source must not be used'); },
+      spawnSyncImpl: () => ({ status: 1, stdout: '', stderr: 'ERROR: (gcloud.auth) Reauthentication required.' }),
+    }),
+    err => {
+      assert.equal(err.code, 'MCP_IDENTITY_UNAVAILABLE');
+      assert.doesNotMatch(err.message, /eyJ/, 'a failure message must never carry token material');
+      return true;
+    },
+  );
 });
