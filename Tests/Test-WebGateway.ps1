@@ -35,7 +35,7 @@ try {
     $env:KNOUX_DATA_ROOT = $ProjectRoot
     $env:KNOUX_AUTH_REQUIRED = 'false'
 
-    $process = Start-Process -FilePath $Node -ArgumentList @($ServerPath) -WorkingDirectory $ProjectRoot -PassThru -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+    $process = Start-Process -FilePath $Node -ArgumentList @('"' + $ServerPath + '"') -WorkingDirectory $ProjectRoot -PassThru -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr
 
     $health = $null
     $lastError = $null

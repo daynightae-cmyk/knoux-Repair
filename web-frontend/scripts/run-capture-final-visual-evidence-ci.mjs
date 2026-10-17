@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 
-const scriptDir = path.dirname(new URL(import.meta.url).pathname.replace(/^\/(?:[A-Za-z]:)/, value => value.slice(1)));
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const sourcePath = path.resolve(scriptDir, 'capture-final-visual-evidence.mjs');
 const tempPath = path.resolve(scriptDir, `.capture-final-visual-evidence-ci-${process.pid}.mjs`);
 
