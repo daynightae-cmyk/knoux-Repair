@@ -12,19 +12,24 @@ import {
   SlidersHorizontal,
   TerminalSquare,
 } from 'lucide-react';
-import type { ElementType } from 'react';
-import type { BridgeTool } from '../../lib/api';
-import type { RiskLevel } from '../../types';
-import type { FamilyDefinition, ServiceDefinition, ServiceId } from '../../data/family-map';
+  import type { ElementType } from 'react';
+  import type { BridgeTool } from '../../lib/api';
+  import type { RiskLevel } from '../../types';
+  import type { FamilyDefinition, ServiceDefinition, ServiceId } from '../../data/family-map';
+  import SoftwareSpotlight from '../premium/SoftwareSpotlight';
 
-interface SoftwareLibraryPageProps {
-  family: FamilyDefinition;
-  tools: BridgeTool[];
-  lang: 'en' | 'ar';
-  bridgeOnline: boolean | null;
-  bridgeElevated: boolean;
-  onSelectService: (id: ServiceId) => void;
-}
+  interface SoftwareLibraryPageProps {
+    family: FamilyDefinition;
+    tools: BridgeTool[];
+    lang: 'en' | 'ar';
+    bridgeOnline: boolean | null;
+    bridgeElevated: boolean;
+    onSelectService: (id: ServiceId) => void;
+    /** Tool-level selection, threaded from the App shell. The library
+        spotlight below calls this with a canonical ToolId; it is the same
+        handler the library deck uses, so no parallel registry is created. */
+    onSelectTool: (id: string) => void;
+  }
 
 const SERVICE_ICONS: Record<string, ElementType> = {
   '04-Programs-Applications': Boxes,
@@ -72,14 +77,20 @@ function hasBackup(tool: BridgeTool) {
   return declaresRecovery(tool.BackupMethod);
 }
 
-export default function SoftwareLibraryPage({
-  family,
-  tools,
-  lang,
-  bridgeOnline,
-  bridgeElevated,
-  onSelectService,
-}: SoftwareLibraryPageProps) {
+  export default function SoftwareLibraryPage({
+    family,
+    tools,
+    lang,
+    bridgeOnline,
+    bridgeElevated,
+    onSelectService,
+    onSelectTool,
+  }: SoftwareLibraryPageProps) {
+    const libraryTools = useMemo(
+      () => tools.filter(tool => family.services.some(service => service.id === tool.Category)),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [tools, family],
+    );
   const ar = lang === 'ar';
   const t = (en: string, arLabel: string) => (ar ? arLabel : en);
 
@@ -200,6 +211,18 @@ export default function SoftwareLibraryPage({
           </div>
         </dl>
       </section>
+
+      {/* Library command spotlight: live, tool-data-driven summary mounted
+          inside the existing deck. Every button routes through the same
+          onSelectTool handler as the deck controls, so actions land on
+          canonical tools with real bridge execution behind them. */}
+      <SoftwareSpotlight
+        lang={lang}
+        bridgeOnline={bridgeOnline}
+        serviceTools={libraryTools}
+        allTools={tools}
+        onSelectTool={onSelectTool}
+      />
 
       <section className="sl-controls" aria-labelledby="sl-controls-title" aria-disabled={controlsLocked}>
         <header className="sl-controls__head">
