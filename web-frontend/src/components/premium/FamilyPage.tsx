@@ -134,6 +134,7 @@ export default function FamilyPage({
           bridgeOnline={bridgeOnline}
           bridgeElevated={bridgeElevated}
           onSelectService={selectOverviewService}
+          onSelectTool={onSelectTool}
         />
       );
     }
@@ -147,6 +148,7 @@ export default function FamilyPage({
         bridgeElevated={bridgeElevated}
         systemSnapshot={systemSnapshot}
         onSelectService={selectOverviewService}
+        onSelectTool={onSelectTool}
       />
     );
   }

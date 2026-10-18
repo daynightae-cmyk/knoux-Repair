@@ -25,6 +25,8 @@ import {
   VitalityHoloVisual,
   WorkbenchHoloVisual,
 } from '../premium/HeroVisuals';
+import AssuranceSpotlight from '../premium/AssuranceSpotlight';
+import RecoverySpotlight from '../premium/RecoverySpotlight';
 import './FamilyOverviewPage.css';
 
 interface FamilyOverviewPageProps {
@@ -35,6 +37,10 @@ interface FamilyOverviewPageProps {
   bridgeElevated: boolean;
   systemSnapshot?: SystemSnapshot | null;
   onSelectService: (id: ServiceId) => void;
+  /** Tool-level selection, threaded from the App shell. Spotlights mounted
+      below call this with a canonical ToolId; it is the same handler the
+      family rail uses, so no parallel navigation registry is created. */
+  onSelectTool: (id: string) => void;
 }
 
 type FamilyCopy = {
@@ -161,15 +167,16 @@ function truthItems(family: FamilyDefinition, snapshot: SystemSnapshot | null | 
   </>;
 }
 
-export default function FamilyOverviewPage({
-  family,
-  tools,
-  lang,
-  bridgeOnline,
-  bridgeElevated,
-  systemSnapshot,
-  onSelectService,
-}: FamilyOverviewPageProps) {
+  export default function FamilyOverviewPage({
+    family,
+    tools,
+    lang,
+    bridgeOnline,
+    bridgeElevated,
+    systemSnapshot,
+    onSelectService,
+    onSelectTool,
+  }: FamilyOverviewPageProps) {
   const ar = lang === 'ar';
   const copy = COPY[family.id];
   if (!copy) return null;
@@ -193,10 +200,39 @@ export default function FamilyOverviewPage({
             <span>{ar ? copy.action.ar : copy.action.en}</span><ArrowRight size={18} />
           </button>
         </div>
-        <div className="family-overview-visual"><Visual family={family} lang={lang} snapshot={systemSnapshot} /></div>
-      </header>
+          <div className="family-overview-visual"><Visual family={family} lang={lang} snapshot={systemSnapshot} /></div>
+        </header>
 
-      <div className="family-overview-body">
+        {/* Family command spotlight: live, tool-data-driven summary mounted
+            inside the existing overview surface. Every button routes through
+            the same onSelectTool handler as the family rail, so actions land
+            on canonical tools with real bridge execution behind them. */}
+        {family.id === 'assurance' && (
+          <div className="family-overview-spotlight">
+            <AssuranceSpotlight
+              lang={lang}
+              bridgeOnline={bridgeOnline}
+              systemSnapshot={systemSnapshot}
+              serviceTools={loadedFamilyTools}
+              allTools={tools}
+              onSelectTool={onSelectTool}
+            />
+          </div>
+        )}
+        {family.id === 'recovery' && (
+          <div className="family-overview-spotlight">
+            <RecoverySpotlight
+              lang={lang}
+              bridgeOnline={bridgeOnline}
+              systemSnapshot={systemSnapshot}
+              serviceTools={loadedFamilyTools}
+              allTools={tools}
+              onSelectTool={onSelectTool}
+            />
+          </div>
+        )}
+
+        <div className="family-overview-body">
         <section className="family-overview-services" aria-label={ar ? 'خدمات العائلة' : 'Family services'}>
           <header><span>{ar ? 'مسارات العمل' : 'WORKSPACES'}</span><strong>{family.services.length} {ar ? 'خدمة' : 'services'}</strong></header>
           <div className="family-overview-service-grid">
