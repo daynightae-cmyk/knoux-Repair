@@ -3,8 +3,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as authBridge from './bridge-auth.mjs';
 import { getMcpContract, runPrivateMcpProbe } from './private-mcp.mjs';
+import { startCloudRelay } from './cloud-relay.mjs';
 
-const { server, PORT, checkMutationGuard } = authBridge;
+const { server, PORT, checkMutationGuard, listCloudReadOnlyTools, runCloudReadOnlyTool } = authBridge;
 const SERVICE_URL = 'https://knoux-mcp-gateway-ewyqpoh6ra-uc.a.run.app';
 const RUNTIME_ENDPOINT = `${SERVICE_URL}/mcp`;
 const MISSION_ALIAS = 'https://knoux-mcp-gateway-30719047550.us-central1.run.app/mcp';
@@ -66,7 +67,13 @@ server.on('request', async (req, res) => {
 });
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  server.listen(PORT, '127.0.0.1', () => console.log(`[KNOUX] Bridge listening on http://127.0.0.1:${PORT} (private MCP wrapper active)`));
+  server.listen(PORT, '127.0.0.1', () => {
+    console.log(`[KNOUX] Bridge listening on http://127.0.0.1:${PORT} (private MCP wrapper active)`);
+    startCloudRelay({
+      toolsProvider: listCloudReadOnlyTools,
+      toolRunner: (toolId, options) => runCloudReadOnlyTool(toolId, options),
+    });
+  });
 }
 
 export * from './bridge-auth.mjs';
