@@ -818,6 +818,72 @@ function publicRun(run) {
   };
 }
 
+function listCloudReadOnlyTools() {
+  return [...manifest.values()]
+    .map(resolveToolCapabilities)
+    .filter((tool) => tool.ScriptAvailable && tool.RiskLevel === 'READ_ONLY')
+    .map((tool) => ({
+      toolId: tool.ToolId,
+      name: tool.EnglishName,
+      category: tool.Category,
+      purpose: tool.Purpose || '',
+      riskLevel: 'READ_ONLY',
+      requiresAdmin: !!tool.RequiresAdmin,
+      analyzeOnlySupported: tool.AnalyzeOnlySupported === true,
+    }));
+}
+
+function createCloudReadOnlyRun(toolId, options = {}) {
+  const entry = manifest.get(toolId);
+  if (!entry) {
+    throw Object.assign(new Error(`Unknown tool id "${toolId}".`), {
+      status: 400, code: 'UNKNOWN_TOOL',
+    });
+  }
+  const tool = resolveToolCapabilities(entry);
+  if (!tool.ScriptAvailable) {
+    throw Object.assign(new Error(`"${tool.EnglishName}" is not available on this machine.`), {
+      status: 409, code: 'SCRIPT_UNAVAILABLE',
+    });
+  }
+  if (tool.RiskLevel !== 'READ_ONLY') {
+    throw Object.assign(new Error('Cloud relay v1 permits READ_ONLY tools only.'), {
+      status: 403, code: 'CLOUD_READ_ONLY_REQUIRED',
+    });
+  }
+  if (activeRunId && runs.get(activeRunId)?.status === 'running') {
+    throw Object.assign(new Error('Another local KNOUX tool is already running.'), {
+      status: 409, code: 'RUN_IN_PROGRESS',
+    });
+  }
+  const run = createRun(toolId, 'run', options, null);
+  activeRunId = run.id;
+  log('CLOUD READ_ONLY RUN start:', run.id, toolId, '-', tool.EnglishName);
+  return run;
+}
+
+async function runCloudReadOnlyTool(toolId, options = {}, timeoutMs = 105000) {
+  const run = createCloudReadOnlyRun(toolId, options);
+  const deadline = Date.now() + Math.max(5000, Number(timeoutMs) || 105000);
+  while (run.status === 'running' && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  if (run.status === 'running') {
+    cancelRun(run.id);
+    const settleDeadline = Date.now() + 3000;
+    while (run.status === 'running' && Date.now() < settleDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    if (run.status === 'running') {
+      throw Object.assign(
+        new Error('Cloud-routed read-only tool did not stop after timeout.'),
+        { status: 504, code: 'LOCAL_TOOL_TIMEOUT' },
+      );
+    }
+  }
+  return publicRun(run);
+}
+
 /* ---------------- /api/system (real read-only snapshot) ---------------- */
 
 let systemCache = { at: 0, data: null };
@@ -2102,6 +2168,9 @@ export {
   browseRoots,
   browseFolders,
   createRun,
+  listCloudReadOnlyTools,
+  createCloudReadOnlyRun,
+  runCloudReadOnlyTool,
   cancelRun,
   killProcessTree,
   isAllowedOrigin,
