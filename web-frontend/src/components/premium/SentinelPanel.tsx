@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { Circle, Cpu, HardDrive, ShieldCheck, Activity, Terminal, Radar, Zap, Server, Boxes, RefreshCw } from 'lucide-react';
-import clsx from 'clsx';
-import type { FamilyId } from '../../data/family-map';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Activity, Cpu, Layers, PanelRightClose, PanelRightOpen, Zap,
+} from 'lucide-react';
+import type { AdvancedSoftwarePreview, BridgeHealth, BridgeTool, ExecutionMode, SystemSnapshot } from '../../lib/api';
 import { api } from '../../lib/api';
-import type { SystemSnapshot, BridgeTool, ExecutionMode, AdvancedSoftwarePreview, BridgeHealth } from '../../lib/api';
+import type { FamilyId } from '../../data/family-map';
+import StatusIndicator from '../shell/StatusIndicator';
+import type { StatusTone } from '../shell/StatusIndicator';
 
 export interface SentinelTask {
   runId: string;
@@ -23,11 +26,61 @@ export interface SentinelPanelProps {
   selectedTarget?: string | null;
   evidenceCount?: number | null;
   findingsCount?: number | null;
+  /** The operation currently selected in the work surface, if any. */
+  selectedTool?: BridgeTool | null;
+  /** The service the work surface is showing, if any. */
+  selectedService?: string | null;
+  /** Collapsed state of the adaptive inspector. */
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-type ProbeState = 'idle' | 'checking' | 'online' | 'partial' | 'offline';
-type DeepProbeState = 'idle' | 'loading' | 'ready' | 'unavailable';
+type SectionId = 'operation' | 'system' | 'tasks' | 'evidence';
 
+const RISK_TONE: Record<string, StatusTone> = {
+  READ_ONLY: 'positive',
+  SAFE_CLEANUP: 'data',
+  SYSTEM_REPAIR: 'caution',
+  DESTRUCTIVE: 'danger',
+  REBOOT_REQUIRED: 'danger',
+  WINRE_ONLY: 'caution',
+};
+
+const TASK_TONE: Record<SentinelTask['status'], StatusTone> = {
+  running: 'data',
+  success: 'positive',
+  error: 'danger',
+  cancelled: 'caution',
+  inconclusive: 'caution',
+};
+
+const SECTION_ICONS: Record<SectionId, React.ElementType> = {
+  operation: Layers,
+  system: Cpu,
+  tasks: Zap,
+  evidence: Activity,
+};
+
+function formatBytes(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '—';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let index = 0;
+  let size = value;
+  while (size >= 1024 && index < units.length - 1) { size /= 1024; index += 1; }
+  return `${size.toFixed(size >= 100 || index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+/**
+ * The adaptive inspector.
+ *
+ * It is contextual by design: it shows what belongs to the operation the
+ * user is looking at — the selected tool's requirements, risk and
+ * elevation, the live system evidence behind the current studio, the
+ * running tasks and the evidence produced so far. System-wide telemetry is
+ * one section away instead of a permanent full-height column, and the whole
+ * panel can be collapsed to a narrow rail when the work surface needs the
+ * width.
+ */
 export default function SentinelPanel({
   lang,
   bridgeOnline,
@@ -35,482 +88,329 @@ export default function SentinelPanel({
   activeTasks,
   systemSnapshot,
   activeView,
-  aiProviderState = 'UNCONFIGURED',
+  aiProviderState,
   selectedTarget,
   evidenceCount,
   findingsCount,
+  selectedTool,
+  selectedService,
+  collapsed = false,
+  onToggleCollapse,
 }: SentinelPanelProps) {
   const isRtl = lang === 'ar';
-  const isAiScan = activeView === 'ai-scan' || (!activeFamily && activeView !== 'home');
   const [liveSystem, setLiveSystem] = useState<SystemSnapshot | null>(systemSnapshot ?? null);
   const [apiHealth, setApiHealth] = useState<BridgeHealth | null>(null);
+  const [probeState, setProbeState] = useState<'idle' | 'probing' | 'ready' | 'unavailable'>('idle');
+  const [probeLatency, setProbeLatency] = useState<number | null>(null);
   const [developerToolCount, setDeveloperToolCount] = useState<number | null>(null);
   const [sonarToolCount, setSonarToolCount] = useState<number | null>(null);
-  const [developerPreview, setDeveloperPreview] = useState<AdvancedSoftwarePreview | null>(null);
-  const [developerProbeState, setDeveloperProbeState] = useState<DeepProbeState>('idle');
   const [sonarAiConfigured, setSonarAiConfigured] = useState<boolean | null>(null);
-  const [probeState, setProbeState] = useState<ProbeState>('idle');
-  const [probeLatency, setProbeLatency] = useState<number | null>(null);
-  const [lastProbeAt, setLastProbeAt] = useState<number | null>(null);
+  const [developerPreview, setDeveloperPreview] = useState<AdvancedSoftwarePreview | null>(null);
+  const [developerProbeState, setDeveloperProbeState] = useState<'idle' | 'probing' | 'ready' | 'unavailable'>('idle');
   const probeTimer = useRef<number | null>(null);
-  const developerProbeGeneration = useRef(0);
-  const isWorkbench = activeFamily === 'workbench';
+  const probeGeneration = useRef(0);
+  const cancelledRef = useRef(false);
+
+  useEffect(() => () => { cancelledRef.current = true; }, []);
 
   useEffect(() => {
-    if (!systemSnapshot) return;
-    setLiveSystem(systemSnapshot);
+    if (systemSnapshot) setLiveSystem(systemSnapshot);
   }, [systemSnapshot]);
 
+  // The workbench keeps its live sensor probe: real counts, real latency,
+  // never a fabricated readiness signal. One endpoint failing must never
+  // suppress the others, so the probe settles every call independently.
   useEffect(() => {
-    if (!isWorkbench || bridgeOnline !== true) {
-      setProbeState(bridgeOnline === false ? 'offline' : 'idle');
-      return;
-    }
+    if (activeFamily !== 'workbench') return;
+    let cancelled = false;
+    const generation = ++probeGeneration.current;
 
-    let mounted = true;
     const probe = async () => {
-      const started = performance.now();
-      if (mounted) setProbeState('checking');
+      setProbeState('probing');
+      const startedAt = Date.now();
+      try {
+        const settled = await Promise.allSettled([
+          api.health(),
+          api.categoryTools('12-Developer-Tools'),
+          api.categoryTools('18-Project-Sonar'),
+          api.sonarAiStatus(),
+          api.system(),
+        ]);
+        if (cancelled || generation !== probeGeneration.current) return;
 
-      const [healthResult, developerToolsResult, sonarToolsResult, sonarResult, systemResult] = await Promise.allSettled([
-        api.health(),
-        api.categoryTools('12-Developer-Tools'),
-        api.categoryTools('18-Project-Sonar'),
-        api.sonarAiStatus(),
-        api.system(),
-      ]);
+        const [healthResult, developerResult, sonarResult, sonarAiResult, systemResult] = settled;
+        if (healthResult.status === 'fulfilled') setApiHealth(healthResult.value);
+        if (developerResult.status === 'fulfilled') setDeveloperToolCount(developerResult.value.tools?.length ?? null);
+        if (sonarResult.status === 'fulfilled') setSonarToolCount(sonarResult.value.tools?.length ?? null);
+        if (sonarAiResult.status === 'fulfilled') setSonarAiConfigured(sonarAiResult.value.configured);
+        if (systemResult.status === 'fulfilled') setLiveSystem(systemResult.value.system);
 
-      if (!mounted) return;
-
-      const successful = [healthResult, developerToolsResult, sonarToolsResult, sonarResult, systemResult]
-        .filter(result => result.status === 'fulfilled').length;
-
-      if (healthResult.status === 'fulfilled') setApiHealth(healthResult.value);
-      if (developerToolsResult.status === 'fulfilled') setDeveloperToolCount(developerToolsResult.value.tools.length);
-      if (sonarToolsResult.status === 'fulfilled') setSonarToolCount(sonarToolsResult.value.tools.length);
-      if (sonarResult.status === 'fulfilled') setSonarAiConfigured(sonarResult.value.configured);
-      if (systemResult.status === 'fulfilled') setLiveSystem(systemResult.value.system);
-
-      setProbeLatency(Math.round(performance.now() - started));
-      setLastProbeAt(Date.now());
-      setProbeState(successful === 5 ? 'online' : successful > 0 ? 'partial' : 'offline');
-      probeTimer.current = window.setTimeout(() => void probe(), 8000);
+        setProbeLatency(Date.now() - startedAt);
+        const anyLive = settled.some(result => result.status === 'fulfilled');
+        setProbeState(anyLive ? 'ready' : 'unavailable');
+      } catch {
+        if (cancelled || generation !== probeGeneration.current) return;
+        setProbeState('unavailable');
+      }
     };
 
     void probe();
-
+    const schedule = () => { probeTimer.current = window.setTimeout(() => void probe(), 8000); };
+    schedule();
     return () => {
-      mounted = false;
+      cancelled = true;
+      probeGeneration.current += 1;
       if (probeTimer.current) window.clearTimeout(probeTimer.current);
+      probeTimer.current = null;
     };
-  }, [bridgeOnline, isWorkbench]);
+  }, [activeFamily]);
 
-  useEffect(() => {
-    if (!isWorkbench || bridgeOnline !== true) {
-      developerProbeGeneration.current += 1;
-      setDeveloperPreview(null);
-      setDeveloperProbeState('idle');
-    }
-  }, [bridgeOnline, isWorkbench]);
-
-  const runDeveloperDeepProbe = async () => {
-    if (!isWorkbench || bridgeOnline !== true || developerProbeState === 'loading') return;
-    const generation = developerProbeGeneration.current + 1;
-    developerProbeGeneration.current = generation;
-    setDeveloperProbeState('loading');
+  // The heavy developer inventory is explicit and user-triggered: it must
+  // never run inside the 8 second live sensor loop.
+  const runDeveloperDeepProbe = useCallback(async () => {
+    setDeveloperProbeState('probing');
     try {
-      const response = await api.advancedSoftwarePreview();
-      if (developerProbeGeneration.current !== generation) return;
-      setDeveloperPreview(response.preview);
+      const { preview } = await api.advancedSoftwarePreview();
+      if (cancelledRef.current) return;
+      setDeveloperPreview(preview);
       setDeveloperProbeState('ready');
     } catch {
-      if (developerProbeGeneration.current !== generation) return;
-      setDeveloperPreview(null);
+      if (cancelledRef.current) return;
       setDeveloperProbeState('unavailable');
     }
-  };
+  }, []);
 
-  const system = liveSystem;
+  const defenderTone: StatusTone = !liveSystem
+    ? 'neutral'
+    : liveSystem.DefenderRunning && liveSystem.DefenderRealtime
+      ? 'positive'
+      : 'danger';
 
-  const memoryUsedGB = system && system.TotalRamGB && system.FreeRamGB
-    ? Math.max(0, system.TotalRamGB - system.FreeRamGB)
-    : null;
-  const memoryPercent = system && system.TotalRamGB && memoryUsedGB !== null
-    ? Math.round((memoryUsedGB / system.TotalRamGB) * 100)
-    : null;
-
-  const sysDrive = system?.Drives?.find(d => d.IsSystem || d.Name === system.SystemDrive) ?? system?.Drives?.[0];
-  const diskPercent = sysDrive && sysDrive.TotalGB
-    ? Math.round(((sysDrive.TotalGB - sysDrive.FreeGB) / sysDrive.TotalGB) * 100)
-    : null;
-
-  const getHealthStatus = () => {
-    if (bridgeOnline === false) return { text: isRtl ? 'الجسر غير متصل' : 'Bridge Offline', color: 'text-red-500' };
-    if (bridgeOnline === null) return { text: isRtl ? 'جارٍ الاتصال...' : 'Connecting...', color: 'text-amber-400' };
-    if (activeTasks.some(t => t.status === 'running')) return { text: isRtl ? 'مهمة قيد التشغيل' : 'Active Job', color: 'text-cyan-400' };
-
-    const isHighDisk = diskPercent !== null && diskPercent > 90;
-    const isHighMemory = memoryPercent !== null && memoryPercent > 90;
-    const isHighCpu = system?.CpuLoad !== undefined && system.CpuLoad > 90;
-    const isDefenderOff = system?.DefenderRealtime === false;
-
-    if (isHighDisk || isHighMemory || isHighCpu || isDefenderOff) {
-      return { text: isRtl ? 'تنبيه مطلوب' : 'Attention Required', color: 'text-amber-400' };
-    }
-
-    return { text: isRtl ? 'النظام جاهز' : 'Ready', color: 'text-emerald-400' };
-  };
-
-  const health = getHealthStatus();
-  const availableDevRuntimes = developerPreview
-    ? developerPreview.DeveloperTools.filter(item => item.Available).length
-    : null;
-
-  if (isAiScan) {
-    const aiStatusText = aiProviderState === 'CONFIGURED' ? 'AI — CONFIGURED' : aiProviderState === 'CHECKING' ? 'AI — CHECKING' : aiProviderState === 'UNAVAILABLE' ? 'AI — UNAVAILABLE' : 'AI — OFF';
-    const aiDetailText = aiProviderState === 'CONFIGURED' ? (isRtl ? 'الميزات الذكية مفعلة' : 'AI features active') : (isRtl ? 'الميزات الذكية معطلة' : 'AI features disabled');
-    const bridgeStatusText = bridgeOnline === true ? (isRtl ? 'متصل' : 'CONNECTED') : bridgeOnline === false ? (isRtl ? 'غير متصل' : 'OFFLINE') : (isRtl ? 'لم يُفحص' : 'NOT CHECKED');
-    const bridgeDetailText = bridgeOnline === true ? (isRtl ? 'الجسر متصل' : 'Bridge connected') : (isRtl ? 'غير متصل' : 'Not connected');
-    const evidenceStatusText = findingsCount !== null && findingsCount !== undefined
-      ? (findingsCount === 0 ? (isRtl ? 'سليم' : 'CLEAN') : `${findingsCount} ${isRtl ? 'نتائج' : findingsCount === 1 ? 'FINDING' : 'FINDINGS'}`)
-      : (isRtl ? 'لا يوجد' : 'NONE');
-    const evidenceDetailText = evidenceCount
-      ? (isRtl ? `تم توثيق ${evidenceCount} مصادر` : `${evidenceCount} sources verified`)
-      : (isRtl ? 'لا توجد نتائج فحص' : 'No scan results');
-
-    return (
-      <aside className="knoux-sentinel w-[280px] h-full flex flex-col bg-[#040817]/85 backdrop-blur-xl border-l border-white/10 shrink-0 select-none" dir={isRtl ? 'rtl' : 'ltr'}>
-        {/* Sentinel Live Context Header */}
-        <div className="p-3.5 border-b border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h2 className="text-[12px] font-bold tracking-wider text-white flex items-center gap-1.5">
-              <span>KNOUX SENTINEL</span>
-              <span className="text-slate-600">/</span>
-              <span className="text-cyan-400 font-medium">{isRtl ? 'السياق المباشر' : 'LIVE CONTEXT'}</span>
-            </h2>
-          </div>
-          <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)] animate-pulse" />
-        </div>
-
-        {/* Live Context Cards Stack Matching Reference */}
-        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2.5">
-          {/* 1. KNOUX AI */}
-          <div className="knoux-sentinel-card group hover:border-violet-500/40 transition-colors">
-            <div className="w-7 h-7 rounded-full bg-violet-600/20 border border-violet-500/35 flex items-center justify-center text-violet-400 shrink-0">
-              <Zap size={14} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="knoux-sentinel-card-label">KNOUX AI</span>
-              <strong className="knoux-sentinel-card-val">{aiStatusText}</strong>
-              <small className="knoux-sentinel-card-sub">{aiDetailText}</small>
-            </div>
-            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs rtl:rotate-180">›</span>
-          </div>
-
-          {/* 2. PROVIDER */}
-          <div className="knoux-sentinel-card group hover:border-cyan-500/40 transition-colors">
-            <div className="w-7 h-7 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
-              <Server size={14} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="knoux-sentinel-card-label">{isRtl ? 'المزود' : 'PROVIDER'}</span>
-              <strong className="knoux-sentinel-card-val">{aiProviderState === 'CONFIGURED' ? 'LOCAL GATEWAY' : 'NONE'}</strong>
-              <small className="knoux-sentinel-card-sub">{aiProviderState === 'CONFIGURED' ? (isRtl ? 'مزود متصل' : 'Active connection') : (isRtl ? 'غير مهيأ' : 'Not configured')}</small>
-            </div>
-            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs rtl:rotate-180">›</span>
-          </div>
-
-          {/* 3. SYSTEM BRIDGE */}
-          <div className="knoux-sentinel-card group hover:border-cyan-500/40 transition-colors">
-            <div className="w-7 h-7 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
-              <Cpu size={14} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="knoux-sentinel-card-label">{isRtl ? 'جسر النظام' : 'SYSTEM BRIDGE'}</span>
-              <strong className={clsx('knoux-sentinel-card-val', bridgeOnline === true ? 'text-emerald-400' : 'text-slate-200')}>
-                {bridgeStatusText}
-              </strong>
-              <small className="knoux-sentinel-card-sub">{bridgeDetailText}</small>
-            </div>
-            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs rtl:rotate-180">›</span>
-          </div>
-
-          {/* 4. TARGET */}
-          <div className="knoux-sentinel-card group hover:border-cyan-500/40 transition-colors">
-            <div className="w-7 h-7 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
-              <Radar size={14} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="knoux-sentinel-card-label">{isRtl ? 'الهدف' : 'TARGET'}</span>
-              <strong className="knoux-sentinel-card-val">{selectedTarget ? selectedTarget.toUpperCase() : 'NONE'}</strong>
-              <small className="knoux-sentinel-card-sub">{selectedTarget || (isRtl ? 'لم يُحدد هدف' : 'No target selected')}</small>
-            </div>
-            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs rtl:rotate-180">›</span>
-          </div>
-
-          {/* 5. SESSION */}
-          <div className="knoux-sentinel-card group hover:border-cyan-500/40 transition-colors">
-            <div className="w-7 h-7 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
-              <Terminal size={14} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="knoux-sentinel-card-label">{isRtl ? 'الجلسة' : 'SESSION'}</span>
-              <strong className="knoux-sentinel-card-val">NONE</strong>
-              <small className="knoux-sentinel-card-sub">{isRtl ? 'لا توجد جلسة نشطة' : 'No active session'}</small>
-            </div>
-            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs rtl:rotate-180">›</span>
-          </div>
-
-          {/* 6. EVIDENCE */}
-          <div className="knoux-sentinel-card group hover:border-cyan-500/40 transition-colors">
-            <div className="w-7 h-7 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
-              <ShieldCheck size={14} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="knoux-sentinel-card-label">{isRtl ? 'الأدلة' : 'EVIDENCE'}</span>
-              <strong className="knoux-sentinel-card-val">{evidenceStatusText}</strong>
-              <small className="knoux-sentinel-card-sub">{evidenceDetailText}</small>
-            </div>
-            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs rtl:rotate-180">›</span>
-          </div>
-
-          {/* 7. GET STARTED */}
-          <div className="knoux-sentinel-card is-get-started group hover:border-amber-500/40 transition-colors mt-1">
-            <div className="w-7 h-7 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
-              <span className="text-sm">💡</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="knoux-sentinel-card-label text-amber-400/90">{isRtl ? 'ابدأ الآن' : 'GET STARTED'}</span>
-              <p className="text-[10px] text-slate-300 leading-relaxed mt-1">
-                {isRtl
-                  ? 'صف مشكلة، أو اختر هدفاً، أو ابدأ الفحص الذكي لإطلاق قوة KNOUX الكاملة.'
-                  : 'Describe an issue, choose a target, or start an AI scan to unlock the full power of KNOUX.'}
-              </p>
-            </div>
-            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs rtl:rotate-180 self-center">›</span>
-          </div>
-
-          {/* 8. Bottom Quote Card */}
-          <div className="mt-auto p-3 rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-between">
-            <div>
-              <p className="text-[10.5px] italic text-slate-400">
-                {isRtl ? '«أدوات دقيقة لمشاكل حقيقية.»' : '“Precision tools for real problems.”'}
-              </p>
-              <span className="block mt-1 font-mono text-[9px] font-bold tracking-[0.25em] text-slate-500">
-                K N O U X
-              </span>
-            </div>
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
-              <Activity size={16} />
-            </div>
-          </div>
-        </div>
-      </aside>
-    );
-  }
+  const sections = useMemo(() => {
+    const list: { id: SectionId; label: string }[] = [];
+    if (selectedTool) list.push({ id: 'operation', label: isRtl ? 'العملية' : 'Operation' });
+    list.push({ id: 'system', label: isRtl ? 'النظام' : 'System' });
+    if (activeTasks.length > 0) list.push({ id: 'tasks', label: isRtl ? 'المهام' : 'Tasks' });
+    if (activeView === 'ai-scan' || evidenceCount || findingsCount) list.push({ id: 'evidence', label: isRtl ? 'الأدلة' : 'Evidence' });
+    return list;
+  }, [activeTasks.length, activeView, evidenceCount, findingsCount, isRtl, selectedTool]);
 
   return (
-    <aside className="knoux-sentinel w-[280px] h-full flex flex-col bg-black/30 backdrop-blur-xl border-l border-white/10 shrink-0" dir={isRtl ? 'rtl' : 'ltr'}>
-      <div className="p-4 border-b border-white/10 flex items-center justify-between">
-
-        <div className="flex items-center gap-2">
-          <Activity size={16} className="text-cyan-400" />
-          <h2 className="text-sm font-semibold tracking-wide text-white">
-            {isRtl ? 'حارس نوكس' : 'KNOUX Sentinel'}
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">{health.text}</span>
-          <Circle size={8} className={clsx('fill-current animate-pulse', health.color)} />
-        </div>
+    <aside
+      className="knoux-sentinel knoux-inspector"
+      data-collapsed={collapsed}
+      data-role="context-inspector"
+      aria-label={isRtl ? 'السياق' : 'Context inspector'}
+    >
+      <div className="knoux-inspector-header">
+        <h2>{isRtl ? 'السياق' : 'Context'}</h2>
+        {onToggleCollapse ? (
+          <button
+            type="button"
+            className="knoux-inspector-toggle"
+            onClick={onToggleCollapse}
+            aria-expanded={!collapsed}
+            aria-label={collapsed
+              ? (isRtl ? 'توسيع لوحة السياق' : 'Expand context inspector')
+              : (isRtl ? 'طي لوحة السياق' : 'Collapse context inspector')}
+            title={collapsed
+              ? (isRtl ? 'توسيع لوحة السياق' : 'Expand context inspector')
+              : (isRtl ? 'طي لوحة السياق' : 'Collapse context inspector')}
+          >
+            {collapsed ? <PanelRightOpen size={15} aria-hidden="true" /> : <PanelRightClose size={15} aria-hidden="true" />}
+          </button>
+        ) : null}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
-        <div className="flex flex-col gap-3">
-          <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-            {isRtl ? 'المقاييس الحية' : 'Live Telemetry'}
-          </h3>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1 p-3 bg-white/5 rounded-lg border border-white/5">
-              <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                <Cpu size={14} className="text-cyan-400" />
-                <span>{isRtl ? 'المعالج' : 'CPU Load'}</span>
-              </div>
-              <div className="text-base font-semibold text-white">
-                {system?.CpuLoad !== undefined ? `${system.CpuLoad}%` : (isRtl ? 'غير متوفر' : 'Not available')}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1 p-3 bg-white/5 rounded-lg border border-white/5">
-              <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                <Activity size={14} className="text-violet-400" />
-                <span>{isRtl ? 'الذاكرة' : 'Memory'}</span>
-              </div>
-              <div className="text-base font-semibold text-white">
-                {memoryPercent !== null ? `${memoryPercent}%` : (isRtl ? 'غير متوفر' : 'Not available')}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1 p-3 bg-white/5 rounded-lg border border-white/5 col-span-2">
-              <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
-                <span className="flex items-center gap-1.5">
-                  <HardDrive size={14} className="text-teal-400" />
-                  <span>{isRtl ? 'القرص الرئيسي' : 'System Disk'} ({sysDrive?.Name || 'C:'})</span>
+      <div className="knoux-inspector-body">
+        {collapsed ? (
+          <div className="knoux-inspector-rail-icons">
+            {sections.map(section => {
+              const Icon = SECTION_ICONS[section.id];
+              return (
+                <span key={section.id} className="knoux-inspector-rail-icon" title={section.label}>
+                  <Icon size={15} aria-hidden="true" />
                 </span>
-                <span>{sysDrive ? `${sysDrive.FreeGB.toFixed(1)} GB ${isRtl ? 'متاح' : 'free'}` : ''}</span>
-              </div>
-              <div className="text-sm font-semibold text-white">
-                {diskPercent !== null ? (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                      <div
-                        className={clsx(
-                          'h-full rounded-full transition-all duration-500',
-                          diskPercent > 90 ? 'bg-red-500' : diskPercent > 75 ? 'bg-amber-400' : 'bg-cyan-400'
-                        )}
-                        style={{ width: `${diskPercent}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-gray-300">{diskPercent}%</span>
-                  </div>
-                ) : (
-                  <span className="text-xs text-gray-400">{isRtl ? 'غير متوفر' : 'Not available'}</span>
-                )}
-              </div>
-            </div>
+              );
+            })}
           </div>
-        </div>
+        ) : null}
 
-        {system && (
-          <div className="flex flex-col gap-2 p-3 bg-white/5 rounded-lg border border-white/5 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400 flex items-center gap-1.5">
-                <ShieldCheck size={14} className={system.DefenderRealtime ? 'text-emerald-400' : 'text-amber-400'} />
-                <span>Windows Defender</span>
-              </span>
-              <span className={clsx('font-medium', system.DefenderRealtime ? 'text-emerald-400' : 'text-amber-400')}>
-                {system.DefenderRealtime
-                  ? (isRtl ? 'الحماية نشطة' : 'Real-time On')
-                  : (isRtl ? 'غير نشطة' : 'Disabled')}
-              </span>
-            </div>
-            {system.Processes > 0 && (
-              <div className="flex items-center justify-between text-gray-400 pt-1 border-t border-white/5">
-                <span>{isRtl ? 'العمليات النشطة' : 'Processes'}</span>
-                <span className="text-white font-mono">{system.Processes}</span>
+        {!collapsed && selectedTool ? (
+          <section className="knoux-inspector-section" data-section="operation">
+            <header>
+              <span>{isRtl ? 'العملية' : 'Operation'}</span>
+              <StatusIndicator tone={RISK_TONE[selectedTool.RiskLevel] ?? 'neutral'} label={selectedTool.RiskLevel} />
+            </header>
+            <dl className="knoux-inspector-facts">
+              <dt>{isRtl ? 'الخدمة' : 'Service'}</dt>
+              <dd>{selectedService ?? selectedTool.Category}</dd>
+              <dt>{isRtl ? 'المعرّف' : 'Tool id'}</dt>
+              <dd>{selectedTool.ToolId}</dd>
+              <dt>{isRtl ? 'الصلاحية' : 'Elevation'}</dt>
+              <dd>{selectedTool.RequiresAdmin ? (isRtl ? 'مطلوبة' : 'Required') : (isRtl ? 'غير مطلوبة' : 'Not required')}</dd>
+              <dt>{isRtl ? 'إعادة تشغيل' : 'Restart'}</dt>
+              <dd>{selectedTool.RequiresRestart ? (isRtl ? 'قد تتطلب' : 'May be required') : (isRtl ? 'لا' : 'No')}</dd>
+              <dt>{isRtl ? 'تحليل فقط' : 'Analyze only'}</dt>
+              <dd>{selectedTool.AnalyzeOnlySupported ? (isRtl ? 'مدعوم' : 'Supported') : (isRtl ? 'غير مدعوم' : 'Not supported')}</dd>
+              <dt>{isRtl ? 'تأكيد' : 'Confirmation'}</dt>
+              <dd>{selectedTool.RequiresConfirmation ? (isRtl ? 'مطلوب' : 'Required') : (isRtl ? 'غير مطلوب' : 'Not required')}</dd>
+              <dt>{isRtl ? 'مدخلات' : 'Inputs'}</dt>
+              <dd>{selectedTool.Parameters?.length ? selectedTool.Parameters.join(', ') : (isRtl ? 'لا مدخلات' : 'No inputs')}</dd>
+              <dt>{isRtl ? 'دليل' : 'Guide'}</dt>
+              <dd>{selectedTool.OfflineCapability || '—'}</dd>
+            </dl>
+          </section>
+        ) : null}
+
+        {!collapsed ? (
+          <section className="knoux-inspector-section" data-section="system">
+            <header>
+              <span>{isRtl ? 'النظام' : 'System'}</span>
+              <StatusIndicator
+                tone={bridgeOnline === true ? 'positive' : bridgeOnline === false ? 'danger' : 'caution'}
+                label={bridgeOnline === true ? (isRtl ? 'متصل' : 'Online') : bridgeOnline === false ? (isRtl ? 'غير متصل' : 'Offline') : (isRtl ? 'فحص' : 'Checking')}
+              />
+            </header>
+            {liveSystem ? (
+              <dl className="knoux-inspector-facts">
+                <dt>{isRtl ? 'النظام' : 'OS'}</dt>
+                <dd>{liveSystem.Os || '—'}</dd>
+                <dt>{isRtl ? 'البناء' : 'Build'}</dt>
+                <dd>{liveSystem.Build || '—'}</dd>
+                <dt>{isRtl ? 'المعالج' : 'CPU'}</dt>
+                <dd title={liveSystem.CpuName}>{liveSystem.CpuLoad ?? 0}%</dd>
+                <dt>{isRtl ? 'الذاكرة الحرة' : 'Free RAM'}</dt>
+                <dd>{formatBytes(liveSystem.FreeRamGB * 1024 * 1024 * 1024)}</dd>
+                <dt>{isRtl ? 'العمليات' : 'Processes'}</dt>
+                <dd>{liveSystem.Processes ?? '—'}</dd>
+                <dt>{isRtl ? 'قرص النظام' : 'System drive'}</dt>
+                <dd>{liveSystem.SystemDrive || '—'}</dd>
+                <dt>{isRtl ? 'جدار الحماية' : 'Firewall'}</dt>
+                <dd>
+                  {liveSystem.Firewall
+                    ? liveSystem.Firewall.map(profile => `${profile.Profile}: ${profile.Enabled ? 'on' : 'off'}`).join(' · ')
+                    : (isRtl ? 'لم يُفحص' : 'Not checked')}
+                </dd>
+                <dt>{isRtl ? 'دفاع ويندوز' : 'Defender'}</dt>
+                <dd>
+                  <StatusIndicator
+                    tone={defenderTone}
+                    label={liveSystem.DefenderRunning
+                      ? (liveSystem.DefenderRealtime ? (isRtl ? 'يعمل' : 'Running') : (isRtl ? 'معطّل' : 'Disabled'))
+                      : (isRtl ? 'لا يعمل' : 'Not running')}
+                  />
+                </dd>
+              </dl>
+            ) : (
+              <div className="knoux-panel-body">
+                <p className="knoux-finding-body">{isRtl ? 'لم يتم استلام لقطة نظام بعد.' : 'No live system snapshot has been received yet.'}</p>
               </div>
             )}
-          </div>
-        )}
+          </section>
+        ) : null}
 
-        {isWorkbench && (
-          <div className="flex flex-col gap-3" aria-live="polite">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-                <Radar size={13} className="text-cyan-400" />
-                {isRtl ? 'شبكة استشعار Sonar' : 'Sonar Sensor Mesh'}
-              </h3>
-              <span className="text-[10px] text-gray-500 font-mono">
-                {lastProbeAt ? new Date(lastProbeAt).toLocaleTimeString() : '—'}
-              </span>
+        {!collapsed && activeFamily === 'workbench' ? (
+          <section className="knoux-inspector-section" data-section="sensor">
+            <header>
+              <span>{isRtl ? 'مستشعرات الورشة' : 'Workbench sensors'}</span>
+              <StatusIndicator
+                tone={probeState === 'ready' ? 'positive' : probeState === 'unavailable' ? 'danger' : 'caution'}
+                label={probeState === 'ready' ? (isRtl ? 'متصل' : 'Live') : probeState === 'unavailable' ? (isRtl ? 'غير متاح' : 'Unavailable') : (isRtl ? 'فحص' : 'Probing')}
+              />
+            </header>
+            <dl className="knoux-inspector-facts">
+              <dt>{isRtl ? 'زمن الاستجابة' : 'Latency'}</dt>
+              <dd>{probeLatency === null ? '—' : `${probeLatency} ms`}</dd>
+              <dt>{isRtl ? 'حالة الجسر' : 'Bridge'}</dt>
+              <dd>{apiHealth ? (apiHealth.elevated ? (isRtl ? 'مرتفع' : 'Elevated') : (isRtl ? 'قياسي' : 'Standard')) : '—'}</dd>
+              <dt>{isRtl ? 'أدوات التطوير' : 'Developer tools'}</dt>
+              <dd>{developerToolCount ?? '—'}</dd>
+              <dt>{isRtl ? 'أدوات Sonar' : 'Sonar tools'}</dt>
+              <dd>{sonarToolCount ?? '—'}</dd>
+              <dt>{isRtl ? 'ذكاء Sonar' : 'Sonar AI'}</dt>
+              <dd>{sonarAiConfigured === null ? '—' : sonarAiConfigured ? (isRtl ? 'موصول' : 'Configured') : (isRtl ? 'غير موصول' : 'Not configured')}</dd>
+            </dl>
+            <div className="knoux-panel-body">
+              {developerPreview ? (
+                <dl className="knoux-inspector-facts">
+                  <dt>{isRtl ? 'أدوات المطور' : 'Developer tools'}</dt>
+                  <dd>{developerPreview.DeveloperTools?.length ?? 0}</dd>
+                  <dt>{isRtl ? 'امتدادات' : 'Extensions'}</dt>
+                  <dd>{developerPreview.ChromeExtensions?.length ?? 0}</dd>
+                  <dt>{isRtl ? 'سجل عند' : 'Captured at'}</dt>
+                  <dd>{developerPreview.CapturedAt ?? '—'}</dd>
+                </dl>
+              ) : (
+                <p className="knoux-finding-body">{isRtl ? 'لم يُفحص بعد' : 'Not checked yet'}</p>
+              )}
+              <button
+                type="button"
+                className="knoux-studio-btn"
+                data-action-id="developer-deep-probe"
+                onClick={() => void runDeveloperDeepProbe()}
+                disabled={developerProbeState === 'probing'}
+              >
+                <Zap size={13} aria-hidden="true" />
+                <span>{developerProbeState === 'probing'
+                  ? (isRtl ? 'جارٍ الفحص...' : 'Probing...')
+                  : (isRtl ? 'فحص بيئة المطورين' : 'Probe developer environment')}</span>
+              </button>
             </div>
+          </section>
+        ) : null}
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="p-2.5 rounded-lg border border-cyan-500/20 bg-cyan-500/5">
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-400"><Zap size={12} className="text-cyan-300" /> API latency</div>
-                <b className="block mt-1 text-sm text-white">{probeLatency !== null ? `${probeLatency} ms` : '—'}</b>
-                <small className="text-[9px] text-gray-500">{probeState === 'checking' ? (isRtl ? 'جارٍ القياس' : 'probing') : (isRtl ? 'آخر دورة' : 'last cycle')}</small>
-              </div>
-
-              <div className="p-2.5 rounded-lg border border-violet-500/20 bg-violet-500/5">
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-400"><Server size={12} className="text-violet-300" /> Bridge health</div>
-                <b className={clsx('block mt-1 text-sm', probeState === 'online' ? 'text-emerald-300' : probeState === 'partial' ? 'text-amber-300' : 'text-gray-300')}>
-                  {probeState === 'online' ? 'ONLINE' : probeState === 'partial' ? 'PARTIAL' : probeState === 'checking' ? 'CHECKING' : probeState === 'offline' ? 'OFFLINE' : '—'}
-                </b>
-                <small className="text-[9px] text-gray-500">{apiHealth?.version || (isRtl ? 'غير متوفر' : 'unavailable')}</small>
-              </div>
-
-              <div className="p-2.5 rounded-lg border border-blue-500/20 bg-blue-500/5">
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-400"><Boxes size={12} className="text-blue-300" /> Developer Tools</div>
-                <b className="block mt-1 text-sm text-white">{developerToolCount ?? '—'}</b>
-                <small className="text-[9px] text-gray-500">{isRtl ? 'أداة مسجلة' : 'registered tools'}</small>
-              </div>
-
-              <div className="p-2.5 rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5">
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-400"><Radar size={12} className="text-fuchsia-300" /> Project Sonar</div>
-                <b className="block mt-1 text-sm text-white">{sonarToolCount ?? '—'}</b>
-                <small className="text-[9px] text-gray-500">{isRtl ? 'أداة سونار' : 'registered tools'}</small>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => void runDeveloperDeepProbe()}
-              disabled={bridgeOnline !== true || developerProbeState === 'loading'}
-              className="flex items-center justify-between gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-2 text-left disabled:opacity-50"
-            >
-              <span>
-                <span className="block text-[10px] text-gray-400">{isRtl ? 'فحص بيئات التطوير العميق' : 'Deep developer runtime probe'}</span>
-                <b className="block mt-0.5 text-xs text-white">
-                  {developerProbeState === 'loading'
-                    ? (isRtl ? 'جارٍ الفحص…' : 'Scanning…')
-                    : developerProbeState === 'ready'
-                      ? `${availableDevRuntimes ?? 0} ${isRtl ? 'بيئة متاحة' : 'runtimes available'}`
-                      : developerProbeState === 'unavailable'
-                        ? (isRtl ? 'غير متاح' : 'Unavailable')
-                        : (isRtl ? 'لم يُفحص بعد' : 'Not checked yet')}
-                </b>
-              </span>
-              <RefreshCw size={13} className={developerProbeState === 'loading' ? 'animate-spin text-emerald-300' : 'text-emerald-400'} />
-            </button>
-
-            <div className="flex items-center justify-between text-[10px] text-gray-500">
-              <span>{isRtl ? 'AI Sonar' : 'Sonar AI'}: {sonarAiConfigured === true ? (isRtl ? 'مهيأ' : 'configured') : sonarAiConfigured === false ? (isRtl ? 'غير مهيأ' : 'not configured') : '—'}</span>
-              <RefreshCw size={12} className={probeState === 'checking' ? 'animate-spin text-cyan-300' : 'text-gray-600'} />
-            </div>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-3">
-          <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-            {isRtl ? 'المهام الجارية' : 'Active Tasks'}
-          </h3>
-          {activeTasks.length === 0 ? (
-            <div className="text-xs text-gray-400 bg-white/5 p-3 rounded-lg border border-white/5 flex items-center gap-2">
-              <Terminal size={14} className="text-gray-500" />
-              <span>{isRtl ? 'لا توجد مهام نشطة حالياً.' : 'No active tasks running.'}</span>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {activeTasks.map((task) => (
-                <div key={task.runId} className="text-xs p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-cyan-200 flex items-center justify-between">
-                  <span className="font-medium truncate max-w-[170px]">
-                    {isRtl ? task.tool.ArabicName : task.tool.EnglishName}
-                  </span>
-                  <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
-                    {task.status}
-                  </span>
-                </div>
+        {!collapsed && activeTasks.length > 0 ? (
+          <section className="knoux-inspector-section" data-section="tasks">
+            <header>
+              <span>{isRtl ? 'المهام' : 'Active tasks'}</span>
+              <StatusIndicator tone="data" label={String(activeTasks.length)} />
+            </header>
+            <ul className="knoux-inspector-task-list">
+              {activeTasks.map(task => (
+                <li key={task.runId} data-status={task.status}>
+                  <div className="knoux-inspector-task-copy">
+                    <strong>{isRtl ? task.tool.ArabicName : task.tool.EnglishName}</strong>
+                    <small>{task.mode} · {task.tool.RiskLevel}</small>
+                  </div>
+                  <StatusIndicator tone={TASK_TONE[task.status]} label={task.status} />
+                </li>
               ))}
-            </div>
-          )}
-        </div>
+            </ul>
+          </section>
+        ) : null}
 
-        <div className="flex flex-col gap-3">
-          <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-            {isRtl ? 'سياق العمل' : 'Context Guidance'}
-          </h3>
-          <div className="text-xs text-gray-300 bg-white/5 p-3 rounded-lg border border-white/5 leading-relaxed">
-            {activeFamily === 'ai-scan' && (isRtl ? 'ابدأ بالفحص الذكي لتشخيص الحالة الشاملة للنظام وتلقي توصيات موجهة.' : 'Start with AI Scan for a full system health assessment and targeted repair steps.')}
-            {activeFamily === 'vitality' && (isRtl ? 'راجع سلامة ملفات النظام ومراقبة الموارد وخطط الأداء.' : 'Review Windows file integrity, startup pressure, and resource stability.')}
-            {activeFamily === 'recovery' && (isRtl ? 'استرداد المساحة وحذف الملفات المكررة والتحقق من نقاط الاستعادة.' : 'Reclaim drive capacity, isolate duplicate content, and verify restore points.')}
-            {activeFamily === 'assurance' && (isRtl ? 'تدقيق الحماية واختبار الاتصال والتأكد من توقيع التعريفات.' : 'Audit firewall & Defender posture, network latency, and driver signatures.')}
-            {activeFamily === 'software' && (isRtl ? 'إدارة بيئات التطوير، والتطبيقات المثبتة وتحديثات الحزم.' : 'Audit runtimes, installed software inventory, and winget packages.')}
-            {activeFamily === 'workbench' && (isRtl ? 'منصة هندسة المشاريع وفحص التبعيات وتقارير سونار.' : 'Engineering workspace, project metadata mapping, and Project Sonar audits.')}
-            {activeFamily === 'investigation' && (isRtl ? 'مختبر التشخيص العميق وسجلات الأحداث وفحص العمليات الحساسة.' : 'Forensic diagnostics, Windows event warnings, and service dependency logs.')}
-            {!activeFamily && (isRtl ? 'النظام جاهز لتلقي أوامر الفحص والإصلاح.' : 'KNOUX Repair engine is ready for diagnosis and repair.')}
+        {!collapsed && (activeView === 'ai-scan' || evidenceCount || findingsCount) ? (
+          <section className="knoux-inspector-section" data-section="evidence">
+            <header>
+              <span>{isRtl ? 'الأدلة' : 'Evidence'}</span>
+              <StatusIndicator
+                tone={aiProviderState === 'CONFIGURED' ? 'positive' : aiProviderState === 'UNCONFIGURED' || aiProviderState === 'UNAVAILABLE' ? 'caution' : 'neutral'}
+                label={aiProviderState === 'CONFIGURED' ? (isRtl ? 'موصول' : 'Connected') : (isRtl ? 'غير موصول' : 'Not connected')}
+              />
+            </header>
+            <dl className="knoux-inspector-facts">
+              <dt>{isRtl ? 'الهدف' : 'Target'}</dt>
+              <dd>{selectedTarget ?? (isRtl ? 'لم يُحدد' : 'Not selected')}</dd>
+              <dt>{isRtl ? 'قطع الأدلة' : 'Evidence'}</dt>
+              <dd>{evidenceCount ?? 0}</dd>
+              <dt>{isRtl ? 'النتائج' : 'Findings'}</dt>
+              <dd>{findingsCount ?? 0}</dd>
+            </dl>
+          </section>
+        ) : null}
+
+        {!collapsed && !selectedTool && !liveSystem && activeTasks.length === 0 ? (
+          <div className="knoux-inspector-section">
+            <div className="knoux-panel-body">
+              <p className="knoux-finding-body">
+                {isRtl
+                  ? 'لا يوجد سياق بعد. اختر خدمة أو أداة لعرض متطلباتها وأدلتها.'
+                  : 'No context yet. Select a service or a tool to see its requirements and evidence.'}
+              </p>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
     </aside>
   );
