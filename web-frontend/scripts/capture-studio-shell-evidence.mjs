@@ -63,4 +63,3 @@ for (const [id, view, service, workspace, w, h, lang] of T) {
 }
 fs.writeFileSync(path.join(OUT, 'studio-shell-evidence.json'), JSON.stringify({ generatedAt: new Date().toISOString(), results }, null, 2));
 console.log('DONE');
-
