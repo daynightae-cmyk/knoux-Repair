@@ -14,6 +14,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { scanDuplicateRoots, quarantineDuplicatePaths } from './duplicatesEngine.mjs';
+import { redactSecretsAndAudit } from './workbench-inspection.mjs';
 import {
   openIndex,
   runIndexedScan,
@@ -1073,6 +1074,46 @@ function browseFolders(value) {
   };
 }
 
+/**
+ * Mask any credential the local Project Sonar analyzer surfaced inside free text.
+ *
+ * The bridge already promises that local secrets never leave the machine
+ * (`privacy: { localSecretsSent: false }`). That promise used to be an
+ * assertion only; this scrubs the evidence, the AI facts and the generated
+ * report so it is enforced instead of assumed. Only the number of masked
+ * findings is reported — never the secret itself.
+ */
+function redactSonarPreview(preview) {
+  let secretsRedacted = 0;
+  const scrub = (value) => {
+    if (typeof value !== 'string' || !value) return value;
+    const result = redactSecretsAndAudit(value);
+    if (!result.secretFindings.length) return value;
+    secretsRedacted += result.secretFindings.length;
+    return result.redactedText;
+  };
+
+  const findings = Array.isArray(preview?.Findings) ? preview.Findings : [];
+  for (const finding of findings) {
+    if (!finding || typeof finding !== 'object') continue;
+    finding.Evidence = scrub(finding.Evidence);
+    finding.TitleEn = scrub(finding.TitleEn);
+    finding.TitleAr = scrub(finding.TitleAr);
+    finding.FixEn = scrub(finding.FixEn);
+    finding.FixAr = scrub(finding.FixAr);
+  }
+  if (preview?.Snapshot && typeof preview.Snapshot === 'object') {
+    preview.Snapshot.PackageName = scrub(preview.Snapshot.PackageName);
+    preview.Snapshot.PackageVersion = scrub(preview.Snapshot.PackageVersion);
+  }
+  const plan = Array.isArray(preview?.ServicePlan) ? preview.ServicePlan : [];
+  for (const item of plan) {
+    if (!item || typeof item !== 'object') continue;
+    item.Action = scrub(item.Action);
+  }
+  return { preview, secretsRedacted };
+}
+
 async function getProjectSonarPreview(value) {
   const workspace = resolveBrowsePath(value);
   const tool = manifest.get('SN07');
@@ -1092,9 +1133,13 @@ async function getProjectSonarPreview(value) {
     throw Object.assign(new Error(detail), { status: 500, code: 'SONAR_PREVIEW_FAILED' });
   }
   const jsonText = output.slice(start + '---KNOUX_SONAR_JSON_START---'.length, end).trim();
-  try { return JSON.parse(jsonText); } catch {
+  let parsed;
+  try { parsed = JSON.parse(jsonText); } catch {
     throw Object.assign(new Error('Project Sonar preview returned malformed structured output.'), { status: 500, code: 'SONAR_PREVIEW_INVALID' });
   }
+  const { preview, secretsRedacted } = redactSonarPreview(parsed);
+  if (preview && typeof preview === 'object') preview.SecretsRedacted = secretsRedacted;
+  return preview;
 }
 
 async function getDuplicatePreview(value, typeQuery = '', keeperPolicy = 'OldestThenAlphabetical', excludeQuery = '') {
@@ -1264,7 +1309,14 @@ async function getProjectSonarAiAnalysis(value, language) {
     model: String(payload?.model || OPENROUTER_MODEL),
     language: locale,
     generatedAt: new Date().toISOString(),
-    privacy: { sourceFileContentsSent: false, workspacePathSent: false, localSecretsSent: false },
+    privacy: {
+      sourceFileContentsSent: false,
+      workspacePathSent: false,
+      localSecretsSent: false,
+      // Enforced, not assumed: any credential found in the local evidence was masked
+      // before these facts were serialized to the provider.
+      secretsMaskedBeforeSend: Number(preview?.SecretsRedacted || 0),
+    },
   };
 }
 
@@ -1413,6 +1465,10 @@ function buildSonarMarkdown(preview, language) {
   lines.push(`## ${planTitle}`, '');
   for (const item of (preview.ServicePlan || [])) lines.push(`- **${item.ToolId}** — ${item.Action} (${ar ? 'قراءة فقط' : 'read-only'})`);
   lines.push('', `> ${ar ? 'تم إنشاء هذا التقرير من أدلة Sonar المحلية. لا يتضمن محتويات ملفات المصدر أو الأسرار المحلية.' : 'This report was created from local Sonar evidence. It does not include source-file contents or local secrets.'}`, '');
+  const masked = Number(preview?.SecretsRedacted || 0);
+  if (masked > 0) {
+    lines.push(`> ${ar ? `تم إخفاء ${masked} من الأسرار المحلية قبل كتابة هذا التقرير.` : `${masked} local secret(s) were masked before this report was written.`}`, '');
+  }
   return lines.join('\n');
 }
 
@@ -1421,7 +1477,11 @@ function buildSonarHtml(preview, language, markdown) {
   const title = ar ? 'تقرير Project Sonar' : 'Project Sonar report';
   const findings = Array.isArray(preview.Findings) ? preview.Findings : [];
   const findingHtml = findings.length ? findings.map((finding) => `<article class="finding ${escapeHtml(finding.Severity.toLowerCase())}"><div class="badge">${escapeHtml(finding.Severity)}</div><h3>${escapeHtml(ar ? finding.TitleAr : finding.TitleEn)}</h3><p><b>${ar ? 'الدليل' : 'Evidence'}:</b> ${escapeHtml(finding.Evidence)}</p><p><b>${ar ? 'الخطوة المقترحة' : 'Next step'}:</b> ${escapeHtml(ar ? finding.FixAr : finding.FixEn)}</p></article>`).join('') : `<p class="clear">${ar ? 'لم تُكتشف نتائج قاعدة في الأدلة الحالية.' : 'No rule-based findings were detected in the current evidence.'}</p>`;
-  return `<!doctype html><html lang="${ar ? 'ar' : 'en'}" dir="${ar ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;color:#13233a;font-size:10.5pt;line-height:1.55}header{padding:18px 20px;border-radius:14px;background:linear-gradient(125deg,#082f49,#164e63);color:#ecfeff;margin-bottom:16px}h1{margin:0 0 4px;font-size:24pt}header p{margin:0;color:#bae6fd}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 16px}.metric{padding:10px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc}.metric b{display:block;font-size:15pt;color:#0f766e}.finding{break-inside:avoid;margin:9px 0;padding:11px 13px;border:1px solid #dbe5ef;border-left:4px solid #0284c7;border-radius:9px;background:#fff}.finding.critical{border-left-color:#dc2626}.finding.high{border-left-color:#ea580c}.finding.medium{border-left-color:#ca8a04}.finding h3{margin:5px 0;font-size:12pt}.finding p{margin:5px 0}.badge{display:inline-block;padding:2px 6px;border-radius:5px;background:#e0f2fe;color:#075985;font-weight:700;font-size:8pt}.service{margin:5px 0;padding:7px 9px;border-radius:7px;background:#f1f5f9}.note{margin-top:16px;padding:9px 11px;border-radius:8px;background:#ecfeff;color:#155e75;font-size:9pt}footer{margin-top:18px;color:#64748b;font-size:8.5pt}pre{white-space:pre-wrap;display:none}</style></head><body><header><h1>${escapeHtml(title)}</h1><p>${escapeHtml(preview.Workspace)}</p></header><section class="metrics"><div class="metric"><b>${Number(preview.Snapshot?.FileCount || 0).toLocaleString()}</b>${ar ? 'ملف مرصود' : 'files observed'}</div><div class="metric"><b>${(preview.Snapshot?.Languages || []).length}</b>${ar ? 'لغات' : 'languages'}</div><div class="metric"><b>${preview.SeverityCounts?.Critical || 0}</b>${ar ? 'نتائج حرجة' : 'critical findings'}</div><div class="metric"><b>${preview.Snapshot?.Git?.Repository ? 'Git' : '—'}</b>${ar ? 'مساحة العمل' : 'workspace'}</div></section><h2>${ar ? 'النتائج المرتبة' : 'Prioritized findings'}</h2>${findingHtml}<h2>${ar ? 'خطة الخدمات' : 'Service plan'}</h2>${(preview.ServicePlan || []).map((item) => `<div class="service"><b>${escapeHtml(item.ToolId)}</b> — ${escapeHtml(item.Action)}</div>`).join('')}<p class="note">${ar ? 'هذا التقرير مبني على أدلة Sonar المحلية ولا يتضمن محتويات ملفات المصدر أو الأسرار المحلية.' : 'This report is based on local Sonar evidence and does not include source-file contents or local secrets.'}</p><footer>Project Sonar · ${new Date().toISOString()}</footer><pre>${escapeHtml(markdown)}</pre></body></html>`;
+  const masked = Number(preview?.SecretsRedacted || 0);
+  const maskedNote = masked > 0
+    ? `<p class="note">${ar ? 'تم إخفاء ' + masked + ' من الأسرار المحلية قبل كتابة هذا التقرير.' : masked + ' local secret(s) were masked before this report was written.'}</p>`
+    : '';
+  return `<!doctype html><html lang="${ar ? 'ar' : 'en'}" dir="${ar ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;color:#13233a;font-size:10.5pt;line-height:1.55}header{padding:18px 20px;border-radius:14px;background:linear-gradient(125deg,#082f49,#164e63);color:#ecfeff;margin-bottom:16px}h1{margin:0 0 4px;font-size:24pt}header p{margin:0;color:#bae6fd}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 16px}.metric{padding:10px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc}.metric b{display:block;font-size:15pt;color:#0f766e}.finding{break-inside:avoid;margin:9px 0;padding:11px 13px;border:1px solid #dbe5ef;border-left:4px solid #0284c7;border-radius:9px;background:#fff}.finding.critical{border-left-color:#dc2626}.finding.high{border-left-color:#ea580c}.finding.medium{border-left-color:#ca8a04}.finding h3{margin:5px 0;font-size:12pt}.finding p{margin:5px 0}.badge{display:inline-block;padding:2px 6px;border-radius:5px;background:#e0f2fe;color:#075985;font-weight:700;font-size:8pt}.service{margin:5px 0;padding:7px 9px;border-radius:7px;background:#f1f5f9}.note{margin-top:16px;padding:9px 11px;border-radius:8px;background:#ecfeff;color:#155e75;font-size:9pt}footer{margin-top:18px;color:#64748b;font-size:8.5pt}pre{white-space:pre-wrap;display:none}</style></head><body><header><h1>${escapeHtml(title)}</h1><p>${escapeHtml(preview.Workspace)}</p></header><section class="metrics"><div class="metric"><b>${Number(preview.Snapshot?.FileCount || 0).toLocaleString()}</b>${ar ? 'ملف مرصود' : 'files observed'}</div><div class="metric"><b>${(preview.Snapshot?.Languages || []).length}</b>${ar ? 'لغات' : 'languages'}</div><div class="metric"><b>${preview.SeverityCounts?.Critical || 0}</b>${ar ? 'نتائج حرجة' : 'critical findings'}</div><div class="metric"><b>${preview.Snapshot?.Git?.Repository ? 'Git' : '—'}</b>${ar ? 'مساحة العمل' : 'workspace'}</div></section><h2>${ar ? 'النتائج المرتبة' : 'Prioritized findings'}</h2>${findingHtml}<h2>${ar ? 'خطة الخدمات' : 'Service plan'}</h2>${(preview.ServicePlan || []).map((item) => `<div class="service"><b>${escapeHtml(item.ToolId)}</b> — ${escapeHtml(item.Action)}</div>`).join('')}<p class="note">${ar ? 'هذا التقرير مبني على أدلة Sonar المحلية ولا يتضمن محتويات ملفات المصدر أو الأسرار المحلية.' : 'This report is based on local Sonar evidence and does not include source-file contents or local secrets.'}</p>${maskedNote}<footer>Project Sonar · ${new Date().toISOString()}</footer><pre>${escapeHtml(markdown)}</pre></body></html>`;
 }
 
 function getPdfBrowserPath() {
