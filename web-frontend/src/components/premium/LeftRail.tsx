@@ -171,8 +171,9 @@ export default function LeftRail({ activeView, onSelect, lang, bridgeOnline }: L
       </button>
 
       <div className="knoux-rail-brand-card knoux-spine-footer" aria-label={`KNOUX Repair version ${APP_VERSION}`}>
+        <span className="knoux-spine-mark" aria-hidden="true">K</span>
         <strong>KNOUX Repair</strong>
-        <span>{APP_VERSION}</span>
+        <span className="knoux-spine-version">{APP_VERSION}</span>
         <small>{isRtl ? 'صُنع لجهاز أكثر صحة. غدٌ أكثر إشراقاً.' : 'Built for a Healthier PC. A Brighter Tomorrow.'}</small>
         <div className="flex items-center gap-2 mt-1">
           <span

@@ -1,102 +1,178 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight,
-  Boxes,
-  Cpu,
-  Filter,
-  Layers3,
-  RotateCcw,
-  Search,
-  Settings2,
-  ShieldCheck,
-  SlidersHorizontal,
-  TerminalSquare,
+  AppWindow, Cpu, Download, Package, RefreshCw, Settings2,
+  Terminal, Wrench,
 } from 'lucide-react';
-  import type { ElementType } from 'react';
-  import type { BridgeTool } from '../../lib/api';
-  import type { RiskLevel } from '../../types';
-  import type { FamilyDefinition, ServiceDefinition, ServiceId } from '../../data/family-map';
-  import SoftwareSpotlight from '../premium/SoftwareSpotlight';
+import type { ElementType, ReactNode } from 'react';
+import type {
+  AdvancedSoftwarePreview, BridgeTool, PostInstallPreview, SoftwarePreview,
+} from '../../lib/api';
+import { api } from '../../lib/api';
+import type { FamilyDefinition, ServiceId } from '../../data/family-map';
+import { buildProgramInventory, STATION04_SERVICES } from '../../features/stations/station04/programsModel';
+import { SERVICE_ICONS } from '../../data/studio-icons';
+import { summarizeSoftwareHub } from '../../features/stations/station16/softwareModel';
+import { summarizeProvisioning } from '../../features/stations/station17/postInstallModel';
+import StudioHeader from '../shell/StudioHeader';
+import StudioNavigation from '../shell/StudioNavigation';
+import StatusIndicator from '../shell/StatusIndicator';
+import EntityInventory from '../shell/EntityInventory';
+import EmptyState from '../shell/EmptyState';
+import OperationToolbar from '../shell/OperationToolbar';
+import type { StatusTone } from '../shell/StatusIndicator';
+import type { InventoryColumn } from '../workspace/StationInventorySurface';
+import './software-studio.css';
 
-  interface SoftwareLibraryPageProps {
-    family: FamilyDefinition;
-    tools: BridgeTool[];
-    lang: 'en' | 'ar';
-    bridgeOnline: boolean | null;
-    bridgeElevated: boolean;
-    onSelectService: (id: ServiceId) => void;
-    /** Tool-level selection, threaded from the App shell. The library
-        spotlight below calls this with a canonical ToolId; it is the same
-        handler the library deck uses, so no parallel registry is created. */
-    onSelectTool: (id: string) => void;
-  }
+interface SoftwareLibraryPageProps {
+  family: FamilyDefinition;
+  tools: BridgeTool[];
+  lang: 'en' | 'ar';
+  bridgeOnline: boolean | null;
+  bridgeElevated: boolean;
+  onSelectService: (id: ServiceId) => void;
+  /** Tool-level selection, threaded from the App shell. The library
+      spotlight below calls this with a canonical ToolId; it is the same
+      handler the library deck uses, so no parallel registry is created. */
+  onSelectTool: (id: string) => void;
+}
 
-const SERVICE_ICONS: Record<string, ElementType> = {
-  '04-Programs-Applications': Boxes,
-  '16-Software-Environment': Cpu,
-  '17-PostInstall-Setup': Settings2,
+type WorkspaceId = 'applications' | 'runtime' | 'setup' | 'maintenance';
+
+type ProgramInventoryRow = ReturnType<typeof buildProgramInventory>[number];
+type RuntimeToolRow = NonNullable<AdvancedSoftwarePreview>['DeveloperTools'][number];
+type ExtensionRow = NonNullable<AdvancedSoftwarePreview>['ChromeExtensions'][number];
+type CatalogRow = NonNullable<PostInstallPreview>['Catalog'][number];
+
+const WORKSPACES: { id: WorkspaceId; en: string; ar: string; icon: ElementType }[] = [
+  { id: 'applications', en: 'Applications', ar: 'التطبيقات', icon: AppWindow },
+  { id: 'runtime', en: 'Runtime & Environment', ar: 'بيئة التشغيل', icon: Cpu },
+  { id: 'setup', en: 'Installation & Setup', ar: 'التثبيت والإعداد', icon: Settings2 },
+  { id: 'maintenance', en: 'Maintenance', ar: 'الصيانة', icon: Wrench },
+];
+
+const RISK_TONE: Record<string, StatusTone> = {
+  READ_ONLY: 'positive',
+  SAFE_CLEANUP: 'data',
+  SYSTEM_REPAIR: 'caution',
+  DESTRUCTIVE: 'danger',
+  REBOOT_REQUIRED: 'danger',
+  WINRE_ONLY: 'caution',
 };
 
-/** Ascending blast radius. The risk ceiling slider admits levels up to this index. */
-const RISK_LADDER: RiskLevel[] = ['READ_ONLY', 'SAFE_CLEANUP', 'SYSTEM_REPAIR', 'DESTRUCTIVE'];
-
-const RISK_LABEL: Record<RiskLevel, { en: string; ar: string }> = {
-  READ_ONLY: { en: 'Read only', ar: 'قراءة فقط' },
-  SAFE_CLEANUP: { en: 'Safe cleanup', ar: 'تنظيف آمن' },
-  SYSTEM_REPAIR: { en: 'System repair', ar: 'إصلاح النظام' },
-  REBOOT_REQUIRED: { en: 'Reboot required', ar: 'يتطلب إعادة تشغيل' },
-  DESTRUCTIVE: { en: 'Destructive', ar: 'مدمّر' },
-  WINRE_ONLY: { en: 'WinRE only', ar: 'بيئة الاستعادة فقط' },
-};
-
-const DENSITY_LABEL = [
-  { en: 'Compact', ar: 'مضغوط' },
-  { en: 'Comfortable', ar: 'مريح' },
-  { en: 'Full', ar: 'كامل' },
-] as const;
-
-function riskRank(level: RiskLevel) {
-  const index = RISK_LADDER.indexOf(level);
-  return index < 0 ? RISK_LADDER.length : index;
+function formatSizeMB(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '—';
+  if (value >= 1024) return `${(value / 1024).toFixed(1)} GB`;
+  return `${Math.round(value)} MB`;
 }
 
-/** The manifest writes recovery intent as prose, e.g. "None (read-only listing)".
-    Only an explicit recovery method counts, so a control labelled "has backup"
-    can never admit a tool whose own manifest says it has none. */
-function declaresRecovery(value: string | undefined) {
-  const text = (value ?? '').trim().toLowerCase();
-  if (text === '') return false;
-  return !/^(none|no\b|n\/?a|not (applicable|available|required)|unsupported|-)\b/.test(text) && !text.startsWith('none');
-}
-
-function hasRollback(tool: BridgeTool) {
-  return declaresRecovery(tool.RollbackMethod);
-}
-
-function hasBackup(tool: BridgeTool) {
-  return declaresRecovery(tool.BackupMethod);
-}
-
-  export default function SoftwareLibraryPage({
-    family,
-    tools,
-    lang,
-    bridgeOnline,
-    bridgeElevated,
-    onSelectService,
-    onSelectTool,
-  }: SoftwareLibraryPageProps) {
-    const libraryTools = useMemo(
-      () => tools.filter(tool => family.services.some(service => service.id === tool.Category)),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [tools, family],
-    );
+/**
+ * KNOuX Application Studio.
+ *
+ * The Software Library is not a card grid, a counter wall or a slider
+ * panel. It is four real workspaces over live bridge data:
+ *
+ *   Applications  — the installed inventory, as measured by the bridge
+ *   Runtime       — the detected toolchain, extensions and cache evidence
+ *   Setup         — the provisioning catalog, baseline and pending restarts
+ *   Maintenance   — the registered actions of the three owning services,
+ *                   with their real risk, elevation and recovery contract
+ *
+ * Nothing here counts what has not been measured: the bridge state decides
+ * between "not checked yet" and a real number, and selection is never
+ * execution — the owning station performs every operation.
+ */
+export default function SoftwareLibraryPage({
+  family,
+  tools,
+  lang,
+  bridgeOnline,
+  bridgeElevated,
+  onSelectService,
+  onSelectTool,
+}: SoftwareLibraryPageProps) {
   const ar = lang === 'ar';
   const t = (en: string, arLabel: string) => (ar ? arLabel : en);
 
-  // Every control below is driven by the live manifest. With no bridge there is
-  // nothing measured, so nothing is counted and the deck says so plainly.
+  const [workspace, setWorkspace] = useState<WorkspaceId>('applications');
+
+  const [software, setSoftware] = useState<SoftwarePreview | null>(null);
+  const [softwareError, setSoftwareError] = useState<string | null>(null);
+  const [softwareLoading, setSoftwareLoading] = useState(false);
+
+  const [advanced, setAdvanced] = useState<AdvancedSoftwarePreview | null>(null);
+  const [advancedError, setAdvancedError] = useState<string | null>(null);
+  const [advancedLoading, setAdvancedLoading] = useState(false);
+
+  const [provisioning, setProvisioning] = useState<PostInstallPreview | null>(null);
+  const [provisioningError, setProvisioningError] = useState<string | null>(null);
+  const [provisioningLoading, setProvisioningLoading] = useState(false);
+
   const measured = bridgeOnline === true;
+
+  const loadSoftware = useCallback(async () => {
+    if (bridgeOnline !== true) return;
+    setSoftwareLoading(true);
+    setSoftwareError(null);
+    try {
+      const { preview } = await api.softwarePreview();
+      setSoftware(preview);
+    } catch (error: unknown) {
+      setSoftwareError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSoftwareLoading(false);
+    }
+  }, [bridgeOnline]);
+
+  const loadAdvanced = useCallback(async () => {
+    if (bridgeOnline !== true) return;
+    setAdvancedLoading(true);
+    setAdvancedError(null);
+    try {
+      const { preview } = await api.advancedSoftwarePreview();
+      setAdvanced(preview);
+    } catch (error: unknown) {
+      setAdvancedError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setAdvancedLoading(false);
+    }
+  }, [bridgeOnline]);
+
+  const loadProvisioning = useCallback(async () => {
+    if (bridgeOnline !== true) return;
+    setProvisioningLoading(true);
+    setProvisioningError(null);
+    try {
+      const { preview } = await api.postInstallPreview();
+      setProvisioning(preview);
+    } catch (error: unknown) {
+      setProvisioningError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setProvisioningLoading(false);
+    }
+  }, [bridgeOnline]);
+
+  useEffect(() => {
+    if (workspace === 'applications' && software === null && !softwareLoading && softwareError === null) {
+      void loadSoftware();
+    }
+  }, [loadSoftware, software, softwareError, softwareLoading, workspace]);
+
+  useEffect(() => {
+    if (workspace === 'runtime' && advanced === null && !advancedLoading && advancedError === null) {
+      void loadAdvanced();
+    }
+  }, [advanced, advancedError, advancedLoading, loadAdvanced, workspace]);
+
+  useEffect(() => {
+    if (workspace === 'setup' && provisioning === null && !provisioningLoading && provisioningError === null) {
+      void loadProvisioning();
+    }
+  }, [loadProvisioning, provisioning, provisioningError, provisioningLoading, workspace]);
+
+  const libraryTools = useMemo(
+    () => tools.filter(tool => family.services.some(service => service.id === tool.Category)),
+    [family.services, tools],
+  );
   const byService = useMemo(() => {
     const map = new Map<string, BridgeTool[]>();
     for (const service of family.services) {
@@ -105,420 +181,681 @@ function hasBackup(tool: BridgeTool) {
     return map;
   }, [family.services, tools]);
 
-  const [query, setQuery] = useState('');
-  const [riskCeiling, setRiskCeiling] = useState(RISK_LADDER.length - 1);
-  const [privilege, setPrivilege] = useState<1 | 2>(1);
-  const [reversibility, setReversibility] = useState<0 | 1 | 2>(0);
-  const [density, setDensity] = useState<0 | 1 | 2>(1);
-  const [focusService, setFocusService] = useState<ServiceId | null>(null);
+  const inventory = useMemo(
+    () => (software ? buildProgramInventory(software.Items, []) : null),
+    [software],
+  );
 
-  const matchesControls = (tool: BridgeTool) => {
-    if (focusService && tool.Category !== focusService) return false;
-    if (riskRank(tool.RiskLevel) > riskCeiling) return false;
-    if (privilege === 1 && tool.RequiresAdmin) return false;
-    if (reversibility === 1 && !hasRollback(tool)) return false;
-    if (reversibility === 2 && !(hasRollback(tool) && hasBackup(tool))) return false;
-    const needle = query.trim().toLocaleLowerCase(ar ? 'ar' : 'en');
-    if (needle === '') return true;
-    return [tool.EnglishName, tool.ArabicName, tool.Purpose, tool.ToolId]
-      .some(value => value.toLocaleLowerCase(ar ? 'ar' : 'en').includes(needle));
-  };
+  const hub = useMemo(
+    () => summarizeSoftwareHub(software, advanced),
+    [advanced, software],
+  );
+  const provisioningSummary = useMemo(
+    () => summarizeProvisioning(provisioning),
+    [provisioning],
+  );
 
-  const visibleByService = useMemo(() => {
-    const map = new Map<string, BridgeTool[]>();
-    let total = 0;
-    for (const [serviceId, list] of byService) {
-      const filtered = list.filter(matchesControls);
-      map.set(serviceId, filtered);
-      total += filtered.length;
+  const applicationColumns = useMemo<InventoryColumn<ProgramInventoryRow>[]>(
+    () => [
+      {
+        key: 'name',
+        label: { en: 'Application', ar: 'التطبيق' },
+        sortValue: row => row.name,
+        render: (row, lang) => (
+          <span className="knoux-studio-cell-title">
+            <strong>{lang === 'ar' ? row.name : row.name}</strong>
+            {row.publisher && row.publisher !== '-' ? <small>{row.publisher}</small> : null}
+          </span>
+        ),
+      },
+      {
+        key: 'version',
+        label: { en: 'Version', ar: 'الإصدار' },
+        width: '120px',
+        sortValue: row => row.version,
+        render: row => <span className="knoux-studio-mono">{row.version}</span>,
+      },
+      {
+        key: 'kind',
+        label: { en: 'Kind', ar: 'النوع' },
+        width: '104px',
+        sortValue: row => row.kind ?? '',
+        render: row => <span className="knoux-studio-mono">{row.kind ?? '—'}</span>,
+      },
+      {
+        key: 'source',
+        label: { en: 'Source', ar: 'المصدر' },
+        width: '132px',
+        sortValue: row => row.source,
+        render: row => <span className="knoux-studio-mono">{row.source}</span>,
+      },
+      {
+        key: 'scope',
+        label: { en: 'Scope', ar: 'النطاق' },
+        width: '104px',
+        sortValue: row => row.scope,
+        render: row => <span className="knoux-studio-mono">{row.scope}</span>,
+      },
+      {
+        key: 'size',
+        label: { en: 'Size', ar: 'الحجم' },
+        width: '96px',
+        align: 'end',
+        sortValue: row => row.estimatedSizeMB,
+        render: row => <span className="knoux-studio-mono">{formatSizeMB(row.estimatedSizeMB)}</span>,
+      },
+      {
+        key: 'actions',
+        label: { en: 'Actions', ar: 'الإجراءات' },
+        width: '188px',
+        render: row => (
+          <span className="knoux-studio-chip-row">
+            {row.removable ? <StatusIndicator tone="data" label={t('Uninstall', 'إزالة')} /> : null}
+            {row.repairable ? <StatusIndicator tone="caution" label={t('Repair', 'إصلاح')} /> : null}
+            {row.updatable ? <StatusIndicator tone="positive" label={t('Update', 'تحديث')} /> : null}
+            {!row.removable && !row.repairable && !row.updatable ? (
+              <StatusIndicator tone="neutral" label={t('None proven', 'لا إجراء مثبت')} />
+            ) : null}
+          </span>
+        ),
+      },
+    ],
+    [t],
+  );
+
+  const runtimeColumns = useMemo<InventoryColumn<RuntimeToolRow>[]>(
+    () => [
+      {
+        key: 'command',
+        label: { en: 'Runtime', ar: 'بيئة التشغيل' },
+        sortValue: row => row.Command,
+        render: row => <span className="knoux-studio-cell-title"><strong>{row.Command}</strong></span>,
+      },
+      {
+        key: 'available',
+        label: { en: 'Detected', ar: 'مكتشف' },
+        width: '120px',
+        sortValue: row => (row.Available ? 1 : 0),
+        render: row => (
+          <StatusIndicator
+            tone={row.Available ? 'positive' : 'caution'}
+            label={row.Available ? t('Available', 'متاح') : t('Not found', 'غير موجود')}
+          />
+        ),
+      },
+      {
+        key: 'source',
+        label: { en: 'Source', ar: 'المصدر' },
+        width: '168px',
+        sortValue: row => row.Source ?? '',
+        render: row => <span className="knoux-studio-mono">{row.Source ?? '—'}</span>,
+      },
+      {
+        key: 'version',
+        label: { en: 'Version', ar: 'الإصدار' },
+        width: '120px',
+        sortValue: row => row.Version ?? '',
+        render: row => <span className="knoux-studio-mono">{row.Version ?? '—'}</span>,
+      },
+    ],
+    [t],
+  );
+
+  const extensionColumns = useMemo<InventoryColumn<ExtensionRow>[]>(
+    () => [
+      {
+        key: 'name',
+        label: { en: 'Extension', ar: 'الامتداد' },
+        sortValue: row => row.Name,
+        render: row => <span className="knoux-studio-cell-title"><strong>{row.Name}</strong></span>,
+      },
+      {
+        key: 'version',
+        label: { en: 'Version', ar: 'الإصدار' },
+        width: '110px',
+        sortValue: row => row.Version,
+        render: row => <span className="knoux-studio-mono">{row.Version}</span>,
+      },
+      {
+        key: 'profile',
+        label: { en: 'Profile', ar: 'الملف الشخصي' },
+        width: '190px',
+        sortValue: row => row.Profile,
+        render: row => <span className="knoux-studio-mono">{row.Profile}</span>,
+      },
+    ],
+    [],
+  );
+
+  const catalogColumns = useMemo<InventoryColumn<CatalogRow>[]>(
+    () => [
+      {
+        key: 'name',
+        label: { en: 'Package', ar: 'الحزمة' },
+        sortValue: row => row.Name,
+        render: row => <span className="knoux-studio-cell-title"><strong>{row.Name}</strong>{row.Publisher ? <small>{row.Publisher}</small> : null}</span>,
+      },
+      {
+        key: 'category',
+        label: { en: 'Category', ar: 'الفئة' },
+        width: '180px',
+        sortValue: row => row.Category,
+        render: row => <span className="knoux-studio-mono">{row.Category}</span>,
+      },
+      {
+        key: 'detected',
+        label: { en: 'State', ar: 'الحالة' },
+        width: '150px',
+        sortValue: row => (row.Detected ? 1 : 0),
+        render: row => (
+          <StatusIndicator
+            tone={row.Detected ? 'positive' : 'data'}
+            label={row.Detected ? t('Installed', 'مثبّت') : t('Available', 'متاح')}
+          />
+        ),
+      },
+      {
+        key: 'package',
+        label: { en: 'Package id', ar: 'معرّف الحزمة' },
+        width: '220px',
+        sortValue: row => row.PackageId,
+        render: row => <span className="knoux-studio-mono">{row.PackageId}</span>,
+      },
+    ],
+    [t],
+  );
+
+  const catalogRows = useMemo(
+    () => (provisioning ? provisioning.Catalog : null),
+    [provisioning],
+  );
+
+  const bridgeLabel = bridgeOnline === true
+    ? t('Online', 'متصل')
+    : bridgeOnline === false
+      ? t('Offline', 'غير متصل')
+      : t('Checking', 'جارٍ الفحص');
+  const bridgeTone: StatusTone = bridgeOnline === true ? 'positive' : bridgeOnline === false ? 'danger' : 'caution';
+
+  const headerMetrics = [
+    {
+      label: t('Installed', 'المثبّت'),
+      value: measured ? String(software?.Total ?? 0) : '—',
+      tone: measured ? ('data' as StatusTone) : ('neutral' as StatusTone),
+    },
+    {
+      label: t('Runtimes', 'بيئات التشغيل'),
+      value: measured ? `${hub.detectedRuntimes}/${hub.detectedRuntimes + hub.missingRuntimes}` : '—',
+      tone: measured ? ('data' as StatusTone) : ('neutral' as StatusTone),
+    },
+    {
+      label: t('Registered', 'المسجّل'),
+      value: measured ? String(libraryTools.length) : '—',
+      tone: measured ? ('brand' as StatusTone) : ('neutral' as StatusTone),
+    },
+    {
+      label: t('Bridge', 'الجسر'),
+      value: bridgeLabel,
+      tone: bridgeTone,
+    },
+  ];
+
+  const workspaceBody = (): ReactNode => {
+    if (workspace === 'applications') {
+      if (bridgeOnline !== true) {
+        return (
+          <EmptyState
+            title={t('Not checked yet', 'لم يتم الفحص بعد')}
+            description={t(
+              'The installed application inventory is read from the local execution bridge. It is offline, so nothing has been measured.',
+              'جرد التطبيقات المثبَّت يُقرأ من جسر التنفيذ المحلي، وهو غير متصل، لذلك لم يُقَس شيء.',
+            )}
+            action={
+              <button type="button" className="knoux-studio-btn" onClick={() => void loadSoftware()}>
+                <RefreshCw size={13} aria-hidden="true" />
+                <span>{t('Retry connection', 'إعادة المحاولة')}</span>
+              </button>
+            }
+          />
+        );
+      }
+      if (softwareError) {
+        return (
+          <EmptyState
+            title={t('The inventory could not be read', 'تعذّرت قراءة الجرد')}
+            description={softwareError}
+            action={
+              <button type="button" className="knoux-studio-btn" onClick={() => void loadSoftware()}>
+                <RefreshCw size={13} aria-hidden="true" />
+                <span>{t('Retry', 'إعادة المحاولة')}</span>
+              </button>
+            }
+          />
+        );
+      }
+      return (
+        <EntityInventory
+          lang={lang}
+          title={t('Installed applications', 'التطبيقات المثبَّتة')}
+          rows={inventory}
+          loading={softwareLoading}
+          rowKey={row => row.id}
+          columns={applicationColumns}
+          searchFields={row => [row.name, row.publisher, row.version, row.installLocation]}
+          searchPlaceholder={{ en: 'Search applications, publishers, versions', ar: 'ابحث في التطبيقات والناشرون والإصدارات' }}
+          empty={{
+            notChecked: { en: 'Not checked yet', ar: 'لم يتم الفحص بعد' },
+            checking: { en: 'Reading the installed inventory…', ar: 'جارٍ قراءة الجرد المثبَّت…' },
+            noneFound: { en: 'No applications were returned by the bridge', ar: 'لم يُرجع الجسر أي تطبيق' },
+            noMatch: { en: 'No application matches this search', ar: 'لا يوجد تطبيق يطابق هذا البحث' },
+            noMatchHint: { en: 'Clear the search to see the full inventory', ar: 'امسح البحث لعرض الجرد كاملاً' },
+          }}
+          header={software ? (
+            <StatusIndicator tone="data" label={`${software.DesktopCount} · ${software.AppxCount}`} />
+          ) : null}
+          inspector={(row, close, language) => (
+            <div className="knoux-studio-inspector-card">
+              <header>
+                <strong>{row.name}</strong>
+                <button type="button" className="knoux-studio-btn" onClick={close}>{language === 'ar' ? 'إغلاق' : 'Close'}</button>
+              </header>
+              <dl className="knoux-inspector-facts">
+                <dt>{language === 'ar' ? 'المعرّف' : 'Id'}</dt>
+                <dd>{row.id}</dd>
+                <dt>{language === 'ar' ? 'الإصدار' : 'Version'}</dt>
+                <dd>{row.version}</dd>
+                <dt>{language === 'ar' ? 'الناشر' : 'Publisher'}</dt>
+                <dd>{row.publisher}</dd>
+                <dt>{language === 'ar' ? 'المصدر' : 'Source'}</dt>
+                <dd>{row.source}</dd>
+                <dt>{language === 'ar' ? 'المعمارية' : 'Architecture'}</dt>
+                <dd>{row.architecture}</dd>
+                <dt>{language === 'ar' ? 'النطاق' : 'Scope'}</dt>
+                <dd>{row.scope}</dd>
+                <dt>{language === 'ar' ? 'تاريخ التثبيت' : 'Installed'}</dt>
+                <dd>{row.installDate || '—'}</dd>
+                <dt>{language === 'ar' ? 'الحجم' : 'Size'}</dt>
+                <dd>{formatSizeMB(row.estimatedSizeMB)}</dd>
+                <dt>{language === 'ar' ? 'المسار' : 'Location'}</dt>
+                <dd>{row.installLocation || '—'}</dd>
+                <dt>{language === 'ar' ? 'إزالة' : 'Uninstall'}</dt>
+                <dd>{row.uninstallCapability === null ? '—' : row.uninstallCapability ? t('Proven', 'مثبت') : t('Not proven', 'غير مثبت')}</dd>
+                <dt>{language === 'ar' ? 'إصلاح' : 'Repair'}</dt>
+                <dd>{row.repairCapability === null ? '—' : row.repairCapability ? t('Proven', 'مثبت') : t('Not proven', 'غير مثبت')}</dd>
+                <dt>{language === 'ar' ? 'تحديث' : 'Update'}</dt>
+                <dd>{row.updateCapability === null ? '—' : row.updateCapability ? t('Proven', 'مثبت') : t('Not proven', 'غير مثبت')}</dd>
+                <dt>{language === 'ar' ? 'الدليل' : 'Evidence'}</dt>
+                <dd>{row.evidence || '—'}</dd>
+                <dt>{language === 'ar' ? 'قيد القراءة' : 'Captured'}</dt>
+                <dd>{row.capturedAt || '—'}</dd>
+              </dl>
+            </div>
+          )}
+        />
+      );
     }
-    return { map, total };
-  }, [byService, query, riskCeiling, privilege, reversibility, focusService]);
 
-  const totalRegistered = measured ? tools.filter(tool => family.services.some(s => s.id === tool.Category)).length : null;
-  const admitted = measured ? visibleByService.total : null;
-
-  // Each slider shows how many registered actions its own position admits, so a
-  // control is never a knob that does nothing.
-  const riskAdmitted = measured
-    ? tools.filter(tool => family.services.some(s => s.id === tool.Category) && riskRank(tool.RiskLevel) <= riskCeiling).length
-    : null;
-  const privilegeAdmitted = measured
-    ? tools.filter(tool => family.services.some(s => s.id === tool.Category) && (privilege === 2 || !tool.RequiresAdmin)).length
-    : null;
-  const reversibilityAdmitted = measured
-    ? tools.filter(tool => {
-        if (!family.services.some(s => s.id === tool.Category)) return false;
-        if (reversibility === 0) return true;
-        if (reversibility === 1) return hasRollback(tool);
-        return hasRollback(tool) && hasBackup(tool);
-      }).length
-    : null;
-
-  const controlsLocked = !measured;
-  const filtersActive = query.trim() !== '' || focusService !== null || riskCeiling !== RISK_LADDER.length - 1
-    || privilege === 1 || reversibility !== 0;
-
-  const resetControls = () => {
-    setQuery('');
-    setRiskCeiling(RISK_LADDER.length - 1);
-    setPrivilege(1);
-    setReversibility(0);
-    setFocusService(null);
-  };
-
-  const workspaceName = (service: ServiceDefinition) => (ar ? service.name.ar : service.name.en);
-
-  return (
-    <div className="sl-deck" dir={ar ? 'rtl' : 'ltr'} data-family="software" data-measured={measured}>
-
-      <section className="sl-masthead" aria-labelledby="sl-masthead-title">
-        <div className="sl-masthead__identity">
-          <span className="sl-masthead__mark" aria-hidden="true"><Layers3 size={20} /></span>
-          <div>
-            <p className="sl-masthead__kicker">{t('LIBRARY COMMAND DECK', 'سطح أوامر المكتبة')}</p>
-            <h1 id="sl-masthead-title">{t('Software Library', 'مكتبة البرامج')}</h1>
-            <p className="sl-masthead__sub">
-              {t(
-                'Pick a workspace, then drive the registered actions with the controls below. Every number here comes from the live manifest.',
-                'اختر مساحة عمل، ثم قدّم الإجراءات المسجلة عبر أدوات التحكم أدناه. كل رقم هنا يأتي من سجل الأدوات الحقيقي.',
-              )}
-            </p>
-          </div>
-        </div>
-        <dl className="sl-masthead__state">
-          <div>
-            <dt>{t('Bridge', 'الجسر')}</dt>
-            <dd data-state={bridgeOnline === true ? 'ready' : bridgeOnline === false ? 'offline' : 'checking'}>
-              {bridgeOnline === true
-                ? t('Online', 'متصل')
-                : bridgeOnline === false
-                  ? t('Offline', 'غير متصل')
-                  : t('Checking', 'جارٍ الفحص')}
-            </dd>
-          </div>
-          <div>
-            <dt>{t('Privilege', 'الامتياز')}</dt>
-            <dd data-state={bridgeElevated ? 'elevated' : 'standard'}>
-              {bridgeElevated ? t('Elevated', 'مرتفع') : t('Standard', 'قياسي')}
-            </dd>
-          </div>
-          <div>
-            <dt>{t('Registered', 'مسجّل')}</dt>
-            <dd data-state={measured ? 'ready' : 'unknown'}>
-              {totalRegistered === null ? '—' : totalRegistered}
-            </dd>
-          </div>
-        </dl>
-      </section>
-
-      {/* Library command spotlight: live, tool-data-driven summary mounted
-          inside the existing deck. Every button routes through the same
-          onSelectTool handler as the deck controls, so actions land on
-          canonical tools with real bridge execution behind them. */}
-      <SoftwareSpotlight
-        lang={lang}
-        bridgeOnline={bridgeOnline}
-        serviceTools={libraryTools}
-        allTools={tools}
-        onSelectTool={onSelectTool}
-      />
-
-      <section className="sl-controls" aria-labelledby="sl-controls-title" aria-disabled={controlsLocked}>
-        <header className="sl-controls__head">
-          <span className="sl-controls__mark" aria-hidden="true"><SlidersHorizontal size={15} /></span>
-          <h2 id="sl-controls-title">{t('Action controls', 'أدوات التحكم بالإجراءات')}</h2>
-          <p className="sl-controls__readout" aria-live="polite">
-            {admitted === null
-              ? t('Not checked yet', 'لم يتم الفحص بعد')
-              : t(`${admitted} of ${totalRegistered} actions`, `${admitted} من ${totalRegistered} إجراءً`)}
-          </p>
-          <button
-            type="button"
-            className="sl-controls__reset"
-            onClick={resetControls}
-            disabled={controlsLocked || !filtersActive}
-          >
-            <RotateCcw size={13} />
-            {t('Reset', 'إعادة ضبط')}
-          </button>
-        </header>
-
-        <div className="sl-controls__body">
-          <label className="sl-search">
-            <Search size={15} aria-hidden="true" />
-            <input
-              type="search"
-              value={query}
-              disabled={controlsLocked}
-              onChange={event => setQuery(event.target.value)}
-              placeholder={t('Search actions…', 'ابحث في الإجراءات…')}
-              aria-label={t('Search actions by name, purpose or ToolId', 'ابحث في الإجراءات بالاسم أو الغرض أو المعرّف')}
-            />
-          </label>
-
-          <DeckSlider
-            label={t('Risk ceiling', 'سقف الخطورة')}
-            hint={t(`Admit actions up to ${RISK_LABEL[RISK_LADDER[riskCeiling]].en}`, `السماح حتى ${RISK_LABEL[RISK_LADDER[riskCeiling]].ar}`)}
-            value={riskCeiling}
-            max={RISK_LADDER.length - 1}
-            count={riskAdmitted}
-            disabled={controlsLocked}
-            marks={RISK_LADDER.map(level => RISK_LABEL[level][lang])}
-            onChange={setRiskCeiling}
+    if (workspace === 'runtime') {
+      if (bridgeOnline !== true) {
+        return (
+          <EmptyState
+            title={t('Not checked yet', 'لم يتم الفحص بعد')}
+            description={t(
+              'Runtime detection runs against the local bridge. It is offline, so no environment has been measured.',
+              'كشف بيئات التشغيل يعمل عبر الجسر المحلي، وهو غير متصل، لذلك لم تُقَس أي بيئة.',
+            )}
+            action={
+              <button type="button" className="knoux-studio-btn" onClick={() => void loadAdvanced()}>
+                <RefreshCw size={13} aria-hidden="true" />
+                <span>{t('Retry connection', 'إعادة المحاولة')}</span>
+              </button>
+            }
           />
-          <DeckSlider
-            label={t('Privilege scope', 'نطاق الامتياز')}
-            hint={privilege === 1
-              ? t('Standard user actions only', 'إجراءات المستخدم القياسي فقط')
-              : t('Include administrator actions', 'تضمين إجراءات المسؤول')}
-            value={privilege}
-            max={2}
-            count={privilegeAdmitted}
-            disabled={controlsLocked}
-            marks={[t('Any', 'الكل'), t('Standard', 'قياسي'), t('Admin', 'مسؤول')]}
-            onChange={value => setPrivilege(value === 0 ? 1 : (value as 1 | 2))}
+        );
+      }
+      if (advancedError) {
+        return (
+          <EmptyState
+            title={t('The environment could not be read', 'تعذّرت قراءة البيئة')}
+            description={advancedError}
+            action={
+              <button type="button" className="knoux-studio-btn" onClick={() => void loadAdvanced()}>
+                <RefreshCw size={13} aria-hidden="true" />
+                <span>{t('Retry', 'إعادة المحاولة')}</span>
+              </button>
+            }
           />
-          <DeckSlider
-            label={t('Reversibility', 'قابلية التراجع')}
-            hint={reversibility === 0
-              ? t('Any recovery story', 'أي وسيلة استرجاع')
-              : reversibility === 1
-                ? t('Has a rollback path', 'له مسار تراجع')
-                : t('Rollback and backup', 'تراجع واحتياطي')}
-            value={reversibility}
-            max={2}
-            count={reversibilityAdmitted}
-            disabled={controlsLocked}
-            marks={[t('Any', 'الكل'), t('Rollback', 'تراجع'), t('Both', 'كلاهما')]}
-            onChange={value => setReversibility(value as 0 | 1 | 2)}
+        );
+      }
+      return (
+        <div className="knoux-studio-grid-2">
+          <EntityInventory
+            lang={lang}
+            title={t('Developer runtimes', 'بيئات تشغيل المطورين')}
+            rows={advanced ? advanced.DeveloperTools : null}
+            loading={advancedLoading}
+            rowKey={row => row.Command}
+            columns={runtimeColumns}
+            searchFields={row => [row.Command, row.Source ?? '', row.Version ?? '']}
+            searchPlaceholder={{ en: 'Search runtimes', ar: 'ابحث في بيئات التشغيل' }}
+            empty={{
+              notChecked: { en: 'Not checked yet', ar: 'لم يتم الفحص بعد' },
+              checking: { en: 'Detecting runtimes…', ar: 'جارٍ كشف بيئات التشغيل…' },
+              noneFound: { en: 'The bridge returned no runtime entries', ar: 'لم يُرجع الجسر أي بيئة تشغيل' },
+              noMatch: { en: 'No runtime matches this search', ar: 'لا توجد بيئة تشغيل مطابقة' },
+              noMatchHint: { en: 'Clear the search to see every detected runtime', ar: 'امسح البحث لعرض كل البيئات المكتشفة' },
+            }}
           />
-          <DeckSlider
-            label={t('Row detail', 'تفصيل الصف')}
-            hint={DENSITY_LABEL[density][lang]}
-            value={density}
-            max={2}
-            count={null}
-            valueText={DENSITY_LABEL[density][lang]}
-            disabled={controlsLocked}
-            marks={DENSITY_LABEL.map(entry => entry[lang])}
-            onChange={value => setDensity(value as 0 | 1 | 2)}
+          <EntityInventory
+            lang={lang}
+            title={t('Browser extensions', 'امتدادات المتصفح')}
+            rows={advanced ? advanced.ChromeExtensions : null}
+            loading={advancedLoading}
+            rowKey={row => row.ExtensionId}
+            columns={extensionColumns}
+            searchFields={row => [row.Name, row.ExtensionId, row.Profile]}
+            searchPlaceholder={{ en: 'Search extensions', ar: 'ابحث في الامتدادات' }}
+            empty={{
+              notChecked: { en: 'Not checked yet', ar: 'لم يتم الفحص بعد' },
+              checking: { en: 'Reading extensions…', ar: 'جارٍ قراءة الامتدادات…' },
+              noneFound: { en: 'No extensions were found in the scanned profiles', ar: 'لم يُعثر على امتدادات في الملفات الممسوحة' },
+              noMatch: { en: 'No extension matches this search', ar: 'لا يوجد امتداد يطابق هذا البحث' },
+              noMatchHint: { en: 'Clear the search to see every extension', ar: 'امسح البحث لعرض كل الامتدادات' },
+            }}
           />
-        </div>
-
-        {controlsLocked && (
-          <p className="sl-controls__lock">
-            <ShieldCheck size={14} />
-            {bridgeOnline === false
-              ? t('Controls stay locked until the local execution bridge is reachable. No action count is assumed.', 'تبقى الأدوات مقفلة حتى يمكن الوصول إلى جسر التنفيذ المحلي. لا يُفترض أي عدد.')
-              : t('Reading the live action manifest…', 'جارٍ قراءة سجل الإجراءات الحقيقي…')}
-          </p>
-        )}
-      </section>
-
-      <section className="sl-topology" aria-labelledby="sl-topology-title">
-        <header className="sl-section-head">
-          <span className="sl-section-head__mark" aria-hidden="true"><Filter size={14} /></span>
-          <div>
-            <h2 id="sl-topology-title">{t('Workspace topology', 'طوبولوجيا مساحات العمل')}</h2>
-            <p>
-              {t(
-                'Select a workspace to scope the inventory below, or open it to work inside it.',
-                'اختر مساحة عمل لتقييد الجرد أدناه، أو افتحها للعمل داخلها.',
-              )}
-            </p>
-          </div>
-        </header>
-
-        <ol className="sl-topology__rail">
-          {family.services.map((service, index) => {
-            const Icon = SERVICE_ICONS[service.id] ?? Layers3;
-            const all = byService.get(service.id) ?? [];
-            const shown = visibleByService.map.get(service.id) ?? [];
-            const adminCount = all.filter(tool => tool.RequiresAdmin).length;
-            const riskBars = RISK_LADDER.map(level => all.filter(tool => tool.RiskLevel === level).length);
-            const focused = focusService === service.id;
-            return (
-              <li key={service.id} className="sl-node" data-focused={focused} data-service-id={service.id}>
-                <span className="sl-node__index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
-                <button
-                  type="button"
-                  className="sl-node__head"
-                  onClick={() => onSelectService(service.id)}
-                  aria-label={t(`Open ${workspaceName(service)}`, `افتح ${workspaceName(service)}`)}
-                >
-                  <span className="sl-node__icon" aria-hidden="true"><Icon size={19} /></span>
-                  <span className="sl-node__heading">
-                    <strong>{workspaceName(service)}</strong>
-                    <small>{ar ? service.purpose.ar : service.purpose.en}</small>
-                  </span>
-                  <ArrowRight size={15} className="sl-node__head-go rtl:rotate-180" aria-hidden="true" />
-                </button>
-
-                <div className="sl-node__risk" role="img" aria-label={t(
-                  `Registered actions by risk: ${RISK_LADDER.map(level => `${RISK_LABEL[level].en} ${riskBars[RISK_LADDER.indexOf(level)]}`).join(', ')}`,
-                  `الإجراءات المسجلة حسب الخطورة: ${RISK_LADDER.map(level => `${RISK_LABEL[level].ar} ${riskBars[RISK_LADDER.indexOf(level)]}`).join('، ')}`,
-                )}>
-                  {RISK_LADDER.map((level, levelIndex) => (
-                    <i key={level} data-risk={level} style={{ flexGrow: Math.max(riskBars[levelIndex], 0.001) }} />
-                  ))}
-                </div>
-
-                <dl className="sl-node__meta">
-                  <div>
-                    <dt>{t('Registered', 'مسجّل')}</dt>
-                    <dd>{measured ? all.length : '—'}</dd>
-                  </div>
-                  <div>
-                    <dt>{t('Shown', 'معروض')}</dt>
-                    <dd>{measured ? shown.length : '—'}</dd>
-                  </div>
-                  <div>
-                    <dt>{t('Needs admin', 'يحتاج مسؤول')}</dt>
-                    <dd>{measured ? adminCount : '—'}</dd>
-                  </div>
-                </dl>
-
-                <div className="sl-node__actions">
-                  <button
-                    type="button"
-                    onClick={() => setFocusService(focused ? null : service.id)}
-                    disabled={controlsLocked}
-                    aria-pressed={focused}
-                  >
-                    {focused ? t('Clear focus', 'إلغاء التركيز') : t('Focus inventory', 'تركيز الجرد')}
-                  </button>
-                  <button type="button" className="sl-node__open" onClick={() => onSelectService(service.id)}>
-                    {t('Open workspace', 'افتح المساحة')}
-                    <ArrowRight size={15} className="rtl:rotate-180" />
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-      </section>
-
-      <section className="sl-inventory" aria-labelledby="sl-inventory-title">
-        <header className="sl-section-head">
-          <span className="sl-section-head__mark" aria-hidden="true"><TerminalSquare size={14} /></span>
-          <div>
-            <h2 id="sl-inventory-title">{t('Action inventory', 'جرد الإجراءات')}</h2>
-            <p>
-              {admitted === null
-                ? t('Waiting for the live manifest.', 'بانتظار سجل الإجراءات الحقيقي.')
-                : t('Registered actions matching the current controls.', 'الإجراءات المسجلة المطابقة لأدوات التحكم الحالية.')}
-            </p>
-          </div>
-        </header>
-
-        <div className="sl-inventory__groups" data-density={density}>
-          {family.services.map(service => {
-            const list = visibleByService.map.get(service.id) ?? [];
-            if (list.length === 0) return null;
-            return (
-              <section key={service.id} className="sl-group">
-                <header>
-                  <h3>{workspaceName(service)}</h3>
-                  <span>{t(`${list.length} shown`, `${list.length} معروض`)}</span>
-                </header>
-                <ul>
-                  {list.map(tool => (
-                    <li key={tool.ToolId} data-risk={tool.RiskLevel}>
-                      <code>{tool.ToolId}</code>
-                      <div className="sl-group__name">
-                        <strong>{ar ? tool.ArabicName : tool.EnglishName}</strong>
-                        {density > 0 && (ar ? tool.ArabicName : tool.EnglishName) !== (ar ? tool.EnglishName : tool.ArabicName) && (
-                          <small>{ar ? tool.EnglishName : tool.ArabicName}</small>
-                        )}
-                        {density === 2 && <p>{tool.Purpose}</p>}
-                      </div>
-                      <div className="sl-group__chips">
-                        <span data-chip="risk" data-risk={tool.RiskLevel}>{RISK_LABEL[tool.RiskLevel][lang]}</span>
-                        {tool.RequiresAdmin && <span data-chip="admin">{t('Admin', 'مسؤول')}</span>}
-                        {tool.AnalyzeOnlySupported && <span data-chip="analyze">{t('Analyze', 'تحليل')}</span>}
-                        {tool.WhatIfSupported && <span data-chip="whatif">{t('What-if', 'معاينة')}</span>}
-                        {tool.ReportsEvidence && <span data-chip="evidence">{t('Evidence', 'دليل')}</span>}
-                        {tool.RequiresRestart && <span data-chip="reboot">{t('Reboot', 'إعادة تشغيل')}</span>}
-                        {hasRollback(tool) && <span data-chip="rollback">{t('Rollback', 'تراجع')}</span>}
-                      </div>
+          <section className="knoux-panel" data-role="cache-evidence">
+            <header>
+              <h3>{t('Cache evidence', 'أدلة الذاكرة المؤقتة')}</h3>
+              <StatusIndicator tone="data" label={formatSizeMB(Math.round(hub.totalCacheBytes / (1024 * 1024)))} />
+            </header>
+            <div className="knoux-panel-body">
+              {advanced && advanced.CacheEvidence.length > 0 ? (
+                <ul className="knoux-studio-evidence-list">
+                  {advanced.CacheEvidence.map(entry => (
+                    <li key={entry.Path}>
+                      <strong>{entry.Name}</strong>
+                      <span className="knoux-studio-mono">{entry.Path}</span>
+                      <em>{entry.Exists ? formatSizeMB(Math.round(entry.SizeBytes / (1024 * 1024))) : t('Absent', 'غير موجود')}</em>
                     </li>
                   ))}
                 </ul>
-              </section>
-            );
-          })}
+              ) : (
+                <EmptyState title={t('Not checked yet', 'لم يتم الفحص بعد')} />
+              )}
+            </div>
+          </section>
+          <section className="knoux-panel" data-role="winget-state">
+            <header>
+              <h3>{t('Package manager', 'مدير الحزم')}</h3>
+              <StatusIndicator
+                tone={hub.wingetAvailable ? 'positive' : 'caution'}
+                label={hub.wingetAvailable ? t('Available', 'متاح') : t('Not available', 'غير متاح')}
+              />
+            </header>
+            <div className="knoux-panel-body">
+              <dl className="knoux-inspector-facts">
+                <dt>{t('Version', 'الإصدار')}</dt>
+                <dd>{hub.wingetVersion ?? '—'}</dd>
+                <dt>{t('Upgrade candidates', 'ترقيات مرشحة')}</dt>
+                <dd>{hub.wingetAvailable ? String(hub.wingetUpgradeCandidates) : '—'}</dd>
+              </dl>
+            </div>
+          </section>
         </div>
+      );
+    }
 
-        {admitted === 0 && (
-          <p className="sl-inventory__empty">
-            {t(
-              'No registered action matches these controls. Loosen a control to widen the inventory.',
-              'لا يوجد إجراء مسجّل يطابق هذه الأدوات. خفّف أحدها لتوسيع الجرد.',
+    if (workspace === 'setup') {
+      if (bridgeOnline !== true) {
+        return (
+          <EmptyState
+            title={t('Not checked yet', 'لم يتم الفحص بعد')}
+            description={t(
+              'The provisioning baseline is read from the local bridge. It is offline, so the system baseline is unknown.',
+              'خط أساس التهيئة يُقرأ من الجسر المحلي، وهو غير متصل، لذلك حالة النظام غير معروفة.',
             )}
-          </p>
-        )}
-      </section>
+            action={
+              <button type="button" className="knoux-studio-btn" onClick={() => void loadProvisioning()}>
+                <RefreshCw size={13} aria-hidden="true" />
+                <span>{t('Retry connection', 'إعادة المحاولة')}</span>
+              </button>
+            }
+          />
+        );
+      }
+      if (provisioningError) {
+        return (
+          <EmptyState
+            title={t('The provisioning baseline could not be read', 'تعذّرت قراءة خط الأساس')}
+            description={provisioningError}
+            action={
+              <button type="button" className="knoux-studio-btn" onClick={() => void loadProvisioning()}>
+                <RefreshCw size={13} aria-hidden="true" />
+                <span>{t('Retry', 'إعادة المحاولة')}</span>
+              </button>
+            }
+          />
+        );
+      }
+      return (
+        <div className="knoux-studio-grid-2">
+          <section className="knoux-panel" data-role="system-baseline">
+            <header>
+              <h3>{t('System baseline', 'خط أساس النظام')}</h3>
+              <StatusIndicator
+                tone={provisioningSummary.readiness === 'ready' ? 'positive' : provisioningSummary.readiness === 'pending_restart' ? 'caution' : 'neutral'}
+                label={provisioningSummary.readiness.replace('_', ' ')}
+              />
+            </header>
+            <div className="knoux-panel-body">
+              {provisioning ? (
+                <dl className="knoux-inspector-facts">
+                  <dt>{t('System', 'النظام')}</dt>
+                  <dd>{provisioning.System.Caption || '—'}</dd>
+                  <dt>{t('Build', 'البناء')}</dt>
+                  <dd>{provisioning.System.Build || '—'}</dd>
+                  <dt>{t('Last boot', 'آخر إقلاع')}</dt>
+                  <dd>{provisioning.System.LastBoot || '—'}</dd>
+                  <dt>{t('Installed programs', 'برامج مثبَّتة')}</dt>
+                  <dd>{provisioning.System.InstalledProgramCount}</dd>
+                  <dt>{t('Pending restart', 'إعادة تشغيل معلّقة')}</dt>
+                  <dd>{provisioning.System.PendingRestartSignals.length > 0
+                    ? provisioning.System.PendingRestartSignals.join(', ')
+                    : t('None observed', 'لا شيء مرصود')}</dd>
+                </dl>
+              ) : (
+                <EmptyState title={t('Not checked yet', 'لم يتم الفحص بعد')} />
+              )}
+            </div>
+          </section>
+          <EntityInventory
+            lang={lang}
+            title={t('Essential software catalog', 'كتالوج البرامج الأساسية')}
+            rows={catalogRows}
+            loading={provisioningLoading}
+            rowKey={row => row.PackageId || String(row.Selection)}
+            columns={catalogColumns}
+            searchFields={row => [row.Name, row.PackageId, row.Category, row.Publisher ?? '']}
+            searchPlaceholder={{ en: 'Search the catalog', ar: 'ابحث في الكتالوج' }}
+            empty={{
+              notChecked: { en: 'Not checked yet', ar: 'لم يتم الفحص بعد' },
+              checking: { en: 'Reading the catalog…', ar: 'جارٍ قراءة الكتالوج…' },
+              noneFound: { en: 'The catalog returned no packages', ar: 'لم يُرجع الكتالوج أي حزمة' },
+              noMatch: { en: 'No package matches this search', ar: 'لا توجد حزمة مطابقة' },
+              noMatchHint: { en: 'Clear the search to see the whole catalog', ar: 'امسح البحث لعرض الكتالوج كاملاً' },
+            }}
+          />
+        </div>
+      );
+    }
 
-      <footer className="sl-safety">
-        <ShieldCheck size={18} aria-hidden="true" />
-        <p>
-          <strong>{t('Selection is not execution.', 'الاختيار ليس تنفيذًا.')}</strong>
-          <span>
-            {t(
-              'Nothing on this screen changes your device. Open a workspace, review the evidence, and confirm there before any action runs.',
-              'لا يغيّر شيء في هذه الشاشة جهازك. افتح مساحة عمل، وراجع الأدلة، وأكّد هناك قبل تنفيذ أي إجراء.',
-            )}
-          </span>
-        </p>
-        <span className="sl-safety__privilege" data-state={bridgeElevated ? 'elevated' : 'standard'}>
-          {bridgeElevated ? t('Administrator access available', 'صلاحيات المدير متاحة') : t('Standard access', 'الوضع القياسي')}
-        </span>
-      </footer>
-    </div>
-  );
-}
+    return (
+      <div className="knoux-studio-stack">
+        <OperationToolbar
+          label={t('Registered actions', 'الإجراءات المسجَّلة')}
+          trailing={
+            <StatusIndicator
+              tone={bridgeElevated ? 'positive' : 'caution'}
+              label={bridgeElevated ? t('Elevated', 'مرتفع') : t('Standard session', 'جلسة قياسية')}
+            />
+          }
+          actions={[
+            {
+              id: 'open-programs',
+              label: t('Open Programs & Applications', 'فتح البرامج والتطبيقات'),
+              icon: <AppWindow size={13} aria-hidden="true" />,
+              onClick: () => onSelectService('04-Programs-Applications'),
+            },
+            {
+              id: 'open-environment',
+              label: t('Open Software Environment', 'فتح بيئة البرمجيات'),
+              icon: <Terminal size={13} aria-hidden="true" />,
+              onClick: () => onSelectService('16-Software-Environment'),
+            },
+            {
+              id: 'open-postinstall',
+              label: t('Open Post-Install Setup', 'فتح إعداد ما بعد التثبيت'),
+              icon: <Download size={13} aria-hidden="true" />,
+              onClick: () => onSelectService('17-PostInstall-Setup'),
+            },
+          ]}
+        />
 
-interface DeckSliderProps {
-  label: string;
-  hint: string;
-  value: number;
-  max: number;
-  count: number | null;
-  valueText?: string;
-  disabled: boolean;
-  marks: string[];
-  onChange: (value: number) => void;
-}
+        {family.services.map(service => {
+          const serviceTools = byService.get(service.id) ?? [];
+          const capability = STATION04_SERVICES.find(entry => entry.serviceId === service.id);
+          return (
+            <section className="knoux-panel" key={service.id} data-role="maintenance-service" data-service-id={service.id}>
+              <header>
+                <h3>{ar ? service.name.ar : service.name.en}</h3>
+                <div className="knoux-studio-chip-row">
+                  {capability ? (
+                    <StatusIndicator
+                      tone={capability.status === 'IMPLEMENTED' ? 'positive' : capability.status === 'PARTIAL' ? 'caution' : 'neutral'}
+                      label={capability.status.replace(/_/g, ' ')}
+                    />
+                  ) : null}
+                  <StatusIndicator tone="data" label={measured ? String(serviceTools.length) : '—'} />
+                </div>
+              </header>
+              <div className="knoux-panel-body">
+                {capability ? (
+                  <dl className="knoux-inspector-facts">
+                    <dt>{t('Safety class', 'فئة الأمان')}</dt>
+                    <dd>{capability.safetyClass}</dd>
+                    <dt>{t('Elevation', 'الصلاحية')}</dt>
+                    <dd>{capability.requiresElevation ? t('Required', 'مطلوبة') : t('Not required', 'غير مطلوبة')}</dd>
+                    <dt>{t('Analyze only', 'تحليل فقط')}</dt>
+                    <dd>{capability.supportsAnalyzeOnly ? t('Supported', 'مدعوم') : t('Not supported', 'غير مدعوم')}</dd>
+                    <dt>{t('Post-verify', 'تحقق لاحق')}</dt>
+                    <dd>{capability.supportsPostVerify ? t('Supported', 'مدعوم') : t('Not supported', 'غير مدعوم')}</dd>
+                    <dt>{t('Data sources', 'مصادر البيانات')}</dt>
+                    <dd>{capability.dataSources.join(', ') || '—'}</dd>
+                    {capability.missingCapabilities.length > 0 ? (
+                      <>
+                        <dt>{t('Missing', 'ناقص')}</dt>
+                        <dd>{capability.missingCapabilities.join(', ')}</dd>
+                      </>
+                    ) : null}
+                  </dl>
+                ) : null}
 
-function DeckSlider({ label, hint, value, max, count, valueText, disabled, marks, onChange }: DeckSliderProps) {
-  return (
-    <div className="sl-slider" data-disabled={disabled}>
-      <div className="sl-slider__head">
-        <label htmlFor={`sl-slider-${label}`}>{label}</label>
-        <span
-          className="sl-slider__count"
-          data-state={count === null ? 'label' : 'measured'}
-        >
-          {valueText ?? (count === null ? '—' : count)}
-        </span>
+                <div className="knoux-studio-action-table">
+                  {serviceTools.length === 0 ? (
+                    <EmptyState
+                      title={measured ? t('No loaded actions for this service', 'لا توجد إجراءات محمّلة لهذه الخدمة') : t('Not checked yet', 'لم يتم الفحص بعد')}
+                    />
+                  ) : (
+                    serviceTools.map(tool => (
+                      <button
+                        key={tool.ToolId}
+                        type="button"
+                        className="knoux-studio-action-row"
+                        data-tool-id={tool.ToolId}
+                        onClick={() => onSelectTool(tool.ToolId)}
+                      >
+                        <span className="knoux-studio-action-identity">
+                          <strong>{ar ? tool.ArabicName : tool.EnglishName}</strong>
+                          <code>{tool.ToolId}</code>
+                        </span>
+                        <span className="knoux-studio-chip-row">
+                          <StatusIndicator tone={RISK_TONE[tool.RiskLevel] ?? 'neutral'} label={tool.RiskLevel} />
+                          {tool.RequiresAdmin ? <StatusIndicator tone="caution" label={t('Elevation', 'صلاحية')} /> : null}
+                          {tool.AnalyzeOnlySupported ? <StatusIndicator tone="data" label={t('Analyze', 'تحليل')} /> : null}
+                          {tool.WhatIfSupported ? <StatusIndicator tone="data" label={t('What-if', 'معاينة')} /> : null}
+                          {tool.RequiresRestart ? <StatusIndicator tone="caution" label={t('Reboot', 'إعادة تشغيل')} /> : null}
+                          {tool.ReportsEvidence ? <StatusIndicator tone="brand" label={t('Evidence', 'دليل')} /> : null}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            </section>
+          );
+        })}
       </div>
-      <input
-        id={`sl-slider-${label}`}
-        type="range"
-        min={0}
-        max={max}
-        step={1}
-        value={value}
-        disabled={disabled}
-        onChange={event => onChange(Number(event.target.value))}
-        aria-valuetext={hint}
+    );
+  };
+
+  return (
+    <div className="knoux-studio-page knoux-software-studio" data-family="software" dir={ar ? 'rtl' : 'ltr'}>
+      <StudioHeader
+        kicker={t('KNOuX Application Studio', 'استوديو تطبيقات كنوكس')}
+        title={t('Software Library', 'مكتبة البرامج')}
+        description={t(
+          'Installed inventory, runtime readiness and controlled setup — measured by the local bridge, never assumed.',
+          'جرد المثبَّت وجاهزية بيئة التشغيل والإعداد المحكوم — مقيسة بالجسر المحلي، لا مقدَّرة.',
+        )}
+        icon={<Package size={20} aria-hidden="true" />}
+        accent="var(--knoux-family-software)"
+        metrics={headerMetrics}
       />
-      <div className="sl-slider__foot">
-        <small>{hint}</small>
-        <span className="sl-slider__marks" aria-hidden="true">
-          {marks.map((mark, index) => <i key={mark} data-active={index === value}>{mark}</i>)}
-        </span>
+
+      <StudioNavigation
+        items={WORKSPACES.map(entry => ({
+          id: entry.id,
+          label: ar ? entry.ar : entry.en,
+          icon: <entry.icon size={14} aria-hidden="true" />,
+        }))}
+        activeId={workspace}
+        onSelect={id => setWorkspace(id as WorkspaceId)}
+        accent="var(--knoux-family-software)"
+        label={t('Application studio workspaces', 'مساحات عمل استوديو التطبيقات')}
+      />
+
+      <nav className="knoux-studio-service-strip" aria-label={t('Software services', 'خدمات البرمجيات')}>
+        {family.services.map(service => {
+          const Icon = SERVICE_ICONS[service.id];
+          const serviceName = ar ? service.name.ar : service.name.en;
+          return (
+            <button
+              key={service.id}
+              type="button"
+              className="knoux-studio-service-chip"
+              data-service-id={service.id}
+              onClick={() => onSelectService(service.id)}
+              aria-label={t(`Open ${serviceName}`, `فتح ${serviceName}`)}
+              title={ar ? service.purpose.ar : service.purpose.en}
+            >
+              <Icon size={14} aria-hidden="true" />
+              <span>{serviceName}</span>
+              <em>{measured ? String(byService.get(service.id)?.length ?? 0) : '—'}</em>
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="knoux-studio-surface-body">
+        {workspaceBody()}
+        <p className="knoux-studio-note">
+          {t('Selection is not execution.', 'الاختيار ليس تنفيذًا.')}
+          {' '}
+          {t(
+            'Every operation runs in the owning station, under the bridge confirmation and elevation contract.',
+            'كل عملية تُنفَّذ في الخدمة المالكة، ضمن عقد التأكيد والصلاحية الذي يفرضه الجسر.',
+          )}
+        </p>
       </div>
     </div>
   );

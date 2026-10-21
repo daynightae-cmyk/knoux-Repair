@@ -26,8 +26,15 @@ test('spotlights mount inside the existing canonical overview surfaces, not a pa
   assert.match(overview, /family\.id === 'recovery' && \(/);
   assert.match(overview, /<AssuranceSpotlight/);
   assert.match(overview, /<RecoverySpotlight/);
-  assert.match(library, /import SoftwareSpotlight from '\.\.\/premium\/SoftwareSpotlight'/);
-  assert.match(library, /<SoftwareSpotlight/);
+  // The Software Library was redesigned into the KNOuX Application Studio:
+  // the four live workspaces (applications, runtime, setup, maintenance)
+  // read the same previews the spotlight used to read, so mounting the
+  // spotlight a second time would be a competing surface over the same
+  // endpoints. The component itself is kept and still verified below.
+  assert.doesNotMatch(library, /SoftwareSpotlight/);
+  assert.match(library, /api\.softwarePreview\(\)/);
+  assert.match(library, /api\.postInstallPreview\(\)/);
+  assert.match(library, /api\.advancedSoftwarePreview\(\)/);
   assert.doesNotMatch(overview, /createRoot|BrowserRouter|registerSpotlight|spotlightRegistry/i);
   assert.doesNotMatch(library, /createRoot|BrowserRouter|registerSpotlight|spotlightRegistry/i);
 });

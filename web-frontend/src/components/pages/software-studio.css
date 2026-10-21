@@ -1,0 +1,258 @@
+/**
+ * KNOuX Repair — Application Studio
+ *
+ * The Software Library's four workspaces. One grid language with the rest
+ * of the shell: graphite surfaces, deep indigo structure, violet brand,
+ * cyan for data, teal for confirmed state, amber for caution, red only for
+ * real danger.
+ */
+
+.knoux-software-studio {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.knoux-studio-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.knoux-studio-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--knoux-space-4);
+  align-items: start;
+}
+
+.knoux-studio-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--knoux-space-4);
+}
+
+.knoux-studio-note {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--knoux-text-faint);
+  border-inline-start: 2px solid var(--knoux-studio-violet);
+  padding-inline-start: 10px;
+}
+
+/* ── Owning services strip ────────────────────────────────────────── */
+
+.knoux-studio-service-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px var(--knoux-space-6);
+  border-bottom: 1px solid var(--knoux-studio-line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.knoux-studio-service-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.knoux-studio-service-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border-radius: var(--knoux-studio-radius-sm);
+  border: 1px solid var(--knoux-studio-line);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--knoux-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--knoux-studio-transition), background var(--knoux-studio-transition), border-color var(--knoux-studio-transition);
+}
+
+.knoux-studio-service-chip:hover {
+  color: var(--knoux-text-primary);
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.4);
+}
+
+.knoux-studio-service-chip em {
+  font-style: normal;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--knoux-text-faint);
+}
+
+@media (max-width: 1366px) {
+  .knoux-studio-service-strip {
+    padding: 8px var(--knoux-space-4);
+  }
+}
+
+/* ── Inventory cells ──────────────────────────────────────────────── */
+
+.knoux-studio-cell-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.knoux-studio-cell-title strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--knoux-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knoux-studio-cell-title small {
+  font-size: 10.5px;
+  color: var(--knoux-text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knoux-studio-mono {
+  font-family: var(--knoux-font-mono);
+  font-size: 11px;
+  color: var(--knoux-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.knoux-studio-chip-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ── Row inspector ────────────────────────────────────────────────── */
+
+.knoux-studio-inspector-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-inline-start: 1px solid var(--knoux-studio-line);
+  background: var(--knoux-studio-inset);
+  min-width: 280px;
+}
+
+.knoux-studio-inspector-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.knoux-studio-inspector-card > header strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--knoux-text-primary);
+}
+
+/* ── Cache and evidence lists ─────────────────────────────────────── */
+
+.knoux-studio-evidence-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.knoux-studio-evidence-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: var(--knoux-studio-radius-sm);
+  border: 1px solid var(--knoux-studio-line-soft);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.knoux-studio-evidence-list strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--knoux-text-primary);
+}
+
+.knoux-studio-evidence-list em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--knoux-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Maintenance action rows ──────────────────────────────────────── */
+
+.knoux-studio-action-table {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 12px;
+  border: 1px solid var(--knoux-studio-line-soft);
+  border-radius: var(--knoux-studio-radius-sm);
+  overflow: hidden;
+  background: var(--knoux-studio-line-soft);
+}
+
+.knoux-studio-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: var(--knoux-studio-panel);
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--knoux-studio-transition);
+}
+
+.knoux-studio-action-row:hover {
+  background: rgba(124, 58, 237, 0.1);
+}
+
+.knoux-studio-action-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.knoux-studio-action-identity strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--knoux-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knoux-studio-action-identity code {
+  font-family: var(--knoux-font-mono);
+  font-size: 10.5px;
+  color: var(--knoux-text-faint);
+}
+
+@media (max-width: 1366px) {
+  .knoux-studio-grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .knoux-studio-inspector-card {
+    min-width: 0;
+  }
+}

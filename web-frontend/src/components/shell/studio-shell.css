@@ -274,6 +274,42 @@
   gap: 6px;
 }
 
+/* The collapsed spine shows a compact mark instead of a truncated wordmark. */
+.knoux-spine-mark {
+  display: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin: 0 auto;
+  border-radius: 10px;
+  border: 1px solid rgba(124, 58, 237, 0.42);
+  background: linear-gradient(150deg, rgba(124, 58, 237, 0.36), rgba(6, 182, 255, 0.14));
+  color: #ddd6fe;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.knoux-spine[data-expanded='false'] .knoux-spine-mark {
+  display: grid;
+}
+
+.knoux-spine[data-expanded='false'] .knoux-rail-brand-card strong,
+.knoux-spine[data-expanded='false'] .knoux-rail-brand-card small,
+.knoux-spine[data-expanded='false'] .knoux-spine-version {
+  display: none;
+}
+
+.knoux-spine[data-expanded='false'] .knoux-rail-brand-card {
+  align-items: center;
+  padding: 10px 6px;
+  gap: 8px;
+}
+
+.knoux-spine[data-expanded='false'] .knoux-rail-brand-card .knoux-rail-text {
+  display: none;
+}
+
 /* ────────────────────────────────────────────────────────────────────
    B. Studio header + contextual navigation
    ──────────────────────────────────────────────────────────────────── */

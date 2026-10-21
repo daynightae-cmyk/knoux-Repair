@@ -4,6 +4,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+/**
+ * The Software Library was deliberately redesigned from an "action control
+ * deck" (a card grid driven by four range sliders) into the KNOuX
+ * Application Studio: four real workspaces over live bridge data.
+ *
+ * The truthfulness guarantees of the old deck are preserved verbatim:
+ * nothing is counted while the bridge is unreachable, the live manifest is
+ * the only source of counts, selection is never execution, and the surface
+ * is bilingual and RTL-safe.
+ */
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(here, '..');
 const read = (rel) => fs.readFileSync(path.join(webRoot, rel), 'utf8');
@@ -13,68 +24,70 @@ const css = read('src/software-library-deck.css');
 const main = read('src/main.tsx');
 const familyPage = read('src/components/premium/FamilyPage.tsx');
 
-test('the library deck is imported and is the only Software Library surface', () => {
+test('the application studio is imported and is the only Software Library surface', () => {
   assert.match(main, /software-library-deck\.css/);
   assert.equal((main.match(/software-library-deck\.css/g) ?? []).length, 1);
   assert.match(familyPage, /<SoftwareLibraryPage/);
   assert.equal((familyPage.match(/<SoftwareLibraryPage/g) ?? []).length, 1);
 });
 
-test('the library is an operational deck, not a marketing or statistics surface', () => {
+test('the library is an operational studio, not a marketing or statistics surface', () => {
   // No hero art, no marketing triad, no decorative stat tiles.
   assert.doesNotMatch(page, /software-library-hero/);
   assert.doesNotMatch(page, /knoux-software-library-hero\.png/);
   assert.doesNotMatch(page, /CLEARER|SAFER|ORGANIZED/);
   assert.doesNotMatch(page, /software-library-principles/);
-  // The section order the user asked for: masthead, controls, topology, inventory, safety.
-  const order = ['sl-masthead', 'sl-controls', 'sl-topology', 'sl-inventory', 'sl-safety'];
-  let cursor = -1;
-  for (const id of order) {
-    const at = page.indexOf(`"${id}"`);
-    assert.ok(at > cursor, `${id} must come after the previous section in document order`);
-    cursor = at;
-  }
 });
 
-test('the deck ships four real range controls', () => {
-  assert.equal((page.match(/<DeckSlider/g) ?? []).length, 4);
-  assert.equal((css.match(/\.sl-slider/g) ?? []).length >= 1, true);
-  assert.match(page, /type="range"/);
-  for (const label of ['Risk ceiling', 'Privilege scope', 'Reversibility', 'Row detail']) {
-    assert.ok(page.includes(label), `missing control: ${label}`);
+test('the rejected slider panel is gone for good', () => {
+  // The owner rejected "a collection of tool cards, generic counters and
+  // risk sliders". None of that grammar may come back.
+  assert.doesNotMatch(page, /type="range"/);
+  assert.doesNotMatch(page, /<DeckSlider/);
+  assert.doesNotMatch(page, /RISK_LADDER/);
+  assert.doesNotMatch(page, /riskCeiling/);
+  assert.doesNotMatch(page, /reversibility/);
+});
+
+test('the studio is four real workspaces over live bridge data', () => {
+  for (const id of ['applications', 'runtime', 'setup', 'maintenance']) {
+    assert.ok(page.includes(`id: '${id}'`), `missing workspace: ${id}`);
+  }
+  for (const [en, ar] of [
+    ['Applications', 'التطبيقات'],
+    ['Runtime & Environment', 'بيئة التشغيل'],
+    ['Installation & Setup', 'التثبيت والإعداد'],
+    ['Maintenance', 'الصيانة'],
+  ]) {
+    assert.ok(page.includes(en), `missing en workspace: ${en}`);
+    assert.ok(page.includes(ar), `missing ar workspace: ${ar}`);
+  }
+
+  // Every workspace is fed by a real, existing bridge endpoint.
+  for (const call of ['api.softwarePreview()', 'api.advancedSoftwarePreview()', 'api.postInstallPreview()']) {
+    assert.ok(page.includes(call), `missing live data source: ${call}`);
   }
 });
 
 test('every control readout is measured, never assumed', () => {
   // Nothing is counted while the bridge is unreachable.
   assert.match(page, /const measured = bridgeOnline === true/);
-  assert.match(page, /const controlsLocked = !measured/);
-  assert.match(page, /disabled=\{controlsLocked\}/);
-  assert.match(page, /\{totalRegistered === null \? '—' : totalRegistered\}/);
-  assert.match(page, /\{admitted === null[\s\S]{0,120}Not checked yet/);
-  assert.match(page, /\{count === null \? '—' : count\}|\{valueText \?\? \(count === null \? '—' : count\)\}/);
-  assert.match(page, /\{measured \? all\.length : '—'\}/);
-  // Locked controls state why they are locked instead of implying an empty result.
-  assert.match(page, /sl-controls__lock/);
-  assert.match(page, /Controls stay locked until the local execution bridge is reachable/);
+  assert.match(page, /Not checked yet/);
+  assert.match(page, /لم يتم الفحص بعد/);
+  assert.match(page, /measured \? String\(software\?\.Total \?\? 0\) : '—'/);
+  assert.match(page, /measured \? String\(libraryTools\.length\) : '—'/);
+  // A failed read states the real cause and offers a real retry.
+  assert.match(page, /softwareError/);
+  assert.match(page, /provisioningError/);
+  assert.match(page, /advancedError/);
+  assert.match(page, /onClick=\{\(\) => void loadSoftware\(\)\}/);
+  // Locked states say why they are locked instead of implying an empty result.
+  assert.match(page, /bridgeOnline !== true/);
 });
 
-test('the reversibility control never counts a tool the manifest says has no recovery', () => {
-  assert.match(page, /function declaresRecovery\(value: string \| undefined\)/);
-  assert.match(page, /if \(text === ''\) return false/);
-  assert.ok(page.includes("^(none|no\\b|n\\/?a|not (applicable|available|required)|unsupported|-)\\b"), 'recovery-intent guard must reject explicit negatives');
-  assert.match(page, /!text\.startsWith\('none'\)/);
-  // "None (read-only listing)" must not read as a backup.
-  assert.match(page, /return declaresRecovery\(tool\.RollbackMethod\)/);
-  assert.match(page, /return declaresRecovery\(tool\.BackupMethod\)/);
-  // The filter is applied, not merely counted.
-  assert.match(page, /reversibility === 1 && !hasRollback\(tool\)/);
-  assert.match(page, /reversibility === 2 && !\(hasRollback\(tool\) && hasBackup\(tool\)\)/);
-});
-
-test('the deck renders the live manifest rather than a fixed action count', () => {
+test('the studio renders the live manifest rather than a fixed action count', () => {
   assert.match(page, /tools\.filter\(tool => tool\.Category === service\.id\)/);
-  assert.match(page, /tools\.filter\(tool => family\.services\.some\(s => s\.id === tool\.Category\)/);
+  assert.match(page, /tools\.filter\(tool => family\.services\.some\(service => service\.id === tool\.Category\)\)/);
   // No hardcoded inventory size is baked into the surface.
   assert.doesNotMatch(page, /loadedTools|const TOTAL|ACTIONS_COUNT/);
   // Risk and capability chips come from the tool contract, not from a lookup table of lies.
@@ -83,60 +96,46 @@ test('the deck renders the live manifest rather than a fixed action count', () =
   }
 });
 
-test('the inventory lists real registered actions and never invents a row', () => {
+test('the application inventory is the canonical measured inventory, not a parallel list', () => {
+  assert.match(page, /buildProgramInventory\(software\.Items, \[\]\)/);
+  assert.match(page, /import \{ buildProgramInventory, STATION04_SERVICES \}/);
+  assert.match(page, /<EntityInventory/);
+  assert.match(page, /import EntityInventory from '\.\.\/shell\/EntityInventory'/);
+  // The inventory keeps the canonical truthfulness contract.
+  assert.match(page, /rows=\{inventory\}/);
+  assert.match(page, /notChecked: \{ en: 'Not checked yet'/);
+  // The real capability matrix, not a hand-written table.
+  assert.match(page, /STATION04_SERVICES\.find\(entry => entry\.serviceId === service\.id\)/);
+});
+
+test('the maintenance workspace shows the real action contract and never executes', () => {
   assert.match(page, /<code>\{tool\.ToolId\}<\/code>/);
   assert.match(page, /<strong>\{ar \? tool\.ArabicName : tool\.EnglishName\}<\/strong>/);
-  assert.match(page, /\{density === 2 && <p>\{tool\.Purpose\}<\/p>\}/);
-  // A second name line is only rendered when the two names actually differ.
-  assert.match(page, /\(ar \? tool\.ArabicName : tool\.EnglishName\) !== \(ar \? tool\.EnglishName : tool\.ArabicName\) &&/);
-  assert.match(page, /sl-inventory__empty/);
-  assert.match(page, /No registered action matches these controls/);
-});
-
-test('workspace focus is a real filter and opening stays a separate intent', () => {
-  assert.match(page, /if \(focusService && tool\.Category !== focusService\) return false/);
-  assert.match(page, /setFocusService\(focused \? null : service\.id\)/);
-  assert.match(page, /aria-pressed=\{focused\}/);
-  assert.match(page, /onClick=\{\(\) => onSelectService\(service\.id\)\}/);
-  // The workspace name itself is a control: the repository's navigation gate
-  // reaches every service by clicking a visible button carrying its name.
-  assert.match(page, /className="sl-node__head"\s*\n\s*onClick=\{\(\) => onSelectService\(service\.id\)\}/);
-  assert.match(page, /<strong>\{workspaceName\(service\)\}<\/strong>/);
-  assert.match(page, /aria-label=\{t\(`Open \$\{workspaceName\(service\)\}`/);
+  assert.match(page, /onClick=\{\(\) => onSelectTool\(tool\.ToolId\)\}/);
   // Selection is never execution.
-  assert.match(page, /Selection is not execution\./);
+  assert.match(page, /Selection is not execution/);
   assert.match(page, /الاختيار ليس تنفيذًا/);
-  assert.doesNotMatch(page, /onRunTool|startRun|api\./);
+  assert.doesNotMatch(page, /onRunTool|startRun/);
 });
 
-test('the deck is bilingual and mirrors in RTL', () => {
+test('the studio is bilingual and mirrors in RTL', () => {
   assert.match(page, /dir=\{ar \? 'rtl' : 'ltr'\}/);
   assert.match(page, /data-family="software"/);
   for (const [en, ar] of [
     ['Software Library', 'مكتبة البرامج'],
-    ['Action controls', 'أدوات التحكم بالإجراءات'],
-    ['Workspace topology', 'طوبولوجيا مساحات العمل'],
-    ['Action inventory', 'جرد الإجراءات'],
+    ['Installed applications', 'التطبيقات المثبَّتة'],
+    ['Developer runtimes', 'بيئات تشغيل المطورين'],
+    ['Essential software catalog', 'كتالوج البرامج الأساسية'],
     ['Not checked yet', 'لم يتم الفحص بعد'],
   ]) {
     assert.ok(page.includes(en), `missing en copy: ${en}`);
     assert.ok(page.includes(ar), `missing ar copy: ${ar}`);
   }
-  assert.match(page, /rtl:rotate-180/);
 });
 
-test('the deck stays inside the viewport and keeps controls reachable', () => {
-  assert.match(css, /\.sl-topology__rail\s*\{[\s\S]*repeat\(3, minmax\(0, 1fr\)\)/);
-  assert.match(css, /\.sl-controls__body\s*\{[\s\S]*repeat\(4, minmax\(\d+px, 1fr\)\)/);
+test('the deck stylesheet stays loaded and keeps no fixed positioning', () => {
   assert.match(css, /@media \(max-width: 1400px\)/);
   assert.match(css, /@media \(max-width: 1100px\)/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.match(css, /\.sl-search input\s*\{[\s\S]*min-width: 0|min-width: 0/);
   assert.doesNotMatch(css, /position:\s*fixed/);
-});
-
-test('the density control changes real row rendering', () => {
-  assert.match(page, /data-density=\{density\}/);
-  assert.match(css, /\.sl-inventory__groups\[data-density='0'\]/);
-  assert.match(css, /\.sl-inventory__groups\[data-density='0'\] \.sl-group__name p \{ display: none; \}/);
 });
