@@ -1,11 +1,11 @@
 # تقرير التدقيق العميق والشامل — تطبيق KNOUX Repair v2.0.3
 
-**التاريخ:** 2026-10-20  
-**الفرع:** `main` @ `e71db5e` (بعد دمج PR #83)  
-**الحالة:** الشجرة نظيفة (clean working tree)  
-**المسار:** `D:\New folder\KNOuX Repair\Base`  
-**الإصدار:** `2.0.3` (ملف VERSION و `web-frontend/package.json`)  
-**المستودع البعيد:** `origin` — فقط فرع `main`残ى (حُذف 59 فرعًا بعيدًا في التنظيف السابق)  
+**التاريخ:** 2026-10-20
+**الفرع:** `main` @ `e71db5e` (بعد دمج PR #83)
+**الحالة:** الشجرة نظيفة (clean working tree)
+**المسار:** `D:\New folder\KNOuX Repair\Base`
+**الإصدار:** `2.0.3` (ملف VERSION و `web-frontend/package.json`)
+**المستودع البعيد:** `origin` — فقط فرع `main`残ى (حُذف 59 فرعًا بعيدًا في التنظيف السابق)
 **الفروع المحلية المتبقية:** 15 فرعًا (archive/stash ×4، feat/، fix/، integration/، traycer/ ×5) — لم تمس.
 
 ---
