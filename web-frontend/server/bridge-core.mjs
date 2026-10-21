@@ -1658,7 +1658,6 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
   const origin = req.headers.origin || '';
   const corsHeaders = corsHeadersFor(origin);
-
   if (req.method === 'OPTIONS') {
     // Preflight succeeds ONLY for approved local origins; a hostile page's
     // preflighted request (e.g. application/json) is denied here, so the
@@ -2207,18 +2206,42 @@ const server = http.createServer(async (req, res) => {
 
 });
 
+// The server must never close a keep-alive connection before the client does.
+// Node's default keep-alive timeout is 5s; a client that pauses longer than
+// that (a long tool run, a slow DPAPI write) can then pick up the socket the
+// server just closed and fail with ECONNRESET. Keeping the server's timeout
+// above every client's idle window removes that race entirely.
+server.keepAliveTimeout = 120000;
+server.headersTimeout = 130000;
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   server.listen(PORT, '127.0.0.1', () => {
     log(`Bridge listening on http://127.0.0.1:${PORT} (elevated=${isElevated()})`);
   });
 }
 
+const shutdownHooks = [];
+
+/**
+ * Registers a durable-work hook that runs before the bridge exits. Hooks are
+ * awaited on SIGINT so an in-flight write (for example the encrypted session
+ * store) is not lost when the user quits the application.
+ */
+function onShutdown(hook) {
+  if (typeof hook === 'function') shutdownHooks.push(hook);
+}
+
 process.on('SIGINT', () => {
   for (const run of runs.values()) {
     if (run.status === 'running') killProcessTree(run.child);
   }
-  server.close(() => process.exit(0));
-  setTimeout(() => process.exit(0), 2000).unref();
+  // Give the subsystems a chance to finish durable work (the encrypted
+  // session store is written by a PowerShell DPAPI call that takes seconds).
+  // The fallback timer is longer than that call so a sign-in is never lost.
+  const finish = () => server.close(() => process.exit(0));
+  Promise.allSettled(shutdownHooks.map((hook) => Promise.resolve().then(hook)))
+    .then(finish, finish);
+  setTimeout(() => process.exit(0), 15000).unref();
 });
 
 process.on('exit', () => { if (TEST_MODE) { try { fs.unlinkSync(TEST_TIMEOUT_SCRIPT_PATH); } catch { /* ignore */ } } });
@@ -2233,6 +2256,7 @@ export {
   runCloudReadOnlyTool,
   cancelRun,
   killProcessTree,
+  onShutdown,
   isAllowedOrigin,
   checkMutationGuard,
   ALLOWED_ORIGINS,
