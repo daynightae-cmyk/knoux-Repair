@@ -77,6 +77,26 @@
   width: 100%;
   max-width: 100%;
   margin-inline: 0;
+  min-width: 0;
+}
+
+/* The work surface must be allowed to shrink, otherwise a wide inventory
+   pushes the contextual inspector off the screen. */
+.knoux-studio-page,
+.knoux-software-studio,
+.knoux-studio-surface,
+.knoux-studio-surface-body,
+.knoux-studio-surface-body > *,
+.knoux-studio-shell .knoux-panel {
+  min-width: 0;
+}
+
+/* The canonical inventory reserves a column for the contextual inspector as
+   soon as the surface is given an inspector callback, even while no row is
+   selected. Collapse that reserved column until the inspector actually
+   exists, so the inventory gets the full width it needs. */
+.knoux-inventory__body[data-inspector='open']:not(:has(.knoux-inventory__inspector)) {
+  grid-template-columns: minmax(0, 1fr) !important;
 }
 
 /* ────────────────────────────────────────────────────────────────────
@@ -500,6 +520,7 @@
 .knoux-inspector {
   width: var(--knoux-inspector-width);
   flex: 0 0 var(--knoux-inspector-width);
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -559,7 +580,9 @@
 .knoux-inspector-body {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--knoux-space-4);
   display: flex;
   flex-direction: column;

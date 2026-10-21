@@ -134,6 +134,14 @@
   flex-wrap: wrap;
 }
 
+/* Inside a dense inventory the capability chips stay compact so the row
+   never needs a second line or a horizontal scroll. */
+.knoux-inventory .knoux-studio-chip-row .knoux-status-indicator {
+  padding: 2px 7px;
+  font-size: 9.5px;
+  letter-spacing: 0.03em;
+}
+
 /* ── Row inspector ────────────────────────────────────────────────── */
 
 .knoux-studio-inspector-card {

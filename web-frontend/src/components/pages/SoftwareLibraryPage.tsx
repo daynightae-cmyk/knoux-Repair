@@ -200,6 +200,7 @@ export default function SoftwareLibraryPage({
       {
         key: 'name',
         label: { en: 'Application', ar: 'التطبيق' },
+        width: 'minmax(180px, 2.1fr)',
         sortValue: row => row.name,
         render: (row, lang) => (
           <span className="knoux-studio-cell-title">
@@ -211,35 +212,35 @@ export default function SoftwareLibraryPage({
       {
         key: 'version',
         label: { en: 'Version', ar: 'الإصدار' },
-        width: '120px',
+        width: 'minmax(84px, 0.8fr)',
         sortValue: row => row.version,
         render: row => <span className="knoux-studio-mono">{row.version}</span>,
       },
       {
         key: 'kind',
         label: { en: 'Kind', ar: 'النوع' },
-        width: '104px',
+        width: 'minmax(72px, 0.7fr)',
         sortValue: row => row.kind ?? '',
         render: row => <span className="knoux-studio-mono">{row.kind ?? '—'}</span>,
       },
       {
         key: 'source',
         label: { en: 'Source', ar: 'المصدر' },
-        width: '132px',
+        width: 'minmax(96px, 1fr)',
         sortValue: row => row.source,
         render: row => <span className="knoux-studio-mono">{row.source}</span>,
       },
       {
         key: 'scope',
         label: { en: 'Scope', ar: 'النطاق' },
-        width: '104px',
+        width: 'minmax(78px, 0.7fr)',
         sortValue: row => row.scope,
         render: row => <span className="knoux-studio-mono">{row.scope}</span>,
       },
       {
         key: 'size',
         label: { en: 'Size', ar: 'الحجم' },
-        width: '96px',
+        width: 'minmax(72px, 0.7fr)',
         align: 'end',
         sortValue: row => row.estimatedSizeMB,
         render: row => <span className="knoux-studio-mono">{formatSizeMB(row.estimatedSizeMB)}</span>,
@@ -247,7 +248,7 @@ export default function SoftwareLibraryPage({
       {
         key: 'actions',
         label: { en: 'Actions', ar: 'الإجراءات' },
-        width: '188px',
+        width: 'minmax(150px, 1.5fr)',
         render: row => (
           <span className="knoux-studio-chip-row">
             {row.removable ? <StatusIndicator tone="data" label={t('Uninstall', 'إزالة')} /> : null}
@@ -385,8 +386,8 @@ export default function SoftwareLibraryPage({
     },
     {
       label: t('Runtimes', 'بيئات التشغيل'),
-      value: measured ? `${hub.detectedRuntimes}/${hub.detectedRuntimes + hub.missingRuntimes}` : '—',
-      tone: measured ? ('data' as StatusTone) : ('neutral' as StatusTone),
+      value: measured && advanced ? `${hub.detectedRuntimes}/${hub.detectedRuntimes + hub.missingRuntimes}` : '—',
+      tone: measured && advanced ? ('data' as StatusTone) : ('neutral' as StatusTone),
     },
     {
       label: t('Registered', 'المسجّل'),
