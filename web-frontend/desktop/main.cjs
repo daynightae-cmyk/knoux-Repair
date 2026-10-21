@@ -7,9 +7,37 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { isAllowedNavigation, filterExternalUrl, resolveAssetPath } = require('./security.cjs');
 
+// Hardware acceleration is disabled on purpose.
+//
+// The renderer of a repair workstation draws a heavy, animated glass UI. On
+// machines whose GPU driver is older than Chromium's supported range (the
+// common case on a long-lived Windows install, and on every VM without a
+// pass-through GPU), Chromium starts a software-GL GPU process that allocates
+// hundreds of megabytes and then dies. When the GPU process goes away
+// Chromium tears the window down with it, which surfaced as the application
+// "terminating itself" after 24-86 seconds with exit code 0.
+//
+// Software rendering is slower but stable and deterministic, and this UI does
+// not need GPU acceleration. It also removes the driver from the failure
+// surface entirely, which is the right trade for a system repair tool.
+app.disableHardwareAcceleration = true;
+app.commandLine.appendSwitch('disable-gpu-compositing');
+app.commandLine.appendSwitch('disable-gpu-rasterization');
+
 let frontendServer;
 let bridgeProcess;
 let quitting = false;
+// Strong module-level reference to the main BrowserWindow.
+//
+// Holding the reference is correct practice, not a speculative fix: a window
+// that is only reachable from a local scope is one refactor away from being
+// collected, and the failure mode is silent and violent (the window vanishes
+// and the app quits with exit code 0). A controlled Electron experiment showed
+// that Electron currently keeps the native window alive even without a
+// reference, so this is hardening rather than the cure for the self-
+// termination that was investigated; the cure was disabling hardware
+// acceleration (see above).
+let mainWindow = null;
 // Per-launch capability secret for localhost bridge mutations. Generated fresh
 // on every start, kept in memory, never written to disk or committed to Git.
 const bridgeToken = crypto.randomBytes(32).toString('base64url');
@@ -86,6 +114,11 @@ function startFrontendServer() {
     response.writeHead(200, frontendSecurityHeaders(target));
     fs.createReadStream(target).on('error', () => response.end()).pipe(response);
   });
+  // The server must not close a keep-alive connection before the renderer
+  // does. Node's default is 5s, and a renderer that pauses longer than that
+  // can pick up the socket the server just closed and fail with ECONNRESET.
+  frontendServer.keepAliveTimeout = 120000;
+  frontendServer.headersTimeout = 130000;
   return new Promise((resolve, reject) => {
     frontendServer.once('error', reject);
     frontendServer.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${frontendServer.address().port}`));
@@ -126,6 +159,15 @@ async function prepareWritableRuntime() {
 function runtimeFingerprint(source) {
   const watched = [
     'web-frontend/server/bridge.mjs',
+    // The thin entry point is not the implementation. These two modules hold
+    // the actual tool/runtime and authentication logic, so a change in either
+    // has to refresh the writable runtime copy; otherwise a packaged app keeps
+    // running a stale bridge after an update that did not bump the version.
+    'web-frontend/server/bridge-core.mjs',
+    'web-frontend/server/bridge-auth.mjs',
+    'web-frontend/server/cloud-relay.mjs',
+    'web-frontend/server/private-mcp.mjs',
+    'web-frontend/server/workbench-inspection.mjs',
     'Docs/TOOLS-MANIFEST.json',
     'Config/menus.json',
     'Core/KnouxRepair.Core.psm1',
@@ -200,6 +242,27 @@ function openExternalSafe(targetUrl) {
   if (allowed) shell.openExternal(allowed).catch(() => { /* external open is best-effort */ });
 }
 
+/**
+ * Resolves the window icon.
+ *
+ * The icon must live OUTSIDE the asar: the Windows shell reads the window
+ * icon through a native API that cannot read a packed archive. The packaging
+ * step copies the brand logo to `knoux-runtime/Assets/`, so that file is the
+ * only one that is guaranteed to exist in a packaged build. The previous
+ * fallback pointed inside `app.asar/public/...`, and `public/` is not part of
+ * the packaged file set, so every packaged build shipped without an icon.
+ */
+function resolveWindowIcon() {
+  const candidates = [
+    path.join(sourceRuntimeRoot(), 'Assets', 'KnouxOfficialLogo.ico'),
+    path.join(sourceRuntimeRoot(), 'Assets', 'knoux-repair-logo.png'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return undefined;
+}
+
 function createWindow(frontendOrigin, bridgeState) {
   const window = new BrowserWindow({
     width: 1540,
@@ -209,13 +272,17 @@ function createWindow(frontendOrigin, bridgeState) {
     show: false,
     autoHideMenuBar: true,
     title: 'KNOUX Repair',
-    icon: fs.existsSync(path.join(sourceRuntimeRoot(), 'Assets', 'KnouxOfficialLogo.ico'))
-      ? path.join(sourceRuntimeRoot(), 'Assets', 'KnouxOfficialLogo.ico')
-      : path.join(__dirname, '..', 'public', 'brand', 'knoux-repair-logo.png'),
+    icon: resolveWindowIcon(),
     backgroundColor: '#061422',
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true },
   });
   window.once('ready-to-show', () => window.show());
+  // Keep the strong reference for the whole lifetime of the window. The
+  // assignment happens before any await so no collection window exists.
+  mainWindow = window;
+  window.on('closed', () => {
+    if (mainWindow === window) mainWindow = null;
+  });
   window.webContents.setWindowOpenHandler(({ url }) => { openExternalSafe(url); return { action: 'deny' }; });
   window.webContents.on('will-navigate', (event, url) => {
     if (!isAllowedNavigation(url, frontendOrigin)) { event.preventDefault(); openExternalSafe(url); }
@@ -301,7 +368,7 @@ app.whenReady().then(async () => {
     const frontendOrigin = await startFrontendServer();
     startBridge(runtimeRoot, frontendOrigin);
     const bridgeState = await probeBridgeReady();
-    createWindow(frontendOrigin, bridgeState);
+    mainWindow = createWindow(frontendOrigin, bridgeState);
   } catch (error) {
     dialog.showErrorBox('KNOUX Repair startup failed', error instanceof Error ? error.message : String(error));
     app.quit();
@@ -310,4 +377,4 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => { quitting = true; stopRuntime(); });
 app.on('window-all-closed', () => app.quit());
-app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0 && frontendServer) createWindow(`http://127.0.0.1:${frontendServer.address().port}`, null); });
+app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0 && frontendServer) mainWindow = createWindow(`http://127.0.0.1:${frontendServer.address().port}`, null); });

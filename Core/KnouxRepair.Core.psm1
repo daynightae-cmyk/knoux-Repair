@@ -89,9 +89,21 @@ function Start-KnouxSession {
         [Parameter(Mandatory)][string]$Category,
         [Parameter(Mandatory)][ValidateSet('READ_ONLY','SAFE_CLEANUP','SYSTEM_REPAIR','DESTRUCTIVE','REBOOT_REQUIRED','WINRE_ONLY')][string]$RiskLevel,
         [string]$ProjectRoot = (Split-Path $PSScriptRoot -Parent),
-        [string]$RunId = ([guid]::NewGuid().ToString('N')),
+        [string]$RunId = '',
         [ValidateSet('run','analyze','preview')][string]$Mode = 'run'
     )
+    # The report must be correlatable with the run that produced it. When the
+    # Bridge spawned this script it placed the validated execution context
+    # (carrying the authoritative runId) in the environment, so adopt that
+    # id. Only a direct, non-bridge invocation falls back to a fresh GUID.
+    if ([string]::IsNullOrWhiteSpace($RunId)) {
+        $executionContext = Get-KnouxExecutionContext
+        if ($executionContext -and $executionContext.runId) {
+            $RunId = [string]$executionContext.runId
+        } else {
+            $RunId = ([guid]::NewGuid().ToString('N'))
+        }
+    }
     $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
     $sessionDir = Join-Path (Join-Path $ProjectRoot 'Reports') ('{0}-{1}' -f $timestamp, $ToolId)
     $rawDir = Join-Path $sessionDir 'raw-output'

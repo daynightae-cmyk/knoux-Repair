@@ -9,7 +9,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const SERVER_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -182,6 +182,50 @@ function runDpapi(mode, inputBase64) {
   return /^[A-Za-z0-9+/=]+$/.test(output) ? output : null;
 }
 
+/**
+ * Non-blocking DPAPI. Spawning Windows PowerShell costs several seconds
+ * (process start + `Add-Type -AssemblyName System.Security`), so this must
+ * never run on the request path: a blocking call there stalls the whole
+ * bridge and leaves the client's pooled keep-alive socket to be closed
+ * underneath it by the server's own keep-alive timeout.
+ */
+function runDpapiAsync(mode, inputBase64) {
+  return new Promise((resolve) => {
+    if (process.platform !== 'win32') { resolve(null); return; }
+    const powershell = path.join(process.env.windir || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+    if (!fs.existsSync(powershell)) { resolve(null); return; }
+    const encodedCommand = Buffer.from(dpapiCommand(mode), 'utf16le').toString('base64');
+    let settled = false;
+    const finish = (value) => { if (settled) return; settled = true; resolve(value); };
+    let child;
+    try {
+      child = spawn(powershell, ['-NoProfile', '-NonInteractive', '-EncodedCommand', encodedCommand], {
+        windowsHide: true,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+    } catch {
+      finish(null);
+      return;
+    }
+    const timer = setTimeout(() => { try { child.kill(); } catch { /* already gone */ } finish(null); }, 15000);
+    if (typeof timer.unref === 'function') timer.unref();
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.on('error', () => { clearTimeout(timer); finish(null); });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (code !== 0) { finish(null); return; }
+      const output = String(stdout || '').trim();
+      finish(/^[A-Za-z0-9+/=]+$/.test(output) ? output : null);
+    });
+    try { child.stdin.end(inputBase64); } catch { finish(null); }
+  });
+}
+
 function serializeSessions() {
   const now = Date.now();
   return JSON.stringify([...authSessions.entries()]
@@ -204,6 +248,70 @@ function persistSessions() {
     return false;
   }
 }
+
+/**
+ * Asynchronous session persistence. The session itself already lives in
+ * memory, so the encrypted store is only a restart aid: the request must be
+ * answered first and the store written afterwards, never the other way round.
+ */
+async function persistSessionsAsync() {
+  if (process.platform !== 'win32') return false;
+  try {
+    const payload = Buffer.from(serializeSessions(), 'utf8').toString('base64');
+    const protectedPayload = await runDpapiAsync('protect', payload);
+    if (!protectedPayload) return false;
+    fs.mkdirSync(path.dirname(AUTH_SESSION_STORE), { recursive: true });
+    const temp = `${AUTH_SESSION_STORE}.${process.pid}.tmp`;
+    fs.writeFileSync(temp, protectedPayload, { encoding: 'utf8', mode: 0o600 });
+    fs.renameSync(temp, AUTH_SESSION_STORE);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Coalescing scheduler for session persistence. Several requests can ask for
+ * a write at once; they share one DPAPI run instead of queueing a PowerShell
+ * spawn each. The returned promise settles when the store is up to date, so
+ * the shutdown path can wait for it.
+ */
+let persistInFlight = null;
+let persistAgain = false;
+let sessionStoreDirty = false;
+
+function schedulePersist() {
+  persistAgain = true;
+  sessionStoreDirty = true;
+  if (persistInFlight) return persistInFlight;
+  persistInFlight = (async () => {
+    try {
+      while (persistAgain) {
+        persistAgain = false;
+        const ok = await persistSessionsAsync();
+        if (ok) sessionStoreDirty = false;
+      }
+    } finally {
+      persistInFlight = null;
+    }
+  })();
+  return persistInFlight;
+}
+
+/** Resolves once no persistence work is outstanding. */
+function whenPersisted() {
+  return persistInFlight ? persistInFlight.catch(() => false) : Promise.resolve(true);
+}
+
+// The session store is a restart aid, but a sign-in must not be lost because
+// the user quit the app a second after signing in. The shutdown hook waits
+// for the asynchronous write; the exit handler is the synchronous backstop.
+core.onShutdown(whenPersisted);
+
+process.on('exit', () => {
+  if (!sessionStoreDirty) return;
+  try { persistSessions(); } catch { /* the session simply is not restored */ }
+});
 
 function loadPersistedSessions() {
   if (process.platform !== 'win32' || !fs.existsSync(AUTH_SESSION_STORE)) return false;
@@ -235,7 +343,52 @@ function loadPersistedSessions() {
     return false;
   }
 }
-loadPersistedSessions();
+
+/**
+ * Asynchronous store load. DPAPI costs several seconds, so the bridge must
+ * not block its event loop on it: requests are served while the store loads,
+ * and every authentication route waits for the load before it reports a
+ * session, so a signed-in user is never briefly shown as signed out.
+ */
+async function loadPersistedSessionsAsync() {
+  if (process.platform !== 'win32' || !fs.existsSync(AUTH_SESSION_STORE)) return false;
+  try {
+    const protectedPayload = fs.readFileSync(AUTH_SESSION_STORE, 'utf8').trim();
+    const plainBase64 = await runDpapiAsync('unprotect', protectedPayload);
+    if (!plainBase64) return false;
+    const entries = JSON.parse(Buffer.from(plainBase64, 'base64').toString('utf8'));
+    if (!Array.isArray(entries)) return false;
+    const now = Date.now();
+    authSessions.clear();
+    for (const entry of entries) {
+      if (!entry || typeof entry.id !== 'string' || entry.id.length < 24 || entry.expiresAt <= now) continue;
+      if (!['google', 'github', 'entra'].includes(entry.provider) || !entry.user || typeof entry.user.id !== 'string') continue;
+      authSessions.set(entry.id, {
+        provider: entry.provider,
+        user: {
+          id: String(entry.user.id),
+          name: String(entry.user.name || ''),
+          handle: String(entry.user.handle || ''),
+          avatarUrl: String(entry.user.avatarUrl || ''),
+        },
+        createdAt: Number(entry.createdAt || now),
+        expiresAt: Number(entry.expiresAt),
+      });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+let sessionStoreLoad = null;
+
+/** Resolves once the persisted session store has been applied. */
+function ensureSessionsLoaded() {
+  if (!sessionStoreLoad) sessionStoreLoad = loadPersistedSessionsAsync();
+  return sessionStoreLoad;
+}
+ensureSessionsLoaded();
 
 function clearExpiredAuth() {
   const now = Date.now();
@@ -245,7 +398,7 @@ function clearExpiredAuth() {
   for (const [id, session] of authSessions) {
     if (session.expiresAt < now) { authSessions.delete(id); sessionChanged = true; }
   }
-  if (sessionChanged) persistSessions();
+  if (sessionChanged) schedulePersist();
 }
 
 function authSession(req) {
@@ -288,7 +441,7 @@ function createAuthSession(identity) {
     createdAt: now,
     expiresAt: now + AUTH_SESSION_TTL_MS,
   });
-  persistSessions();
+  schedulePersist();
   return {
     id,
     cookie: `${AUTH_COOKIE}=${encodeURIComponent(id)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${Math.floor(AUTH_SESSION_TTL_MS / 1000)}`,
@@ -298,7 +451,7 @@ function createAuthSession(identity) {
 function clearAuthSession(req) {
   const id = parseCookies(req.headers.cookie)[AUTH_COOKIE];
   if (id) authSessions.delete(id);
-  persistSessions();
+  schedulePersist();
   return `${AUTH_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`;
 }
 
@@ -560,6 +713,10 @@ server.on('request', async (req, res) => {
       return res.end();
     }
 
+    // Every authentication route waits for the persisted session store, so a
+    // signed-in user is never reported as signed out while DPAPI is loading.
+    if (isAuthPath(parts)) await ensureSessionsLoaded();
+
     if (req.method === 'GET' && parts[0] === 'api' && parts[1] === 'auth' && parts[2] === 'status' && parts.length === 3) {
       return sendJson(res, 200, { ok: true, ...authStatus(req) }, corsHeaders);
     }
@@ -658,6 +815,9 @@ const __authTest = Object.freeze({
   createAuthSession,
   loadPersistedSessions,
   persistSessions,
+  schedulePersist,
+  whenPersisted,
+  ensureSessionsLoaded,
   clearInMemorySessions() { authSessions.clear(); },
   sessionStorePath: AUTH_SESSION_STORE,
 });
