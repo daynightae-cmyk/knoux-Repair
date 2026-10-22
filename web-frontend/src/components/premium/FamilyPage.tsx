@@ -11,7 +11,9 @@ import ToolCard from './ToolCard';
 import FamilyLiveStage from './FamilyLiveStage';
 import EngineeringWorkbenchStation from './workbench/EngineeringWorkbenchStation';
 import SoftwareLibraryPage from '../pages/SoftwareLibraryPage';
+import StorageStudio from '../pages/StorageStudio';
 import VitalityLab from '../pages/VitalityLab';
+import RecoverySpotlight from './RecoverySpotlight';
 import FamilyOverviewPage from '../pages/FamilyOverviewPage';
 import StudioHeader from '../shell/StudioHeader';
 import StudioNavigation from '../shell/StudioNavigation';
@@ -156,6 +158,32 @@ export default function FamilyPage({
           onSelectService={selectOverviewService}
           onSelectTool={onSelectTool}
         />
+      );
+    }
+
+    // The Recovery family is the only one that can destroy user data, so its
+    // overview is a measurement surface: four stations read live from the
+    // bridge, and the family's own action surface stays mounted underneath.
+    if (family.id === 'recovery') {
+      return (
+        <StorageStudio
+          family={family}
+          tools={tools}
+          lang={lang}
+          bridgeOnline={bridgeOnline}
+          bridgeElevated={bridgeElevated}
+          systemSnapshot={systemSnapshot}
+          onSelectService={selectOverviewService}
+        >
+          <RecoverySpotlight
+            lang={lang}
+            bridgeOnline={bridgeOnline}
+            systemSnapshot={systemSnapshot}
+            serviceTools={familyTools}
+            allTools={tools}
+            onSelectTool={onSelectTool}
+          />
+        </StorageStudio>
       );
     }
 
