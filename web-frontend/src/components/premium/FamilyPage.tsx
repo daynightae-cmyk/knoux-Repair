@@ -12,8 +12,12 @@ import FamilyLiveStage from './FamilyLiveStage';
 import EngineeringWorkbenchStation from './workbench/EngineeringWorkbenchStation';
 import SoftwareLibraryPage from '../pages/SoftwareLibraryPage';
 import StorageStudio from '../pages/StorageStudio';
+import InvestigationStudio from '../pages/InvestigationStudio';
+import AssuranceStudio from '../pages/AssuranceStudio';
+import WorkbenchStudio from '../pages/WorkbenchStudio';
 import VitalityLab from '../pages/VitalityLab';
 import RecoverySpotlight from './RecoverySpotlight';
+import AssuranceSpotlight from './AssuranceSpotlight';
 import FamilyOverviewPage from '../pages/FamilyOverviewPage';
 import StudioHeader from '../shell/StudioHeader';
 import StudioNavigation from '../shell/StudioNavigation';
@@ -184,6 +188,63 @@ export default function FamilyPage({
             onSelectTool={onSelectTool}
           />
         </StorageStudio>
+      );
+    }
+
+    // Investigation observes rather than repairs, so its overview reads the
+    // diagnostics and operations evidence the bridge collected.
+    if (family.id === 'investigation') {
+      return (
+        <InvestigationStudio
+          family={family}
+          tools={tools}
+          lang={lang}
+          bridgeOnline={bridgeOnline}
+          bridgeElevated={bridgeElevated}
+          systemSnapshot={systemSnapshot}
+          onSelectService={selectOverviewService}
+        />
+      );
+    }
+
+    // Assurance reports what protection the machine actually has, so its
+    // overview reads connectivity, protection state, privacy and drivers.
+    if (family.id === 'assurance') {
+      return (
+        <AssuranceStudio
+          family={family}
+          tools={tools}
+          lang={lang}
+          bridgeOnline={bridgeOnline}
+          bridgeElevated={bridgeElevated}
+          systemSnapshot={systemSnapshot}
+          onSelectService={selectOverviewService}
+        >
+          <AssuranceSpotlight
+            lang={lang}
+            bridgeOnline={bridgeOnline}
+            systemSnapshot={systemSnapshot}
+            serviceTools={familyTools}
+            allTools={tools}
+            onSelectTool={onSelectTool}
+          />
+        </AssuranceStudio>
+      );
+    }
+
+    // The workbench keeps its own station for every service view; this adds
+    // the family overview that was missing, without touching that contract.
+    if (family.id === 'workbench') {
+      return (
+        <WorkbenchStudio
+          family={family}
+          tools={tools}
+          lang={lang}
+          bridgeOnline={bridgeOnline}
+          bridgeElevated={bridgeElevated}
+          systemSnapshot={systemSnapshot}
+          onSelectService={selectOverviewService}
+        />
       );
     }
 
