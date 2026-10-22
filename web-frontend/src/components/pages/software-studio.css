@@ -45,55 +45,6 @@
 
 /* ── Owning services strip ────────────────────────────────────────── */
 
-.knoux-studio-service-strip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px var(--knoux-space-6);
-  border-bottom: 1px solid var(--knoux-studio-line);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.knoux-studio-service-strip::-webkit-scrollbar {
-  display: none;
-}
-
-.knoux-studio-service-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 13px;
-  border-radius: var(--knoux-studio-radius-sm);
-  border: 1px solid var(--knoux-studio-line);
-  background: rgba(255, 255, 255, 0.025);
-  color: var(--knoux-text-secondary);
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: color var(--knoux-studio-transition), background var(--knoux-studio-transition), border-color var(--knoux-studio-transition);
-}
-
-.knoux-studio-service-chip:hover {
-  color: var(--knoux-text-primary);
-  background: rgba(124, 58, 237, 0.12);
-  border-color: rgba(124, 58, 237, 0.4);
-}
-
-.knoux-studio-service-chip em {
-  font-style: normal;
-  font-size: 10.5px;
-  font-variant-numeric: tabular-nums;
-  color: var(--knoux-text-faint);
-}
-
-@media (max-width: 1366px) {
-  .knoux-studio-service-strip {
-    padding: 8px var(--knoux-space-4);
-  }
-}
-
 /* ── Inventory cells ──────────────────────────────────────────────── */
 
 .knoux-studio-cell-title {
