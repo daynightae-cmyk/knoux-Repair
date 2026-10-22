@@ -1,0 +1,137 @@
+/**
+ * KNOuX Repair — the shared studio shell
+ *
+ * The masthead carries a family's own visual identity next to the live
+ * context, the notices stay honest, and the closing note states the rule
+ * the surface obeys. One vocabulary for every studio.
+ */
+
+.knoux-studio-masthead {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  gap: var(--knoux-space-4);
+  align-items: center;
+  padding: 0 var(--knoux-space-6) var(--knoux-space-4);
+}
+
+.knoux-studio-masthead__visual {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  pointer-events: none;
+}
+
+.knoux-studio-masthead__context {
+  border: 1px solid var(--knoux-studio-line);
+  border-radius: var(--knoux-studio-radius);
+  background: var(--knoux-studio-panel);
+  padding: 14px 16px;
+  min-width: 0;
+}
+
+.knoux-studio-masthead__context > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--knoux-space-3);
+  margin-bottom: 10px;
+}
+
+.knoux-studio-masthead__context > header span {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--knoux-text-faint);
+}
+
+.knoux-studio-masthead__context > header b {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--knoux-text-muted);
+}
+
+.knoux-studio-masthead__context-items {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--knoux-studio-line-soft);
+  border-radius: var(--knoux-studio-radius-sm);
+  overflow: hidden;
+  background: var(--knoux-studio-line-soft);
+}
+
+.knoux-studio-masthead__context-items > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 11px;
+  background: var(--knoux-studio-panel);
+  min-width: 0;
+}
+
+.knoux-studio-masthead__context-items span {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--knoux-text-faint);
+}
+
+.knoux-studio-masthead__context-items b {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--knoux-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.knoux-studio-masthead__context p {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--knoux-text-faint);
+}
+
+/* ── Notices ──────────────────────────────────────────────────────── */
+
+.knoux-studio-notice {
+  margin: 0 var(--knoux-space-6);
+  padding: 9px 12px;
+  border-radius: var(--knoux-studio-radius-sm);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+  font-size: 11.5px;
+  color: #fca5a5;
+  overflow-wrap: anywhere;
+}
+
+/* The owning action surface of the family, mounted under the stations. */
+.knoux-studio-spotlight {
+  padding: 0 var(--knoux-space-6) var(--knoux-space-4);
+}
+
+.knoux-studio-truth {
+  margin: 0;
+  padding: var(--knoux-space-4) var(--knoux-space-6) var(--knoux-space-6);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--knoux-text-faint);
+  border-inline-start: 2px solid var(--knoux-studio-violet);
+  padding-inline-start: 10px;
+}
+
+@media (max-width: 1100px) {
+  .knoux-studio-masthead {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0 var(--knoux-space-4) var(--knoux-space-3);
+  }
+}
+
+@media (max-width: 720px) {
+  .knoux-studio-masthead__context-items {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

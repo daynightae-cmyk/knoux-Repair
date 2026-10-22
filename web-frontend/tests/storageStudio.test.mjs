@@ -29,8 +29,12 @@ const ci = read('../.github/workflows/ci.yml');
 const installer = read('../.github/workflows/package-windows.yml');
 const studio = read('src/components/pages/StorageStudio.tsx');
 const studioCss = read('src/components/pages/storage-studio.css');
+const grid = read('src/components/studios/studioStations.tsx');
+const gridCss = read('src/components/studios/studioStations.css');
+const shell = read('src/components/studios/StudioShell.tsx');
+const shellCss = read('src/components/studios/studioShell.css');
 const familyPage = read('src/components/premium/FamilyPage.tsx');
-const evidence = read('scripts/capture-storage-studio-evidence.mjs');
+const evidence = read('scripts/capture-family-studios-evidence.mjs');
 const client = read('src/lib/api.ts');
 
 const { classifyAuditOutput, summarizeAdvisories } = await import(
@@ -130,9 +134,9 @@ test('the Storage Studio is the recovery family surface', () => {
 });
 
 test('every Storage Studio reading comes from the bridge', () => {
-  assert.match(studio, /api\.cleanupPreview\(\)/);
-  assert.match(studio, /api\.duplicatesLatestScan\(\)/);
-  assert.match(studio, /api\.backupRecoveryPreview\(\)/);
+  assert.match(studio, /api\.cleanupPreview/);
+  assert.match(studio, /api\.duplicatesLatestScan/);
+  assert.match(studio, /api\.backupRecoveryPreview/);
   // Disk capacity is the measured volume list, never a hard-coded size.
   assert.match(studio, /systemSnapshot\?\.Drives \?\? \[\]/);
   // No invented telemetry.
@@ -141,50 +145,56 @@ test('every Storage Studio reading comes from the bridge', () => {
 });
 
 test('the Storage Studio states the truth when nothing has been measured', () => {
-  assert.match(studio, /Not measured/);
   assert.match(studio, /Not measured yet/);
   // An offline bridge produces an empty state, not a plausible number.
   assert.match(studio, /bridgeOnline === false/);
   // A failed reading is reported, never silently replaced.
-  assert.match(studio, /Promise\.allSettled/);
-  assert.match(studio, /Some readings failed/);
+  assert.match(grid, /Promise\.allSettled/);
+  assert.match(shell, /Some readings failed|knoux-studio-notice/);
+  assert.match(studio, /failures=\{failures\}/);
 });
 
 test('the Storage Studio selects stations and never executes them', () => {
-  assert.match(studio, /onSelectService\(station\.id\)/);
+  assert.match(grid, /onSelectService\(station\.id\)/);
   // Quarantine, restore and delete stay inside the owning station behind
   // their own confirmation; the studio only opens a station.
   assert.doesNotMatch(studio, /duplicatesEngineQuarantine|duplicatesRestore|duplicatesVerify|api\.startRun/);
+  assert.doesNotMatch(grid, /duplicatesEngineQuarantine|duplicatesRestore|duplicatesVerify|api\.startRun/);
   assert.match(studio, /Open station/);
 });
 
 test('the Storage Studio keeps the studio visual grammar', () => {
   assert.match(studioCss, /\.knoux-storage-studio/);
-  assert.match(studioCss, /\.knoux-storage-station\b/);
-  assert.match(studio, /<StudioHeader/);
-  assert.match(studio, /<StatusIndicator/);
+  // The station grammar is shared with every other studio, so it cannot
+  // drift between families.
+  assert.match(gridCss, /\.knoux-studio-station\b/);
+  assert.match(gridCss, /\.knoux-studio-stations\b/);
+  assert.match(studio, /<StudioShell/);
+  assert.match(studio, /<StudioStationGrid/);
+  assert.match(shell, /<StudioHeader/);
+  assert.match(grid, /<StatusIndicator/);
 });
 
 test('the recovery family keeps its own visual identity and live context', () => {
   // The studio replaced the family overview, so the recovery hero and the
   // live-context facts it used to show have to survive somewhere.
   assert.match(studio, /RecoveryHoloVisual/);
-  assert.match(studio, /knoux-storage-studio__masthead/);
-  assert.match(studio, /knoux-storage-studio__context-items/);
+  assert.match(studio, /visual=\{<RecoveryHoloVisual lang=\{lang\} \/>\}/);
   assert.match(studio, /systemSnapshot\?\.SystemDrive/);
   assert.match(studio, /systemSnapshot\?\.Machine/);
   // And the hero visual is still reachable: the family overview still owns
   // the import, so no shipped visual is orphaned by the rewrite.
   assert.match(read('src/components/premium/HeroVisuals.tsx'), /export function RecoveryHoloVisual/);
-  assert.match(studioCss, /\.knoux-storage-studio__masthead/);
+  assert.match(shellCss, /\.knoux-studio-masthead/);
+  assert.match(shellCss, /\.knoux-studio-masthead__context-items/);
 });
 
 test('the Storage Studio evidence harness is wired into the quality gate', () => {
-  assert.match(ci, /node scripts\/capture-storage-studio-evidence\.mjs/);
-  assert.match(evidence, /\.knoux-storage-studio/);
+  assert.match(ci, /node scripts\/capture-family-studios-evidence\.mjs/);
+  assert.match(evidence, /knoux-storage-studio/);
   // The harness asserts the truthfulness contract on the rendered DOM.
   assert.match(evidence, /not measured/);
-  assert.match(evidence, /EXPECTED_SERVICES/);
+  assert.match(evidence, /EXPECTED_SERVICES|FAMILIES/);
   for (const service of ['02-System-Cleanup', '05-Duplicate-Files', '06-Disk-Space', '11-Backup-Recovery']) {
     assert.ok(evidence.includes(service), `the harness covers ${service}`);
   }
@@ -199,8 +209,8 @@ test('the studio publishes whether the measurement pass has finished', () => {
   // "Not started yet" and "read and found nothing" look identical on
   // screen, so the surface declares the state of the pass itself and the
   // capture waits on that instead of guessing.
-  assert.match(studio, /data-probe=\{probeState\}/);
-  assert.match(studio, /'idle' \| 'loading' \| 'settled'/);
+  assert.match(shell, /data-probe=\{probeState\}/);
+  assert.match(grid, /'idle' \| 'loading' \| 'settled'/);
   assert.match(evidence, /data-probe/);
   assert.match(evidence, /data-probe'\) === 'settled'/);
 });
@@ -219,7 +229,7 @@ test('a bridge preview that cannot be produced is evidence, not a renderer failu
   assert.match(evidence, /BRIDGE_UNAVAILABLE/);
   assert.match(evidence, /isBridgeUnavailable/);
   assert.match(evidence, /the bridge failed but the studio reported nothing/);
-  assert.match(evidence, /knoux-storage-studio__notice/);
+  assert.match(evidence, /knoux-studio-notice/);
   // A real renderer error still fails the capture.
   assert.match(evidence, /renderer errors/);
 });
