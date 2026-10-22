@@ -149,6 +149,28 @@ test('the workbench service contract is untouched', () => {
   assert.match(workbench, /The workbench station itself is unchanged/);
 });
 
+test('a family studio lists its services by name, so a service is reachable by its own name', () => {
+  // The shell's navigation evidence navigates by service name: it clicks the
+  // service on the family landing and then waits for the service surface. A
+  // studio that hides its services behind a generic button would break that
+  // contract, so every studio lists them as named chips.
+  assert.match(shell, /knoux-studio-service-strip/);
+  assert.match(shell, /knoux-studio-service-chip/);
+  assert.match(shell, /<span>\{service\.label\}<\/span>/);
+  assert.match(shell, /data-service-id=\{service\.id\}/);
+  assert.match(shell, /onClick=\{service\.onOpen\}/);
+  // The shared stylesheet owns the strip, and the software studio uses it too.
+  assert.match(read('src/components/shell/studioServiceStrip.css'), /\.knoux-studio-service-strip/);
+  assert.match(read('src/components/shell/studioServiceStrip.css'), /\.knoux-studio-service-chip/);
+  assert.match(read('src/components/pages/SoftwareLibraryPage.tsx'), /studioServiceStrip\.css/);
+
+  for (const studio of [...STUDIOS, { name: 'Storage', file: storage }]) {
+    assert.match(studio.file, /services=\{STATIONS\.map/, `${studio.name} must list its services`);
+    assert.match(studio.file, /label: ar \? station\.ar : station\.en/, `${studio.name} must label each service by name`);
+    assert.match(studio.file, /onOpen: \(\) => onSelectService/, `${studio.name} must open the service from the strip`);
+  }
+});
+
 test('the family overview keeps its own spotlights', () => {
   // The recovery and assurance families keep their action surfaces; the
   // investigation and workbench families never had one.

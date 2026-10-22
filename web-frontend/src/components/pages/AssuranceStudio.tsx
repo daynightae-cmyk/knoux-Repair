@@ -234,6 +234,15 @@ export default function AssuranceStudio({
         accent: 'var(--knoux-family-assurance)',
         metrics: headerMetrics,
       }}
+      services={STATIONS.map(station => ({
+        id: station.id,
+        label: ar ? station.ar : station.en,
+        icon: <station.icon size={14} aria-hidden="true" />,
+        actionCount: bridgeOnline === true ? tools.filter(tool => tool.Category === station.id).length : null,
+        title: ar ? station.purposeAr : station.purposeEn,
+        onOpen: () => onSelectService(station.id as ServiceId),
+      }))}
+      servicesLabel={t('Assurance services', 'خدمات الضمان')}
       visual={<AssuranceHoloVisual lang={lang} systemSnapshot={systemSnapshot} />}
       contextTitle={t('Live context', 'السياق المباشر')}
       contextBadge={bridgeElevated ? t('Elevated', 'صلاحيات مرتفعة') : t('Standard', 'صلاحيات قياسية')}

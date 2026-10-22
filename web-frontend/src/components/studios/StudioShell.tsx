@@ -1,21 +1,34 @@
 import type { ReactNode } from 'react';
 import StudioHeader from '../shell/StudioHeader';
 import type { StudioHeaderMetric } from '../shell/StudioHeader';
+import '../shell/studioServiceStrip.css';
 import './studioShell.css';
 
 /**
  * The shared shell of every studio landing.
  *
  * The families differ in what they measure, not in how they are built: the
- * header states where you are, the masthead carries the family's own visual
- * identity and the live context, the body holds the stations, and the closing
- * note states what the surface does and does not do. Keeping one shell is
- * what makes six studios read as one product instead of six pages.
+ * header states where you are, the service strip lists the services the
+ * family owns by name, the masthead carries the family's own visual identity
+ * and the live context, the body holds the stations, and the closing note
+ * states what the surface does and does not do. Keeping one shell is what
+ * makes six studios read as one product instead of six pages.
  */
 
 export interface StudioContextFact {
   label: string;
   value: string;
+}
+
+/** One service of the family, as a chip in the service strip. */
+export interface StudioServiceEntry {
+  id: string;
+  label: string;
+  icon: ReactNode;
+  /** The number of registered actions, or null when it is not known. */
+  actionCount: number | null;
+  title: string;
+  onOpen: () => void;
 }
 
 export interface StudioShellProps {
@@ -32,6 +45,9 @@ export interface StudioShellProps {
     accent: string;
     metrics: StudioHeaderMetric[];
   };
+  /** The services this family owns, listed by name. */
+  services?: StudioServiceEntry[];
+  servicesLabel?: string;
   /** The family's own hero visual. It is decorative and never a claim. */
   visual?: ReactNode;
   contextTitle?: string;
@@ -55,6 +71,8 @@ export default function StudioShell({
   lang,
   probeState,
   header,
+  services,
+  servicesLabel,
   visual,
   contextTitle,
   contextBadge,
@@ -77,6 +95,26 @@ export default function StudioShell({
         accent={header.accent}
         metrics={header.metrics}
       />
+
+      {services && services.length > 0 ? (
+        <nav className="knoux-studio-service-strip" aria-label={servicesLabel}>
+          {services.map(service => (
+            <button
+              key={service.id}
+              type="button"
+              className="knoux-studio-service-chip"
+              data-service-id={service.id}
+              onClick={service.onOpen}
+              aria-label={ar ? `افتح ${service.label}` : `Open ${service.label}`}
+              title={service.title}
+            >
+              {service.icon}
+              <span>{service.label}</span>
+              <em>{service.actionCount === null ? '—' : String(service.actionCount)}</em>
+            </button>
+          ))}
+        </nav>
+      ) : null}
 
       {visual || (context && context.length > 0) ? (
         <div className="knoux-studio-masthead">

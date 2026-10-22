@@ -21,6 +21,7 @@ import EmptyState from '../shell/EmptyState';
 import OperationToolbar from '../shell/OperationToolbar';
 import type { StatusTone } from '../shell/StatusIndicator';
 import type { InventoryColumn } from '../workspace/StationInventorySurface';
+import '../shell/studioServiceStrip.css';
 import './software-studio.css';
 
 interface SoftwareLibraryPageProps {
