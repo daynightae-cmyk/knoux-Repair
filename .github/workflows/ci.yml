@@ -39,11 +39,14 @@ jobs:
 
       - name: Install Web dependencies
         working-directory: web-frontend
-        run: npm ci
+        # The advisory check runs as its own gate below, through the bulk
+        # advisory endpoint. Auditing during install doubles the advisory
+        # traffic and lets a stalled registry request hold the job.
+        run: npm ci --no-audit
 
       - name: Audit production dependencies
         working-directory: web-frontend
-        run: npm audit --omit=dev --audit-level=high
+        run: node scripts/audit-production-deps.mjs
 
       - name: Type-check Web frontend
         working-directory: web-frontend
@@ -76,6 +79,10 @@ jobs:
       - name: Capture Recovery and Storage card evidence
         working-directory: web-frontend
         run: node scripts/capture-recovery-storage-polish-evidence.mjs
+
+      - name: Capture Storage Studio rendered UI evidence
+        working-directory: web-frontend
+        run: node scripts/capture-storage-studio-evidence.mjs
 
       - name: Capture Assurance tool-card evidence
         working-directory: web-frontend

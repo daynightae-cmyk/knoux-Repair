@@ -118,3 +118,50 @@ RUNTIME: 0 recovered (all present) · BRIDGE: 0 · POWERSHELL SERVICE: 0 · CONT
 HARNESS deltas reviewed: 3 files, all superseded or rejected with reason above ·
 PURE VISUAL deferred: 6 files across 2 branches · OBSOLETE/SUPERSEDED: remainder ·
 DOCUMENTATION: twin-sync utility skipped as out of scope.
+
+---
+
+# Re-audit — 2026-10-22
+
+The 2026-09-16 audit above left exactly two entries open, both deferred by a
+one-night visual freeze: `delivery/recover-visual-work-20260914` and
+`ui/grok-integration-20260914`. The freeze is over and the visuals were
+rebuilt since (PR #86 `9e2775f`, PR #87 `f7caea2`), so both entries are
+re-decided here against the current `main`.
+
+**Method.** The preservation bundle `GIT_ALL_REFS.bundle` (99 refs) was
+fetched into a scratch namespace (`refs/audit/*`), then every ref was
+compared against `main` with `git cherry -v main <ref>` — patch-id equality,
+not commit equality, so a ref that was re-landed in a different commit still
+counts as merged. 98 of the 99 refs resolve to **zero** patch-different
+commits. The remaining refs resolve to 64 patch-different commits in total,
+and every one of them is classified below.
+
+**Outcome: no branch holds work that is missing from `main` today.**
+
+| Branch / ref group | Patch-different commits | Verdict now | Evidence |
+|---|---|---|---|
+| `delivery/recover-visual-work-20260914` | 2 | SUPERSEDED | `BrandLogo.tsx` is an unreferenced extraction of a lockup `TopBar.tsx` already implements with a **three-stage fallback** (wide wordmark → legacy logo → text) and with the `knoux-brand-lockup*` classes already in `premium-shell.css`. Merging the plain `<img>` version would replace a resilient lockup with a fragile one. `Docs/DELIVERY-RECOVERY-STATUS.md` is merged with an updated status; every file it listed as missing is now on `main`. |
+| `ui/grok-integration-20260914` | 5 | ALREADY MERGED | `grok-programs-studio.css`, `grok-programs-ci-compat.css` and the `main.tsx` import are all present in `main` at a newer revision. |
+| `chore/knoux-twin-sync-20260914` | 0 | ALREADY MERGED | `tools/KNOUX-TWIN-SYNC.ps1` is present in `main`. |
+| `fix/ai-scan-visual-authority-20260923` | 4 | SUPERSEDED | Direct tip-to-tip diff: `main`'s `capture-final-visual-evidence.mjs` already carries the **stricter** CSP+ws classifier, the `substantive` frame sampling, the 409-conflict tracking and the fresh-browser-per-capture retry; `main`'s `LeftRail.tsx` is the new spine, not the old rail. The branch is strictly older. |
+| `fix/group1-vitality-workspace-20260917` | 3 | SUPERSEDED | `vitality-workspace.css` in `main` already reclaims the operation width, scoped per service (`01-System-Maintenance`, `08-Performance`, `15-System-Monitoring`). The branch layer would override the newer rules with `!important`. |
+| `ci/fix-artifact-upload`, `ci/resilient-wait-inventory` | 1 | REJECTED — reason still holds | The commit converts the rendered-evidence gate to `process.exitCode = 0`. That is gate weakening, and the reason recorded on 2026-09-16 still applies. |
+| `feat/command-center-cockpit`, `safety/cockpit-wip-20260913-193703`, `refs/recovery/reconcile-20260913-232002` | 9 | SUPERSEDED — merging would regress | Older competing workbench line. `main` now carries the newer operational workbench (PR #86); the donor deletes `HeroVisuals`, `ToolWorkspace` and `FamilyLiveStage` and reintroduces a hardcoded-credential workbench gate. |
+| `closure/work-resume-20260913` | 7 | SUPERSEDED | Terminal-run polling, the tool-count truth, the 18-route capture, the Edge verification and the honest-503 classification are all present in `main` at a newer revision. |
+| `release/v2.0.2-current-main-installer`, `release/v2.0.2-current-main-installer-ci-safety` | 2 | SUPERSEDED — merging would regress | The only delta is `BUILD-KNOUX-REPAIR-INSTALLER.ps1` dropping `--publish never`, which would **revert** `main`'s "disable implicit installer publish" safety fix, plus a 2.0.2 → 2.0.3 version revert. |
+| `refs/recovery/dangling-*` (15) and `refs/stash` | 15 | NOT PRODUCT WORK | These are stash `untracked files` snapshots from 2026-09-12…2026-10-01: local `START-KNOUX-PREVIEW*.bat` launchers, a `_temp/full-dash-import-*.txt` dump, `README_UI_MASTER_PROMPT.md`, `knoux-cinematic-redesign.patch`, a stray root `package-lock.json` and a local gateway proof script. Developer scratch, never product surface. |
+| `archive/stash-*` (4 local branches) | 4 | SUPERSEDED | Whole-repository snapshots from 2026-09-12…2026-10-01. Tip-to-tip they are 360–372 files and ~64,000 lines **behind** `main`. |
+| `traycer-pr59-services-truthfulness` | 0 | ALREADY MERGED | `git cherry` reports the commit patch-equivalent to `main`. |
+| every other ref in the bundle | 0 | ALREADY MERGED | Patch-id equal to `main`. |
+
+**What this means.** The 2026-09-16 conclusion — "Unique service/runtime
+deltas recovered: 0 files" — still holds after the shell was rebuilt, and
+the two deferrals are now closed. The preservation bundle therefore holds
+nothing that is not either already on `main`, superseded by a better
+current implementation, or rejected for a reason that still stands.
+
+**Note on `main` itself.** `git cherry` marks `main`'s own recent commits as
+patch-different when they are compared against a merge-base, because the
+merge commits carry them. That is an artefact of the comparison, not new
+work; reachability from `main` is verified with `merge-base --is-ancestor`.

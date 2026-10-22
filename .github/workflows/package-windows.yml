@@ -33,7 +33,9 @@ jobs:
 
       - name: Install locked dependencies
         working-directory: web-frontend
-        run: npm ci
+        # The advisory gate lives in the quality-gate workflow; the installer
+        # build must not spend the job's time on a second advisory request.
+        run: npm ci --no-audit
 
       - name: Verify canonical version agreement
         shell: pwsh
