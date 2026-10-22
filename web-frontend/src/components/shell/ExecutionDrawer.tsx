@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import type { BridgeTool, ExecutionMode } from '../../lib/api';
 import type { ConsoleEntry } from '../../types';
+import type { ShellActivity } from '../../lib/shellActivity';
 import StatusIndicator from './StatusIndicator';
 import type { StatusTone } from './StatusIndicator';
 
@@ -21,6 +22,12 @@ export interface ExecutionDrawerProps {
   onRetry: () => void;
   /** True when a retry would replay exactly the same request. */
   retryable: boolean;
+  /**
+   * A guided, multi-step activity that is not a single tool run — AI Scan's
+   * evidence sweep, for example. It is reported into the same dock so the
+   * product has one place where work is visible.
+   */
+  activity?: ShellActivity | null;
 }
 
 type StageId = 'select' | 'preview' | 'confirm' | 'execute' | 'verify' | 'report';
@@ -91,6 +98,7 @@ export default function ExecutionDrawer({
   onCancel,
   onRetry,
   retryable,
+  activity = null,
 }: ExecutionDrawerProps) {
   const [copied, setCopied] = useState(false);
 
@@ -132,38 +140,68 @@ export default function ExecutionDrawer({
     return states;
   }, [mode, reportPath, status, tool]);
 
+  const isRtl = lang === 'ar';
+  const statusLabel = isRtl ? STATUS_LABEL[status].ar : STATUS_LABEL[status].en;
+  const toolName = tool ? (isRtl ? tool.ArabicName : tool.EnglishName) : null;
+
+  // A guided activity (AI Scan's evidence sweep) is reported into the same
+  // dock, so the product keeps one place where work is visible.
+  const activityMode = activity !== null && tool === null;
+
   const copyLog = useCallback(() => {
-    const text = entries.map(entry => `[${entry.timestamp}] ${entry.text}`).join('\n');
+    const text = activityMode && activity
+      ? activity.lines.map(line => `[${line.timestamp}] ${line.text}`).join('\n')
+      : entries.map(entry => `[${entry.timestamp}] ${entry.text}`).join('\n');
     void navigator.clipboard?.writeText(text).then(
       () => { setCopied(true); window.setTimeout(() => setCopied(false), 1800); },
       () => { setCopied(false); },
     );
-  }, [entries]);
+  }, [activity, activityMode, entries]);
 
-  const isRtl = lang === 'ar';
-  const statusLabel = isRtl ? STATUS_LABEL[status].ar : STATUS_LABEL[status].en;
-  const toolName = tool ? (isRtl ? tool.ArabicName : tool.EnglishName) : null;
+  const activityStatusLabel = activity
+    ? (activity.status === 'running'
+      ? (isRtl ? 'قيد الفحص' : 'Scanning')
+      : activity.status === 'success'
+        ? (isRtl ? 'اكتمل' : 'Completed')
+        : activity.status === 'error'
+          ? (isRtl ? 'فشل' : 'Failed')
+          : (isRtl ? 'غير حاسم' : 'Inconclusive'))
+    : '';
+  const activityTone: StatusTone = activity
+    ? (activity.status === 'running' ? 'data' : activity.status === 'success' ? 'positive' : activity.status === 'error' ? 'danger' : 'caution')
+    : 'neutral';
 
   return (
     <section className="knoux-execution-drawer" data-collapsed={collapsed} data-role="execution-drawer" data-status={status}>
       <div className="knoux-execution-drawer-head">
         <div className="knoux-execution-drawer-title">
-          <StatusIndicator tone={STATUS_TONE[status]} label={statusLabel} pulse={status === 'running'} />
-          <strong>{toolName ?? (isRtl ? 'لا يوجد تشغيل نشط' : 'No active operation')}</strong>
-          {tool ? <span>{tool.ToolId} · {mode}</span> : null}
+          <StatusIndicator
+            tone={activityMode ? activityTone : STATUS_TONE[status]}
+            label={activityMode ? activityStatusLabel : statusLabel}
+            pulse={activityMode ? activity?.status === 'running' : status === 'running'}
+          />
+          <strong>{activityMode ? activity?.title : toolName ?? (isRtl ? 'لا يوجد تشغيل نشط' : 'No active operation')}</strong>
+          {!activityMode && tool ? <span>{tool.ToolId} · {mode}</span> : null}
         </div>
 
         <div className="knoux-execution-stages" role="list" aria-label={isRtl ? 'مراحل التنفيذ' : 'Execution stages'}>
-          {STAGES.map(stage => (
-            <span key={stage.id} className="knoux-execution-stage" data-state={stageStates[stage.id]} role="listitem">
-              <span className="knoux-execution-stage-dot" aria-hidden="true" />
-              <span>{isRtl ? stage.ar : stage.en}</span>
-            </span>
-          ))}
+          {activityMode
+            ? (activity?.stages ?? []).map(stage => (
+                <span key={stage.id} className="knoux-execution-stage" data-state={stage.state} role="listitem">
+                  <span className="knoux-execution-stage-dot" aria-hidden="true" />
+                  <span>{stage.label}</span>
+                </span>
+              ))
+            : STAGES.map(stage => (
+                <span key={stage.id} className="knoux-execution-stage" data-state={stageStates[stage.id]} role="listitem">
+                  <span className="knoux-execution-stage-dot" aria-hidden="true" />
+                  <span>{isRtl ? stage.ar : stage.en}</span>
+                </span>
+              ))}
         </div>
 
         <div className="knoux-execution-drawer-actions">
-          {entries.length > 0 ? (
+          {(activityMode ? (activity?.lines.length ?? 0) : entries.length) > 0 ? (
             <button type="button" className="knoux-studio-btn" onClick={copyLog} title={isRtl ? 'نسخ السجل' : 'Copy log'}>
               <Copy size={13} aria-hidden="true" />
               <span>{copied ? (isRtl ? 'تم النسخ' : 'Copied') : (isRtl ? 'نسخ' : 'Copy')}</span>
@@ -196,17 +234,43 @@ export default function ExecutionDrawer({
 
       <div className="knoux-execution-drawer-body">
         <pre className="knoux-execution-log" aria-label={isRtl ? 'سجل التنفيذ' : 'Execution log'}>
-          {entries.length === 0
-            ? (isRtl ? 'لا يوجد سجل تنفيذ بعد.' : 'No execution output yet.')
-            : entries.map(entry => (
-                <div key={entry.id} data-type={entry.type}>
-                  <time>{entry.timestamp}</time>
-                  <span>{entry.text}</span>
-                </div>
-              ))}
+          {activityMode
+            ? (activity?.lines.length ?? 0) === 0
+              ? (isRtl ? 'لا يوجد سجل بعد.' : 'No output yet.')
+              : activity!.lines.map(line => (
+                  <div key={line.id} data-type={line.type}>
+                    <time>{line.timestamp}</time>
+                    <span>{line.text}</span>
+                  </div>
+                ))
+            : entries.length === 0
+              ? (isRtl ? 'لا يوجد سجل تنفيذ بعد.' : 'No execution output yet.')
+              : entries.map(entry => (
+                  <div key={entry.id} data-type={entry.type}>
+                    <time>{entry.timestamp}</time>
+                    <span>{entry.text}</span>
+                  </div>
+                ))}
         </pre>
 
         <div className="knoux-execution-detail">
+          {activityMode ? (
+            <div className="knoux-inspector-section">
+              <header>
+                <span>{isRtl ? 'النشاط' : 'Activity'}</span>
+              </header>
+              <dl className="knoux-inspector-facts">
+                <dt>{isRtl ? 'العنوان' : 'Title'}</dt>
+                <dd>{activity?.title}</dd>
+                <dt>{isRtl ? 'المراحل' : 'Stages'}</dt>
+                <dd>{activity?.stages.filter(stage => stage.state === 'done').length ?? 0}/{activity?.stages.length ?? 0}</dd>
+                <dt>{isRtl ? 'الحالة' : 'Status'}</dt>
+                <dd>{activityStatusLabel}</dd>
+                <dt>{isRtl ? 'المدة' : 'Elapsed'}</dt>
+                <dd>{activity ? `${Math.max(0, Math.round((Date.now() - activity.startedAt) / 1000))}s` : '—'}</dd>
+              </dl>
+            </div>
+          ) : (
           <div className="knoux-inspector-section">
             <header>
               <span>{isRtl ? 'التشغيل' : 'Operation'}</span>
@@ -224,6 +288,7 @@ export default function ExecutionDrawer({
               <dd>{reportPath ?? (isRtl ? 'لم يُرصد بعد' : 'Not observed yet')}</dd>
             </dl>
           </div>
+          )}
 
           {status === 'error' || status === 'cancelled' || status === 'inconclusive' ? (
             <div className="knoux-inspector-section">
