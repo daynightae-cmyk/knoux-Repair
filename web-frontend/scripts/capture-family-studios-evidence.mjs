@@ -4,14 +4,15 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 
 /**
- * KNOUX Repair — Storage Studio rendered UI evidence.
+ * KNOUX Repair — family studio rendered UI evidence.
  *
- * The Recovery & Storage family is the only family that can destroy user
- * data, so its overview is a measurement surface. This harness captures the
- * studio at the two reference widths in English and Arabic and asserts the
+ * Six families, six studios, one grammar. Every studio landing is a
+ * *measurement* surface: stations backed by real bridge readings, and
+ * nothing else. This harness captures each studio and asserts the
  * truthfulness contract on the rendered DOM:
  *
- *   - the studio surface is on screen and all four stations are present,
+ *   - the studio surface is on screen and every one of its services is
+ *     present as a station,
  *   - every station either shows measured readings or an explicit
  *     "not measured" line — never a plausible number with no source,
  *   - the page does not overflow horizontally,
@@ -21,11 +22,11 @@ import { spawn } from 'node:child_process';
  */
 
 const HOST = '127.0.0.1';
-const PORT = Number(process.env.KNOUX_STORAGE_EVIDENCE_PORT || 3001);
+const PORT = Number(process.env.KNOUX_STUDIO_EVIDENCE_PORT || 3002);
 const ORIGIN = `http://${HOST}:${PORT}`;
 const OUT = path.join(
   process.env.KNOUX_VISUAL_EVIDENCE_DIR ? path.resolve(process.env.KNOUX_VISUAL_EVIDENCE_DIR) : path.resolve('visual-evidence'),
-  'storage-studio',
+  'family-studios',
 );
 const EDGE = [
   process.env.EDGE_PATH,
@@ -33,10 +34,44 @@ const EDGE = [
   'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
 ].filter(Boolean);
 
-const EXPECTED_SERVICES = ['02-System-Cleanup', '05-Duplicate-Files', '06-Disk-Space', '11-Backup-Recovery'];
+/**
+ * The studios under evidence, with the services each one owns. The service
+ * list is the canonical inventory, not a hand-picked subset.
+ */
+const FAMILIES = [
+  {
+    id: 'recovery',
+    label: 'storage',
+    selector: '.knoux-storage-studio',
+    services: ['02-System-Cleanup', '05-Duplicate-Files', '06-Disk-Space', '11-Backup-Recovery'],
+  },
+  {
+    id: 'investigation',
+    label: 'investigation',
+    selector: '.knoux-investigation-studio',
+    services: ['10-Diagnostics-Reports', '07-Services-Processes'],
+  },
+  {
+    id: 'assurance',
+    label: 'assurance',
+    selector: '.knoux-assurance-studio',
+    services: ['03-Network-Internet', '09-Security', '13-Privacy', '14-Driver-Management'],
+  },
+  {
+    id: 'workbench',
+    label: 'workbench',
+    selector: '.knoux-workbench-studio',
+    services: ['12-Developer-Tools', '18-Project-Sonar'],
+  },
+];
+
+const TARGETS = [
+  { id: '1440-en', width: 1440, height: 900, lang: 'en' },
+  { id: '1440-ar', width: 1440, height: 900, lang: 'ar' },
+];
 
 /**
- * How long the capture waits for the storage previews to settle.
+ * How long the capture waits for the studio's measurement pass to settle.
  *
  * A preview is a real PowerShell measurement and can take a while on a busy
  * machine. The budget is bounded so the evidence step cannot hold the
@@ -44,12 +79,6 @@ const EXPECTED_SERVICES = ['02-System-Cleanup', '05-Duplicate-Files', '06-Disk-S
  * and is recorded as such.
  */
 const SETTLE_BUDGET_MS = 90_000;
-
-const TARGETS = [
-  { id: 'storage-studio-1440-en', width: 1440, height: 900, lang: 'en' },
-  { id: 'storage-studio-1366-en', width: 1366, height: 768, lang: 'en' },
-  { id: 'storage-studio-1440-ar', width: 1440, height: 900, lang: 'ar' },
-];
 
 const delay = ms => new Promise(resolve => { setTimeout(resolve, ms); });
 
@@ -98,8 +127,8 @@ function startGateway() {
   const gateway = process.platform === 'win32'
     ? spawn(process.env.ComSpec || 'C:\\Windows\\System32\\cmd.exe', ['/d', '/s', '/c', 'npm run dev'], options)
     : spawn('npm', ['run', 'dev'], options);
-  gateway.stdout?.on('data', chunk => process.stdout.write(`[storage-evidence] ${chunk}`));
-  gateway.stderr?.on('data', chunk => process.stderr.write(`[storage-evidence] ${chunk}`));
+  gateway.stdout?.on('data', chunk => process.stdout.write(`[studio-evidence] ${chunk}`));
+  gateway.stderr?.on('data', chunk => process.stderr.write(`[studio-evidence] ${chunk}`));
   return gateway;
 }
 
@@ -129,7 +158,7 @@ async function ready(timeoutMs = 60_000) {
     }
     await delay(500);
   }
-  throw new Error(`Storage evidence gateway not ready: ${last}`);
+  throw new Error(`Studio evidence gateway not ready: ${last}`);
 }
 
 /**
@@ -159,7 +188,7 @@ async function navigateEvidenceRoute(page, url, label) {
         }
       } catch {}
 
-      console.warn(`[storage-evidence] ${label}: navigation lifecycle timeout on attempt ${attempt}; committed=${committed}; readyState=${readyState}`);
+      console.warn(`[studio-evidence] ${label}: navigation lifecycle timeout on attempt ${attempt}; committed=${committed}; readyState=${readyState}`);
       if (committed) return;
 
       try { await page.goto('about:blank', { waitUntil: 'load', timeout: 5_000 }); } catch {}
@@ -169,40 +198,42 @@ async function navigateEvidenceRoute(page, url, label) {
   throw lastError;
 }
 
-async function readStudio(page) {  return page.evaluate((expected) => {
-    const studio = document.querySelector('.knoux-storage-studio');
+async function readStudio(page, family) {
+  return page.evaluate((config) => {
+    const studio = document.querySelector(config.selector);
     const visible = node => {
       if (!(node instanceof HTMLElement)) return false;
       const style = getComputedStyle(node);
       const rect = node.getBoundingClientRect();
       return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > .05 && rect.width > 2 && rect.height > 2;
     };
-    const stations = [...document.querySelectorAll('.knoux-storage-station')].map(node => ({
+    const stations = [...document.querySelectorAll('.knoux-studio-station')].map(node => ({
       service: node.getAttribute('data-service-id'),
       state: node.getAttribute('data-state'),
-      readings: [...node.querySelectorAll('.knoux-storage-station__reading')].map(reading => ({
+      readings: [...node.querySelectorAll('.knoux-studio-station__reading')].map(reading => ({
         label: reading.querySelector('span')?.textContent?.trim() ?? '',
         value: reading.querySelector('b')?.textContent?.trim() ?? '',
       })),
-      empty: node.querySelector('.knoux-storage-station__empty')?.textContent?.trim() ?? null,
+      empty: node.querySelector('.knoux-studio-station__empty')?.textContent?.trim() ?? null,
     }));
     return {
       visible: visible(studio),
+      probe: studio?.getAttribute('data-probe') ?? null,
       header: document.querySelector('.knoux-studio-header h1')?.textContent?.trim() ?? null,
       metrics: [...document.querySelectorAll('.knoux-studio-header-metric')].map(node => node.textContent?.replace(/\s+/g, ' ').trim() ?? ''),
-      masthead: Boolean(document.querySelector('.knoux-storage-studio__masthead')),
-      context: [...document.querySelectorAll('.knoux-storage-studio__context-items > div')].map(node => ({
+      masthead: Boolean(document.querySelector('.knoux-studio-masthead')),
+      context: [...document.querySelectorAll('.knoux-studio-masthead__context-items > div')].map(node => ({
         label: node.querySelector('span')?.textContent?.trim() ?? '',
         value: node.querySelector('b')?.textContent?.trim() ?? '',
       })),
       stations,
-      notice: document.querySelector('.knoux-storage-studio__notice')?.textContent?.replace(/\s+/g, ' ').trim() ?? null,
-      expected,
+      notice: document.querySelector('.knoux-studio-notice')?.textContent?.replace(/\s+/g, ' ').trim() ?? null,
+      expected: config.services,
       dir: document.documentElement.getAttribute('dir'),
       overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
       bodyTextLength: (document.body?.innerText || '').length,
     };
-  }, EXPECTED_SERVICES);
+  }, { selector: family.selector, services: family.services });
 }
 
 function assertStudio(detail, label, bridgeUnavailable) {
@@ -210,9 +241,9 @@ function assertStudio(detail, label, bridgeUnavailable) {
   if (!detail.visible) problems.push('the studio surface is not visible');
   if (detail.overflow > 2) problems.push(`horizontal page overflow=${detail.overflow}px`);
   if (detail.bodyTextLength < 200) problems.push(`the studio rendered almost no text (${detail.bodyTextLength} chars)`);
-  // The recovery family's own visual identity and live context survive the
-  // studio rewrite.
-  if (!detail.masthead) problems.push('the recovery masthead is missing');
+  // The family's own visual identity and live context survive the studio
+  // rewrite.
+  if (!detail.masthead) problems.push('the studio masthead is missing');
   if (detail.context.length !== 3) problems.push(`expected 3 live-context facts, found ${detail.context.length}`);
   for (const fact of detail.context) {
     if (!fact.value) problems.push(`live context "${fact.label}" has no value`);
@@ -224,7 +255,7 @@ function assertStudio(detail, label, bridgeUnavailable) {
     if (!reported) problems.push('the bridge failed but the studio reported nothing');
   }
   const services = detail.stations.map(station => station.service);
-  for (const service of EXPECTED_SERVICES) {
+  for (const service of detail.expected) {
     if (!services.includes(service)) problems.push(`station missing: ${service}`);
   }
   for (const station of detail.stations) {
@@ -254,68 +285,67 @@ try {
     args: ['--disable-gpu', '--no-first-run', '--no-default-browser-check'],
   });
 
-  for (const target of TARGETS) {
-    // A fresh browser per capture: one long-lived headless Edge degrades
-    // after a handful of navigations.
-    await browser.close();
-    browser = await puppeteer.launch({
-      executablePath: edgePath(),
-      headless: true,
-      args: ['--disable-gpu', '--no-first-run', '--no-default-browser-check'],
-    });
-    const page = await browser.newPage();
-    const errors = [];
-    page.on('pageerror', error => errors.push(String(error.message).slice(0, 200)));
-    page.on('console', message => { if (message.type() === 'error') errors.push(`console: ${message.text().slice(0, 200)}`); });
-    await page.setViewport({ width: target.width, height: target.height, deviceScaleFactor: 1 });
-    await page.evaluateOnNewDocument(lang => { try { localStorage.setItem('knoux-lang', lang); } catch {} }, target.lang);
-    await navigateEvidenceRoute(page, `${ORIGIN}/?view=recovery&nosplash=1`, target.id);
-    await page.waitForSelector('.knoux-storage-studio', { visible: true, timeout: 30_000 });
-    // The storage previews measure the disk, so they need a moment. The
-    // capture waits for the measurement pass to finish instead of
-    // photographing a half-loaded surface — but a preview that never answers
-    // is a truthful "not measured" station, so an unsettled capture is
-    // recorded, not hidden.
-    //
-    // The surface publishes `data-probe`, so "not started yet" is never
-    // mistaken for "read and found nothing".
-    const probeSettled = await page.waitForFunction(() => {
-      const studio = document.querySelector('.knoux-storage-studio');
-      return studio?.getAttribute('data-probe') === 'settled';
-    }, { timeout: SETTLE_BUDGET_MS, polling: 500 }).then(() => true).catch(() => false);
-    // The volume reading comes from the system snapshot, which the shell
-    // polls on its own cadence; it may still be on its way.
-    const diskSettled = await page.waitForFunction(() => {
-      const node = document.querySelector('.knoux-storage-station[data-service-id="06-Disk-Space"]');
-      return Boolean(node) && node.getAttribute('data-state') !== 'loading';
-    }, { timeout: 20_000, polling: 500 }).then(() => true).catch(() => false);
-    const settled = probeSettled && diskSettled;
-    await delay(800);
-    const detail = await readStudio(page);
-    const productErrors = errors.filter(isProductError);
-    const bridgeUnavailable = productErrors.filter(isBridgeUnavailable);
-    const realErrors = productErrors.filter(entry => !isBridgeUnavailable(entry));
-    assertStudio(detail, `${target.id}`, bridgeUnavailable.length);
-    if (realErrors.length) throw new Error(`${target.id}: renderer errors: ${realErrors.join(' | ')}`);
-    const file = path.join(OUT, `${target.id}.png`);
-    await page.screenshot({ path: file, fullPage: false });
-    evidence.push({
-      id: target.id,
-      viewport: `${target.width}x${target.height}`,
-      lang: target.lang,
-      settled,
-      bridgeUnavailable: bridgeUnavailable.length,
-      file: path.basename(file),
-      detail,
-    });
-    console.log(`[storage-evidence] ${target.id} -> ok (${detail.stations.length} stations, settled=${settled}, bridgeUnavailable=${bridgeUnavailable.length})`);
-    await page.close();
+  for (const family of FAMILIES) {
+    for (const target of TARGETS) {
+      const id = `${family.label}-${target.id}`;
+      // A fresh browser per capture: one long-lived headless Edge degrades
+      // after a handful of navigations.
+      await browser.close();
+      browser = await puppeteer.launch({
+        executablePath: edgePath(),
+        headless: true,
+        args: ['--disable-gpu', '--no-first-run', '--no-default-browser-check'],
+      });
+      const page = await browser.newPage();
+      const errors = [];
+      page.on('pageerror', error => errors.push(String(error.message).slice(0, 200)));
+      page.on('console', message => { if (message.type() === 'error') errors.push(`console: ${message.text().slice(0, 200)}`); });
+      await page.setViewport({ width: target.width, height: target.height, deviceScaleFactor: 1 });
+      await page.evaluateOnNewDocument(lang => { try { localStorage.setItem('knoux-lang', lang); } catch {} }, target.lang);
+      await navigateEvidenceRoute(page, `${ORIGIN}/?view=${family.id}&nosplash=1`, id);
+      await page.waitForSelector(family.selector, { visible: true, timeout: 30_000 });
+      // The previews measure the disk, so they need a moment. The capture
+      // waits for the measurement pass to finish instead of photographing a
+      // half-loaded surface — but a preview that never answers is a truthful
+      // "not measured" station, so an unsettled capture is recorded, not
+      // hidden.
+      const probeSettled = await page.waitForFunction((selector) => {
+        const studio = document.querySelector(selector);
+        return studio?.getAttribute('data-probe') === 'settled';
+      }, { timeout: SETTLE_BUDGET_MS, polling: 500 }, family.selector).then(() => true).catch(() => false);
+      const settled = await page.waitForFunction(() => {
+        const stations = [...document.querySelectorAll('.knoux-studio-station')];
+        if (stations.length === 0) return false;
+        return stations.every(node => node.getAttribute('data-state') !== 'loading');
+      }, { timeout: 20_000, polling: 500 }).then(() => true).catch(() => false);
+      await delay(800);
+      const detail = await readStudio(page, family);
+      const productErrors = errors.filter(isProductError);
+      const bridgeUnavailable = productErrors.filter(isBridgeUnavailable);
+      const realErrors = productErrors.filter(entry => !isBridgeUnavailable(entry));
+      assertStudio(detail, id, bridgeUnavailable.length);
+      if (realErrors.length) throw new Error(`${id}: renderer errors: ${realErrors.join(' | ')}`);
+      const file = path.join(OUT, `${id}.png`);
+      await page.screenshot({ path: file, fullPage: false });
+      evidence.push({
+        id,
+        family: family.id,
+        viewport: `${target.width}x${target.height}`,
+        lang: target.lang,
+        settled: settled && probeSettled,
+        bridgeUnavailable: bridgeUnavailable.length,
+        file: path.basename(file),
+        detail,
+      });
+      console.log(`[studio-evidence] ${id} -> ok (${detail.stations.length} stations, settled=${settled && probeSettled}, bridgeUnavailable=${bridgeUnavailable.length})`);
+      await page.close();
+    }
   }
 
-  fs.writeFileSync(path.join(OUT, 'storage-studio-evidence.json'), JSON.stringify({ generatedAt: new Date().toISOString(), evidence }, null, 2));
-  console.log(`[storage-evidence] PASS captures=${evidence.length}`);
+  fs.writeFileSync(path.join(OUT, 'family-studios-evidence.json'), JSON.stringify({ generatedAt: new Date().toISOString(), evidence }, null, 2));
+  console.log(`[studio-evidence] PASS captures=${evidence.length}`);
 } catch (error) {
-  console.error(`[storage-evidence] FAIL ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`[studio-evidence] FAIL ${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;
 } finally {
   await browser?.close();

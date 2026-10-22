@@ -80,9 +80,9 @@ jobs:
         working-directory: web-frontend
         run: node scripts/capture-recovery-storage-polish-evidence.mjs
 
-      - name: Capture Storage Studio rendered UI evidence
+      - name: Capture family studio rendered UI evidence
         working-directory: web-frontend
-        run: node scripts/capture-storage-studio-evidence.mjs
+        run: node scripts/capture-family-studios-evidence.mjs
 
       - name: Capture Assurance tool-card evidence
         working-directory: web-frontend
