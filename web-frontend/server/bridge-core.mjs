@@ -96,7 +96,7 @@ const RUN_TIMEOUT_MS = TEST_MODE && Number.isInteger(TEST_TIMEOUT_MS) && TEST_TI
 const TEST_TIMEOUT_TOOL_ID = '__KNOUX_TEST_TIMEOUT__';
 const TEST_TIMEOUT_SCRIPT_PATH = path.join(os.tmpdir(), `knoux-bridge-timeout-${process.pid}.ps1`);
 const MAX_BUFFERED_LINES = 5000;
-const SYSTEM_CACHE_MS = 30 * 1000;
+const SYSTEM_CACHE_MS = 60 * 1000;
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'openrouter/free';
 const OPENROUTER_CONFIGURED = Boolean(process.env.OPENROUTER_API_KEY && /^sk-or-v1-[A-Za-z0-9]+$/.test(process.env.OPENROUTER_API_KEY));
@@ -903,7 +903,7 @@ $fw = $null
 try { $fw = @(Get-NetFirewallProfile | ForEach-Object { [pscustomobject]@{ Profile = $_.Name; Enabled = $_.Enabled } }) } catch { $fw = $null }
 $def = Get-MpComputerStatus
 $sec = Get-Service -Name WinDefend
-$p = Get-Process | Where-Object { $_.ProcessName } | Measure-Object | Select-Object -ExpandProperty Count
+  $p = [System.Diagnostics.Process]::GetProcesses().Count
 [pscustomobject]@{
   Os = $o.Caption; Version = $o.Version; Build = $o.BuildNumber;
   Machine = $cs.Manufacturer + ' ' + $cs.Model;
