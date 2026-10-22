@@ -11,6 +11,7 @@ import ToolCard from './ToolCard';
 import FamilyLiveStage from './FamilyLiveStage';
 import EngineeringWorkbenchStation from './workbench/EngineeringWorkbenchStation';
 import SoftwareLibraryPage from '../pages/SoftwareLibraryPage';
+import VitalityLab from '../pages/VitalityLab';
 import FamilyOverviewPage from '../pages/FamilyOverviewPage';
 import StudioHeader from '../shell/StudioHeader';
 import StudioNavigation from '../shell/StudioNavigation';
@@ -137,6 +138,21 @@ export default function FamilyPage({
           lang={lang}
           bridgeOnline={bridgeOnline}
           bridgeElevated={bridgeElevated}
+          onSelectService={selectOverviewService}
+          onSelectTool={onSelectTool}
+        />
+      );
+    }
+
+    if (family.id === 'vitality') {
+      return (
+        <VitalityLab
+          family={family}
+          tools={tools}
+          lang={lang}
+          bridgeOnline={bridgeOnline}
+          bridgeElevated={bridgeElevated}
+          systemSnapshot={systemSnapshot}
           onSelectService={selectOverviewService}
           onSelectTool={onSelectTool}
         />

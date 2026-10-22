@@ -1,0 +1,130 @@
+/**
+ * KNOuX Repair — Action Center
+ *
+ * The cross-cutting operations surface. It shows the live operation that
+ * the global execution dock is running, the tasks that are running, and
+ * what needs attention — with no second execution model of its own.
+ */
+/* ── Workbench entries ────────────────────────────────────────────── */
+
+.knoux-vitality-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.knoux-vitality-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: var(--knoux-studio-radius-sm);
+  border: 1px solid var(--knoux-studio-line-soft);
+  background: rgba(255, 255, 255, 0.015);
+  color: var(--knoux-text-muted);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--knoux-studio-transition), background var(--knoux-studio-transition);
+}
+
+.knoux-vitality-entry:hover {
+  border-color: rgba(124, 58, 237, 0.4);
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.knoux-vitality-entry__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.knoux-vitality-entry__body strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--knoux-text-primary);
+}
+
+.knoux-vitality-entry__body small {
+  font-size: 11px;
+  color: var(--knoux-text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1366px) {
+  .knoux-vitality-lab__body {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--knoux-space-4);
+  }
+  .knoux-vitality-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .knoux-vitality-timelines {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────
+   Action Center — the cross-cutting operations surface
+   ──────────────────────────────────────────────────────────────────── */
+
+.knoux-action-center {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.knoux-action-center > .knoux-panel {
+  margin: var(--knoux-space-4) var(--knoux-space-6) 0;
+}
+
+.knoux-action-center__body {
+  padding: var(--knoux-space-5) var(--knoux-space-6) var(--knoux-space-6);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--knoux-space-5);
+  align-items: start;
+  min-width: 0;
+}
+
+.knoux-action-center__body > div {
+  min-width: 0;
+}
+
+.knoux-action-center__activity-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--knoux-text-primary);
+}
+
+.knoux-action-center__stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+.knoux-action-center__activity-line {
+  margin: 12px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--knoux-text-muted);
+  border-inline-start: 2px solid var(--knoux-studio-cyan);
+  padding-inline-start: 10px;
+}
+
+@media (max-width: 1366px) {
+  .knoux-action-center__body {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--knoux-space-4);
+  }
+  .knoux-action-center > .knoux-panel {
+    margin: var(--knoux-space-3) var(--knoux-space-4) 0;
+  }
+}

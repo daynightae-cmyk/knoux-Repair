@@ -1,0 +1,275 @@
+/**
+ * KNOUX Repair — Health & Performance Lab
+ *
+ * The System Vitality studio is an observatory. Its surfaces are dense with
+ * measured values, never with decorative gauges: every bar, every sparkline
+ * point and every percentage comes from a reading the machine reported.
+ */
+
+.knoux-vitality-lab {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.knoux-vitality-lab__body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--knoux-space-4);
+  align-items: start;
+  padding: var(--knoux-space-5) var(--knoux-space-6) var(--knoux-space-6);
+  min-width: 0;
+}
+
+.knoux-vitality-lab__body > .knoux-panel {
+  min-width: 0;
+}
+
+.knoux-vitality-lab [data-role='vital-signals'],
+.knoux-vitality-lab [data-role='vital-bottlenecks'] {
+  grid-column: 1 / -1;
+}
+
+.knoux-vitality-lab__condition {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--knoux-text-muted);
+}
+
+/* ── Live metric strip ───────────────────────────────────────────── */
+
+.knoux-vitality-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--knoux-studio-line-soft);
+  border: 1px solid var(--knoux-studio-line-soft);
+  border-radius: var(--knoux-studio-radius-sm);
+  overflow: hidden;
+}
+
+.knoux-vitality-metric {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 2px 8px;
+  align-items: center;
+  padding: 11px 13px;
+  background: var(--knoux-studio-panel);
+}
+
+.knoux-vitality-metric__icon {
+  grid-row: 1 / 3;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  border: 1px solid var(--knoux-studio-line-soft);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--knoux-text-muted);
+}
+
+.knoux-vitality-metric__label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--knoux-text-faint);
+}
+
+.knoux-vitality-metric__value {
+  font-family: var(--knoux-font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--knoux-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.knoux-vitality-metric__value[data-tone='caution'] { color: #fcd34d; }
+.knoux-vitality-metric__value[data-tone='danger'] { color: #fca5a5; }
+.knoux-vitality-metric__value[data-tone='data'] { color: #67e8f9; }
+
+/* ── Timelines ───────────────────────────────────────────────────── */
+
+.knoux-vitality-timelines {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.knoux-vitality-timeline {
+  border: 1px solid var(--knoux-studio-line-soft);
+  border-radius: var(--knoux-studio-radius-sm);
+  background: var(--knoux-studio-inset);
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.knoux-vitality-timeline header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.knoux-vitality-timeline header span {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--knoux-text-faint);
+}
+
+.knoux-vitality-timeline header em {
+  font-style: normal;
+  font-family: var(--knoux-font-mono);
+  font-size: 10.5px;
+  color: var(--knoux-text-faint);
+}
+
+.knoux-vitality-sparkline {
+  display: block;
+  width: 100%;
+  height: 46px;
+  overflow: visible;
+}
+
+.knoux-vitality-sparkline__empty {
+  margin: 0;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  font-size: 11.5px;
+  color: var(--knoux-text-faint);
+}
+
+/* ── Disks ───────────────────────────────────────────────────────── */
+
+.knoux-vitality-disks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.knoux-vitality-disk__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 5px;
+}
+
+.knoux-vitality-disk__head strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--knoux-text-primary);
+}
+
+.knoux-vitality-disk__head span {
+  font-family: var(--knoux-font-mono);
+  font-size: 12px;
+  color: var(--knoux-text-secondary);
+}
+
+.knoux-vitality-disk__bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.knoux-vitality-disk__bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #22d3ee;
+}
+
+.knoux-vitality-disk__bar[data-tone='caution'] span { background: #f59e0b; }
+.knoux-vitality-disk__bar[data-tone='danger'] span { background: #ef4444; }
+
+.knoux-vitality-disks small {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--knoux-text-faint);
+}
+
+/* ── Consumers ───────────────────────────────────────────────────── */
+
+.knoux-vitality-consumers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.knoux-vitality-consumers li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--knoux-studio-line-soft);
+}
+
+.knoux-vitality-consumers li:last-child { border-bottom: none; }
+
+.knoux-vitality-consumer__name {
+  font-size: 12.5px;
+  color: var(--knoux-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Windows signals ─────────────────────────────────────────────── */
+
+.knoux-vitality-signals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.knoux-vitality-signals li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 11px;
+  border-radius: var(--knoux-studio-radius-sm);
+  border: 1px solid var(--knoux-studio-line-soft);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.knoux-vitality-signals li[data-level='Warning'],
+.knoux-vitality-signals li[data-level='warning'] {
+  border-color: rgba(245, 158, 11, 0.34);
+}
+
+.knoux-vitality-signals strong {
+  font-family: var(--knoux-font-mono);
+  font-size: 11px;
+  color: #fcd34d;
+  white-space: nowrap;
+}
+
+.knoux-vitality-signals span {
+  font-size: 12px;
+  color: var(--knoux-text-secondary);
+}
+

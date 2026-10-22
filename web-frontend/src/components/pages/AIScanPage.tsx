@@ -28,6 +28,8 @@ import {
 import type { FamilyId, NavDestination, ServiceId } from '../../data/family-map';
 import { api } from '../../lib/api';
 import type { SystemSnapshot } from '../../lib/api';
+import { activityLine } from '../../lib/shellActivity';
+import type { ShellActivity, ShellActivityLine, ShellActivityStatus } from '../../lib/shellActivity';
 
 export interface AIScanPageProps {
   lang: 'en' | 'ar';
@@ -38,6 +40,8 @@ export interface AIScanPageProps {
   aiProviderState?: 'CHECKING' | 'CONFIGURED' | 'UNCONFIGURED' | 'UNAVAILABLE' | 'ERROR';
   onTargetChange?: (target: string | null) => void;
   onEvidenceUpdate?: (evidenceCount: number, findingCount: number) => void;
+  /** Reports the sweep into the global execution dock. */
+  onActivity?: (activity: ShellActivity) => void;
 }
 
 export interface ScanFinding {
@@ -133,6 +137,7 @@ export default function AIScanPage({
   aiProviderState: _aiProviderState = 'UNCONFIGURED',
   onTargetChange,
   onEvidenceUpdate,
+  onActivity,
 }: AIScanPageProps) {
   const isRtl = lang === 'ar';
   const [scanning, setScanning] = useState(false);
@@ -177,9 +182,42 @@ export default function AIScanPage({
     const discoveredFindings: ScanFinding[] = [];
     let verifiedSources = 0;
 
+    // The scan is reported into the global execution dock, so the product
+    // keeps one place where work is visible. Every stage below is a step
+    // this function really performs.
+    const stages = [
+      { id: 'vitals', en: 'System vitals', ar: 'مقاييس الحيوية' },
+      { id: 'storage', en: 'Storage & hygiene', ar: 'التخزين والنظافة' },
+      { id: 'cleanup', en: 'Reclaimable space', ar: 'المساحة القابلة للاسترداد' },
+      { id: 'drivers', en: 'Driver integrity', ar: 'سلامة التعريفات' },
+      { id: 'findings', en: 'Findings', ar: 'النتائج' },
+    ];
+    const activityId = `ai-scan-${Date.now()}`;
+    const activityStartedAt = Date.now();
+    const activityLines: ShellActivityLine[] = [];
+    const buildActivity = (index: number, status: ShellActivityStatus): ShellActivity => ({
+      id: activityId,
+      title: isRtl ? 'فحص ذكي — جمع الأدلة' : 'AI Scan — evidence sweep',
+      status,
+      startedAt: activityStartedAt,
+      stages: stages.map((stage, position) => ({
+        id: stage.id,
+        label: isRtl ? stage.ar : stage.en,
+        state: status === 'error'
+          ? (position <= index ? 'failed' : 'idle')
+          : position < index ? 'done' : position === index ? 'active' : 'idle',
+      })),
+      lines: [...activityLines],
+    });
+    const reportStage = (index: number, line: string) => {
+      activityLines.push(activityLine(line));
+      onActivity?.(buildActivity(index, 'running'));
+    };
+    reportStage(0, isRtl ? 'فحص مقاييس الحيوية والأداء...' : 'Inspecting system vitals & memory pressure...');
+
     try {
       const sysRes = await api.system().catch(() => null);
-      setScanStage(isRtl ? 'فحص سعة الأقراص والنظافة العامة...' : 'Evaluating disk capacity & hygiene...');
+      reportStage(1, isRtl ? 'فحص سعة الأقراص والنظافة العامة...' : 'Evaluating disk capacity & hygiene...');
 
       if (sysRes?.system) {
         verifiedSources += 1;
@@ -239,7 +277,7 @@ export default function AIScanPage({
         }
       }
 
-      setScanStage(isRtl ? 'تحليل مخلفات النظام المؤكدة...' : 'Analyzing reclaimable temporary files...');
+      reportStage(2, isRtl ? 'تحليل مخلفات النظام المؤكدة...' : 'Analyzing reclaimable temporary files...');
       const cleanRes = await api.cleanupPreview().catch(() => null);
       if (cleanRes?.preview) {
         verifiedSources += 1;
@@ -261,7 +299,7 @@ export default function AIScanPage({
         }
       }
 
-      setScanStage(isRtl ? 'فحص سلامة التعريفات وتوقيعات العتاد...' : 'Verifying driver signatures & hardware stability...');
+      reportStage(3, isRtl ? 'فحص سلامة التعريفات وتوقيعات العتاد...' : 'Verifying driver signatures & hardware stability...');
       const driverRes = await api.driversPreview().catch(() => null);
       if (driverRes?.preview) {
         verifiedSources += 1;
@@ -287,17 +325,27 @@ export default function AIScanPage({
       setSelectedFindingId(discoveredFindings[0]?.id ?? null);
       setScanTimestamp(new Date().toLocaleTimeString());
       setScanStage(isRtl ? 'اكتمل الفحص' : 'Diagnostic scan complete');
+      reportStage(4, isRtl
+        ? `اكتمل الفحص — ${discoveredFindings.length} نتيجة من ${verifiedSources} مصدر.`
+        : `Diagnostic scan complete — ${discoveredFindings.length} findings from ${verifiedSources} verified sources.`);
+      onActivity?.({
+        ...buildActivity(4, 'success'),
+        status: 'success',
+        stages: buildActivity(4, 'success').stages.map(stage => ({ ...stage, state: 'done' })),
+      });
       onEvidenceUpdate?.(verifiedSources, discoveredFindings.length);
     } catch {
       setFindings([]);
       setSelectedFindingId(null);
       setEvidenceSourceCount(0);
       setScanError(isRtl ? 'تعذر جمع أدلة تشخيص موثوقة من الجسر.' : 'The bridge returned no verifiable evidence source.');
+      activityLines.push(activityLine(isRtl ? 'تعذر جمع أدلة تشخيص موثوقة من الجسر.' : 'The bridge returned no verifiable evidence source.', 'error'));
+      onActivity?.(buildActivity(0, 'error'));
       onEvidenceUpdate?.(0, 0);
     } finally {
       setScanning(false);
     }
-  }, [bridgeOnline, isRtl, onEvidenceUpdate]);
+  }, [bridgeOnline, isRtl, onActivity, onEvidenceUpdate]);
 
   const selectedFinding = useMemo(() => {
     return findings?.find(f => f.id === selectedFindingId) ?? findings?.[0] ?? null;

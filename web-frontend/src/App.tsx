@@ -30,6 +30,7 @@ import NexusSplash from './components/NexusSplash';
 import AuthGate from './components/AuthGate';
 import AccountCenter from './components/AccountCenter';
 import { APP_VERSION } from './version';
+import type { ShellActivity } from './lib/shellActivity';
 import clsx from 'clsx';
 import './account-shell.css';
 
@@ -101,6 +102,8 @@ function MasterWorkstation() {
   } | null>(null);
   const [consoleStatus, setConsoleStatus] = useState<'idle' | 'running' | 'success' | 'error' | 'cancelled' | 'inconclusive'>('idle');
   const [activeTasks, setActiveTasks] = useState<SentinelTask[]>([]);
+  /** A guided, multi-step activity reported into the same dock as tool runs. */
+  const [shellActivity, setShellActivity] = useState<ShellActivity | null>(null);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -394,9 +397,9 @@ function MasterWorkstation() {
         <main className="knoux-workspace flex-1 overflow-y-auto px-6 py-6" role="main" data-view={activeView}>
           <AnimatePresence initial={false} mode="sync">
             {activeView === 'home' ? <motion.div key="home" className="knoux-home-route" initial={false} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.24 }}><HomePage lang={lang} bridgeOnline={bridgeOnline} aiProviderState={aiProviderState} activeTasks={activeTasks} systemSnapshot={systemSnapshot} tools={allTools} onNavigate={navigateTo} onOpenActionCenter={() => handleRailSelect('action-center')} onOpenSettings={() => setSettingsOpen(true)} /></motion.div>
-            : activeView === 'ai-scan' ? <motion.div key="ai-scan" initial={false} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><AIScanPage lang={lang} bridgeOnline={bridgeOnline} toolCount={bridgeToolCount} onNavigate={navigateTo} systemSnapshot={systemSnapshot} aiProviderState={aiProviderState} onTargetChange={setAiSelectedTarget} onEvidenceUpdate={(evCount, findCount) => { setAiEvidenceCount(evCount); setAiFindingCount(findCount); }} /></motion.div>
+            : activeView === 'ai-scan' ? <motion.div key="ai-scan" initial={false} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><AIScanPage lang={lang} bridgeOnline={bridgeOnline} toolCount={bridgeToolCount} onNavigate={navigateTo} systemSnapshot={systemSnapshot} aiProviderState={aiProviderState} onTargetChange={setAiSelectedTarget} onEvidenceUpdate={(evCount, findCount) => { setAiEvidenceCount(evCount); setAiFindingCount(findCount); }} onActivity={setShellActivity} /></motion.div>
             : activeView === 'navigator' ? <motion.div key="navigator" initial={false} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><AllServicesNavigator lang={lang} onNavigate={navigateTo} /></motion.div>
-            : activeView === 'action-center' ? <motion.div key="action-center" initial={false} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><ActionCenterPage lang={lang} activeTasks={activeTasks} toolStatuses={toolStatuses} tools={allTools} onNavigate={navigateTo} /></motion.div>
+            : activeView === 'action-center' ? <motion.div key="action-center" initial={false} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><ActionCenterPage lang={lang} activeTasks={activeTasks} toolStatuses={toolStatuses} tools={allTools} onNavigate={navigateTo} activity={shellActivity} onOpenDock={() => setDrawerCollapsed(false)} /></motion.div>
             : activeView === 'settings' ? <motion.div key="settings" initial={false} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><SettingsCenter open={true} onClose={() => setActiveView('home')} lang={lang} setLang={setLang} theme={theme} setTheme={setTheme} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} toolCount={bridgeToolCount ?? allTools.length} onReplaySplash={() => setSplashVisible(true)} auth={authStatus} onSignIn={startSignIn} onLogout={() => { void logout(); }} /></motion.div>
             : activeFamily ? <motion.div key={`family-${activeFamily.id}`} initial={false} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.18 }}><FamilyPage family={activeFamily} tools={allTools} lang={lang} bridgeOnline={bridgeOnline} bridgeElevated={bridgeElevated} toolStatuses={toolStatuses} onRunTool={runTool} onCancelTool={cancelRun} selectedService={selectedService} onSelectService={setSelectedService} selectedToolId={selectedToolId} onSelectTool={setSelectedToolId} onRetryBridge={() => { void connectBridge(); }} systemSnapshot={systemSnapshot} consoleEntries={consoleEntries} activeToolId={activeTool?.ToolId ?? null} onNavigateService={(family, service) => navigateTo({ family, service })} /></motion.div>
             : null}
@@ -404,7 +407,7 @@ function MasterWorkstation() {
         </main>
         {activeView !== 'home' && !selectedToolId && <SentinelPanel lang={lang} bridgeOnline={bridgeOnline} activeFamily={activeFamily?.id ?? null} activeTasks={activeTasks} systemSnapshot={systemSnapshot} activeView={activeView} aiProviderState={aiProviderState} selectedTarget={aiSelectedTarget} evidenceCount={aiEvidenceCount} findingsCount={aiFindingCount} selectedTool={selectedTool} selectedService={selectedService} collapsed={inspectorCollapsed} onToggleCollapse={() => setInspectorCollapsed(value => !value)} />}
       </div>
-      <ExecutionDrawer lang={lang} tool={activeTool} mode={activeRequest?.mode ?? 'run'} status={consoleStatus} entries={consoleEntries} collapsed={drawerCollapsed} onToggleCollapse={() => setDrawerCollapsed(value => !value)} onCancel={cancelRun} onRetry={handleRetry} retryable={Boolean(activeRequest) && consoleStatus !== 'running'} />
+      <ExecutionDrawer lang={lang} tool={activeTool} mode={activeRequest?.mode ?? 'run'} status={consoleStatus} entries={consoleEntries} collapsed={drawerCollapsed} onToggleCollapse={() => setDrawerCollapsed(value => !value)} onCancel={cancelRun} onRetry={handleRetry} retryable={Boolean(activeRequest) && consoleStatus !== 'running'} activity={shellActivity} />
       <footer className="knoux-footer flex items-center justify-between h-7 px-4 bg-[#030612]/95 border-t border-white/[0.08] text-[11px] font-mono text-slate-400 z-20 relative overflow-hidden" dir="ltr">
         <div className="absolute left-1/2 bottom-0 -translate-x-1/2 w-48 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_12px_rgba(34,211,238,0.9)] pointer-events-none" />
         <div className="flex items-center gap-3">
