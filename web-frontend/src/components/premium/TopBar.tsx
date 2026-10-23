@@ -100,7 +100,7 @@ export default function TopBar({
           aria-label={isRtl ? 'فتح KNOUX AI' : 'Open KNOUX AI'}
         >
           <BrainCircuit size={14} className={aiProviderState === 'CONFIGURED' ? 'text-violet-400' : 'text-slate-400'} />
-          <span className="text-[11px] font-medium">{aiProviderState === 'CONFIGURED' ? (isRtl ? 'الذكاء مفعل' : 'AI On') : (isRtl ? 'الذكاء معطل' : 'AI Off')}</span>
+          <span className="text-[11px] font-medium">{aiProviderState === 'CONFIGURED' ? (isRtl ? 'الذكاء مُهيّأ' : 'AI Set') : (isRtl ? 'الذكاء غير مُهيّأ' : 'AI Unset')}</span>
           <i aria-hidden="true" className="hidden" />
         </button>
 
