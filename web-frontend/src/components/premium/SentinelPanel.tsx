@@ -386,7 +386,7 @@ export default function SentinelPanel({
               <span>{isRtl ? 'الأدلة' : 'Evidence'}</span>
               <StatusIndicator
                 tone={aiProviderState === 'CONFIGURED' ? 'positive' : aiProviderState === 'UNCONFIGURED' || aiProviderState === 'UNAVAILABLE' ? 'caution' : 'neutral'}
-                label={aiProviderState === 'CONFIGURED' ? (isRtl ? 'موصول' : 'Connected') : (isRtl ? 'غير موصول' : 'Not connected')}
+                label={aiProviderState === 'CONFIGURED' ? (isRtl ? 'مُهيّأ' : 'Configured') : (isRtl ? 'غير مُهيّأ' : 'Not configured')}
               />
             </header>
             <dl className="knoux-inspector-facts">

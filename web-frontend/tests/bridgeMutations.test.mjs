@@ -221,7 +221,7 @@ test('cancelRun on unknown id returns false without side effects', () => {
 test('AI generate without provider keys returns unavailable, never fabricated text', async () => {
   const res = await postJson(
     '/api/ai/generate',
-    { modelId: 'gemini-2.5-flash', prompt: 'Diagnose slow boot' },
+    { modelId: 'gemini-3.8-flash', prompt: 'Diagnose slow boot' },
     { Origin: ALLOWED, 'X-Knoux-Bridge-Token': TOKEN },
   );
   assert.equal(res.status, 503);
