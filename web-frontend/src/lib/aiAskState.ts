@@ -149,53 +149,63 @@ export interface AskFlowState {
   snapshot: AskSnapshot | null;
   answer: AiAskAnswer | null;
   failure: AiAskFailure | null;
+  /** Incremented for every new request or consent revocation; stale completions are ignored. */
+  requestId: number;
 }
 
-export const ASK_INITIAL: AskFlowState = { status: 'idle', question: '', snapshot: null, answer: null, failure: null };
+export const ASK_INITIAL: AskFlowState = { status: 'idle', question: '', snapshot: null, answer: null, failure: null, requestId: 0 };
 
 export type AskAction =
   | { type: 'SET_QUESTION'; question: string }
   | { type: 'ENTER_CONSENT' }
   | { type: 'REVOKE_CONSENT' }
   | { type: 'CHOOSE_PROVIDER'; provider: AiProviderId; modelId: string }
-  | { type: 'RECEIVE_ANSWER'; answer: AiAskAnswer }
-  | { type: 'RECEIVE_ERROR'; failure: AiAskFailure; status: AiAskState }
+  | { type: 'RETRY' }
+  | { type: 'RECEIVE_ANSWER'; answer: AiAskAnswer; requestId: number }
+  | { type: 'RECEIVE_ERROR'; failure: AiAskFailure; status: AiAskState; requestId: number }
   | { type: 'RESET' };
 
 export function askReduce(state: AskFlowState, action: AskAction): AskFlowState {
   switch (action.type) {
     case 'SET_QUESTION':
-      // Editing the question revokes an outstanding consent: the next send
-      // needs a fresh snapshot (question + provider + model id).
-      return {
-        ...state,
-        question: action.question,
-        status: state.status === 'needs-consent' ? 'idle' : state.status,
-        ...(state.status === 'needs-consent' || state.status === 'answered' || state.status === 'failed' || state.status === 'timeout' || state.status === 'unconfigured'
-          ? { snapshot: null, answer: null, failure: null }
-          : {}),
-      };
+      if (action.question === state.question) return state;
+      // Any edit revokes consent, including while a request is still running.
+      // Its server request may complete, but it cannot update this question's UI.
+      return { status: 'idle', question: action.question, snapshot: null, answer: null, failure: null, requestId: state.requestId + 1 };
     case 'ENTER_CONSENT':
-      return { ...state, status: 'needs-consent' };
+      return state.status === 'idle' && state.question.trim()
+        ? { ...state, status: 'needs-consent' }
+        : state;
     case 'REVOKE_CONSENT':
-      return { ...ASK_INITIAL, question: state.question };
+      return { ...ASK_INITIAL, question: state.question, requestId: state.requestId + 1 };
     case 'CHOOSE_PROVIDER':
+      if (state.status !== 'needs-consent' || !state.question.trim() || !action.modelId) return state;
       return {
         ...state,
         status: 'generating',
-        snapshot: { question: state.question, provider: action.provider, modelId: action.modelId },
+        snapshot: { question: state.question.trim(), provider: action.provider, modelId: action.modelId },
+        answer: null,
+        failure: null,
+        requestId: state.requestId + 1,
       };
+    case 'RETRY':
+      // Retrying is a fresh user action for precisely the previously consented snapshot.
+      // Never silently re-resolve the model from a changed catalog.
+      if (!['failed', 'timeout'].includes(state.status) || !state.snapshot || state.snapshot.question !== state.question.trim()) return state;
+      return { ...state, status: 'generating', answer: null, failure: null, requestId: state.requestId + 1 };
     case 'RECEIVE_ANSWER':
+      if (state.status !== 'generating' || state.requestId !== action.requestId) return state;
       return {
         ...state,
         status: action.answer.text ? 'answered' : 'failed',
-        answer: action.answer,
+        answer: action.answer.text ? action.answer : null,
         failure: action.answer.text ? null : { code: 'AI_EMPTY_RESPONSE', message: 'The provider returned no text.', durationMs: action.answer.durationMs },
       };
     case 'RECEIVE_ERROR':
+      if (state.status !== 'generating' || state.requestId !== action.requestId) return state;
       return { ...state, status: action.status, failure: action.failure, answer: null };
     case 'RESET':
-      return ASK_INITIAL;
+      return { ...ASK_INITIAL, requestId: state.requestId + 1 };
     default:
       return state;
   }

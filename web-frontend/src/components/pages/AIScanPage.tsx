@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useReducer, useState } from 'react';
+import { useCallback, useMemo, useReducer, useRef, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -34,16 +34,16 @@ import { api } from '../../lib/api';
 import type { SystemSnapshot } from '../../lib/api';
 import {
   aiAskAvailable,
+  askConsentSnapshot,
   askReduce,
   ASK_INITIAL,
   askStateFromError,
   buildConsentPlan,
-  consentedModelId,
   formatDuration,
   normalizeAnswer,
   routeQueryToTarget,
 } from '../../lib/aiAskState';
-import type { AiCatalogEntry, AiCatalogFlags, AiProviderId } from '../../lib/aiAskState';
+import type { AiCatalogEntry, AiCatalogFlags, AiProviderId, AskSnapshot } from '../../lib/aiAskState';
 import { activityLine } from '../../lib/shellActivity';
 import type { ShellActivity, ShellActivityLine, ShellActivityStatus } from '../../lib/shellActivity';
 
@@ -172,6 +172,7 @@ export default function AIScanPage({
   const [aiCatalog, setAiCatalog] = useState<AiCatalogEntry[] | null>(null);
   const [aiFlags, setAiFlags] = useState<AiCatalogFlags | null>(null);
   const [ask, dispatchAsk] = useReducer(askReduce, ASK_INITIAL);
+  const activeAskRequest = useRef<number | null>(null);
   const [aiAskElapsed, setAiAskElapsed] = useState(0);
 
   const refreshAiCatalog = useCallback(async (): Promise<{ catalog: AiCatalogEntry[]; flags: AiCatalogFlags } | null> => {
@@ -405,13 +406,10 @@ export default function AIScanPage({
     return () => window.clearInterval(timer);
   }, []);
 
-  const handleChooseProvider = useCallback(async (provider: AiProviderId, questionOverride?: string) => {
-    const question = (questionOverride ?? ask.question).trim();
-    if (!question) return;
-    const modelId = consentedModelId(aiCatalog ?? [], provider);
-    if (!modelId) return;
-    const snapshot = { question, provider, modelId };
-    dispatchAsk({ type: 'CHOOSE_PROVIDER', provider, modelId });
+  const runConsentedAsk = useCallback(async (snapshot: AskSnapshot, requestId: number) => {
+    // React can receive two clicks before rerendering. Send at most once per action.
+    if (activeAskRequest.current !== null) return;
+    activeAskRequest.current = requestId;
     setAiAskElapsed(0);
     const stopTimer = generateElapsed();
     const t0 = Date.now();
@@ -423,22 +421,45 @@ export default function AIScanPage({
           ? 'أنت مساعد KNOUX Repair في تطبيق صيانة محلي لويندوز. أجب إجابة موجزة (حتى 180 كلمة) بلغة المستخدم، بناءً على سؤاله فقط. لا تزعم أبداً أنك فحصت الجهاز أو شغلت أدوات. إن كانت الصيانة مطلوبة، فاذكر عائلة الخدمة المناسبة (الحيوية، الاسترداد والتخزين، الضمان، مكتبة البرمجيات، منصة الهندسة، أو التحقيق) دون اختلاق أي قياسات.'
           : "You are KNOUX Repair's assistant inside a local Windows maintenance app. Answer the user's stated question concisely (up to 180 words), in the user's language, using the question text alone. Never claim to have scanned, inspected, or run tools. If maintenance is needed, name the relevant KNOUX service family (Vitality, Recovery & Storage, Assurance, Software Library, Engineering Workbench, or Investigation) without inventing measurements.",
       });
-      stopTimer();
-      dispatchAsk({ type: 'RECEIVE_ANSWER', answer: normalizeAnswer(res, Date.now() - t0) });
+      dispatchAsk({ type: 'RECEIVE_ANSWER', requestId, answer: normalizeAnswer(res, Date.now() - t0) });
     } catch (err) {
-      stopTimer();
       const bridgeErr = err as { code?: string; message?: string };
-      const outcome = askStateFromError({
-        code: bridgeErr?.code || undefined,
-        message: bridgeErr?.message,
-      });
+      const outcome = askStateFromError({ code: bridgeErr?.code, message: bridgeErr?.message });
       dispatchAsk({
         type: 'RECEIVE_ERROR',
+        requestId,
         failure: { code: outcome.code, message: outcome.message || String(bridgeErr?.message || ''), durationMs: Date.now() - t0 },
         status: outcome.state,
       });
+    } finally {
+      stopTimer();
+      if (activeAskRequest.current === requestId) activeAskRequest.current = null;
     }
-  }, [ask.question, aiCatalog, generateElapsed, isRtl]);
+  }, [generateElapsed, isRtl]);
+
+  const handleChooseProvider = useCallback((provider: AiProviderId) => {
+    if (ask.status !== 'needs-consent') return;
+    const decision = askConsentSnapshot(aiCatalog ?? [], aiFlags ?? { hasGeminiKey: false, hasOpenRouterKey: false }, provider, ask.question);
+    if (!('ok' in decision)) return;
+    const requestId = ask.requestId + 1;
+    if (activeAskRequest.current !== null) return;
+    dispatchAsk({ type: 'CHOOSE_PROVIDER', provider, modelId: decision.ok.modelId });
+    void runConsentedAsk(decision.ok, requestId);
+  }, [ask.question, ask.requestId, ask.status, aiCatalog, aiFlags, runConsentedAsk]);
+
+  const handleRetryAsk = useCallback(() => {
+    if (!ask.snapshot || !['failed', 'timeout'].includes(ask.status) || ask.question.trim() !== ask.snapshot.question) return;
+    if (activeAskRequest.current !== null) return;
+    const requestId = ask.requestId + 1;
+    dispatchAsk({ type: 'RETRY' });
+    void runConsentedAsk(ask.snapshot, requestId);
+  }, [ask.question, ask.requestId, ask.snapshot, ask.status, runConsentedAsk]);
+
+  const resetAsk = useCallback(() => {
+    activeAskRequest.current = null;
+    setSearchQuery('');
+    dispatchAsk({ type: 'RESET' });
+  }, []);
 
   const currentSystemSummary = useMemo(() => {
     if (!systemSnapshot) return isRtl ? 'لم يتم تحديد هدف.' : 'No target selected.';
@@ -600,6 +621,7 @@ export default function AIScanPage({
               type="text"
               value={searchQuery}
               onChange={e => {
+                activeAskRequest.current = null;
                 setSearchQuery(e.target.value);
                 dispatchAsk({ type: 'SET_QUESTION', question: e.target.value });
               }}
@@ -647,7 +669,7 @@ export default function AIScanPage({
             <p>{ask.failure?.message || (isRtl
               ? 'يتطلب هذا السؤال مزوداً مُهيّأً. أضف مفتاح المزود في .env.local وأعد تشغيل الجسر.'
               : 'Answering this needs a configured provider. Add the provider key in .env.local and restart the bridge.')}</p>
-            <button type="button" className="knoux-ai-op-action-btn" onClick={() => dispatchAsk({ type: 'RESET' })}>
+            <button type="button" className="knoux-ai-op-action-btn" onClick={resetAsk}>
               {isRtl ? 'رجوع' : 'Back'}
             </button>
           </div>
@@ -687,14 +709,14 @@ export default function AIScanPage({
                   className="knoux-ai-ask-provider"
                   disabled={!choice.enabled || aiFlags === null}
                   title={choice.enabled ? choice.label : (isRtl ? 'لا يوجد مفتاح مُهيّأ لهذا المزود' : 'No key configured for this provider')}
-                  onClick={() => void handleChooseProvider(choice.id)}
+                  onClick={() => handleChooseProvider(choice.id)}
                 >
                   <span>{choice.id === 'google' ? (isRtl ? 'جوجل Gemini' : 'Google Gemini') : (isRtl ? 'OpenRouter' : 'OpenRouter')}</span>
                   <small>{choice.enabled ? choice.label : (isRtl ? 'غير مُهيّأ' : 'Not configured')}</small>
                 </button>
               ))}
             </div>
-            <button type="button" className="knoux-ai-op-action-btn" onClick={() => dispatchAsk({ type: 'RESET' })}>
+            <button type="button" className="knoux-ai-op-action-btn" onClick={resetAsk}>
               {isRtl ? 'إلغاء' : 'Cancel'}
             </button>
           </div>
@@ -738,7 +760,7 @@ export default function AIScanPage({
             <small className="knoux-ai-ask-disclaimer">{isRtl
               ? 'نص مولّد من نموذج لغوي؛ لا يُعد نتيجة فحص نظام. تحقّق من الخطوات عبر الأدوات المحلية الحقيقية قبل أي إجراء.'
               : 'Generated text from a language model; not a system inspection result. Verify steps with the real local tools before acting.'}</small>
-            <button type="button" className="knoux-ai-op-action-btn" onClick={() => dispatchAsk({ type: 'RESET' })}>
+            <button type="button" className="knoux-ai-op-action-btn" onClick={resetAsk}>
               {isRtl ? 'سؤال جديد' : 'New question'}
             </button>
           </div>
@@ -759,15 +781,12 @@ export default function AIScanPage({
             </small>
             <div className="knoux-ai-ask-retry-row">
               {ask.snapshot && (
-                <button type="button" className="knoux-ai-op-action-btn" onClick={() => {
-                  const snap = ask.snapshot;
-                  if (snap) handleChooseProvider(snap.provider, snap.question);
-                }}>
+                <button type="button" className="knoux-ai-op-action-btn" onClick={handleRetryAsk}>
                   <RotateCcw size={12} />
                   <span>{isRtl ? 'إعادة المحاولة عبر نفس المزود' : 'Retry via the same provider'}</span>
                 </button>
               )}
-              <button type="button" className="knoux-ai-op-action-btn" onClick={() => dispatchAsk({ type: 'RESET' })}>
+              <button type="button" className="knoux-ai-op-action-btn" onClick={resetAsk}>
                 {isRtl ? 'رجوع' : 'Back'}
               </button>
             </div>

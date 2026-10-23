@@ -58,6 +58,7 @@ test('consent → choose provider → generating, snapshot holds question + prov
   state = askReduce(state, { type: 'ENTER_CONSENT' });
   assert.equal(state.status, 'needs-consent');
 
+  state = askReduce(state, { type: 'ENTER_CONSENT' });
   state = askReduce(state, { type: 'CHOOSE_PROVIDER', provider: 'google', modelId: 'gemini-3.8-flash' });
   assert.equal(state.status, 'generating');
   assert.equal(state.snapshot?.question, 'slow RAM');
@@ -68,14 +69,19 @@ test('consent → choose provider → generating, snapshot holds question + prov
 test('editing the question revokes consent (no stale resend)', () => {
   let state = askReduce(ASK_INITIAL, { type: 'SET_QUESTION', question: 'first question' });
   state = askReduce(state, { type: 'ENTER_CONSENT' });
+  state = askReduce(state, { type: 'ENTER_CONSENT' });
   state = askReduce(state, { type: 'CHOOSE_PROVIDER', provider: 'google', modelId: 'gemini-3.8-flash' });
   assert.equal(state.status, 'generating');
 
-  // Editing mid-flow updates only the local text (in-flight request keeps its snapshot).
+  // Editing mid-flight revokes consent; its late response must be ignored.
+  const obsoleteRequestId = state.requestId;
   state = askReduce(state, { type: 'SET_QUESTION', question: 'edited question' });
-  assert.equal(state.status, 'generating');
+  assert.equal(state.status, 'idle');
   assert.equal(state.question, 'edited question');
-  assert.equal(state.snapshot?.question, 'first question'); // snapshot untouched
+  assert.equal(state.snapshot, null);
+  state = askReduce(state, { type: 'RECEIVE_ANSWER', requestId: obsoleteRequestId, answer: normalizeAnswer({ text: 'obsolete answer' }, 50) });
+  assert.equal(state.status, 'idle');
+  assert.equal(state.answer, null);
 
   // Editing while waiting for consent revokes consent entirely.
   const revoked = askReduce(askReduce(ASK_INITIAL, { type: 'SET_QUESTION', question: 'q' }), { type: 'ENTER_CONSENT' });
@@ -87,10 +93,11 @@ test('editing the question revokes consent (no stale resend)', () => {
 
 test('successful mock provider response → answered with real fields', () => {
   let state = askReduce(ASK_INITIAL, { type: 'SET_QUESTION', question: 'RAM usage' });
+  state = askReduce(state, { type: 'ENTER_CONSENT' });
   state = askReduce(state, { type: 'CHOOSE_PROVIDER', provider: 'google', modelId: 'gemini-3.8-flash' });
   const started = Date.now();
   const res = { ok: true, model: 'gemini-3.8-flash', provider: 'google', text: 'Close browser tabs.', codeSnippets: [], executionTimeMs: 800 };
-  state = askReduce(state, { type: 'RECEIVE_ANSWER', answer: normalizeAnswer(res, Date.now() - started) });
+  state = askReduce(state, { type: 'RECEIVE_ANSWER', requestId: state.requestId, answer: normalizeAnswer(res, Date.now() - started) });
   assert.equal(state.status, 'answered');
   assert.equal(state.answer.text, 'Close browser tabs.');
   assert.equal(state.answer.model, 'gemini-3.8-flash');
@@ -100,18 +107,21 @@ test('successful mock provider response → answered with real fields', () => {
 
 test('mock provider returning no text → failed honestly, no fabricated answer', () => {
   let state = askReduce(ASK_INITIAL, { type: 'SET_QUESTION', question: 'RAM usage' });
+  state = askReduce(state, { type: 'ENTER_CONSENT' });
   state = askReduce(state, { type: 'CHOOSE_PROVIDER', provider: 'google', modelId: 'gemini-3.8-flash' });
-  state = askReduce(state, { type: 'RECEIVE_ANSWER', answer: normalizeAnswer({ model: 'x', provider: 'google', text: '', codeSnippets: [], executionTimeMs: 10 }, 40) });
+  state = askReduce(state, { type: 'RECEIVE_ANSWER', requestId: state.requestId, answer: normalizeAnswer({ model: 'x', provider: 'google', text: '', codeSnippets: [], executionTimeMs: 10 }, 40) });
   assert.equal(state.status, 'failed');
   assert.equal(state.failure.code, 'AI_EMPTY_RESPONSE');
-  assert.equal(state.answer.text, '');
+  assert.equal(state.answer, null);
 });
 
 test('provider 502 → failed with real code and duration', () => {
   let state = askReduce(ASK_INITIAL, { type: 'SET_QUESTION', question: 'RAM usage' });
+  state = askReduce(state, { type: 'ENTER_CONSENT' });
   state = askReduce(state, { type: 'CHOOSE_PROVIDER', provider: 'openrouter', modelId: 'deepseek/deepseek-r1:free' });
   state = askReduce(state, {
     type: 'RECEIVE_ERROR',
+    requestId: state.requestId,
     failure: { code: 'AI_PROVIDER_ERROR', message: 'Provider returned error', durationMs: 903 },
     status: 'failed',
   });
@@ -125,12 +135,17 @@ test('provider 502 → failed with real code and duration', () => {
 test('abort / timeout → timeout state (not a fabricated answer)', () => {
   const mapped = askStateFromError({ code: 'TIMEOUT', message: 'aborted', durationMs: 60000 });
   assert.equal(mapped.state, 'timeout');
-  let state = askReduce(ASK_INITIAL, { type: 'RECEIVE_ERROR', failure: { code: mapped.code, message: mapped.message, durationMs: 60000 }, status: mapped.state });
+  let state = askReduce(ASK_INITIAL, { type: 'SET_QUESTION', question: 'diagnose network' });
+  state = askReduce(state, { type: 'ENTER_CONSENT' });
+  state = askReduce(state, { type: 'CHOOSE_PROVIDER', provider: 'google', modelId: 'gemini-3.8-flash' });
+  state = askReduce(state, { type: 'RECEIVE_ERROR', requestId: state.requestId, failure: { code: mapped.code, message: mapped.message, durationMs: 60000 }, status: mapped.state });
   assert.equal(state.status, 'timeout');
 
   const byMessage = askStateFromError({ code: 'AI_PROVIDER_ERROR', message: 'The operation was aborted due to timeout', durationMs: 45000 });
   assert.equal(byMessage.state, 'timeout');
-  state = askReduce(state, { type: 'RECEIVE_ERROR', failure: { code: byMessage.code, message: byMessage.message, durationMs: 45000 }, status: byMessage.state });
+  state = askReduce(state, { type: 'RETRY' });
+  assert.equal(state.status, 'generating');
+  state = askReduce(state, { type: 'RECEIVE_ERROR', requestId: state.requestId, failure: { code: byMessage.code, message: byMessage.message, durationMs: 45000 }, status: byMessage.state });
   assert.equal(state.status, 'timeout');
 
   const byError = askStateFromError({ code: 'BRIDGE_UNREACHABLE', message: 'Failed to fetch' });
@@ -148,8 +163,12 @@ test('Origin or Bridge Token rejection → failed honestly (security boundary in
 });
 
 test('unconfigured provider → unconfigured state', () => {
-  const state = askReduce(ASK_INITIAL, {
+  let state = askReduce(ASK_INITIAL, { type: 'SET_QUESTION', question: 'is it working?' });
+  state = askReduce(state, { type: 'ENTER_CONSENT' });
+  state = askReduce(state, { type: 'CHOOSE_PROVIDER', provider: 'google', modelId: 'gemini-3.8-flash' });
+  state = askReduce(state, {
     type: 'RECEIVE_ERROR',
+    requestId: state.requestId,
     failure: { code: 'AI_PROVIDER_NOT_CONFIGURED', message: 'no Google AI key', durationMs: 0 },
     status: 'unconfigured',
   });
@@ -180,14 +199,23 @@ test('consentedModelId never invents an id outside the catalog', () => {
 
 test('retry resends the same snapshot question', () => {
   let state = askReduce(ASK_INITIAL, { type: 'SET_QUESTION', question: 'disk space' });
+  state = askReduce(state, { type: 'ENTER_CONSENT' });
   state = askReduce(state, { type: 'CHOOSE_PROVIDER', provider: 'google', modelId: 'gemini-3.8-flash' });
   state = askReduce(state, {
     type: 'RECEIVE_ERROR',
+    requestId: state.requestId,
     failure: { code: 'AI_PROVIDER_ERROR', message: 'Provider returned error', durationMs: 329 },
     status: 'failed',
   });
   assert.equal(state.status, 'failed');
-  assert.equal(state.snapshot?.question, 'disk space'); // retry would resend exactly this
+  const original = structuredClone(state.snapshot);
+  const obsoleteRequestId = state.requestId;
+  state = askReduce(state, { type: 'RETRY' });
+  assert.equal(state.status, 'generating');
+  assert.deepEqual(state.snapshot, original); // exact question + provider + model survive retry
+  assert.ok(state.requestId > obsoleteRequestId);
+  state = askReduce(state, { type: 'RECEIVE_ANSWER', requestId: obsoleteRequestId, answer: normalizeAnswer({ text: 'stale' }, 100) });
+  assert.equal(state.status, 'generating'); // previous request cannot overwrite a retry
 });
 
 test('formatDuration is honest for real and invalid durations', () => {
@@ -195,4 +223,34 @@ test('formatDuration is honest for real and invalid durations', () => {
   assert.equal(formatDuration(1234), '1.2s');
   assert.equal(formatDuration(-5), '0.0s');
   assert.equal(formatDuration(Number.NaN), '0.0s');
+});
+
+test('consent is mandatory and retry cannot substitute a changed question', () => {
+  let state = askReduce(ASK_INITIAL, { type: 'SET_QUESTION', question: 'original' });
+  assert.equal(askReduce(state, { type: 'CHOOSE_PROVIDER', provider: 'google', modelId: 'gemini-3.8-flash' }), state);
+  state = askReduce(state, { type: 'ENTER_CONSENT' });
+  state = askReduce(state, { type: 'CHOOSE_PROVIDER', provider: 'google', modelId: 'gemini-3.8-flash' });
+  const previousId = state.requestId;
+  state = askReduce(state, { type: 'RECEIVE_ERROR', requestId: previousId, failure: { code: 'AI_PROVIDER_ERROR', message: 'failed', durationMs: 10 }, status: 'failed' });
+  state = askReduce(state, { type: 'SET_QUESTION', question: 'different' });
+  assert.equal(state.status, 'idle');
+  assert.equal(state.snapshot, null);
+  assert.equal(askReduce(state, { type: 'RETRY' }), state);
+});
+
+test('reset clears question, invalidates running request, and ignores late answer/error', () => {
+  let state = askReduce(ASK_INITIAL, { type: 'SET_QUESTION', question: 'reset me' });
+  state = askReduce(state, { type: 'ENTER_CONSENT' });
+  state = askReduce(state, { type: 'CHOOSE_PROVIDER', provider: 'openrouter', modelId: 'deepseek/deepseek-r1:free' });
+  const staleId = state.requestId;
+  state = askReduce(state, { type: 'RESET' });
+  assert.equal(state.question, '');
+  assert.equal(state.snapshot, null);
+  assert.equal(state.status, 'idle');
+  assert.ok(state.requestId > staleId);
+  state = askReduce(state, { type: 'RECEIVE_ANSWER', requestId: staleId, answer: normalizeAnswer({ text: 'late' }, 300) });
+  state = askReduce(state, { type: 'RECEIVE_ERROR', requestId: staleId, status: 'failed', failure: { code: 'STALE', message: 'late', durationMs: 300 } });
+  assert.equal(state.status, 'idle');
+  assert.equal(state.answer, null);
+  assert.equal(state.failure, null);
 });
