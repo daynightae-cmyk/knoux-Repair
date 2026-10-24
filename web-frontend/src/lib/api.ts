@@ -665,6 +665,9 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 30000): 
       },
     });
   } catch (e) {
+    if (controller.signal.aborted) {
+      throw new BridgeError(0, 'TIMEOUT', `The request exceeded ${Math.round(timeoutMs / 1000)} seconds.`);
+    }
     throw new BridgeError(0, 'BRIDGE_UNREACHABLE', String(e instanceof Error ? e.message : e));
   } finally {
     window.clearTimeout(timer);

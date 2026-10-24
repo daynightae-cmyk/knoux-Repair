@@ -97,12 +97,14 @@ const TEST_TIMEOUT_TOOL_ID = '__KNOUX_TEST_TIMEOUT__';
 const TEST_TIMEOUT_SCRIPT_PATH = path.join(os.tmpdir(), `knoux-bridge-timeout-${process.pid}.ps1`);
 const MAX_BUFFERED_LINES = 5000;
 const SYSTEM_CACHE_MS = 60 * 1000;
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENROUTER_API_URL = process.env.OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'openrouter/free';
 const OPENROUTER_CONFIGURED = Boolean(process.env.OPENROUTER_API_KEY && /^sk-or-v1-[A-Za-z0-9]+$/.test(process.env.OPENROUTER_API_KEY));
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_CONFIGURED = GEMINI_API_KEY.length >= 16;
-const GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash';
+const GEMINI_DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+const GEMINI_API_BASE = (process.env.GEMINI_API_BASE || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, '');
+const AI_PROVIDER_TIMEOUT_MS = Math.min(180000, Math.max(1000, Number(process.env.AI_PROVIDER_TIMEOUT_MS) || 110000));
 const SONAR_EXPORT_DIR = path.join(DATA_ROOT, 'Reports', 'Project-Sonar-Exports');
 const SONAR_EXPORT_TTL_MS = 60 * 60 * 1000;
 const sonarExports = new Map();
@@ -1329,8 +1331,23 @@ async function getProjectSonarAiAnalysis(value, language) {
  * When no usable key exists the bridge returns a structured unavailable
  * response (503 AI_PROVIDER_NOT_CONFIGURED) — it never invents an answer.
  */
+/* AI model catalog — server-owned list of models the local bridge may route
+ * to. Entries are identifiers only; a listed model is not "live verified":
+ * real availability depends on the configured key/account and provider load,
+ * which the bridge reports honestly per request (configured / not configured /
+ * provider error / timeout).
+ *
+ * Observed in this environment (2026-10): Google rejected gemini-2.5-flash for
+ * this key ("no longer available to new users") and recommended
+ * gemini-3.8-flash, which answered the same key. gemini-2.5-flash is therefore
+ * not listed: offering it would route users to a known-rejected model.
+ * OpenRouter free-tier entries returned provider errors during testing —
+ * account/quota dependent, not declared retired. */
 const AI_MODEL_CATALOG = [
-  { id: 'gemini-2.5-flash', provider: 'google', label: 'Gemini Flash (Google AI Studio)' },
+  // Google AI Studio (GEMINI_API_KEY only)
+  { id: 'gemini-3.8-flash', provider: 'google', label: 'Gemini 3.8 Flash (Google AI Studio)' },
+  // OpenRouter (OPENROUTER_API_KEY only) — free tier entries from the
+  // provider's public model list; availability depends on the account.
   { id: 'deepseek/deepseek-r1:free', provider: 'openrouter', label: 'DeepSeek R1 (OpenRouter)' },
   { id: 'qwen/qwen-2.5-coder-32b-instruct:free', provider: 'openrouter', label: 'Qwen Coder (OpenRouter)' },
   { id: 'meta-llama/llama-3.2-3b-instruct:free', provider: 'openrouter', label: 'Llama 3.2 (OpenRouter)' },
@@ -1349,11 +1366,16 @@ function extractCodeSnippets(text) {
   return snippets;
 }
 
-async function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
+async function fetchWithTimeout(url, options = {}, timeoutMs = AI_PROVIDER_TIMEOUT_MS) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted || error?.name === 'AbortError') {
+      throw Object.assign(new Error(`The AI provider did not respond within ${Math.round(timeoutMs / 1000)} seconds.`), { status: 504, code: 'AI_TIMEOUT' });
+    }
+    throw Object.assign(new Error(`The AI provider could not be reached: ${String(error?.message || error).slice(0, 300)}`), { status: 502, code: 'AI_PROVIDER_UNREACHABLE' });
   } finally {
     clearTimeout(timer);
   }
@@ -1390,7 +1412,7 @@ async function generateWithOpenRouter({ apiKey, model, prompt, systemPrompt }) {
 async function generateWithGemini({ model, prompt, systemPrompt }) {
   const startedAt = Date.now();
   const safeModel = /^[A-Za-z0-9][A-Za-z0-9._-]{1,80}$/.test(model) ? model : GEMINI_DEFAULT_MODEL;
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(safeModel)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+  const endpoint = `${GEMINI_API_BASE}/models/${encodeURIComponent(safeModel)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
   const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
