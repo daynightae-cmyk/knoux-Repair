@@ -90,12 +90,17 @@ export function classifyAuditOutput(stdout, stderr, exitCode) {
 export function summarizeAdvisories(advisories) {
   const rows = [];
   for (const [name, entries] of Object.entries(advisories ?? {})) {
-    for (const entry of Array.isArray(entries) ? entries : []) {
+    // npm 11 reports one object per vulnerable package (with its advisory
+    // detail under `via`); older reporters used an array of entries.
+    for (const entry of Array.isArray(entries) ? entries : [entries]) {
+      if (!entry || typeof entry !== 'object') continue;
+      const via = Array.isArray(entry.via) ? entry.via : [];
+      const advisory = via.find(item => item && typeof item === 'object' && (item.title || item.url)) ?? {};
       rows.push({
-        name,
-        severity: entry.severity ?? 'unknown',
-        title: entry.title ?? entry.url ?? '',
-        range: entry.range ?? '',
+        name: entry.name ?? name,
+        severity: entry.severity ?? advisory.severity ?? 'unknown',
+        title: entry.title ?? advisory.title ?? advisory.url ?? entry.url ?? '',
+        range: entry.range ?? advisory.range ?? '',
       });
     }
   }
@@ -184,8 +189,9 @@ function sleep(ms) {
 
 export async function runAuditGate({ cwd = process.cwd(), log = console.log } = {}) {
   const runner = await resolveAuditRunner(cwd);
+  const runnerVersion = `${(await run(runner.command, [...runner.prefix, '--version'], { cwd })).stdout}`.trim();
   log(`KNOuX production advisory gate`);
-  log(`  npm: ${runner.npmMajor || 'unknown'}${runner.viaNpx ? ' (audit runs through npm@11: bulk advisory endpoint only)' : ' (bulk advisory endpoint)'}`);
+  log(`  npm: ${runner.npmMajor || 'unknown'}${runner.viaNpx ? ' (audit runs through npm@11: bulk advisory endpoint only)' : ' (bulk advisory endpoint)'}; runner ${runnerVersion || 'unknown'}`);
   log(`  scope: production dependencies only, dev omitted; fails at ${AUDIT_LEVEL}`);
 
   let last = null;
