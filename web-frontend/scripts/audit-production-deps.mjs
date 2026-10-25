@@ -168,8 +168,10 @@ export async function resolveAuditRunner(cwd) {
     const target = launcher.npm ?? shellFallback(npmExecutable, []);
     return { command: target.command, prefix: target.prefix, npmMajor: major, viaNpx: false };
   }
-  const target = launcher.npx ?? shellFallback(npxExecutable, ['--yes', 'npm@11']);
-  return { command: target.command, prefix: [...target.prefix, '--yes', 'npm@11'], npmMajor: major, viaNpx: true };
+  // Pin npm@11 version to avoid stale npx cache producing false audit results.
+  const pinnedNpm11 = 'npm@11.21.1';
+  const target = launcher.npx ?? shellFallback(npxExecutable, ['--yes', pinnedNpm11]);
+  return { command: target.command, prefix: [...target.prefix, '--yes', pinnedNpm11], npmMajor: major, viaNpx: true };
 }
 
 function auditEnv() {
