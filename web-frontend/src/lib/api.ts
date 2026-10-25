@@ -665,6 +665,9 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 30000): 
       },
     });
   } catch (e) {
+    if (controller.signal.aborted) {
+      throw new BridgeError(0, 'TIMEOUT', `The request exceeded ${Math.round(timeoutMs / 1000)} seconds.`);
+    }
     throw new BridgeError(0, 'BRIDGE_UNREACHABLE', String(e instanceof Error ? e.message : e));
   } finally {
     window.clearTimeout(timer);
@@ -681,6 +684,29 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 30000): 
     throw new BridgeError(res.status, body?.error || 'HTTP_ERROR', body?.message || `HTTP ${res.status}`);
   }
   return body as T;
+}
+
+/**
+ * Concurrent readers of one read-only preview share a single bridge request.
+ *
+ * A preview is a real measurement — the bridge runs a PowerShell script and
+ * waits for it — so two surfaces on the same screen asking for the same
+ * preview at the same time used to run the script twice at once and made it
+ * likelier to time out. Only *concurrent* calls are merged: the entry is
+ * dropped the moment the request settles, so a later call always asks the
+ * bridge again and never serves a stale reading.
+ */
+const inFlightReads = new Map<string, Promise<unknown>>();
+
+function shareRead<T>(key: string, run: () => Promise<T>): Promise<T> {
+  const existing = inFlightReads.get(key);
+  if (existing) return existing as Promise<T>;
+  const pending = run();
+  inFlightReads.set(key, pending);
+  pending.catch(() => {}).then(() => {
+    if (inFlightReads.get(key) === pending) inFlightReads.delete(key);
+  });
+  return pending;
 }
 
 export interface AiGenerateRequest {
@@ -742,7 +768,7 @@ export const api = {
   duplicatesJobCancel: (scanId: string) =>
     request<{ cancelled: boolean }>(`/api/duplicates/jobs/${encodeURIComponent(scanId)}/cancel`, { method: 'POST' }, 30000),
   duplicatesLatestScan: () =>
-    request<{ scan: Record<string, string | number | null> | null; preview: DuplicatePreview | null }>('/api/duplicates/scans?latest=1', undefined, 60000),
+    shareRead('duplicates-latest-scan', () => request<{ scan: Record<string, string | number | null> | null; preview: DuplicatePreview | null }>('/api/duplicates/scans?latest=1', undefined, 60000)),
   duplicatesHistory: (limit = 30) =>
     request<{ history: Array<Record<string, string | number | null>> }>(`/api/duplicates/history?limit=${limit}`, undefined, 30000),
   duplicatesRestore: (quarantineIds: string[]) =>
@@ -758,10 +784,10 @@ export const api = {
   performancePreview: () => request<{ preview: PerformancePreview }>('/api/performance/preview', undefined, 125000),
   optimizationPreview: () => request<{ preview: OptimizationPreview }>('/api/performance/optimization-preview', undefined, 125000),
   diagnosticsPreview: () => request<{ preview: DiagnosticsPreview }>('/api/diagnostics/preview', undefined, 125000),
-  backupRecoveryPreview: () => request<{ preview: BackupRecoveryPreview }>('/api/backup-recovery/preview', undefined, 125000),
+  backupRecoveryPreview: () => shareRead('backup-recovery-preview', () => request<{ preview: BackupRecoveryPreview }>('/api/backup-recovery/preview', undefined, 125000)),
   driversPreview: () => request<{ preview: DriversPreview }>('/api/drivers/preview', undefined, 125000),
   privacyPreview: () => request<{ preview: PrivacyPreview }>('/api/privacy/preview', undefined, 125000),
-  cleanupPreview: () => request<{ preview: CleanupPreview }>('/api/cleanup/preview', undefined, 125000),
+  cleanupPreview: () => shareRead('cleanup-preview', () => request<{ preview: CleanupPreview }>('/api/cleanup/preview', undefined, 125000)),
   postInstallPreview: () => request<{ preview: PostInstallPreview }>('/api/post-install/preview', undefined, 125000),
   advancedSoftwarePreview: () => request<{ preview: AdvancedSoftwarePreview }>('/api/software-advanced/preview', undefined, 125000),
 

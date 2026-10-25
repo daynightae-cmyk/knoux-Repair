@@ -1,6 +1,7 @@
 .knoux-workspace[data-view="home"] {
   padding: 7px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background:
     linear-gradient(rgba(0, 138, 255, 0.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 138, 255, 0.035) 1px, transparent 1px),
@@ -537,7 +538,6 @@
 
 @media (max-height: 800px) {
   .knoux-body[data-view="home"] .knoux-rail-brand-card { display: none !important; }
-  .knoux-workspace[data-view="home"] { overflow: hidden; }
   .knoux-home-route { height: 100%; min-height: 0; }
   .knoux-home { min-height: 0; }
   .knoux-home__main { grid-template-rows: minmax(218px, 1.2fr) auto minmax(138px, .78fr) 62px; gap: 6px; padding: 7px; }

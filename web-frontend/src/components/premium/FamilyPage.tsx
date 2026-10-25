@@ -4,13 +4,23 @@ import { ChevronDown, Layers3, Search } from 'lucide-react';
 import type { FamilyDefinition, FamilyId, ServiceId } from '../../data/family-map';
 import type { BridgeTool, ExecutionMode, ToolRunOptions, ToolRunConfirmation, SystemSnapshot } from '../../lib/api';
 import type { ToolStatus, ConsoleEntry } from '../../types';
+import { studioForFamily, studioDisplayName } from '../../data/studio-registry';
+import { SERVICE_ICONS } from '../../data/studio-icons';
 import HeroSection from './HeroSection';
-import ServiceCard from './ServiceCard';
 import ToolCard from './ToolCard';
 import FamilyLiveStage from './FamilyLiveStage';
 import EngineeringWorkbenchStation from './workbench/EngineeringWorkbenchStation';
 import SoftwareLibraryPage from '../pages/SoftwareLibraryPage';
+import StorageStudio from '../pages/StorageStudio';
+import InvestigationStudio from '../pages/InvestigationStudio';
+import AssuranceStudio from '../pages/AssuranceStudio';
+import WorkbenchStudio from '../pages/WorkbenchStudio';
+import VitalityLab from '../pages/VitalityLab';
+import RecoverySpotlight from './RecoverySpotlight';
+import AssuranceSpotlight from './AssuranceSpotlight';
 import FamilyOverviewPage from '../pages/FamilyOverviewPage';
+import StudioHeader from '../shell/StudioHeader';
+import StudioNavigation from '../shell/StudioNavigation';
 
 interface FamilyPageProps {
   family: FamilyDefinition;
@@ -49,9 +59,10 @@ export default function FamilyPage({
   selectedService, onSelectService,
   selectedToolId, onSelectTool, onRetryBridge,
     systemSnapshot, consoleEntries, activeToolId, onNavigateService,
-  }: FamilyPageProps) {
+}: FamilyPageProps) {
   const [toolQuery, setToolQuery] = useState('');
   const [toolsExpanded, setToolsExpanded] = useState(false);
+  const [briefOpen, setBriefOpen] = useState(false);
   const familyServiceIds = useMemo(() => new Set(family.services.map(service => service.id)), [family.services]);
   const familyTools = useMemo(
     () => tools.filter(tool => familyServiceIds.has(tool.Category as ServiceId)),
@@ -139,6 +150,104 @@ export default function FamilyPage({
       );
     }
 
+    if (family.id === 'vitality') {
+      return (
+        <VitalityLab
+          family={family}
+          tools={tools}
+          lang={lang}
+          bridgeOnline={bridgeOnline}
+          bridgeElevated={bridgeElevated}
+          systemSnapshot={systemSnapshot}
+          onSelectService={selectOverviewService}
+          onSelectTool={onSelectTool}
+        />
+      );
+    }
+
+    // The Recovery family is the only one that can destroy user data, so its
+    // overview is a measurement surface: four stations read live from the
+    // bridge, and the family's own action surface stays mounted underneath.
+    if (family.id === 'recovery') {
+      return (
+        <StorageStudio
+          family={family}
+          tools={tools}
+          lang={lang}
+          bridgeOnline={bridgeOnline}
+          bridgeElevated={bridgeElevated}
+          systemSnapshot={systemSnapshot}
+          onSelectService={selectOverviewService}
+        >
+          <RecoverySpotlight
+            lang={lang}
+            bridgeOnline={bridgeOnline}
+            systemSnapshot={systemSnapshot}
+            serviceTools={familyTools}
+            allTools={tools}
+            onSelectTool={onSelectTool}
+          />
+        </StorageStudio>
+      );
+    }
+
+    // Investigation observes rather than repairs, so its overview reads the
+    // diagnostics and operations evidence the bridge collected.
+    if (family.id === 'investigation') {
+      return (
+        <InvestigationStudio
+          family={family}
+          tools={tools}
+          lang={lang}
+          bridgeOnline={bridgeOnline}
+          bridgeElevated={bridgeElevated}
+          systemSnapshot={systemSnapshot}
+          onSelectService={selectOverviewService}
+        />
+      );
+    }
+
+    // Assurance reports what protection the machine actually has, so its
+    // overview reads connectivity, protection state, privacy and drivers.
+    if (family.id === 'assurance') {
+      return (
+        <AssuranceStudio
+          family={family}
+          tools={tools}
+          lang={lang}
+          bridgeOnline={bridgeOnline}
+          bridgeElevated={bridgeElevated}
+          systemSnapshot={systemSnapshot}
+          onSelectService={selectOverviewService}
+        >
+          <AssuranceSpotlight
+            lang={lang}
+            bridgeOnline={bridgeOnline}
+            systemSnapshot={systemSnapshot}
+            serviceTools={familyTools}
+            allTools={tools}
+            onSelectTool={onSelectTool}
+          />
+        </AssuranceStudio>
+      );
+    }
+
+    // The workbench keeps its own station for every service view; this adds
+    // the family overview that was missing, without touching that contract.
+    if (family.id === 'workbench') {
+      return (
+        <WorkbenchStudio
+          family={family}
+          tools={tools}
+          lang={lang}
+          bridgeOnline={bridgeOnline}
+          bridgeElevated={bridgeElevated}
+          systemSnapshot={systemSnapshot}
+          onSelectService={selectOverviewService}
+        />
+      );
+    }
+
     return (
       <FamilyOverviewPage
         family={family}
@@ -153,53 +262,106 @@ export default function FamilyPage({
     );
   }
 
+  const studio = studioForFamily(family);
+  const StudioIcon = studio.icon;
+  const accent = `var(${family.accentVar})`;
+  const serviceCount = family.services.length;
+  const exposedToolCount = bridgeOnline === true ? familyTools.length : null;
+
+  const navigationItems = family.services.map(service => {
+    const count = bridgeOnline === true ? familyTools.filter(tool => tool.Category === service.id).length : null;
+    const Icon = SERVICE_ICONS[service.id];
+    return {
+      id: service.id,
+      label: isRtl ? service.name.ar : service.name.en,
+      icon: <Icon size={14} aria-hidden="true" />,
+      count,
+      title: isRtl ? service.purpose.ar : service.purpose.en,
+    };
+  });
+
   return (
-    <div className={`knoux-family-page knoux-command-center${serviceAppActive ? ' knoux-service-app-active' : ''}`} data-family={family.id} data-service={activeService.id} dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className={`knoux-family-page knoux-command-center knoux-studio-workspace${serviceAppActive ? ' knoux-service-app-active' : ''}`} data-family={family.id} data-service={activeService.id} dir={isRtl ? 'rtl' : 'ltr'} style={{ ['--studio-accent' as string]: accent } as React.CSSProperties}>
       {!showWorkbenchStation && (
       <aside className="knoux-command-rail knoux-command-service-rail" aria-label={isRtl ? 'خدمات العائلة' : 'Family services'}>
-        <header className="knoux-command-rail-header">
-          <span>{isRtl ? 'الخدمات' : 'SERVICES'}</span>
-          <strong>{isRtl ? family.name.ar : family.name.en}</strong>
-          <small>{family.services.length}</small>
-        </header>
-
-        <div className="knoux-command-rail-scroll">
-          {family.services.map(service => {
-            const count = familyTools.filter(tool => tool.Category === service.id).length;
-            return (
-              <ServiceCard
-                key={service.id}
-                service={service}
-                toolCount={bridgeOnline === true ? count : null}
-                active={activeService.id === service.id}
-                onClick={() => selectService(service.id)}
-                lang={lang}
-                accentColor={`var(${family.accentVar})`}
-              />
-            );
-          })}
-        </div>
+        <StudioNavigation
+          items={navigationItems}
+          activeId={activeService.id}
+          onSelect={id => selectService(id as ServiceId)}
+          accent={accent}
+          label={isRtl ? 'خدمات الاستوديو' : 'Studio services'}
+        />
       </aside>
       )}
 
-      <main className="knoux-command-live-column">
-        {family.id !== 'workbench' && (
-        <HeroSection
-          family={family}
-          service={activeService}
-          selectedTool={selectedTool}
-          executionTool={executionTool}
-          familyToolCount={familyTools.length}
-          serviceToolCount={serviceTools.length}
-          lang={lang}
-          bridgeOnline={bridgeOnline}
-          bridgeElevated={bridgeElevated}
-          selectedToolStatus={selectedToolStatus}
-          executionToolStatus={executionToolStatus}
-          systemSnapshot={systemSnapshot}
-          onClearTool={() => onSelectTool(null)}
+      <main className="knoux-command-live-column knoux-studio-surface">
+        <StudioHeader
+          kicker={isRtl ? studioDisplayName(studio, 'ar') : studioDisplayName(studio, 'en')}
+          title={isRtl ? activeService.name.ar : activeService.name.en}
+          description={isRtl ? activeService.purpose.ar : activeService.purpose.en}
+          icon={<StudioIcon size={20} aria-hidden="true" />}
+          accent={accent}
+          metrics={[
+            {
+              label: isRtl ? 'الاستوديو' : 'Studio',
+              value: isRtl ? studioDisplayName(studio, 'ar') : studioDisplayName(studio, 'en'),
+            },
+            {
+              label: isRtl ? 'الخدمات' : 'Services',
+              value: String(serviceCount),
+            },
+            {
+              label: isRtl ? 'الأدوات' : 'Tools',
+              value: exposedToolCount === null ? '—' : String(exposedToolCount),
+            },
+            {
+              label: isRtl ? 'الجسر' : 'Bridge',
+              value: bridgeOnline === true ? (isRtl ? 'متصل' : 'Online') : bridgeOnline === false ? (isRtl ? 'غير متصل' : 'Offline') : (isRtl ? 'فحص' : 'Checking'),
+              tone: bridgeOnline === true ? 'positive' : bridgeOnline === false ? 'danger' : 'caution',
+            },
+          ]}
+          actions={
+            <button
+              type="button"
+              className="knoux-studio-btn"
+              onClick={() => setBriefOpen(value => !value)}
+              aria-expanded={briefOpen}
+              title={isRtl ? 'ملخص الاستوديو' : 'Studio brief'}
+            >
+              <ChevronDown size={13} aria-hidden="true" style={{ transform: briefOpen ? 'rotate(180deg)' : 'none' }} />
+              <span>{isRtl ? 'الموجز' : 'Brief'}</span>
+            </button>
+          }
         />
-        )}
+
+        <AnimatePresence initial={false}>
+          {briefOpen && family.id !== 'workbench' ? (
+            <motion.div
+              key="studio-brief"
+              className="knoux-studio-brief"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+            >
+              <HeroSection
+                family={family}
+                service={activeService}
+                selectedTool={selectedTool}
+                executionTool={executionTool}
+                familyToolCount={familyTools.length}
+                serviceToolCount={serviceTools.length}
+                lang={lang}
+                bridgeOnline={bridgeOnline}
+                bridgeElevated={bridgeElevated}
+                selectedToolStatus={selectedToolStatus}
+                executionToolStatus={executionToolStatus}
+                systemSnapshot={systemSnapshot}
+                onClearTool={() => onSelectTool(null)}
+              />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
         {showWorkbenchStation ? (
           <EngineeringWorkbenchStation

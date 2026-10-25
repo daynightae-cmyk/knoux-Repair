@@ -2,7 +2,10 @@
 Reports/
 QA-Screenshots/
 Quarantine/
-Data/
+# Anchored to the repository root: an unanchored "Data/" also matches
+# web-frontend/src/data/ on Windows (case-insensitive matching), which
+# silently dropped new source files from the canonical data module.
+/Data/
 publish-tmp/
 visual-evidence/
 **/visual-evidence/

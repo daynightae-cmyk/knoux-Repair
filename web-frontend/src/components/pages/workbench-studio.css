@@ -1,0 +1,18 @@
+/**
+ * KNOuX Repair — Engineering Workbench Studio
+ *
+ * The station grammar is shared with every other studio
+ * (`studios/studioStations.css`); what is specific here is the workbench
+ * family.
+ */
+
+.knoux-workbench-studio {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.knoux-workbench-studio .knoux-empty-state {
+  margin: var(--knoux-space-5) var(--knoux-space-6);
+}

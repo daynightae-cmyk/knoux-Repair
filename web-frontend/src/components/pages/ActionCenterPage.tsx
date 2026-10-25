@@ -1,8 +1,12 @@
-import { Bell, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
+import { Bell, CheckCircle2, AlertTriangle, Clock, PanelRightOpen } from 'lucide-react';
 import type { ToolStatus } from '../../types';
 import { FAMILIES } from '../../data/family-map';
 import type { NavDestination } from '../../data/family-map';
 import type { BridgeTool, ExecutionMode } from '../../lib/api';
+import type { ShellActivity } from '../../lib/shellActivity';
+import StudioHeader from '../shell/StudioHeader';
+import StatusIndicator from '../shell/StatusIndicator';
+import './action-center.css';
 
 interface ActiveTask {
   runId: string;
@@ -17,6 +21,10 @@ interface ActionCenterPageProps {
   toolStatuses: Record<string, ToolStatus>;
   tools: BridgeTool[];
   onNavigate: (dest: NavDestination) => void;
+  /** The activity currently reported to the global execution dock. */
+  activity?: ShellActivity | null;
+  /** Expands the global execution dock. */
+  onOpenDock?: () => void;
 }
 
 function destinationForTool(tool: BridgeTool): NavDestination | null {
@@ -27,30 +35,64 @@ function destinationForTool(tool: BridgeTool): NavDestination | null {
   return null;
 }
 
-export default function ActionCenterPage({ lang, activeTasks, toolStatuses, tools, onNavigate }: ActionCenterPageProps) {
+export default function ActionCenterPage({ lang, activeTasks, toolStatuses, tools, onNavigate, activity = null, onOpenDock }: ActionCenterPageProps) {
   const runningTasks = activeTasks.filter(t => t.status === 'running');
   const completedTasks = activeTasks.filter(t => t.status !== 'running');
   const attentionEntries = Object.entries(toolStatuses).filter(([, status]) => status === 'error' || status === 'inconclusive');
   const warningCount = attentionEntries.length;
+  const ar = lang === 'ar';
 
   return (
-    <div className="space-y-6">
-      <div className="knoux-hero" style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(var(--knoux-violet-rgb),0.06))' }}>
-        <div className="knoux-hero-content">
-          <div className="flex items-center gap-3 mb-2">
-            <Bell size={28} style={{ color: 'var(--knoux-blue)' }} />
-            <h1 className="knoux-hero-title" style={{ fontSize: '28px' }}>
-              {lang === 'ar' ? 'مركز الإجراءات' : 'Action Center'}
-            </h1>
-          </div>
-          <p className="knoux-hero-subtitle">
-            {lang === 'ar'
-              ? 'المهام النشطة والتحذيرات والتوصيات والنتائج الحديثة'
-              : 'Active tasks, warnings, recommendations, and recent outcomes'}
-          </p>
-        </div>
-      </div>
+    <div className="knoux-action-center">
+      <StudioHeader
+        kicker={ar ? 'مركز الإجراءات' : 'Action Center'}
+        title={ar ? 'المهام والتأكيدات والسجلات' : 'Jobs, confirmations and records'}
+        description={ar
+          ? 'كل ما يعمل الآن في التطبيق، في مكان واحد: التشغيل الحيّ، والعمليات المكتملة، وما يحتاج انتباهك.'
+          : 'Everything running in the product right now, in one place: the live operation, completed work, and what needs your attention.'}
+        icon={<Bell size={20} aria-hidden="true" />}
+        accent="var(--knoux-blue)"
+        metrics={[
+          { label: ar ? 'قيد التشغيل' : 'Running', value: String(runningTasks.length), tone: runningTasks.length ? 'data' : 'neutral' },
+          { label: ar ? 'مكتملة' : 'Completed', value: String(completedTasks.length), tone: 'positive' },
+          { label: ar ? 'تحتاج انتباهك' : 'Needs attention', value: String(warningCount), tone: warningCount ? 'caution' : 'neutral' },
+        ]}
+        actions={onOpenDock ? (
+          <button type="button" className="knoux-studio-btn" onClick={onOpenDock}>
+            <PanelRightOpen size={13} aria-hidden="true" />
+            <span>{ar ? 'افتح رصيف التنفيذ' : 'Open the execution dock'}</span>
+          </button>
+        ) : null}
+      />
 
+      {activity ? (
+        <section className="knoux-panel" data-role="action-center-current">
+          <header>
+            <h3>{ar ? 'العملية الجارية' : 'CURRENT OPERATION'}</h3>
+            <StatusIndicator
+              tone={activity.status === 'running' ? 'data' : activity.status === 'success' ? 'positive' : activity.status === 'error' ? 'danger' : 'caution'}
+              label={activity.status}
+            />
+          </header>
+          <div className="knoux-panel-body">
+            <p className="knoux-action-center__activity-title">{activity.title}</p>
+            <div className="knoux-action-center__stages">
+              {activity.stages.map(stage => (
+                <span key={stage.id} className="knoux-execution-stage" data-state={stage.state}>
+                  <span className="knoux-execution-stage-dot" aria-hidden="true" />
+                  <span>{stage.label}</span>
+                </span>
+              ))}
+            </div>
+            {activity.lines.length > 0 ? (
+              <p className="knoux-action-center__activity-line">{activity.lines[activity.lines.length - 1].text}</p>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      <div className="knoux-action-center__body">
+      <div className="space-y-6">
       <section>
         <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--knoux-text-secondary)' }}>
           {lang === 'ar' ? 'المهام النشطة' : 'Active Tasks'}
@@ -173,6 +215,8 @@ export default function ActionCenterPage({ lang, activeTasks, toolStatuses, tool
           </div>
         </section>
       )}
+      </div>
+      </div>
     </div>
   );
 }

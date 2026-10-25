@@ -1,0 +1,24 @@
+/**
+ * KNOuX Repair — Storage Studio
+ *
+ * The recovery family's own surface. The station grammar itself is shared
+ * with every other studio (`studios/studioStations.css`); what is specific
+ * here is the storage family: the elevation notice and the offline state.
+ */
+
+.knoux-storage-studio {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.knoux-storage-studio .knoux-empty-state {
+  margin: var(--knoux-space-5) var(--knoux-space-6);
+}
+
+.knoux-storage-studio__elevation {
+  display: block;
+  margin-top: 6px;
+  color: var(--knoux-text-muted);
+}

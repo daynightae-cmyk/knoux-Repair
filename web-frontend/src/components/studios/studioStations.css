@@ -1,0 +1,161 @@
+/**
+ * KNOuX Repair — the shared studio station grammar
+ *
+ * One set of rules for every studio landing: a grid of stations, each with a
+ * head, its readings and a foot. Same vocabulary as the rest of the shell —
+ * graphite surfaces, deep indigo structure, violet brand, cyan for data,
+ * teal for confirmed state, amber for caution, red only for a real failure.
+ * A station that has not been measured stays visibly empty rather than
+ * borrowing a plausible number.
+ */
+
+.knoux-studio-stations {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--knoux-space-4);
+  padding: var(--knoux-space-5) var(--knoux-space-6) var(--knoux-space-4);
+  align-items: start;
+}
+
+.knoux-studio-station {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--knoux-studio-line);
+  border-radius: var(--knoux-studio-radius);
+  background: var(--knoux-studio-panel);
+  min-width: 0;
+}
+
+.knoux-studio-station[data-state='error'] {
+  border-color: rgba(239, 68, 68, 0.34);
+}
+
+.knoux-studio-station[data-state='offline'],
+.knoux-studio-station[data-state='empty'] {
+  border-style: dashed;
+}
+
+/* ── Station head ─────────────────────────────────────────────────── */
+
+.knoux-studio-station__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--knoux-space-3);
+  min-width: 0;
+}
+
+.knoux-studio-station__icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 11px;
+  border: 1px solid var(--knoux-studio-line-strong);
+  background:
+    linear-gradient(150deg, color-mix(in srgb, var(--studio-accent, var(--knoux-studio-violet)) 30%, transparent), transparent 72%),
+    var(--knoux-studio-inset);
+  color: var(--studio-accent, #c4b5fd);
+}
+
+.knoux-studio-station__titles {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.knoux-studio-station__titles h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--knoux-text-primary);
+}
+
+.knoux-studio-station__titles p {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--knoux-text-muted);
+  max-width: 56ch;
+}
+
+/* ── Readings ─────────────────────────────────────────────────────── */
+
+.knoux-studio-station__readings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--knoux-studio-line-soft);
+  border-radius: var(--knoux-studio-radius-sm);
+  overflow: hidden;
+  background: var(--knoux-studio-line-soft);
+}
+
+.knoux-studio-station__reading {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 11px;
+  background: var(--knoux-studio-panel);
+  min-width: 0;
+}
+
+.knoux-studio-station__reading span {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--knoux-text-faint);
+}
+
+.knoux-studio-station__reading b {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--knoux-text-primary);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.knoux-studio-station__empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 12px 11px;
+  background: var(--knoux-studio-panel);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--knoux-text-faint);
+}
+
+/* ── Station foot ─────────────────────────────────────────────────── */
+
+.knoux-studio-station__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--knoux-space-3);
+  padding-top: 2px;
+}
+
+.knoux-studio-station__actions {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--knoux-text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1366px) {
+  .knoux-studio-stations {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--knoux-space-4);
+  }
+}
+
+@media (max-width: 720px) {
+  .knoux-studio-station__readings {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

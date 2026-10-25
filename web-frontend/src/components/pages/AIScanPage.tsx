@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useReducer, useRef, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -18,16 +18,34 @@ import {
   Monitor,
   Play,
   Rocket,
+  RotateCcw,
   Search,
   Settings,
   Shield,
   ShieldCheck,
+  Sparkles,
+  Lock,
+  Hourglass,
   Wrench,
   X,
 } from 'lucide-react';
 import type { FamilyId, NavDestination, ServiceId } from '../../data/family-map';
 import { api } from '../../lib/api';
 import type { SystemSnapshot } from '../../lib/api';
+import {
+  aiAskAvailable,
+  askConsentSnapshot,
+  askReduce,
+  ASK_INITIAL,
+  askStateFromError,
+  buildConsentPlan,
+  formatDuration,
+  normalizeAnswer,
+  routeQueryToTarget,
+} from '../../lib/aiAskState';
+import type { AiCatalogEntry, AiCatalogFlags, AiProviderId, AskSnapshot } from '../../lib/aiAskState';
+import { activityLine } from '../../lib/shellActivity';
+import type { ShellActivity, ShellActivityLine, ShellActivityStatus } from '../../lib/shellActivity';
 
 export interface AIScanPageProps {
   lang: 'en' | 'ar';
@@ -38,6 +56,8 @@ export interface AIScanPageProps {
   aiProviderState?: 'CHECKING' | 'CONFIGURED' | 'UNCONFIGURED' | 'UNAVAILABLE' | 'ERROR';
   onTargetChange?: (target: string | null) => void;
   onEvidenceUpdate?: (evidenceCount: number, findingCount: number) => void;
+  /** Reports the sweep into the global execution dock. */
+  onActivity?: (activity: ShellActivity) => void;
 }
 
 export interface ScanFinding {
@@ -130,9 +150,10 @@ export default function AIScanPage({
   toolCount: _toolCount,
   onNavigate,
   systemSnapshot,
-  aiProviderState: _aiProviderState = 'UNCONFIGURED',
+  aiProviderState = 'UNCONFIGURED',
   onTargetChange,
   onEvidenceUpdate,
+  onActivity,
 }: AIScanPageProps) {
   const isRtl = lang === 'ar';
   const [scanning, setScanning] = useState(false);
@@ -143,6 +164,32 @@ export default function AIScanPage({
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [evidenceSourceCount, setEvidenceSourceCount] = useState(0);
   const [scanError, setScanError] = useState('');
+
+  // Free-text "ask KNOUX" flow. Local keyword routing and the real AI answer
+  // path are separate concerns; the ask flow needs explicit provider consent
+  // before any question text leaves the machine. The question text, model id
+  // and provider are snapshotted at consent time and never replaced silently.
+  const [aiCatalog, setAiCatalog] = useState<AiCatalogEntry[] | null>(null);
+  const [aiFlags, setAiFlags] = useState<AiCatalogFlags | null>(null);
+  const [ask, dispatchAsk] = useReducer(askReduce, ASK_INITIAL);
+  const activeAskRequest = useRef<number | null>(null);
+  const [aiAskElapsed, setAiAskElapsed] = useState(0);
+
+  const refreshAiCatalog = useCallback(async (): Promise<{ catalog: AiCatalogEntry[]; flags: AiCatalogFlags } | null> => {
+    if (aiCatalog && aiCatalog.length > 0 && aiFlags) return { catalog: aiCatalog, flags: aiFlags };
+    try {
+      const res = await api.aiModels();
+      const entries = (Array.isArray(res?.models) ? res.models : [])
+        .filter(m => m && typeof m.id === 'string' && m.id.length > 0)
+        .map(m => ({ id: m.id as string, provider: (String(m.id).includes('/') ? 'openrouter' : 'google') as AiProviderId, label: String(m.label || m.id) }));
+      const flags: AiCatalogFlags = { hasGeminiKey: Boolean(res?.hasGeminiKey), hasOpenRouterKey: Boolean(res?.hasOpenRouterKey) };
+      setAiCatalog(entries);
+      setAiFlags(flags);
+      return { catalog: entries, flags };
+    } catch {
+      return null;
+    }
+  }, [aiCatalog, aiFlags]);
 
   const [selectedTarget, setSelectedTarget] = useState<TargetOption | null>(null);
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
@@ -177,9 +224,42 @@ export default function AIScanPage({
     const discoveredFindings: ScanFinding[] = [];
     let verifiedSources = 0;
 
+    // The scan is reported into the global execution dock, so the product
+    // keeps one place where work is visible. Every stage below is a step
+    // this function really performs.
+    const stages = [
+      { id: 'vitals', en: 'System vitals', ar: 'مقاييس الحيوية' },
+      { id: 'storage', en: 'Storage & hygiene', ar: 'التخزين والنظافة' },
+      { id: 'cleanup', en: 'Reclaimable space', ar: 'المساحة القابلة للاسترداد' },
+      { id: 'drivers', en: 'Driver integrity', ar: 'سلامة التعريفات' },
+      { id: 'findings', en: 'Findings', ar: 'النتائج' },
+    ];
+    const activityId = `ai-scan-${Date.now()}`;
+    const activityStartedAt = Date.now();
+    const activityLines: ShellActivityLine[] = [];
+    const buildActivity = (index: number, status: ShellActivityStatus): ShellActivity => ({
+      id: activityId,
+      title: isRtl ? 'فحص ذكي — جمع الأدلة' : 'AI Scan — evidence sweep',
+      status,
+      startedAt: activityStartedAt,
+      stages: stages.map((stage, position) => ({
+        id: stage.id,
+        label: isRtl ? stage.ar : stage.en,
+        state: status === 'error'
+          ? (position <= index ? 'failed' : 'idle')
+          : position < index ? 'done' : position === index ? 'active' : 'idle',
+      })),
+      lines: [...activityLines],
+    });
+    const reportStage = (index: number, line: string) => {
+      activityLines.push(activityLine(line));
+      onActivity?.(buildActivity(index, 'running'));
+    };
+    reportStage(0, isRtl ? 'فحص مقاييس الحيوية والأداء...' : 'Inspecting system vitals & memory pressure...');
+
     try {
       const sysRes = await api.system().catch(() => null);
-      setScanStage(isRtl ? 'فحص سعة الأقراص والنظافة العامة...' : 'Evaluating disk capacity & hygiene...');
+      reportStage(1, isRtl ? 'فحص سعة الأقراص والنظافة العامة...' : 'Evaluating disk capacity & hygiene...');
 
       if (sysRes?.system) {
         verifiedSources += 1;
@@ -239,7 +319,7 @@ export default function AIScanPage({
         }
       }
 
-      setScanStage(isRtl ? 'تحليل مخلفات النظام المؤكدة...' : 'Analyzing reclaimable temporary files...');
+      reportStage(2, isRtl ? 'تحليل مخلفات النظام المؤكدة...' : 'Analyzing reclaimable temporary files...');
       const cleanRes = await api.cleanupPreview().catch(() => null);
       if (cleanRes?.preview) {
         verifiedSources += 1;
@@ -261,7 +341,7 @@ export default function AIScanPage({
         }
       }
 
-      setScanStage(isRtl ? 'فحص سلامة التعريفات وتوقيعات العتاد...' : 'Verifying driver signatures & hardware stability...');
+      reportStage(3, isRtl ? 'فحص سلامة التعريفات وتوقيعات العتاد...' : 'Verifying driver signatures & hardware stability...');
       const driverRes = await api.driversPreview().catch(() => null);
       if (driverRes?.preview) {
         verifiedSources += 1;
@@ -287,17 +367,27 @@ export default function AIScanPage({
       setSelectedFindingId(discoveredFindings[0]?.id ?? null);
       setScanTimestamp(new Date().toLocaleTimeString());
       setScanStage(isRtl ? 'اكتمل الفحص' : 'Diagnostic scan complete');
+      reportStage(4, isRtl
+        ? `اكتمل الفحص — ${discoveredFindings.length} نتيجة من ${verifiedSources} مصدر.`
+        : `Diagnostic scan complete — ${discoveredFindings.length} findings from ${verifiedSources} verified sources.`);
+      onActivity?.({
+        ...buildActivity(4, 'success'),
+        status: 'success',
+        stages: buildActivity(4, 'success').stages.map(stage => ({ ...stage, state: 'done' })),
+      });
       onEvidenceUpdate?.(verifiedSources, discoveredFindings.length);
     } catch {
       setFindings([]);
       setSelectedFindingId(null);
       setEvidenceSourceCount(0);
       setScanError(isRtl ? 'تعذر جمع أدلة تشخيص موثوقة من الجسر.' : 'The bridge returned no verifiable evidence source.');
+      activityLines.push(activityLine(isRtl ? 'تعذر جمع أدلة تشخيص موثوقة من الجسر.' : 'The bridge returned no verifiable evidence source.', 'error'));
+      onActivity?.(buildActivity(0, 'error'));
       onEvidenceUpdate?.(0, 0);
     } finally {
       setScanning(false);
     }
-  }, [bridgeOnline, isRtl, onEvidenceUpdate]);
+  }, [bridgeOnline, isRtl, onActivity, onEvidenceUpdate]);
 
   const selectedFinding = useMemo(() => {
     return findings?.find(f => f.id === selectedFindingId) ?? findings?.[0] ?? null;
@@ -306,21 +396,70 @@ export default function AIScanPage({
   const handleQuerySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-    const q = searchQuery.toLowerCase().trim();
-    if (q.includes('ram') || q.includes('perf') || q.includes('slow') || q.includes('memory')) {
-      handleChipClick('performance');
-    } else if (q.includes('disk') || q.includes('clean') || q.includes('space') || q.includes('junk')) {
-      handleChipClick('storage');
-    } else if (q.includes('sec') || q.includes('virus') || q.includes('defender') || q.includes('protect')) {
-      handleChipClick('security');
-    } else if (q.includes('soft') || q.includes('app') || q.includes('program')) {
-      handleChipClick('software');
-    } else if (q.includes('dev') || q.includes('code') || q.includes('git') || q.includes('repo')) {
-      handleChipClick('workbench');
-    } else {
-      handleChipClick('system');
-    }
+    // Local keyword routing only: offline, deterministic, never claims AI work.
+    handleChipClick(routeQueryToTarget(searchQuery));
   };
+
+  const generateElapsed = useCallback(() => {
+    const started = Date.now();
+    const timer = window.setInterval(() => setAiAskElapsed((Date.now() - started) / 1000), 250);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const runConsentedAsk = useCallback(async (snapshot: AskSnapshot, requestId: number) => {
+    // React can receive two clicks before rerendering. Send at most once per action.
+    if (activeAskRequest.current !== null) return;
+    activeAskRequest.current = requestId;
+    setAiAskElapsed(0);
+    const stopTimer = generateElapsed();
+    const t0 = Date.now();
+    try {
+      const res = await api.aiGenerate({
+        modelId: snapshot.modelId,
+        prompt: snapshot.question,
+        systemPrompt: isRtl
+          ? 'أنت مساعد KNOUX Repair في تطبيق صيانة محلي لويندوز. أجب إجابة موجزة (حتى 180 كلمة) بلغة المستخدم، بناءً على سؤاله فقط. لا تزعم أبداً أنك فحصت الجهاز أو شغلت أدوات. إن كانت الصيانة مطلوبة، فاذكر عائلة الخدمة المناسبة (الحيوية، الاسترداد والتخزين، الضمان، مكتبة البرمجيات، منصة الهندسة، أو التحقيق) دون اختلاق أي قياسات.'
+          : "You are KNOUX Repair's assistant inside a local Windows maintenance app. Answer the user's stated question concisely (up to 180 words), in the user's language, using the question text alone. Never claim to have scanned, inspected, or run tools. If maintenance is needed, name the relevant KNOUX service family (Vitality, Recovery & Storage, Assurance, Software Library, Engineering Workbench, or Investigation) without inventing measurements.",
+      });
+      dispatchAsk({ type: 'RECEIVE_ANSWER', requestId, answer: normalizeAnswer(res, Date.now() - t0) });
+    } catch (err) {
+      const bridgeErr = err as { code?: string; message?: string };
+      const outcome = askStateFromError({ code: bridgeErr?.code, message: bridgeErr?.message });
+      dispatchAsk({
+        type: 'RECEIVE_ERROR',
+        requestId,
+        failure: { code: outcome.code, message: outcome.message || String(bridgeErr?.message || ''), durationMs: Date.now() - t0 },
+        status: outcome.state,
+      });
+    } finally {
+      stopTimer();
+      if (activeAskRequest.current === requestId) activeAskRequest.current = null;
+    }
+  }, [generateElapsed, isRtl]);
+
+  const handleChooseProvider = useCallback((provider: AiProviderId) => {
+    if (ask.status !== 'needs-consent') return;
+    const decision = askConsentSnapshot(aiCatalog ?? [], aiFlags ?? { hasGeminiKey: false, hasOpenRouterKey: false }, provider, ask.question);
+    if (!('ok' in decision)) return;
+    const requestId = ask.requestId + 1;
+    if (activeAskRequest.current !== null) return;
+    dispatchAsk({ type: 'CHOOSE_PROVIDER', provider, modelId: decision.ok.modelId });
+    void runConsentedAsk(decision.ok, requestId);
+  }, [ask.question, ask.requestId, ask.status, aiCatalog, aiFlags, runConsentedAsk]);
+
+  const handleRetryAsk = useCallback(() => {
+    if (!ask.snapshot || !['failed', 'timeout'].includes(ask.status) || ask.question.trim() !== ask.snapshot.question) return;
+    if (activeAskRequest.current !== null) return;
+    const requestId = ask.requestId + 1;
+    dispatchAsk({ type: 'RETRY' });
+    void runConsentedAsk(ask.snapshot, requestId);
+  }, [ask.question, ask.requestId, ask.snapshot, ask.status, runConsentedAsk]);
+
+  const resetAsk = useCallback(() => {
+    activeAskRequest.current = null;
+    setSearchQuery('');
+    dispatchAsk({ type: 'RESET' });
+  }, []);
 
   const currentSystemSummary = useMemo(() => {
     if (!systemSnapshot) return isRtl ? 'لم يتم تحديد هدف.' : 'No target selected.';
@@ -481,22 +620,181 @@ export default function AIScanPage({
             <input
               type="text"
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder={isRtl ? 'صف مشكلة، أو اسأل KNOUX عن أي شيء...' : 'Describe an issue, or ask KNOUX anything...'}
+              onChange={e => {
+                activeAskRequest.current = null;
+                setSearchQuery(e.target.value);
+                dispatchAsk({ type: 'SET_QUESTION', question: e.target.value });
+              }}
+              placeholder={isRtl ? 'صف المشكلة للتوجيه محلياً، أو اسأل KNOUX AI (يتطلب موافقة)' : 'Describe an issue for local routing, or ask KNOUX AI (requires consent)'}
               aria-label={isRtl ? 'صف المشكلة' : 'Describe an issue'}
             />
             <button
               type="submit"
               className="knoux-ai-query-submit"
-              title={isRtl ? 'إرسال الاستعلام' : 'Submit query context'}
-              aria-label={isRtl ? 'إرسال' : 'Submit'}
+              title={isRtl ? 'توجيه المشكلة محلياً إلى هدف تشخيصي (بدون إنترنت)' : 'Route locally to a diagnostic target (offline)'}
+              aria-label={isRtl ? 'توجيه محلي' : 'Submit local route'}
             >
               {isRtl ? <ArrowLeft size={16} /> : <ArrowRight size={16} />}
             </button>
           </div>
         </form>
 
-        {/* Quick Context Chips */}
+        <p className="knoux-ai-ask-note">
+          {isRtl
+            ? 'إرسال المشكلة يوجّهها محلياً فقط (بدون إنترنت، وبدون AI). زر "Ask KNOUX AI" يرسل نص سؤالك إلى المزود الذي تختاره عبر الجسر المحلي فقط بعد موافقتك الصريحة؛ يعدل السؤال يلغي الموافقة.'
+            : 'Submitting routes the issue locally only (offline, no AI). “Ask KNOUX AI” sends your question text to the provider you choose, through the local bridge, only after your explicit consent; editing the question revokes consent.'}
+        </p>
+
+      {/* Real AI ask flow: consent-gated, honest states, no fabricated content. */}
+      <div className="knoux-ai-ask-flow" data-state={ask.status} aria-live="polite">
+        {aiProviderState === 'CHECKING' && (
+          <p className="knoux-ai-ask-note">{isRtl ? 'جارٍ التحقق من إعداد مزود KNOUX AI...' : 'Checking whether the KNOUX AI provider is configured...'}</p>
+        )}
+
+        {aiProviderState === 'UNAVAILABLE' && (
+          <p className="knoux-ai-ask-note">{isRtl ? 'جسر التنفيذ غير متصل — سؤال KNOUX AI معطَّل حالياً.' : 'The execution bridge is offline — asking KNOUX AI is disabled right now.'}</p>
+        )}
+
+        {ask.status === 'idle' && (aiProviderState === 'UNCONFIGURED' || aiProviderState === 'ERROR') && (
+          <p className="knoux-ai-ask-note">
+            {isRtl
+              ? 'لا يوجد مزود AI مُهيّأ على الجسر المحلي. أضف GEMINI_API_KEY أو OPENROUTER_API_KEY في .env.local ثم أعد تشغيل الجسر لتفعيل إجابات AI حقيقية.'
+              : 'No AI provider is configured on the local bridge. Add GEMINI_API_KEY or OPENROUTER_API_KEY to .env.local and restart the bridge to enable real AI answers.'}
+          </p>
+        )}
+
+        {ask.status === 'unconfigured' && (
+          <div className="knoux-ai-ask-card is-warning" role="status">
+            <strong>{isRtl ? 'KNOUX AI غير مُهيّأ' : 'KNOUX AI is not configured'}</strong>
+            <p>{ask.failure?.message || (isRtl
+              ? 'يتطلب هذا السؤال مزوداً مُهيّأً. أضف مفتاح المزود في .env.local وأعد تشغيل الجسر.'
+              : 'Answering this needs a configured provider. Add the provider key in .env.local and restart the bridge.')}</p>
+            <button type="button" className="knoux-ai-op-action-btn" onClick={resetAsk}>
+              {isRtl ? 'رجوع' : 'Back'}
+            </button>
+          </div>
+        )}
+
+        {aiAskAvailable(aiProviderState) && ask.status === 'idle' && ask.question.trim().length > 0 && (
+          <button
+            type="button"
+            className="knoux-ai-ask-trigger"
+            onClick={() => {
+              void (async () => { const live = await refreshAiCatalog(); setAiFlags(live?.flags ?? null); })();
+              dispatchAsk({ type: 'ENTER_CONSENT' });
+            }}
+          >
+            <Sparkles size={14} />
+            <span>{isRtl ? 'اطلب إجابة KNOUX AI' : 'Ask KNOUX AI'}</span>
+          </button>
+        )}
+
+        {ask.status === 'needs-consent' && (
+          <div className="knoux-ai-ask-card" role="dialog" aria-label={isRtl ? 'موافقة إرسال السؤال' : 'Consent before sending'}>
+            <div className="knoux-ai-ask-consent-head">
+              <Lock size={14} />
+              <strong>{isRtl ? 'موافقة الخصوصية قبل الإرسال' : 'Privacy consent before sending'}</strong>
+            </div>
+            <p>{isRtl
+              ? `سيُرسَل نص سؤالك ("${ask.question.trim().slice(0, 80)}") إلى المزود الذي تختاره فقط، عبر الجسر المحلي. لن يُنقل تلقائياً بين المزودين؛ تعديل السؤال يلغي الموافقة.`
+              : `Your question text ("${ask.question.trim().slice(0, 80)}") goes only to the provider you pick, through the local bridge. It is never switched automatically; editing the question revokes consent.`}</p>
+            {aiFlags === null && (
+              <p className="knoux-ai-ask-note">{isRtl ? 'جارٍ تحميل كتالوج المزود من الجسر…' : 'Loading provider catalog from the bridge…'}</p>
+            )}
+            <div className="knoux-ai-ask-providers">
+              {buildConsentPlan(aiCatalog ?? [], aiFlags ?? { hasGeminiKey: false, hasOpenRouterKey: false }).choices.map(choice => (
+                <button
+                  key={choice.id}
+                  type="button"
+                  className="knoux-ai-ask-provider"
+                  disabled={!choice.enabled || aiFlags === null}
+                  title={choice.enabled ? choice.label : (isRtl ? 'لا يوجد مفتاح مُهيّأ لهذا المزود' : 'No key configured for this provider')}
+                  onClick={() => handleChooseProvider(choice.id)}
+                >
+                  <span>{choice.id === 'google' ? (isRtl ? 'جوجل Gemini' : 'Google Gemini') : (isRtl ? 'OpenRouter' : 'OpenRouter')}</span>
+                  <small>{choice.enabled ? choice.label : (isRtl ? 'غير مُهيّأ' : 'Not configured')}</small>
+                </button>
+              ))}
+            </div>
+            <button type="button" className="knoux-ai-op-action-btn" onClick={resetAsk}>
+              {isRtl ? 'إلغاء' : 'Cancel'}
+            </button>
+          </div>
+        )}
+
+        {ask.status === 'generating' && (
+          <div className="knoux-ai-ask-card is-generating" role="status">
+            <div className="knoux-ai-ask-generating-row">
+              <Loader2 size={15} className="animate-spin" />
+              <strong>{isRtl ? 'جارٍ توليد إجابة حقيقية' : 'Generating a real answer'}</strong>
+              <span className="knoux-ai-ask-elapsed">{formatDuration(aiAskElapsed * 1000)}</span>
+            </div>
+            <p>{isRtl
+              ? `يُرسَل السؤال إلى ${ask.snapshot?.provider === 'openrouter' ? 'OpenRouter' : 'Google Gemini'}… لا توجد خطوات وهمية — الإجابة أو رسالة الفشل الحقيقية فقط.`
+              : `Sending the question to ${ask.snapshot?.provider === 'openrouter' ? 'OpenRouter' : 'Google Gemini'}… no fake steps — only the real answer or the real error.`}</p>
+          </div>
+        )}
+
+        {ask.status === 'answered' && ask.answer && (
+          <div className="knoux-ai-ask-card is-answer">
+            <div className="knoux-ai-ask-answer-head">
+              <CheckCircle2 size={15} />
+              <strong>{isRtl ? 'إجابة KNOUX AI الفعلية' : 'Real KNOUX AI answer'}</strong>
+              <span className="knoux-ai-ask-meta">
+                {ask.answer.provider || (ask.snapshot?.provider === 'openrouter' ? 'openrouter' : 'google')} · {ask.answer.model || '—'} · {formatDuration(ask.answer.executionTimeMs || ask.answer.durationMs)}
+              </span>
+            </div>
+            <p className="knoux-ai-ask-text">{ask.answer.text}</p>
+            {ask.snapshot?.question && (
+              <p className="knoux-ai-ask-sent-question">
+                <strong>{isRtl ? 'السؤال الذي أُرسل:' : 'Question sent:'}</strong> {`"${ask.snapshot.question}"`}
+              </p>
+            )}
+            {ask.answer.codeSnippets.length > 0 && (
+              <div className="knoux-ai-ask-snippets">
+                {ask.answer.codeSnippets.map((snippet, index) => (
+                  <pre key={index}>{snippet}</pre>
+                ))}
+              </div>
+            )}
+            <small className="knoux-ai-ask-disclaimer">{isRtl
+              ? 'نص مولّد من نموذج لغوي؛ لا يُعد نتيجة فحص نظام. تحقّق من الخطوات عبر الأدوات المحلية الحقيقية قبل أي إجراء.'
+              : 'Generated text from a language model; not a system inspection result. Verify steps with the real local tools before acting.'}</small>
+            <button type="button" className="knoux-ai-op-action-btn" onClick={resetAsk}>
+              {isRtl ? 'سؤال جديد' : 'New question'}
+            </button>
+          </div>
+        )}
+
+        {(ask.status === 'failed' || ask.status === 'timeout') && ask.failure && (
+          <div className={`knoux-ai-ask-card is-error`}>
+            <div className="knoux-ai-ask-answer-head">
+              {ask.status === 'timeout' ? <Hourglass size={15} /> : <AlertTriangle size={15} />}
+              <strong>{ask.status === 'timeout' ? (isRtl ? 'انتهت مهلة الطلب' : 'Request timed out') : (isRtl ? 'تعذّر توليد إجابة' : 'Could not generate an answer')}</strong>
+              <span className="knoux-ai-ask-meta">{formatDuration(ask.failure.durationMs)}</span>
+            </div>
+            <p>{ask.failure.message}</p>
+            <small className="knoux-ai-ask-disclaimer">
+              {ask.status === 'timeout'
+                ? (isRtl ? `رمز: ${ask.failure.code} — لم تصل أي إجابة خلال المهلة (${formatDuration(ask.failure.durationMs)}).` : `code: ${ask.failure.code} — no answer arrived within the timeout (${formatDuration(ask.failure.durationMs)}).`)
+                : (isRtl ? `رمز: ${ask.failure.code}` : `code: ${ask.failure.code}`)}
+            </small>
+            <div className="knoux-ai-ask-retry-row">
+              {ask.snapshot && (
+                <button type="button" className="knoux-ai-op-action-btn" onClick={handleRetryAsk}>
+                  <RotateCcw size={12} />
+                  <span>{isRtl ? 'إعادة المحاولة عبر نفس المزود' : 'Retry via the same provider'}</span>
+                </button>
+              )}
+              <button type="button" className="knoux-ai-op-action-btn" onClick={resetAsk}>
+                {isRtl ? 'رجوع' : 'Back'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Context Chips */}
         <div className="knoux-ai-quick-chips" role="group" aria-label={isRtl ? 'سياقات سريعة' : 'Quick contexts'}>
           <button
             type="button"
