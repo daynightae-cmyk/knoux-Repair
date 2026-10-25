@@ -110,7 +110,7 @@ test('the gate uses the supported bulk advisory endpoint', () => {
   // npm 11 dropped the retired quick endpoint; an older npm runs the audit
   // through npx so the fallback can never answer.
   assert.match(gate, /const BULK_ONLY_NPM_MAJOR = 11/);
-  assert.match(gate, /'--yes', 'npm@11'/);
+  assert.match(gate, /'--yes', 'npm@11\.21\.1'/);
   // A stalled request must not hold the gate for npm's 300s default.
   assert.match(gate, /npm_config_fetch_timeout: '60000'/);
   assert.match(gate, /npm_config_fetch_retries: '4'/);
