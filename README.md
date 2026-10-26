@@ -257,7 +257,7 @@ Where explicitly configured, AI can assist with explanation or interpretation of
 
 KNOUX Repair is a **Windows-local execution product**, not a hosted dashboard that pretends to repair another machine. The principal checked-in product surface is an Electron desktop application; its renderer is separate from the trusted local bridge and Windows tool execution.
 
-¤¤¤mermaid
+```mermaid
 flowchart TD
     USER["User • KNOUX desktop workspace"] --> UI["Desktop renderer • service station"]
     UI -->|"validated local request"| BRIDGE["Local bridge • 127.0.0.1"]
@@ -271,7 +271,7 @@ flowchart TD
     REPORT --> BRIDGE
     BRIDGE --> UI
     UI --> USER
-¤¤¤
+```
 
 The diagram is **conceptual architecture**, not evidence that an action ran. The real source of truth is [ARCHITECTURE.md](ARCHITECTURE.md), [the API inventory](Docs/API-INVENTORY.md), [the executable manifest](Docs/TOOLS-MANIFEST.json), and [the safety model](Docs/SAFETY-MODEL.md).
 
@@ -340,7 +340,7 @@ If an operation requires elevation and the bridge is not elevated, the expected 
 <a id="anatomy-of-a-trustworthy-operation"></a>
 ## 08 · Anatomy of a trustworthy operation
 
-¤¤¤text
+```text
 Select a service
       │
       ▼
@@ -363,7 +363,7 @@ Collect result, error, and verification evidence
       │
       ▼
 Show the truthful final state and local report
-¤¤¤
+```
 
 ### Run lifecycle
 
@@ -375,7 +375,7 @@ The runtime must distinguish **preparing**, **running**, **waiting for confirmat
 
 The shared Core contract described in [ARCHITECTURE.md](ARCHITECTURE.md) records a run under a timestamped local report folder containing:
 
-¤¤¤text
+```text
 Reports/<timestamp>-<TOOLID>/
 ├── operation.log
 ├── errors.log
@@ -384,7 +384,7 @@ Reports/<timestamp>-<TOOLID>/
 ├── summary-en.txt
 ├── summary-ar.txt
 └── raw-output/
-¤¤¤
+```
 
 A run's `runId` correlates the bridge request with the corresponding report. The structured envelope distinguishes **what was found**, **what was processed**, **whether the system changed**, and **whether verification occurred**.
 
@@ -417,11 +417,11 @@ This is a **Windows project**. The steps below describe the checked-in developer
 
 ### Clone the repository
 
-¤¤¤powershell
+```powershell
 git clone https://github.com/daynightae-cmyk/knoux-Repair.git
 Set-Location .\knoux-Repair
 git status --short
-¤¤¤
+```
 
 Review [ARCHITECTURE.md](ARCHITECTURE.md), [Docs/SAFETY-MODEL.md](Docs/SAFETY-MODEL.md), and [Docs/KNOWN-LIMITATIONS.md](Docs/KNOWN-LIMITATIONS.md) before initiating real system changes.
 
@@ -430,23 +430,23 @@ Review [ARCHITECTURE.md](ARCHITECTURE.md), [Docs/SAFETY-MODEL.md](Docs/SAFETY-MO
 
 From the repository root:
 
-¤¤¤powershell
+```powershell
 npm --prefix web-frontend ci
 npm --prefix web-frontend run typecheck
 npm --prefix web-frontend run build
-¤¤¤
+```
 
 To start the checked-in desktop development workflow:
 
-¤¤¤powershell
+```powershell
 npm --prefix web-frontend run desktop:dev
-¤¤¤
+```
 
 To run the local development gateway instead:
 
-¤¤¤powershell
+```powershell
 npm run dev
-¤¤¤
+```
 
 The development UI is ordinarily served on `http://127.0.0.1:3000`, and the local execution bridge is designed around `127.0.0.1:8787`. Those are **local development interfaces, not deployment endpoints**. Use the real bridge; never substitute fabricated system responses for real testing.
 
@@ -455,15 +455,15 @@ The development UI is ordinarily served on `http://127.0.0.1:3000`, and the loca
 
 The repository also maintains a native Windows scripting interface:
 
-¤¤¤powershell
+```powershell
 .\START-KNOUX-REPAIR.cmd
-¤¤¤
+```
 
 Or:
 
-¤¤¤powershell
+```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File ".\Menu.ps1"
-¤¤¤
+```
 
 The command shows the repository's console launcher. It is **not** a blanket recommendation to bypass your organization's PowerShell policy; use approved execution policy and signing controls for your environment. Only run tools you understand and intend to run.
 
@@ -478,10 +478,10 @@ When a registered script supports the relevant switches, the console or selected
 
 The checked-in desktop package script builds the renderer and produces a Windows installer through Electron Builder / NSIS. This does **not** require publishing a hosted web application.
 
-¤¤¤powershell
+```powershell
 npm --prefix web-frontend ci
 npm --prefix web-frontend run desktop:package
-¤¤¤
+```
 
 The package metadata names the installer `KNOUX-Repair-Setup-<version>.exe` and points the build output to `Release/KNOUX-Repair/`. The final filename and artifact must be checked after an actual successful package run; do not infer that an installer exists solely because packaging is configured.
 
@@ -503,7 +503,7 @@ For the repository's additional installer scripts and native artifacts, review [
 <a id="repository-map"></a>
 ## 11 · Repository map
 
-¤¤¤text
+```text
 knoux-Repair/
 │
 ├── README.md                    ← GitHub landing page
@@ -534,7 +534,7 @@ knoux-Repair/
 │   └── scripts/                 ← QA and visual capture utilities
 ├── Menu.ps1                     ← PowerShell console menu
 └── START-KNOUX-REPAIR.cmd       ← console launcher
-¤¤¤
+```
 
 The architecture may contain additional source, database, and installer projects beyond this intentionally condensed orientation map. The links above are the stable entry points for an engineer auditing the current code.
 
@@ -548,13 +548,13 @@ The architecture may contain additional source, database, and installer projects
 
 ### Source-level developer gate
 
-¤¤¤powershell
+```powershell
 npm --prefix web-frontend run typecheck
 npm --prefix web-frontend test
 npm --prefix web-frontend run build
 npm --prefix web-frontend audit --omit=dev --audit-level=high
 git diff --check
-¤¤¤
+```
 
 These commands are documented repository workflows, **not results freshly executed by this README update**. A previous “822/822” snapshot in an October 2026 audit is historical evidence, not a current live test assertion.
 
