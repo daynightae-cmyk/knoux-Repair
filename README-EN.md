@@ -142,3 +142,27 @@ Use these files for current decisions:
 - `.github/workflows/ci.yml` — automated release/quality gate.
 
 Historical acceptance documents that refer to 100 tools describe the earlier console baseline and are retained as release evidence, not as the complete current product inventory.
+
+---
+
+## Official corporate identity & contact
+
+<p align="center">
+  <a href="https://knoux.store/"><img src="https://i.postimg.cc/Kv9g6Kpt/cropped-circle-image-%281%29.png" alt="Official KNOUX logo" width="112" /></a>
+</p>
+
+**KNOUX** · Founder: **Eng. Sadek Elgazar** (م. صادق الجزار), Software Engineer & Digital Product Builder.
+
+KNOUX Repair is a KNOUX product. The technical documentation, local execution model, safety requirements, and limitations above remain authoritative.
+
+| Channel | Official destination |
+| --- | --- |
+| Website | [knoux.store](https://knoux.store/) |
+| Corporate email | [admin@knoux.store](mailto:admin@knoux.store) |
+| Phone | [+971 50 328 1920](tel:+971503281920) |
+| WhatsApp | [Contact KNOUX](https://wa.me/971503281920) |
+| KNOUX Facebook | [Official company page](https://www.facebook.com/knouxStore/) |
+| Founder Facebook | [Eng. Sadek Elgazar](https://www.facebook.com/CopSadek) |
+| Engineering GitHub | [daynightae-cmyk](https://github.com/daynightae-cmyk) |
+| KNOUX GitHub | [knoux-io](https://github.com/knoux-io) |
+| TikTok | [@knoux_7](https://www.tiktok.com/@knoux_7) |
