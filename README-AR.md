@@ -140,3 +140,27 @@ GitHub Actions يشغّل بوابة جودة Windows مع كل Push أو Pull R
 - `.github/workflows/ci.yml` — بوابة الجودة الآلية.
 
 أي وثيقة تاريخية تشير إلى 100 أداة تصف خط الأساس القديم للإصدار، وليست جردًا كاملًا للمستودع الحالي.
+
+---
+
+## الهوية الرسمية والتواصل
+
+<p align="center">
+  <a href="https://knoux.store/"><img src="https://i.postimg.cc/Kv9g6Kpt/cropped-circle-image-%281%29.png" alt="شعار KNOUX الرسمي" width="112" /></a>
+</p>
+
+**KNOUX** — المؤسس ومهندس البرمجيات: **م. صادق الجزار (Eng. Sadek Elgazar)**.
+
+KNOUX Repair أحد منتجات KNOUX. تظل وثائق التشغيل المحلي والأمان والقيود الفنية أعلاه هي المرجع المعتمد للمنتج.
+
+| القناة | الرابط الرسمي |
+| --- | --- |
+| الموقع | [knoux.store](https://knoux.store/) |
+| البريد الرسمي | [admin@knoux.store](mailto:admin@knoux.store) |
+| الهاتف | [+971 50 328 1920](tel:+971503281920) |
+| واتساب | [تواصل مع KNOUX](https://wa.me/971503281920) |
+| فيسبوك الشركة | [الصفحة الرسمية](https://www.facebook.com/knouxStore/) |
+| فيسبوك المؤسس | [م. صادق الجزار](https://www.facebook.com/CopSadek) |
+| GitHub الهندسي | [daynightae-cmyk](https://github.com/daynightae-cmyk) |
+| GitHub العلامة | [knoux-io](https://github.com/knoux-io) |
+| TikTok | [@knoux_7](https://www.tiktok.com/@knoux_7) |
